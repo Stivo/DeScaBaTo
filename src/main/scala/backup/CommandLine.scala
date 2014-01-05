@@ -13,6 +13,7 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.security.MessageDigest
+import com.quantifind.sumac.ParseHelper
 
 trait ExplainHelp extends FieldArgs {
   override def helpMessage = {
@@ -26,6 +27,7 @@ trait ExplainHelp extends FieldArgs {
 }
 
 case class Size(bytes: Long) {
+  def this() = this(-1L)
   override def toString = Test.readableFileSize(bytes)
 }
 
@@ -60,13 +62,13 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
   @Required
   var folderToBackup: File = _
   
-  var volumeSize : Size = SizeParser.parse("64Mb");
+  //var volumeSize : Size = SizeParser.parse("64Mb");
   
   var blockSize : Size = new Size(1024*1024);
     
   override def toString() = {
     s"Backing up folder $folderToBackup to $backupFolder (using $compression, "+ 
-    s"$volumeSize Volumes and $blockSize blocks). "
+    s"$blockSize blocks). "
     .+(super[EncryptionOptions].toString)
   }
   
@@ -149,7 +151,6 @@ trait OptionCommand extends Command {
   def execute(a: Array[String]) {
     val args = getNewOptions
     val prepared = prepareArgs(a)
-    args.registerParser(SizeParser)
     args.parse(prepared)
     execute(args)
   }
@@ -210,8 +211,10 @@ class FindCommand extends OptionCommand {
 
 
 object CommandLine {
+  
   def prepareCommands = {
     val list = Buffer[OptionCommand]()
+    ParseHelper.registerParser(SizeParser)
     list += new BackupCommand()
     list += new RestoreCommand()
     list += new FindCommand()
@@ -237,7 +240,7 @@ object CommandLine {
 	    a ++= "--hashAlgorithm" :: "sha256" :: Nil 
 	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "backups" :: "test" :: Nil
-	    parseCommandLine(a.toArray)
+//	    parseCommandLine(a.toArray)
 	    a.clear()
 	    a += "restore"
 	    a ++= "-c" :: "zip" :: Nil
@@ -247,7 +250,7 @@ object CommandLine {
 	    a ++= "--relativeToFolder" :: "" :: Nil
 	    a ++= "backups" :: "restore" :: Nil
 	    printAllHelp
-	    parseCommandLine(a.toArray)
+//	    parseCommandLine(a.toArray)
     }
   }
 }
