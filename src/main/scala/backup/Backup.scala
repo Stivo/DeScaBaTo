@@ -7,12 +7,9 @@ import scala.collection.mutable.Buffer
 import java.io.File
 import java.util.Date
 import java.io.ByteArrayOutputStream
-
-trait BlockStrategy {
-  def blockExists(hash: Array[Byte]) : Boolean
-  def writeBlock(hash: Array[Byte], buf: Array[Byte])
-  def readBlock(hash: Array[Byte]) : Array[Byte]
-}
+import java.io.OutputStream
+import java.util.Comparator
+import java.util.Arrays
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils {
   import Streams._
@@ -37,40 +34,6 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils {
   
 }
 
-class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
-  import Streams._
-  import Test._
-  import ByteHandling._
-  val blocksFolder = new File(option.backupFolder, "blocks")
-  
-  def blockExists(b: Array[Byte]) = {
-    new File(blocksFolder, encodeBase64Url(b)).exists()
-  }
-  def writeBlock(hash: Array[Byte], buf: Array[Byte]) {
-    val hashS = encodeBase64Url(hash)
-    val f = new File(blocksFolder,hashS)
-    val fos = newFileOutputStream(f)(option)
-    fos.write(buf)
-    fos.close()
-  }
-  
-  val buf = Array.ofDim[Byte](128*1024+10)
-  
-  def readBlock(x: Array[Byte]) = {
-      val out = new ByteArrayOutputStream()
-      val fis = newFileInputStream(new File(blocksFolder, encodeBase64Url(x)))(option)
-      while (fis.available() > 0) {
-    	  val newOffset = fis.read(buf, 0, buf.length - 1)
-		  if (newOffset > 0) {
-			  out.write(buf, 0, newOffset)
-		  }
-      }
-      fis.close()
-      out.toByteArray()
-  }
-
-  
-}
 class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[BackupOptions](options){
   import Streams._
   import Test._
@@ -105,6 +68,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
     }
     walk(options.folderToBackup)
     newFiles()
+    blockStrategy.finishWriting
     l.info(s"Backup completed of $fileCounter (${readableFileSize(sizeCounter)})")
 }
 
@@ -157,6 +121,7 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
       
   def restoreFolder() {
     val filesDb = loadBackupDescriptions()
+    blockStrategy.setup(filesDb)
     val dest = options.restoreToFolder
     val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder) 
     val f = new File(options.backupFolder, "files.db")

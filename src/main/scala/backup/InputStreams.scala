@@ -43,6 +43,23 @@ object Streams {
     
   }
   
+  class CountingOutputStream(val stream: OutputStream) extends OutputStream {
+    var counter: Long = 0
+    def write(b : Int)  {
+      counter += 1
+      stream.write(b)
+    }
+  
+    override def write(buf: Array[Byte], start: Int, len: Int)  {
+      counter += len
+      stream.write(buf, start, len)
+    }
+
+    def count() = counter
+    
+    override def close() = stream.close()
+  }
+
   class BlockOutputStream(val blockSize: Int, func: (Array[Byte] => _)) extends OutputStream {
     
     var out = new ByteArrayOutputStream(blockSize+10)

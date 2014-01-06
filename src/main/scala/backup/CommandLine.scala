@@ -55,7 +55,7 @@ trait BackupFolderOption extends FileHandlingOptions {
   @Required
   var backupFolder: File = null
   
-  def getBlockStrategy() = new FolderBlockStrategy(this)
+  def getBlockStrategy() : BlockStrategy = new ZipBlockStrategy(this)
   
 }
 
@@ -65,7 +65,7 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
   @Required
   var folderToBackup: File = _
   
-  var volumeSize : Size = SizeParser.parse("8Mb");
+  var volumeSize : Size = SizeParser.parse("64Mb");
   
   var blockSize : Size = new Size(1024*1024);
     
@@ -74,6 +74,8 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
     s"$blockSize blocks). "
     .+(super[EncryptionOptions].toString)
   }
+  
+  override def getBlockStrategy() = new ZipBlockStrategy(this, Some(volumeSize))
   
 }
 
@@ -243,15 +245,17 @@ object CommandLine {
 	    
 	    a += "backup"
 	    a ++= "-c" :: "zip" :: Nil
-	    a ++= "--hashAlgorithm" :: "sha256" :: Nil 
-	    a ++= "--passphrase" :: "password" :: Nil
+	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
+//	    a ++= "--passphrase" :: "password" :: Nil
+	    a ++= "--blockSize" :: "10Kb" :: Nil
+	    a ++= "--volumeSize" :: "1Mb" :: Nil
 	    a ++= "backups" :: "test" :: Nil
 	    parseCommandLine(a.toArray)
 	    a.clear()
 	    a += "restore"
 	    a ++= "-c" :: "zip" :: Nil
-	    a ++= "--hashAlgorithm" :: "sha256" :: Nil 
-	    a ++= "--passphrase" :: "password" :: Nil
+	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
+//	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "--keyLength" :: "128" :: Nil
 	    a ++= "--relativeToFolder" :: "" :: Nil
 	    a ++= "backups" :: "restore" :: Nil
