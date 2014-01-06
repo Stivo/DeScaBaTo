@@ -14,6 +14,9 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.security.MessageDigest
 import com.quantifind.sumac.ParseHelper
+import java.io.FileInputStream
+import java.io.ByteArrayInputStream
+import java.util.zip.GZIPInputStream
 
 trait ExplainHelp extends FieldArgs {
   override def helpMessage = {
@@ -217,8 +220,25 @@ class FindCommand extends OptionCommand {
   }
 }
 
-
 object CommandLine {
+  
+  def verifyBlock(f: File) {
+    val reader = new ZipFileReader(f)
+    reader.names.foreach{x => 
+      val bytes = reader.getBytes(x).get
+      val md = MessageDigest.getInstance("SHA-256")
+      val gzip = new ByteArrayInputStream(bytes)
+      var lastRead = 1
+      while (lastRead > 0) {
+      val buf = Array.ofDim[Byte](1024)
+      lastRead = gzip.read(buf)
+      if (lastRead > 0)
+    	  md.update(buf, 0, lastRead)
+      }
+      val out = md.digest()
+      println(ByteHandling.encodeBase64Url(out)+" == "+x)
+    }
+  }
   
   def prepareCommands = {
     val list = Buffer[OptionCommand]()
@@ -241,21 +261,22 @@ object CommandLine {
     if (runsInJar) {
       parseCommandLine(args)
     } else {
+//        verifyBlock(new File("e:/temp/test/volume_23.zip"))
 	    var a = Buffer[String]()
 	    
 	    a += "backup"
-	    a ++= "-c" :: "zip" :: Nil
+//	    a ++= "-c" :: "zip" :: Nil
 	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
-//	    a ++= "--passphrase" :: "password" :: Nil
+	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "--blockSize" :: "10Kb" :: Nil
 	    a ++= "--volumeSize" :: "1Mb" :: Nil
 	    a ++= "backups" :: "test" :: Nil
 	    parseCommandLine(a.toArray)
 	    a.clear()
 	    a += "restore"
-	    a ++= "-c" :: "zip" :: Nil
+//	    a ++= "-c" :: "zip" :: Nil
 	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
-//	    a ++= "--passphrase" :: "password" :: Nil
+	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "--keyLength" :: "128" :: Nil
 	    a ++= "--relativeToFolder" :: "" :: Nil
 	    a ++= "backups" :: "restore" :: Nil

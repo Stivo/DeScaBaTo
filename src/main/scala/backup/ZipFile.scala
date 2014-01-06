@@ -26,6 +26,8 @@ class ZipFileReader(zip: File) extends ZipFileHandler(zip) {
   def getBytes(name: String) = Option(zf.getEntry(name)).map(getContent)
 
   def getString(name: String, enc: String = "utf-8") = getBytes(name).map(x => new String(x, enc))
+  
+  def getStream(name: String) = zf.getInputStream(zf.getEntry(name))
    
    private def getContent(ze: ZipEntry) = {
      val input = zf.getInputStream(ze)

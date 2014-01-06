@@ -35,6 +35,8 @@ import java.text.SimpleDateFormat
 import java.nio.file.attribute.FileTime
 import java.text.DecimalFormat
 import java.io.InputStream
+import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
 
 class FileAttributes extends scala.collection.mutable.HashMap[String, Object] {
   
@@ -209,8 +211,8 @@ object ByteHandling {
     kryo.readObject(output, m.erasure).asInstanceOf[T]
   }
 
-  def newFileOutputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
-    var out: OutputStream = new FileOutputStream(file)
+  def wrapOutputStream(stream: OutputStream)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
+    var out = stream
     if (fileHandlingOptions.passphrase != null) {
       if (fileHandlingOptions.algorithm == "AES") {
         out = AES.wrapStreamWithEncryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
@@ -223,9 +225,29 @@ object ByteHandling {
     }
     out
   }
+  
+  def newFileOutputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
+    var out: OutputStream = new FileOutputStream(file)
+    wrapOutputStream(out)
+  }
 
-  def newFileInputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) = {
-    var out: InputStream = new FileInputStream(file)
+  def newByteArrayOut(content: Array[Byte])(implicit fileHandlingOptions: FileHandlingOptions) = {
+    var out = new ByteArrayOutputStream()
+    val wrapped = wrapOutputStream(out)
+    wrapped.write(content)
+    wrapped.close()
+    val r = out.toByteArray
+    r
+  }
+  
+  def readFully(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
+    val baos = new ByteArrayOutputStream(10240)
+    copy(wrapInputStream(in), baos)
+    baos.toByteArray()
+  }
+
+  def wrapInputStream(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
+    var out = in
     if (fileHandlingOptions.passphrase != null) {
       if (fileHandlingOptions.algorithm == "AES") {
         out = AES.wrapStreamWithDecryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
@@ -238,6 +260,30 @@ object ByteHandling {
     }
     out
   }
+  
+  def newFileInputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) = {
+    var out: InputStream = new FileInputStream(file)
+    wrapInputStream(out)
+  }
 
-
+  def readFrom(in: InputStream, f: (Array[Byte], Int) => Unit) {
+    val buf = Array.ofDim[Byte](10240)
+    var lastRead = 1
+    while (lastRead > 0) {
+      lastRead = in.read(buf)
+      if (lastRead > 0) {
+        f(buf, lastRead)
+      }
+    }
+    in.close()
+  }
+  
+  def copy(in: InputStream, out: OutputStream) {
+    readFrom(in, { (x: Array[Byte], len: Int) =>
+      out.write(x, 0, len)
+    })
+    in.close()
+    out.close()
+  }
+  
 }

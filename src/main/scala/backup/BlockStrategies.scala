@@ -166,8 +166,8 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
       startZip
     }
     if (!knownBlocksTemp.contains(hash)) {
-       l.trace(s"Writing hash to $curNum")
-       currentZip.writeEntry(hashS, buf)
+    	l.trace(s"Writing hash to $curNum")
+       currentZip.writeEntry(hashS, newByteArrayOut(buf)(option))
        currentIndex.write(hash)
        knownBlocksTemp += ((hash, curNum))
     } else {
@@ -196,7 +196,8 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     l.trace(s"Getting block for hash $hashS")
     val num: Int = knownBlocks.get(hash).get
     val zipFile = getZipFileReader(num)
-    zipFile.getBytes(hashS).get
+    val input = zipFile.getStream(hashS)
+    readFully(input)(option)
   }
   
   override def finishWriting() {

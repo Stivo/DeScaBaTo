@@ -6,19 +6,19 @@ import java.security.MessageDigest
 import scala.collection.mutable.Buffer
 import java.util.Arrays
 import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
 
 object Streams {
   
   class SplitInputStream(in: InputStream, outStreams: List[OutputStream]) extends InputStream {
     def read() = in.read()
+    import ByteHandling.readFrom
     def readComplete() {
-      val buf = Array.ofDim[Byte](1024*1024)
-      while (in.available() > 0) {
-        val newOffset = in.read(buf, 0, buf.length)
+      readFrom(in, {(buf: Array[Byte], len: Int) =>
         for (outStream <- outStreams) {
-          outStream.write(buf, 0, newOffset)
+          outStream.write(buf, 0, len)
         }
-      }
+      })
       outStreams.foreach(_.close)
     }
   }
@@ -94,44 +94,6 @@ object Streams {
       super.close()
     }
 	  
-  }
-  
-  class BlockWritingOutputStream(val algorithm: String, val blockSize: Int) extends OutputStream {
-    val md = MessageDigest.getInstance(algorithm)
-    var cur = 0
-    var result = Buffer[Array[Byte]]()
-    def write(b : Int)  {
-       md.update(b.toByte);
-       cur += 1
-       if (cur == blockSize) {
-         finishBlock()
-         cur = 0
-       }
-    }
-  
-    def finishBlock() {
-      result += md.digest()
-    }
-    
-    override def write(buf: Array[Byte], start: Int, len: Int)  {
-      var (lenC, startC) = (len, start)
-      while (lenC > 0) {
-        val now = Math.min(blockSize-cur, lenC)
-	    md.update(buf, startC, now);
-        cur -= now
-        lenC -= now
-        if (cur == blockSize) {
-          finishBlock()
-          startC += lenC
-        }
-      }
-    }
-    
-    override def close() {
-      finishBlock()
-      super.close()
-    }
-
   }
   
 }
