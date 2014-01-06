@@ -6,14 +6,20 @@ import java.text.SimpleDateFormat
 import scala.collection.mutable.Buffer
 import java.io.File
 import java.util.Date
+import java.io.ByteArrayOutputStream
+
+trait BlockStrategy {
+  def blockExists(hash: Array[Byte]) : Boolean
+  def writeBlock(hash: Array[Byte], buf: Array[Byte])
+  def readBlock(hash: Array[Byte]) : Array[Byte]
+}
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils {
   import Streams._
   import Test._
   import ByteHandling._
-  var knownBlocks: Set[Array[Byte]] = Set()
   
-  def checkIfBlockExists(b: Array[Byte]) = knownBlocks contains b
+  val blockStrategy = folder.getBlockStrategy
   
   def loadBackupDescriptions() = {
     val files = folder.backupFolder.listFiles().filter(_.isFile()).filter(_.getName().startsWith("files"))
@@ -31,6 +37,40 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils {
   
 }
 
+class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
+  import Streams._
+  import Test._
+  import ByteHandling._
+  val blocksFolder = new File(option.backupFolder, "blocks")
+  
+  def blockExists(b: Array[Byte]) = {
+    new File(blocksFolder, encodeBase64Url(b)).exists()
+  }
+  def writeBlock(hash: Array[Byte], buf: Array[Byte]) {
+    val hashS = encodeBase64Url(hash)
+    val f = new File(blocksFolder,hashS)
+    val fos = newFileOutputStream(f)(option)
+    fos.write(buf)
+    fos.close()
+  }
+  
+  val buf = Array.ofDim[Byte](128*1024+10)
+  
+  def readBlock(x: Array[Byte]) = {
+      val out = new ByteArrayOutputStream()
+      val fis = newFileInputStream(new File(blocksFolder, encodeBase64Url(x)))(option)
+      while (fis.available() > 0) {
+    	  val newOffset = fis.read(buf, 0, buf.length - 1)
+		  if (newOffset > 0) {
+			  out.write(buf, 0, newOffset)
+		  }
+      }
+      fis.close()
+      out.toByteArray()
+  }
+
+  
+}
 class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[BackupOptions](options){
   import Streams._
   import Test._
@@ -38,7 +78,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   
   def backupFolder() {
     new File(options.backupFolder, "blocks").mkdirs()
-      l.info("Starting to backup")
+    l.info("Starting to backup")
   	val oldOnes = loadBackupDescriptions()
   	l.info(s"Found ${oldOnes.size} previously backed up files")
     val now = new Date()
@@ -75,6 +115,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   }
   
   def backupFile(file: File, oldOnes: Buffer[BackupPart]) = {
+    import blockStrategy._
     def makeNew = {
         l.info(s"File ${file.getName} is new / has changed, backing up")
    	    val fis = new FileInputStream(file)
@@ -85,13 +126,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
 	      buf : Array[Byte] => 
 	        
 	        val hash = md.digest(buf)
-	        val hashS = encodeBase64Url(hash)
 	        out += hash
-	        val f = new File(options.backupFolder, "blocks/"+hashS)
-	        if (!f.exists()) {
-	          val fos = newFileOutputStream(f)(options)
-	          fos.write(buf)
-	          fos.close()
+	        if (!blockExists(hash)) {
+	          writeBlock(hash, buf)
 	        }
 	    })
 	    val hos = new HashingOutputStream(options.getHashAlgorithm)
@@ -138,20 +175,12 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   }
   
   def restoreFileDesc(fd: FileDescription) {
-    val hashes = fd.hashList.grouped(options.getMessageDigest.getDigestLength()).map(encodeBase64Url)
+    val hashes = fd.hashList.grouped(options.getMessageDigest.getDigestLength())
     val restoredFile = new File(options.restoreToFolder, fd.relativeTo(relativeTo).getPath())
     val fos = new FileOutputStream(restoredFile)
-    val buf = Array.ofDim[Byte](1024*1024+10)
     for (x <- hashes) {
       l.trace(s"Restoring from block $x")
-      val fis = newFileInputStream(new File(options.backupFolder, s"blocks/$x"))(options)
-      while (fis.available() > 0) {
-    	  val newOffset = fis.read(buf, 0, buf.length - 1)
-		  if (newOffset > 0) {
-			  fos.write(buf, 0, newOffset)
-		  }
-      }
-      fis.close()
+      fos.write(blockStrategy.readBlock(x))
     }
     fos.close()
     if (restoredFile.length() != fd.size) {

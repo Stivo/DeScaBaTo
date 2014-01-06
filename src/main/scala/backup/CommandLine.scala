@@ -54,6 +54,9 @@ trait BackupFolderOption extends FileHandlingOptions {
   @Arg(shortcut="arg1")
   @Required
   var backupFolder: File = null
+  
+  def getBlockStrategy() = new FolderBlockStrategy(this)
+  
 }
 
 class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionOptions {
