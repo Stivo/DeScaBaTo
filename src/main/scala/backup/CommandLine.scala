@@ -63,7 +63,7 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
   
   @Arg(shortcut="arg2")
   @Required
-  var folderToBackup: File = _
+  var folderToBackup: List[File] = _
   
   var volumeSize : Size = SizeParser.parse("64Mb");
   

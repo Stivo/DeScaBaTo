@@ -110,10 +110,11 @@ trait BackupPart extends Utils {
       Files.setAttribute(f.toPath(), name, o)
     }
   }
+  
 }
 
 case class FileDescription(path: String, size: Long, 
-    hash: Array[Byte], hashList: Array[Byte], attrs: FileAttributes) extends BackupPart {
+    hash: Array[Byte], hashChain: Array[Byte], attrs: FileAttributes) extends BackupPart {
   def name = path.split("""[/\\]""").last
 }
 
@@ -181,6 +182,15 @@ object ByteHandling {
       def read (kryo: Kryo, input: Input, clazz: Class[FileTime]) = {
         val millis = kryo.readObject(input, classOf[Long])
         FileTime.fromMillis(millis)
+      }
+    })
+    out.register(classOf[BAWrapper2], new Serializer[BAWrapper2](){
+      def write (kryo: Kryo, output: Output, fa: BAWrapper2){
+        kryo.writeObject(output, fa.data)
+      }
+      def read (kryo: Kryo, input: Input, clazz: Class[BAWrapper2]) = {
+        val data = kryo.readObject(input, classOf[Array[Byte]])
+        BAWrapper2.byteArrayToWrapper(data)
       }
     })
     out

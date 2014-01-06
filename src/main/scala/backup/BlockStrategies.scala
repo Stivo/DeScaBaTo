@@ -59,36 +59,52 @@ class BAWrapper2(ba:Array[Byte]) {
   override def hashCode:Int = Arrays.hashCode(data)
 }
 
+object BAWrapper2 {
+  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
+}
 
-class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = None) extends BlockStrategy {
+trait CountingFileManager {
+  def prefix : String
+  def getNum(file: File) = file.getName.drop(prefix.length()).takeWhile(x => (x+"").matches("\\d")).toInt
+  def getFilesAndNextNum(file: File) = {
+    var max : Int = -1
+    val indexes = file.listFiles().filter(_.isFile).filter(_.getName.startsWith(prefix)).sortBy(_.getName)
+    indexes.map(getNum).foreach { num =>
+      max = Math.max(max, num)
+    }
+    (indexes, max+1)
+  }
+}
+
+class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = None) extends BlockStrategy with CountingFileManager {
   import Streams._
   import Test._
   import ByteHandling._
-  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
+  import BAWrapper2.byteArrayToWrapper
   
   var setupRan = false
   var knownBlocks: Map[BAWrapper2, Int] = Map()
   var knownBlocksTemp: Map[BAWrapper2, Int] = Map()
   var curNum = 0
   
+  val prefix = "index_"
+  
   def setup() {
     if (setupRan) 
       return
     
-    val indexes = option.backupFolder.listFiles().filter(_.getName.startsWith("index_"))
-    var max = 0
+    val (indexes, max) = getFilesAndNextNum(option.backupFolder)
     indexes.foreach { f =>
-      val num: Int = f.getName.drop("index_".length()).dropRight(".zip".length()).toInt
+      val num: Int = getNum(f)
       val bos = new BlockOutputStream(option.hashLength, { hash : Array[Byte] =>
         l.trace(s"Adding hash ${encodeBase64Url(hash)} for volume $num")
         knownBlocks += ((hash, num))
       });
-      max = Math.max(num, max)
       val sis = new SplitInputStream(newFileInputStream(f)(option), bos::Nil)
       sis.readComplete
     }
-    curNum = max + 1
-    l.info(s"Found highest volume is $max, so starting at $curNum")
+    curNum = max
+    l.info(s"Found highest volume is ${max-1}, so starting at $curNum")
     setupRan = true
   }
   
