@@ -62,7 +62,7 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
   @Required
   var folderToBackup: File = _
   
-  //var volumeSize : Size = SizeParser.parse("64Mb");
+  var volumeSize : Size = SizeParser.parse("8Mb");
   
   var blockSize : Size = new Size(1024*1024);
     
@@ -180,7 +180,8 @@ class BackupCommand extends OptionCommand {
   def execute(args: T) {
     println(args)
     if (askUser) {
-      Test.BackupHandler.backupFolder(args)
+      val bh = new BackupHandler(args)
+      bh.backupFolder()
     } 
   }
 }
@@ -193,7 +194,8 @@ class RestoreCommand extends OptionCommand {
   def execute(args: T) {
     println(args)
     if (askUser) {
-      Test.BackupHandler.restoreFolder(args)
+      val bh = new RestoreHandler(args)
+      bh.restoreFolder()
     } 
   }
 }
@@ -205,7 +207,8 @@ class FindCommand extends OptionCommand {
   def getNewOptions = new T()
   def execute(args: T) {
     println(args)
-    Test.BackupHandler.findInBackup(args)
+    val bh = new SearchHandler(args)
+    bh.findInBackup(args)
   }
 }
 
@@ -240,7 +243,7 @@ object CommandLine {
 	    a ++= "--hashAlgorithm" :: "sha256" :: Nil 
 	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "backups" :: "test" :: Nil
-//	    parseCommandLine(a.toArray)
+	    parseCommandLine(a.toArray)
 	    a.clear()
 	    a += "restore"
 	    a ++= "-c" :: "zip" :: Nil
@@ -249,8 +252,8 @@ object CommandLine {
 	    a ++= "--keyLength" :: "128" :: Nil
 	    a ++= "--relativeToFolder" :: "" :: Nil
 	    a ++= "backups" :: "restore" :: Nil
-	    printAllHelp
-//	    parseCommandLine(a.toArray)
+//	    printAllHelp
+	    parseCommandLine(a.toArray)
     }
   }
 }

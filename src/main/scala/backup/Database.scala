@@ -64,9 +64,21 @@ object FileAttributes {
 
 }
 
+object Utils {
+  val units = Array[String] ( "B", "KB", "MB", "GB", "TB" );
+}
+
 trait Utils extends Logging {
   lazy val l = logger
+  
   def isWindows = System.getProperty("os.name").contains("indows")
+
+  def readableFileSize(size: Long) : String = {
+    if(size <= 0) return "0";
+    val digitGroups = (Math.log10(size)/Math.log10(1024)).toInt;
+    return new DecimalFormat("#,##0.#").format(size/Math.pow(1024, digitGroups)) + " " + Utils.units(digitGroups);
+  }
+
 } 
 
 trait BackupPart extends Utils {
@@ -138,208 +150,8 @@ object Test extends Utils {
     }
   }
   
-  val units = Array[String] ( "B", "KB", "MB", "GB", "TB" );
-  
-  def readableFileSize(size: Long) : String = {
-    if(size <= 0) return "0";
-    val units = Array[String] ( "B", "KB", "MB", "GB", "TB" );
-    val digitGroups = (Math.log10(size)/Math.log10(1024)).toInt;
-    return new DecimalFormat("#,##0.#").format(size/Math.pow(1024, digitGroups)) + " " + units(digitGroups);
-  }
-
-  object BackupHandler extends Utils {
-  
-    val blockSize = 1024*1024
-        
-    def loadBackupDescriptions(backupFolder: File)(implicit options: FileHandlingOptions) = {
-      val files = backupFolder.listFiles().filter(_.isFile()).filter(_.getName().startsWith("files"))
-      val sorted = files.sortBy(_.getName())
-      if (files.size > 0) {
-        val lastPattern = sorted.last.getName().takeWhile(_!= '_')
-        val filesToLoad = sorted.dropWhile(!_.getName().contains(lastPattern))
-        filesToLoad.map(readObject[Buffer[BackupPart]]).reduce(_ ++ _)
-      } else
-        Buffer[BackupPart]()
-    }
-
-    val s = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
-    
-    def findInBackup(options: FindOptions) {
-      implicit val optionsHere = options
-      l.info("Loading information")
-      val oldOnes = loadBackupDescriptions(options.backupFolder)
-      l.info("Information loaded, filtering")
-      val filtered = oldOnes.filter(_.path.contains(options.filePattern))
-      l.info(s"Filtering done, found ${filtered.size} entries")
-      filtered.take(100).foreach(println)
-      val size = filtered.map(_.size).fold(0L)(_+_)
-      l.info(s"Total ${readableFileSize(size)} found in ${filtered.size} files")
-    }
-    
-    def backupFolder(options: BackupOptions) {
-      implicit val optionsHere = options 
-      new File(options.backupFolder, "blocks").mkdirs()
-        l.info("Starting to backup")
-    	val oldOnes = loadBackupDescriptions(options.backupFolder)
-    	l.info(s"Found ${oldOnes.size} previously backed up files")
-	    val now = new Date()
-	    val filename = s"files-${s.format(now)}"
-	    var (counter, fileCounter, sizeCounter) = (0, 0, 0L)
-	    val files = Buffer[BackupPart]()
-
-	    def newFiles() {
-	      var filenamenow = s"${filename}_$counter.db"
-	      counter += 1
-	      fileCounter += files.length
-	      sizeCounter += files.map(_.size).fold(0L)(_+_)
-	      writeObject(files, new File(options.backupFolder, filenamenow))
-	      files.clear
-	    }
-	    def walk(file: File) {
-	      if (files.length >= 1000) {
-	        newFiles()
-	      }
-	      file.isDirectory() match {
-	        case true => files += backupFolderDesc(file); file.listFiles().foreach(walk)
-	        case false => files += backupFile(file, oldOnes)
-	      }
-	    }
-	    walk(options.folderToBackup)
-	    newFiles()
-	    l.info(s"Backup completed of $fileCounter (${readableFileSize(sizeCounter)})")
-	}
-
-    def restoreFolder(args: RestoreOptions) {
-        implicit val options = args
-        val filesDb = loadBackupDescriptions(args.backupFolder)
-        val dest = args.restoreToFolder
-        val relativeTo = args.relativeToFolder.getOrElse(args.restoreToFolder) 
-	    val f = new File(args.backupFolder, "files.db")
-	    val (foldersC, filesC) = filesDb.partition{case f: FolderDescription => true; case _ => false}
-	    val files = filesC.map(_.asInstanceOf[FileDescription])
-	    val folders = foldersC.map(_.asInstanceOf[FolderDescription])
-	    folders.foreach(x => restoreFolderDesc(x, dest, relativeTo))
-	    files.foreach(restoreFileDesc(_))
-	    folders.foreach(x => restoreFolderDesc(x, dest, relativeTo))
-	}
-	  
-	  def restoreFolderDesc(fd: FolderDescription, dest: File, relativeTo: File = new File("test")) {
-	    val restoredFile = new File(dest, fd.relativeTo(relativeTo).getPath())
-	    restoredFile.mkdirs()
-	    fd.applyAttrsTo(restoredFile)
-	  }
-	  
-	  def restoreFileDesc(fd: FileDescription)(implicit options: RestoreOptions) {
-	    val hashes = fd.hashList.grouped(options.getMessageDigest.getDigestLength()).map(encodeBase64Url)
-	    val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder) 
-	    val restoredFile = new File(options.restoreToFolder, fd.relativeTo(relativeTo).getPath())
-	    val fos = new FileOutputStream(restoredFile)
-	    val buf = Array.ofDim[Byte](blockSize+10)
-	    for (x <- hashes) {
-	      l.trace(s"Restoring from block $x")
-	      val fis = newFileInputStream(new File(options.backupFolder, s"blocks/$x"))
-	      while (fis.available() > 0) {
-	    	  val newOffset = fis.read(buf, 0, buf.length - 1)
-			  if (newOffset > 0) {
-				  fos.write(buf, 0, newOffset)
-			  }
-	      }
-	      fis.close()
-	    }
-	    fos.close()
-	    if (restoredFile.length() != fd.size) {
-	      l.error(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
-	    }
-	    fd.applyAttrsTo(restoredFile)
-	  }
-	  
-	  def backupFolderDesc(file: File)(implicit options: BackupOptions) = {
-	    val fa = FileAttributes(file)
-	    new FolderDescription(file.getAbsolutePath(), fa)
-	  }
-	  
-	  def backupFile(file: File, oldOnes: Buffer[BackupPart])(implicit options: BackupOptions) = {
-	    def makeNew = {
-	        l.info(s"File ${file.getName} is new / has changed, backing up")
-	   	    val fis = new FileInputStream(file)
-		    val md = options.getMessageDigest
-		    var out = Buffer[Array[Byte]]()
-		    
-		    val blockHasher = new BlockOutputStream(blockSize, {
-		      buf : Array[Byte] => 
-		        
-		        val hash = md.digest(buf)
-		        val hashS = encodeBase64Url(hash)
-		        out += hash
-		        val f = new File(options.backupFolder, "blocks/"+hashS)
-		        if (!f.exists()) {
-		          val fos = newFileOutputStream(f)
-		          fos.write(buf)
-		          fos.close()
-		        }
-		    })
-		    val hos = new HashingOutputStream(options.getHashAlgorithm)
-		    val sis = new SplitInputStream(fis, blockHasher::hos::Nil)
-		    sis.readComplete
-		    val hashList = out.reduce(_ ++ _)
-		    val hash = hos.out.get
-		    val fa = FileAttributes(file)
-		    new FileDescription(file.getAbsolutePath(), file.length(), hash, hashList, fa)
-	    }
-	    oldOnes.find(_.path == file.getAbsolutePath()) match {
-	      case Some(x: FileDescription) if (!x.attrs.hasBeenModified(file)) =>
-	        x
-	      case _ => makeNew
-	    }
-	  }
-  
-  }
-  
-  def newFileOutputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
-    var out: OutputStream = new FileOutputStream(file)
-    if (fileHandlingOptions.passphrase != null) {
-      if (fileHandlingOptions.algorithm == "AES") {
-        out = AES.wrapStreamWithEncryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
-      } else {
-        throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
-      }
-    }
-    if (fileHandlingOptions.compression == CompressionMode.zip) {
-      out = new GZIPOutputStream(out)
-    }
-    out
-  }
-
-  def newFileInputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) = {
-    var out: InputStream = new FileInputStream(file)
-    if (fileHandlingOptions.passphrase != null) {
-      if (fileHandlingOptions.algorithm == "AES") {
-        out = AES.wrapStreamWithDecryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
-      } else {
-        throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
-      }
-    }
-    if (fileHandlingOptions.compression == CompressionMode.zip) {
-      out = new GZIPInputStream(out)
-    }
-    out
-  }
-
-  
-  def writeObject(a: Any, filename: File)(implicit options: FileHandlingOptions) {
-    val kryo = getKryo()
-    val output = new Output(newFileOutputStream(filename));
-    kryo.writeObject(output, a);
-    output.close();
-  }
-  
-  def readObject[T](filename: File)(implicit m: Manifest[T], options: FileHandlingOptions) : T = {
-    val kryo = getKryo()
-    val output = new Input(newFileInputStream(filename));
-    kryo.readObject(output, m.erasure).asInstanceOf[T]
-  }
-   
 }
+
 
 object ByteHandling {
   
@@ -373,5 +185,49 @@ object ByteHandling {
     })
     out
   }
+  
+  def writeObject(a: Any, filename: File)(implicit options: FileHandlingOptions) {
+    val kryo = getKryo()
+    val output = new Output(newFileOutputStream(filename));
+    kryo.writeObject(output, a);
+    output.close();
+  }
+  
+  def readObject[T](filename: File)(implicit m: Manifest[T], options: FileHandlingOptions) : T = {
+    val kryo = getKryo()
+    val output = new Input(newFileInputStream(filename));
+    kryo.readObject(output, m.erasure).asInstanceOf[T]
+  }
+
+  def newFileOutputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
+    var out: OutputStream = new FileOutputStream(file)
+    if (fileHandlingOptions.passphrase != null) {
+      if (fileHandlingOptions.algorithm == "AES") {
+        out = AES.wrapStreamWithEncryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
+      } else {
+        throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
+      }
+    }
+    if (fileHandlingOptions.compression == CompressionMode.zip) {
+      out = new GZIPOutputStream(out)
+    }
+    out
+  }
+
+  def newFileInputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) = {
+    var out: InputStream = new FileInputStream(file)
+    if (fileHandlingOptions.passphrase != null) {
+      if (fileHandlingOptions.algorithm == "AES") {
+        out = AES.wrapStreamWithDecryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
+      } else {
+        throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
+      }
+    }
+    if (fileHandlingOptions.compression == CompressionMode.zip) {
+      out = new GZIPInputStream(out)
+    }
+    out
+  }
+
 
 }
