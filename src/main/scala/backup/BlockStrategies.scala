@@ -10,7 +10,6 @@ import java.io.IOException
 
 
 trait BlockStrategy {
-  def setup(list: Iterable[BackupPart]) {}
   def blockExists(hash: Array[Byte]) : Boolean
   def writeBlock(hash: Array[Byte], buf: Array[Byte])
   def readBlock(hash: Array[Byte]) : Array[Byte]
@@ -51,14 +50,6 @@ class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
   
 }
 
-object GlobalCounter {
-  var counter = 0
-  def getNext = {
-    counter += 1
-    counter
-  }
-}
-
 class BAWrapper2(ba:Array[Byte]) {
   def data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
   def equals(other:BAWrapper2):Boolean = Arrays.equals(data, other.data)
@@ -74,9 +65,16 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
   import Test._
   import ByteHandling._
   implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
-  var knownBlocks: Map[BAWrapper2, Int] = Map()
   
-  override def setup(list: Iterable[BackupPart]) {
+  var setupRan = false
+  var knownBlocks: Map[BAWrapper2, Int] = Map()
+  var knownBlocksTemp: Map[BAWrapper2, Int] = Map()
+  var curNum = 0
+  
+  def setup() {
+    if (setupRan) 
+      return
+    
     val indexes = option.backupFolder.listFiles().filter(_.getName.startsWith("index_"))
     var max = 0
     indexes.foreach { f =>
@@ -90,13 +88,14 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
       sis.readComplete
     }
     curNum = max + 1
+    l.info(s"Found highest volume is $max, so starting at $curNum")
+    setupRan = true
   }
   
   def blockExists(b: Array[Byte]) = {
+    setup()
     knownBlocks.keySet contains b
   }
-  
-  var curNum = GlobalCounter.getNext
   
   def volumeName(num: Int, temp: Boolean = false) = {
     val add = if (temp) ".temp" else ""
@@ -125,6 +124,8 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
         }
     	rename(volumeName)
     	rename(indexName)
+    	knownBlocks ++= knownBlocksTemp
+    	knownBlocksTemp = Map()
     	curNum +=1
     	currentZip = null
     	currentIndex = null
@@ -140,6 +141,7 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     if (!volumeSize.isDefined) {
       throw new IllegalArgumentException("Volume size needs to be set when writing new volumes")
     }
+    setup()
     val hashS = encodeBase64Url(hash)
     if (currentZip != null && currentZip.size + buf.length + hashS.length > volumeSize.get.bytes) {
       endZip
@@ -147,9 +149,14 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     if (currentZip == null) {
       startZip
     }
-    l.trace(s"Writing hash to $curNum")
-    currentZip.writeEntry(hashS, buf)
-    currentIndex.write(hash)
+    if (!knownBlocksTemp.contains(hash)) {
+       l.trace(s"Writing hash to $curNum")
+       currentZip.writeEntry(hashS, buf)
+       currentIndex.write(hash)
+       knownBlocksTemp += ((hash, curNum))
+    } else {
+      l.debug(s"File already contains this hash $hashS")
+    }
   }
   
   val buf = Array.ofDim[Byte](128*1024+10)
@@ -168,6 +175,7 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
   }
   
   def readBlock(hash: Array[Byte]) = {
+    setup()
     val hashS = encodeBase64Url(hash)
     l.trace(s"Getting block for hash $hashS")
     val num: Int = knownBlocks.get(hash).get

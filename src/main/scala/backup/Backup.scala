@@ -121,7 +121,6 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
       
   def restoreFolder() {
     val filesDb = loadBackupDescriptions()
-    blockStrategy.setup(filesDb)
     val dest = options.restoreToFolder
     val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder) 
     val f = new File(options.backupFolder, "files.db")

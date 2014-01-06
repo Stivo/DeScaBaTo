@@ -14,7 +14,7 @@ Besides the normal dependencies it depends on a modified version of Sumac. Clone
 You will need sbt to compile or to set up eclipse. sbt assembly will create a runnable jar with all dependencies included (~12Mb).
 
 ### Implementation idea
-The current implementation finds all the files in a directory and hashes them block wise. A block contains a fixed number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used. The blocks are then not needed on a daily basis and can go on a external medium, however they are useless without the small files describing their contents. In the future I might add blocks to a zip volume, so that they can easily be uploaded to remote storage (cloud, ftp etc). 
+The current implementation finds all the files in a directory and hashes them block wise. A block contains a fixed number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used. The blocks are then not needed on a daily basis and can go on a external medium, however they are useless without the small files describing their contents. Blocks are bundled into zip volumes, so that they can easily be uploaded to remote storage (cloud, ftp etc). 
 
 ### Usage
 
@@ -26,13 +26,14 @@ The options are:
 
     usage: 
     --blockSize                       Size        	    1 MB
+    --volumeSize                      Size        	    64 MB
     --hashAlgorithm                   HashMethod  	    md5
     --passphrase                      String      	    null
     --algorithm                       String      	    AES
     --keyLength                       int         	    128
     --compression            (-c)     CompressionMode	none
 
-These options apply to backup, restore and find (except for blockSize which is only for backup). Options are optional.
+These options apply to backup, restore and find (except for blockSize and volumeSize which is only for backup). Options are optional.
 
     restore [options] backupFolder restoreDestinationFolder
 

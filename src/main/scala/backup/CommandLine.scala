@@ -85,7 +85,7 @@ class RestoreOptions extends ExplainHelp with BackupFolderOption with Encryption
   @Required
   var restoreToFolder: File = _
   
-  var relativeToFolder: Option[File] = _
+  var relativeToFolder: Option[File] = None
   
   override def toString() = {
     val relativeTo = if (relativeToFolder.isDefined) s", relative to $relativeToFolder" else ""
