@@ -17,15 +17,24 @@ import com.quantifind.sumac.ParseHelper
 import java.io.FileInputStream
 import java.io.ByteArrayInputStream
 import java.util.zip.GZIPInputStream
+import com.quantifind.sumac.PropertiesConfig
+import com.quantifind.sumac.Args
+import java.util.Properties
+import java.io.FileOutputStream
 
 trait ExplainHelp extends FieldArgs {
+  
+  def name = this.getClass().getSimpleName().dropRight("Options".length).toLowerCase()
+  
   override def helpMessage = {
-    val lines = super.helpMessage.lines
-    val out = new StringBuilder()
-    out ++= lines.next+"\n"
-    out ++= "(Commands with -argX shortcuts should be named last)\n"
-    out ++= lines.mkString("\n")
-    out.toString
+    val lines = super.helpMessage.lines.toList
+    // Sorting the -arg arguments first in the list
+    val regex = "\\(-arg(\\d+)"r
+    val withArgs = lines.drop(1).filter(_.contains("(-arg"))
+    val sorted = withArgs.toArray.sortBy{x => regex.findFirstMatchIn(x).get.group(1).toInt}
+    val sortedOptions = List("usage "+name+":")++List("(Commands with -argX shortcuts can be named last unnamed)")++
+    		sorted++lines.drop(1).filter(x => !sorted.contains(x))
+    sortedOptions.mkString("\n")
   }
 }
 
@@ -53,13 +62,34 @@ object SizeParser extends SimpleParser[Size] {
   }
 }
 
-trait BackupFolderOption extends FileHandlingOptions {
+trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig  {
   @Arg(shortcut="arg1")
   @Required
   var backupFolder: File = null
   
   def getBlockStrategy() : BlockStrategy = new ZipBlockStrategy(this)
   
+  var savePropertiesFile: File = null
+  
+  def saveConfigFile(file: File = savePropertiesFile) {
+    if (file != null)
+    	PropertiesConfigCopy.saveConfig(this, file)
+  }
+
+}
+
+object PropertiesConfigCopy {
+  def saveConfig(args: FileHandlingOptions, propertyFile: File) {
+    val props = new Properties()
+    // passphrase should not be saved
+    args.getStringValues
+    	.filter(_._1 != "passphrase")
+    	.filter(_._1 != "savePropertiesFile")
+    	.foreach{case(k,v) => props.put(k,v)}
+    val out = new FileOutputStream(propertyFile)
+    props.store(out, "")
+    out.close()
+  }
 }
 
 class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionOptions {
@@ -133,6 +163,11 @@ trait HashOptions extends FieldArgs {
   def hashLength = getMessageDigest.getDigestLength()
 }
 
+class HelpOptions extends FieldArgs {
+  @Arg(shortcut="arg1")
+  var command : String = _
+}
+
 trait FileHandlingOptions extends CompressionOptions with EncryptionOptions with HashOptions
 
 trait Command {
@@ -142,14 +177,28 @@ trait Command {
 
 trait OptionCommand extends Command {
   type T <: FieldArgs
+  
+  def name = this.getClass().getSimpleName().dropRight("Command".length)
+  
   def numOfArgs: Int
+  def argsAreOptional: Boolean = true
+  
   def prepareArgs(a: Array[String]) = {
     var list = a.toList
     var append : List[String] = Nil
-    for (i <- numOfArgs to (1, -1)) {
-      val last = list.last
-      list = list.dropRight(1)
-      append = s"-arg$i" :: last :: append
+    if (a.length == 0 && argsAreOptional) {
+    	// If args are optional, they may be omitted.
+    	// needed for help, which can be called with the name of a command or without
+    } else {
+       for (i <- numOfArgs to (1, -1)) {
+	     val last = list.last
+	     if (last.startsWith("-")) {
+	    	 System.err.println(getNewOptions.helpMessage)
+	    	 throw new IllegalArgumentException("Main arguments are not in last position")
+	     }
+	     list = list.dropRight(1)
+	     append = s"-arg$i" :: last :: append
+	   }
     }
     (list ++ append).toArray
   }
@@ -159,8 +208,14 @@ trait OptionCommand extends Command {
   def execute(a: Array[String]) {
     val args = getNewOptions
     val prepared = prepareArgs(a)
-    args.parse(prepared)
-    execute(args)
+    try {
+      args.parse(prepared)
+      execute(args)
+    } catch {
+      case e: Exception =>
+        System.err.println(e.getMessage())
+        System.err.println(args.helpMessage)
+    }
   }
   
   def execute(t: T)
@@ -175,17 +230,28 @@ trait OptionCommand extends Command {
 	} else {
 	  println("User aborted") 
 	  false
-	}    
+	}
   }
-  
 }
 
-class BackupCommand extends OptionCommand {
+trait BackupOptionCommand extends OptionCommand {
+  type T <: BackupFolderOption
+  
+  final def execute(t: T) {
+	// if savePropertiesFile is set, it will be saved here
+    executeCommand(t)
+    t.saveConfigFile()
+  }
+  
+  def executeCommand(t: T)
+    
+}
+
+class BackupCommand extends BackupOptionCommand {
   type T = BackupOptions
   def numOfArgs = 2
-  def name = "Backup"
   def getNewOptions = new T()
-  def execute(args: T) {
+  def executeCommand(args: T) {
     println(args)
     if (askUser) {
       val bh = new BackupHandler(args)
@@ -194,12 +260,11 @@ class BackupCommand extends OptionCommand {
   }
 }
 
-class RestoreCommand extends OptionCommand {
+class RestoreCommand extends BackupOptionCommand {
   type T = RestoreOptions
   def numOfArgs = 2
-  def name = "Restore"
   def getNewOptions = new T()
-  def execute(args: T) {
+  def executeCommand(args: T) {
     println(args)
     if (askUser) {
       val bh = new RestoreHandler(args)
@@ -208,17 +273,46 @@ class RestoreCommand extends OptionCommand {
   }
 }
 
-class FindCommand extends OptionCommand {
+class FindCommand extends BackupOptionCommand {
   type T = FindOptions
   def numOfArgs = 2
-  def name = "Find"
   def getNewOptions = new T()
-  def execute(args: T) {
+  
+  def executeCommand(args: T) {
     println(args)
     val bh = new SearchHandler(args)
     bh.findInBackup(args)
   }
 }
+
+class HelpCommand(list: Buffer[OptionCommand]) extends OptionCommand {
+  type T = HelpOptions
+  def numOfArgs = 1
+  override val argsAreOptional = true
+  
+  def getNewOptions = new T()
+  def execute(args: T) {
+    var listCopy = list
+    if (args.command != null) {
+      listCopy = list.filter(_.name.toLowerCase() == args.command.toLowerCase())
+      if (listCopy.isEmpty) {
+        noCommandFound(args.command)
+      } else {
+        System.err.println(listCopy.head.getNewOptions.helpMessage)
+      }
+    } else {
+      noCommandFound()
+    }
+  }
+  def noCommandFound(c: String = null) {
+    if (c != null) {
+      System.err.println(s"$c is not a valid command.")
+    }
+    System.err.println(s"Valid commands are:")
+    list.map(_.name.toLowerCase()).foreach(System.err.println)
+  }
+}
+
 
 object CommandLine {
   
@@ -246,14 +340,22 @@ object CommandLine {
     list += new BackupCommand()
     list += new RestoreCommand()
     list += new FindCommand()
+    list += new HelpCommand(list)
     list.map(x => (x.name.toLowerCase(), x)).toMap
   }
   def parseCommandLine(args: Array[String]) {
     val map = prepareCommands
-    val (first, tail) = args.splitAt(1)
-    map(first(0)).execute(tail)
+    val (firstA, tail) = args.splitAt(1)
+    val first = firstA.head
+    if (!(map contains first)) {
+      val help = map("help").asInstanceOf[HelpCommand]
+      help.execute(Array.apply(first))
+    } else {
+      map(first).execute(tail)
+    }
   }
-  def printAllHelp = println(prepareCommands.values.map(_.getNewOptions.helpMessage).mkString("\n"))
+  def printAllHelp = println(prepareCommands.mkString("\n"))
+  
   def printHelp(x: Array[String]) = println(prepareCommands(x(0)).getNewOptions.helpMessage)
   def runsInJar = classOf[FindCommand].getResource("FindCommand.class").toString.startsWith("jar:")
   def main(args: Array[String]) {
@@ -264,14 +366,18 @@ object CommandLine {
 //        verifyBlock(new File("e:/temp/test/volume_23.zip"))
 	    var a = Buffer[String]()
 	    
+//	    a += "help"
 	    a += "backup"
-//	    a ++= "-c" :: "zip" :: Nil
+	    a ++= "--propertyFile" :: "find.properties" :: Nil
+	    a ++= "-c" :: "zip" :: Nil
 	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
-	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "--blockSize" :: "10Kb" :: Nil
 	    a ++= "--volumeSize" :: "1Mb" :: Nil
+	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "backups" :: "test" :: Nil
-	    parseCommandLine(a.toArray)
+//	    a ++= "backups" :: "." :: Nil
+//	    parseCommandLine(a.toArray)
+	    
 	    a.clear()
 	    a += "restore"
 //	    a ++= "-c" :: "zip" :: Nil
