@@ -17,10 +17,46 @@ import com.quantifind.sumac.ParseHelper
 import java.io.FileInputStream
 import java.io.ByteArrayInputStream
 import java.util.zip.GZIPInputStream
-import com.quantifind.sumac.PropertiesConfig
 import com.quantifind.sumac.Args
 import java.util.Properties
 import java.io.FileOutputStream
+import com.quantifind.sumac.ExternalConfig
+import java.io.BufferedInputStream
+import com.quantifind.sumac.ExternalConfigUtil
+
+trait PropertiesConfig extends ExternalConfig {
+  self: Args =>
+    
+  import collection.JavaConverters._
+  import collection.Map
+  
+  var propertyFile: File = _
+
+  var propertyFileOverrides = false
+  
+  abstract override def readArgs(originalArgs: Map[String,String]): Map[String,String] = {
+    parse(originalArgs, false)
+
+    val props = new Properties()
+    if (propertyFile != null) {
+      val in = new BufferedInputStream(new FileInputStream(propertyFile))
+      props.load(in)
+      in.close()
+    }
+    //append args we read from the property file to the args from the command line, and pass to next trait
+    val applyMap = if (propertyFileOverrides) {
+      val map = props.asScala
+      val set = self.getArgs("").map(_.getName).toSet
+      val rest = map.filterKeys(set contains)
+      parse(rest, false)
+      rest
+    } else {
+      ExternalConfigUtil.mapWithDefaults(originalArgs, props.asScala)
+    }
+    super.readArgs(applyMap)
+  }
+}
+
 
 trait ExplainHelp extends FieldArgs {
   
@@ -254,6 +290,7 @@ class BackupCommand extends BackupOptionCommand {
   def executeCommand(args: T) {
     println(args)
     if (askUser) {
+      args.folderToBackup = args.folderToBackup.map(_.getAbsoluteFile())
       val bh = new BackupHandler(args)
       bh.backupFolder()
     } 

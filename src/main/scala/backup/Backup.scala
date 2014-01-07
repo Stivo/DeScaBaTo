@@ -63,7 +63,21 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils wi
   }
   
   val prefix = "hashchains_"
-  
+    
+  val backupProperties = "backup.properties"
+    
+  def loadBackupProperties(file: File = new File(folder.backupFolder, backupProperties)) {
+    val backup = folder.propertyFile
+    try {
+      folder.propertyFile = file
+      folder.propertyFileOverrides = true
+      folder.readArgs(Map[String, String]())
+    } finally {
+      folder.propertyFile = backup
+      folder.propertyFileOverrides = false
+    }
+  }
+    
 }
 
 class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[BackupOptions](options){
@@ -79,6 +93,14 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
     changed = false
     new File(options.backupFolder, "blocks").mkdirs()
     l.info("Starting to backup")
+    val backupPropertyFile = new File(options.backupFolder, backupProperties)
+    if (backupPropertyFile.exists) {
+      l.info("Loading old backup properties")
+      loadBackupProperties(backupPropertyFile)
+    } else {
+      l.info("Saving backup properties")
+      options.saveConfigFile(backupPropertyFile)
+    }
   	l.info(s"Found ${oldBackupFiles.size} previously backed up files")
   	importOldHashChains
     val now = new Date()
@@ -194,6 +216,7 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder)
       
   def restoreFolder() {
+	loadBackupProperties()
     importOldHashChains
     val dest = options.restoreToFolder
     val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder) 
