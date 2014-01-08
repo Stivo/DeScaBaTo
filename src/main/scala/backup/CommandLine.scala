@@ -81,7 +81,7 @@ case class Size(bytes: Long) {
 
 object SizeParser extends SimpleParser[Size] {
   val knownTypes: Set[Class[_]] = Set(classOf[Size])
-  val patt = Pattern.compile("([\\d.]+)([GMK]B)", Pattern.CASE_INSENSITIVE);
+  val patt = Pattern.compile("([\\d.]+)(\\s*)([GMK]B)", Pattern.CASE_INSENSITIVE);
   
   def parse(size: String) = {
 	var out : Long = -1;
@@ -89,7 +89,7 @@ object SizeParser extends SimpleParser[Size] {
     val map = List(("GB", 3), ("MB", 2),("KB", 1), ("", 0)).toMap
     if (matcher.find()) {
       val number = matcher.group(1);
-      val pow = map.get(matcher.group(2).toUpperCase()).get;
+      val pow = map.get(matcher.group(3).toUpperCase()).get;
       var bytes = new BigDecimal(new JBigDecimal(number));
       bytes = bytes.*(BigDecimal.valueOf(1024).pow(pow));
       out = bytes.longValue();
@@ -249,6 +249,7 @@ trait OptionCommand extends Command {
       execute(args)
     } catch {
       case e: Exception =>
+        e.printStackTrace()
         System.err.println(e.getMessage())
         System.err.println(args.helpMessage)
     }
@@ -405,21 +406,21 @@ object CommandLine {
 	    
 //	    a += "help"
 	    a += "backup"
-	    a ++= "--propertyFile" :: "find.properties" :: Nil
-	    a ++= "-c" :: "zip" :: Nil
+//	    a ++= "--propertyFile" :: "find.properties" :: Nil
+	    a ++= "-c" :: "none" :: Nil
 	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
 	    a ++= "--blockSize" :: "10Kb" :: Nil
 	    a ++= "--volumeSize" :: "1Mb" :: Nil
-	    a ++= "--passphrase" :: "password" :: Nil
+//	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "backups" :: "test" :: Nil
 //	    a ++= "backups" :: "." :: Nil
-//	    parseCommandLine(a.toArray)
+	    parseCommandLine(a.toArray)
 	    
 	    a.clear()
 	    a += "restore"
 //	    a ++= "-c" :: "zip" :: Nil
 	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
-	    a ++= "--passphrase" :: "password" :: Nil
+//	    a ++= "--passphrase" :: "password" :: Nil
 	    a ++= "--keyLength" :: "128" :: Nil
 	    a ++= "--relativeToFolder" :: "" :: Nil
 	    a ++= "backups" :: "restore" :: Nil

@@ -87,20 +87,30 @@ trait BackupPart extends Utils {
   def path: String
   def attrs: FileAttributes
   def size : Long
+  
   def relativeTo(to: File) = {
+    // Problem: On Windows, the File system compares names ignoring upper and lowercase.
+    // Therefore, we need to get them into the same way before relativizing
+    // But we also want to keep the original lower or uppercase when returning
     def lc(u: URI) = 
       if (Test.isWindows) 
+        // On Windows, uris are converted to lowercase for relativizing
         new URI(u.toString().toLowerCase())
       else
         u
     var toUri = lc(to.toURI())
     var relativeUri = lc(new File(path).toURI())
   	var uri = toUri.relativize(relativeUri)
-    val regex = """\:""".r;
-    if (regex.findAllIn(uri.toString()).size > 1) {
-      val s = uri.toString.drop(6)
-      uri = new URI("file:/"+s.replace(':', '_'))
-    }
+  	if (Test.isWindows) {
+  	  // restore the original upper / lower case on Windows
+  	  uri = new URI(new File(path).toURI.toString().takeRight(uri.toString().length()))
+  	  // remove the volume colon if found
+      val regex = """\:""".r;
+	  if (regex.findAllIn(uri.toString()).size > 1) {
+	    val s = uri.toString.drop(6)
+	    uri = new URI("file:/"+s.replace(':', '_'))
+	  }
+  	}
   	l.info(s"Relativized $relativeUri to $toUri, got $uri")
   	uri
   }

@@ -89,6 +89,8 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   
   var hashChainMapTemp : HashChainMap = new HashChainMap()
   
+  val oldBackupFilesRemaining = HashMap[String, backup.BackupPart]()
+  
   def backupFolder() {
     changed = false
     new File(options.backupFolder, "blocks").mkdirs()
@@ -102,6 +104,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       options.saveConfigFile(backupPropertyFile)
     }
   	l.info(s"Found ${oldBackupFiles.size} previously backed up files")
+  	oldBackupFilesRemaining ++= oldBackupFiles.map(x => (x.path, x))
   	importOldHashChains
     val now = new Date()
     val filename = s"${s.format(now)}"
@@ -139,26 +142,45 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
     newFiles()
     blockStrategy.finishWriting
     l.info(s"Backup completed of $fileCounter (${readableFileSize(sizeCounter)})")
+    if (!oldBackupFilesRemaining.isEmpty) {
+      l.info(oldBackupFilesRemaining.size +" files have been deleted since last backup")
+      changed = true
+    } 
     if (!changed) {
       l.info(s"Nothing has changed, removing this backup")
-      filesWritten.foreach(_.delete)	
+      filesWritten.foreach(_.delete)
     }
   }
 
+  def findOld[T <: BackupPart](file: File)(implicit manifest: Manifest[T]) : (Option[T], FileAttributes) = {
+    val path = file.getAbsolutePath
+    // if the file is in the map, no other file can have the same name. Therefore we remove it.
+    val out = oldBackupFilesRemaining.remove(path)
+    val fa = FileAttributes(file)
+    if (out.isDefined && 
+        // if the backup part is of the wrong type => return (None, fa)
+        manifest.erasure.isAssignableFrom(out.get.getClass()) &&
+        // if the file has attributes and the last modified date is different, return (None, fa)
+        (out.get.attrs != null && !out.get.attrs.hasBeenModified(file))) {
+      // backup part is correct and unchanged
+      (Some(out.get.asInstanceOf[T]), fa)
+    } else {
+      changed = true
+      (None, fa)
+    }
+  }
   
   def backupFolderDesc(file: File) = {
-    val fa = FileAttributes(file)
-    oldBackupFiles.find(_.path == file.getAbsolutePath()) match {
-      case Some(x: FolderDescription) if (!x.attrs.hasBeenModified(file)) =>
-        x
-      case _ => changed = true; new FolderDescription(file.getAbsolutePath(), fa)
+    findOld[FolderDescription](file) match {
+      case (Some(x), _) => x
+      case (None, fa) => new FolderDescription(file.getAbsolutePath(), fa)
     }
   }
   
   def backupFile(file: File) = {
     import blockStrategy._
     
-    def makeNew = {
+    def makeNew(fa: FileAttributes) = {
         l.info(s"File ${file.getName} is new / has changed, backing up")
    	    val fis = new FileInputStream(file)
 	    val md = options.getMessageDigest
@@ -196,13 +218,11 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   		  }
 	      key
 	    }
-	    val fa = FileAttributes(file)
 	    new FileDescription(file.getAbsolutePath(), file.length(), hash, hashChain, fa)
     }
-    oldBackupFiles.find(_.path == file.getAbsolutePath()) match {
-      case Some(x: FileDescription) if (!x.attrs.hasBeenModified(file)) =>
-        x
-      case _ => changed = true; makeNew
+    findOld[FileDescription](file) match {
+      case (Some(x), _) => x
+      case (None, fa) => makeNew(fa)
     }
   }
   
