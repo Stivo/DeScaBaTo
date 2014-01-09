@@ -50,7 +50,7 @@ class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
   
 }
 
-class BAWrapper2(ba:Array[Byte]) {
+class BAWrapper2(ba:Array[Byte], val length: Int) {
   def data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
   def equals(other:BAWrapper2):Boolean = Arrays.equals(data, other.data)
   override def equals(obj:Any):Boolean = 
@@ -60,7 +60,7 @@ class BAWrapper2(ba:Array[Byte]) {
 }
 
 object BAWrapper2 {
-  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
+  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a, a.length)
 }
 
 trait CountingFileManager {

@@ -11,6 +11,9 @@ import java.io.OutputStream
 import java.util.Comparator
 import java.util.Arrays
 import scala.collection.mutable.HashMap
+import java.io.BufferedInputStream
+import scala.annotation.tailrec
+import com.sun.jna.platform.FileUtils
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils with CountingFileManager {
   import Streams._
@@ -130,7 +133,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       hashChainMapTemp = new HashChainMap()
     }
     def walk(file: File) {
-      if (files.length >= 1000) {
+      if (files.length >= 10000) {
         newFiles()
       }
       file.isDirectory() match {
@@ -182,41 +185,48 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
     
     def makeNew(fa: FileAttributes) = {
         l.info(s"File ${file.getName} is new / has changed, backing up")
-   	    val fis = new FileInputStream(file)
-	    val md = options.getMessageDigest
-	    var out = Buffer[Array[Byte]]()
-	    
-	    val blockHasher = new BlockOutputStream(options.blockSize.bytes.toInt, {
-	      buf : Array[Byte] => 
-	        
-	        val hash = md.digest(buf)
-	        out += hash
-	        if (!blockExists(hash)) {
-	          writeBlock(hash, buf)
-	        }
-	    })
-	    val hos = new HashingOutputStream(options.getHashAlgorithm)
-	    val sis = new SplitInputStream(fis, blockHasher::hos::Nil)
-	    sis.readComplete
-	    val hashList = out.reduce(_ ++ _)
-	    val hash = hos.out.get
-	    var hashChain = if (hashList.length == hash.length) {
-	      null
+	    var hash: Array[Byte] = null
+	    var hashChain: Array[Byte] = null
+	    var faSave = fa
+	    if (!options.onlyIndex) {
+	    	val fis = new FileInputStream(file)
+	    	val md = options.getMessageDigest
+		    var out = Buffer[Array[Byte]]()
+		    
+		    val blockHasher = new BlockOutputStream(options.blockSize.bytes.toInt, {
+		      buf : Array[Byte] => 
+		        
+		        val hash = md.digest(buf)
+		        out += hash
+		        if (!blockExists(hash)) {
+		          writeBlock(hash, buf)
+		        }
+		    })
+		    val hos = new HashingOutputStream(options.getHashAlgorithm)
+		    val sis = new SplitInputStream(fis, blockHasher::hos::Nil)
+		    sis.readComplete
+		    val hashList = out.reduce(_ ++ _)
+		    hash = hos.out.get
+		    hashChain = if (hashList.length == hash.length) {
+		      null
+		    } else {
+		      val key = options.getMessageDigest.digest(hashList)
+	  		  if (!hashChainMap.contains(key)) {
+			      hashChainMap += ((key, hashList))
+			      hashChainMapTemp += ((key, hashList))
+	  		  } else {
+	  		    val collision = !Arrays.equals(hashChainMap(key), hashList)
+	  		    val keyS = encodeBase64(key)
+	  		    if (collision) {
+	  		      l.error(s"Found hash collision in a hash chain with $keyS!")
+	  		    } else {
+	  		      l.debug(s"Hash $keyS was already in HashChainMap")
+	  		    }
+	  		  }
+		      key
+		    }
 	    } else {
-	      val key = options.getMessageDigest.digest(hashList)
-  		  if (!hashChainMap.contains(key)) {
-		      hashChainMap += ((key, hashList))
-		      hashChainMapTemp += ((key, hashList))
-  		  } else {
-  		    val collision = !Arrays.equals(hashChainMap(key), hashList)
-  		    val keyS = encodeBase64(key)
-  		    if (collision) {
-  		      l.error(s"Found hash collision in a hash chain with $keyS!")
-  		    } else {
-  		      l.debug(s"Hash $keyS was already in HashChainMap")
-  		    }
-  		  }
-	      key
+	      faSave = null
 	    }
 	    new FileDescription(file.getAbsolutePath(), file.length(), hash, hashChain, fa)
     }
@@ -272,17 +282,139 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
 
 }
 
-class SearchHandler(options: FindOptions) extends BackupBaseHandler[FindOptions](options) {
+class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplicateOptions) 
+	extends BackupBaseHandler[BackupFolderOption](if (findOptions != null) findOptions else findDuplicatesOptions) {
   import ByteHandling._
-  def findInBackup(options: FindOptions) {
+  
+
+  
+  def searchForPattern(x: String) {
+    val options = findOptions
+    if (options == null) {
+      throw new IllegalArgumentException("findOptions have to be defined")
+    }
     l.info("Loading information")
-    val oldOnes = oldBackupFiles
+    val loading = oldBackupFiles
     l.info("Information loaded, filtering")
-    val filtered = oldOnes.filter(_.path.contains(options.filePattern))
+    val filtered = loading.filter(_.path.contains(options.filePattern))
     l.info(s"Filtering done, found ${filtered.size} entries")
     filtered.take(100).foreach(println)
     if (filtered.size > 100) println("(Only listing 100 results)")
     val size = filtered.map(_.size).fold(0L)(_+_)
     l.info(s"Total ${readableFileSize(size)} found in ${filtered.size} files")
   }
+  
+  implicit class RichString(s: String){
+    def fileLength = new File(s).length()
+  }
+  
+  def findDuplicates() {
+	val options = findDuplicatesOptions
+    if (options == null) {
+      throw new IllegalArgumentException("findOptions have to be defined")
+    }
+    val size = options.minSize.bytes
+    var bag = new HashMap[Long, Set[String]] {
+      override def default(x: Long) = {
+        Set()
+      }
+    }
+    l.info("Found "+oldBackupFiles.size+" files in index")
+    val filesFiltered = oldBackupFiles.flatMap{case x: FileDescription => Some(x); case _ => None}.filter(_.size >= size)
+    l.info("Found "+filesFiltered.size+s" files that are larger than ${options.minSize}")
+    filesFiltered.foreach(x => bag.update(x.size, bag(x.size)++Buffer(x.path)))
+    l.info("There are "+bag.size+" size groups")
+    val duplicates = bag.values.filter(_.size > 1).toArray.sortBy(_.head.fileLength).reverse
+    l.info("There are "+duplicates.size+" size groups with more than one file in it")
+    var rest = duplicates
+    var totalSize = new Size(duplicates.map(x => x.map(_.fileLength).sum).sum)
+    var doneSize = 0L
+    while (!rest.isEmpty) {
+      val curSize = new Size(rest.head.head.fileLength)
+      val duplicates = rest.take(100).map(compareFiles)
+      doneSize = rest.take(100).map(x => x.map(_.fileLength).sum).sum
+      rest = rest.drop(100)
+      
+      l.info(s"Analyzed ${duplicates.size - rest.size}/${duplicates.size} files (${new Size(size)}/$totalSize)")
+   }
+  }
+  
+  class CompareHelper(val f: String, bufSize: Int = 10240) {
+    val file = new File(f)
+    if (!file.exists) {
+      throw new IllegalArgumentException("File "+f+" does not exist")
+    }
+    val stream = new BufferedInputStream(new FileInputStream(file))
+    val buf = Array.ofDim[Byte](bufSize)
+    // one round: compare the streams, group by them
+    // then continue with those groups$
+    var last : BAWrapper2 = null
+    def finished = if (last != null) last.length < 0 else false
+    def readNext() = {
+      val read = stream.read(buf)
+      last = new BAWrapper2(buf, read)
+      read < 0
+    }
+  }
+  
+  def compareFiles(files: Iterable[String]) {
+    var results = Buffer[Iterable[String]]() 
+    val helpers = files.map(f => new CompareHelper(f.toLowerCase()))
+    val fileUtils = FileUtils.getInstance();
+    def compareHelpers(x: Iterable[CompareHelper]) {
+      var remaining : Iterable[Iterable[CompareHelper]]= List(x)
+      while (remaining.size == 1) {
+        if (remaining.head.exists(_.finished)) {
+	      results += remaining.head.map(_.f)
+	      return
+	    }
+	    val groups = helpers.map{ helper =>
+	      helper.readNext
+	      helper
+	    }.groupBy{_.last}
+	    remaining = groups.values.filter(_.size>1)
+      }
+	  remaining.foreach {compareHelpers _}
+    }
+    compareHelpers(helpers)
+    helpers.map(_.stream.close())
+    def filterDuplicatesToDelete(files: Iterable[String]) : Iterable[File] = {
+      files.toList
+      	.filter{file => val pattern = findDuplicatesOptions.filePatternToKeep;
+      		pattern == null || !file.contains(pattern)}
+      	.filter(file => file.contains(findDuplicatesOptions.filePatternToDelete))
+      	.map(new File(_))
+    }
+    for (set <- results) {
+      l.info("Found duplicates "+set.mkString(" "))
+      abstract class Action(desc: String) {
+    	  def run {
+             val toDelete = filterDuplicatesToDelete(set)
+             if (!toDelete.isEmpty) {
+               val verb = if (findDuplicatesOptions.dryrun) "Would" else "Will"
+	           l.info(s"$verb $desc $toDelete")
+	           if (!findDuplicatesOptions.dryrun)
+	             completeAction(toDelete)
+             }
+    	  }
+    	  def completeAction(toDelete: Iterable[File])
+      }
+      class DeleteAction extends Action("delete") {
+        def completeAction(toDelete: Iterable[File]) {
+          toDelete.foreach(_.delete)
+        }
+      }
+      class MoveToTrashAction extends Action("delete") {
+        def completeAction(toDelete: Iterable[File]) {
+          fileUtils.moveToTrash(toDelete.toArray)
+        }
+      }
+      findDuplicatesOptions.action match {
+        case DuplicateAction.delete => new DeleteAction().run
+        case DuplicateAction.moveToTrash => new MoveToTrashAction().run
+        case DuplicateAction.report =>
+      }
+    }
+  }
+  
 }

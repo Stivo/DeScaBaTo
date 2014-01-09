@@ -137,7 +137,10 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
   var volumeSize : Size = SizeParser.parse("64Mb");
   
   var blockSize : Size = new Size(1024*1024);
-    
+  
+  @Arg(description="If set to true, no actual backup will be performed, just an index of the files will be created")
+  var onlyIndex : Boolean = false
+  
   override def toString() = {
     s"Backing up folder $folderToBackup to $backupFolder (using $compression, "+ 
     s"$blockSize blocks). "
@@ -173,6 +176,35 @@ class FindOptions extends ExplainHelp with BackupFolderOption with EncryptionOpt
   override def toString() = {
     s"Finding files in backup $backupFolder with pattern $filePattern (using $compression). "
     .+(super[EncryptionOptions].toString)
+  }
+	  
+}
+
+class FindDuplicateOptions extends ExplainHelp with BackupFolderOption with EncryptionOptions {
+  
+  var filePatternToDelete: String = null
+  var filePatternToKeep: String = null
+  
+  var minSize = Size(20*1024)
+  
+  var action: DuplicateAction = null
+  
+  var dryrun: Boolean = true
+  
+  override def toString() = {
+    val desc = if (action == DuplicateAction.report) {
+      "report all identical files"
+    } else {
+      var operation = action match {
+        case DuplicateAction.delete => "delete"
+        case DuplicateAction.moveToTrash => "move to trash"
+      }
+      if (filePatternToDelete == null) {
+        throw new IllegalArgumentException("File pattern to delete has to be defined")
+      }
+      operation + s" all files that match $filePatternToDelete, but keep all files that match $filePatternToKeep (keep is stronger)."
+    }
+    s"Finding duplicates in index $backupFolder with minimum size $minSize. When found, $desc"
   }
   
 }
@@ -257,8 +289,8 @@ trait OptionCommand extends Command {
   
   def execute(t: T)
   
-  def askUser = {
-    println("Do you want to continue?")
+  def askUser(question: String = "Do you want to continue?") = {
+    println(question)
     val bufferRead = new BufferedReader(new InputStreamReader(System.in));
 	val s = bufferRead.readLine();
 	val yes = Set("yes", "y")
@@ -290,7 +322,7 @@ class BackupCommand extends BackupOptionCommand {
   def getNewOptions = new T()
   def executeCommand(args: T) {
     println(args)
-    if (askUser) {
+    if (askUser()) {
       args.folderToBackup = args.folderToBackup.map(_.getAbsoluteFile())
       val bh = new BackupHandler(args)
       bh.backupFolder()
@@ -304,7 +336,7 @@ class RestoreCommand extends BackupOptionCommand {
   def getNewOptions = new T()
   def executeCommand(args: T) {
     println(args)
-    if (askUser) {
+    if (askUser()) {
       val bh = new RestoreHandler(args)
       bh.restoreFolder()
     } 
@@ -318,8 +350,23 @@ class FindCommand extends BackupOptionCommand {
   
   def executeCommand(args: T) {
     println(args)
-    val bh = new SearchHandler(args)
-    bh.findInBackup(args)
+    val bh = new SearchHandler(args, null)
+    bh.searchForPattern(args.filePattern)
+  }
+}
+
+class FindDuplicatesCommand extends BackupOptionCommand {
+  type T = FindDuplicateOptions
+  def numOfArgs = 1
+  def getNewOptions = new T()
+  
+  def executeCommand(args: T) {
+    println(args)
+    if (args.dryrun && args.action != DuplicateAction.report) {
+    	askUser("This will delete or move files to trash, are you sure you want to continue?")
+    }
+    val bh = new SearchHandler(null, args)
+    bh.findDuplicates
   }
 }
 
@@ -378,6 +425,7 @@ object CommandLine {
     list += new BackupCommand()
     list += new RestoreCommand()
     list += new FindCommand()
+    list += new FindDuplicatesCommand()
     list += new HelpCommand(list)
     list.map(x => (x.name.toLowerCase(), x)).toMap
   }
@@ -407,6 +455,7 @@ object CommandLine {
 //	    a += "help"
 	    a += "backup"
 //	    a ++= "--propertyFile" :: "find.properties" :: Nil
+//	    a ++= "--onlyIndex" :: "true" :: Nil
 	    a ++= "-c" :: "none" :: Nil
 	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
 	    a ++= "--blockSize" :: "10Kb" :: Nil
@@ -417,13 +466,14 @@ object CommandLine {
 	    parseCommandLine(a.toArray)
 	    
 	    a.clear()
-	    a += "restore"
+	    a += "find"
 //	    a ++= "-c" :: "zip" :: Nil
-	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
+//	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
 //	    a ++= "--passphrase" :: "password" :: Nil
-	    a ++= "--keyLength" :: "128" :: Nil
-	    a ++= "--relativeToFolder" :: "" :: Nil
-	    a ++= "backups" :: "restore" :: Nil
+//	    a ++= "--keyLength" :: "128" :: Nil
+//	    a ++= "--relativeToFolder" :: "" :: Nil
+//	    a ++= "backups" :: "restore" :: Nil
+	    a ++= "backups" :: "." :: Nil
 //	    printAllHelp
 	    parseCommandLine(a.toArray)
     }
