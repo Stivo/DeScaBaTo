@@ -89,30 +89,30 @@ trait BackupPart extends Utils {
   def size : Long
   
   def relativeTo(to: File) = {
-    // Problem: On Windows, the File system compares names ignoring upper and lowercase.
-    // Therefore, we need to get them into the same way before relativizing
-    // But we also want to keep the original lower or uppercase when returning
-    def lc(u: URI) = 
-      if (Test.isWindows) 
-        // On Windows, uris are converted to lowercase for relativizing
-        new URI(u.toString().toLowerCase())
-      else
-        u
-    var toUri = lc(to.toURI())
-    var relativeUri = lc(new File(path).toURI())
-  	var uri = toUri.relativize(relativeUri)
-  	if (Test.isWindows) {
-  	  // restore the original upper / lower case on Windows
-  	  uri = new URI(new File(path).toURI.toString().takeRight(uri.toString().length()))
-  	  // remove the volume colon if found
-      val regex = """\:""".r;
-	  if (regex.findAllIn(uri.toString()).size > 1) {
-	    val s = uri.toString.drop(6)
-	    uri = new URI("file:/"+s.replace(':', '_'))
-	  }
-  	}
-  	l.info(s"Relativized $relativeUri to $toUri, got $uri")
-  	uri
+    // Needs to take common parts out of the path.
+    // Different semantics on windows. Upper-/lowercase is ignored, ':' may not be part of the output
+    def prepare(f: File) = {
+        var path = f.getAbsolutePath
+        if (Test.isWindows) 
+            path = path.replaceAllLiterally("\\", "/")
+        path.split("/").toList
+    }
+    val files = (prepare(to), prepare(new File(path)))
+    
+    def compare(s1: String, s2: String) = if (Test.isWindows) s1.equalsIgnoreCase(s2) else s1 == s2    
+    
+    def cutFirst(files: (List[String], List[String])) : String = {
+        l.info(files.toString)
+        files match {
+            case (x::xTail, y:: yTail) if (compare(x,y)) => cutFirst(xTail, yTail)
+            case (_, x) => x.mkString("/")
+        }
+    }
+    val cut = cutFirst(files)
+    def cleaned(s: String) = if (Test.isWindows) s.replaceAllLiterally(":", "_") else s
+    val out = new File(cleaned(cut)).toString
+    l.info(s"Relativized $path to $to, got $out")
+    out
   }
   
   def applyAttrsTo(f: File) {

@@ -12,7 +12,6 @@ import java.util.Comparator
 import java.util.Arrays
 import scala.collection.mutable.HashMap
 import java.io.BufferedInputStream
-import scala.annotation.tailrec
 import com.sun.jna.platform.FileUtils
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils with CountingFileManager {
@@ -133,7 +132,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       hashChainMapTemp = new HashChainMap()
     }
     def walk(file: File) {
-      if (files.length >= 10000) {
+      if (files.length >= 1000) {
         newFiles()
       }
       file.isDirectory() match {
@@ -260,14 +259,15 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   }
   
   def restoreFolderDesc(fd: FolderDescription) {
-    val restoredFile = new File(options.restoreToFolder,  fd.relativeTo(relativeTo).getPath())
+    val restoredFile = new File(options.restoreToFolder,  fd.relativeTo(relativeTo))
     restoredFile.mkdirs()
     fd.applyAttrsTo(restoredFile)
   }
   
   def restoreFileDesc(fd: FileDescription) {
     val hashes = getHashChain(fd).grouped(options.getMessageDigest.getDigestLength())
-    val restoredFile = new File(options.restoreToFolder, fd.relativeTo(relativeTo).getPath())
+    val restoredFile = new File(options.restoreToFolder, fd.relativeTo(relativeTo))
+    l.info("Restoring to "+restoredFile)
     val fos = new FileOutputStream(restoredFile)
     for (x <- hashes) {
       l.trace(s"Restoring from block $x")
@@ -285,10 +285,9 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
 class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplicateOptions) 
 	extends BackupBaseHandler[BackupFolderOption](if (findOptions != null) findOptions else findDuplicatesOptions) {
   import ByteHandling._
-  
-
-  
+    
   def searchForPattern(x: String) {
+    loadBackupProperties()
     val options = findOptions
     if (options == null) {
       throw new IllegalArgumentException("findOptions have to be defined")
@@ -309,6 +308,7 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
   }
   
   def findDuplicates() {
+    loadBackupProperties()
 	val options = findDuplicatesOptions
     if (options == null) {
       throw new IllegalArgumentException("findOptions have to be defined")
