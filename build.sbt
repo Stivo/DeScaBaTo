@@ -1,3 +1,5 @@
+scalaVersion := "2.10.3"
+
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.13"
 
 libraryDependencies += "com.typesafe" % "scalalogging-slf4j_2.10" % "1.0.1"

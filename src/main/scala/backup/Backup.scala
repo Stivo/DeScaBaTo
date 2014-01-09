@@ -250,14 +250,15 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   }
   
   def restoreFolderDesc(fd: FolderDescription) {
-    val restoredFile = new File(options.restoreToFolder,  fd.relativeTo(relativeTo).getPath())
+    val restoredFile = new File(options.restoreToFolder,  fd.relativeTo(relativeTo))
     restoredFile.mkdirs()
     fd.applyAttrsTo(restoredFile)
   }
   
   def restoreFileDesc(fd: FileDescription) {
     val hashes = getHashChain(fd).grouped(options.getMessageDigest.getDigestLength())
-    val restoredFile = new File(options.restoreToFolder, fd.relativeTo(relativeTo).getPath())
+    val restoredFile = new File(options.restoreToFolder, fd.relativeTo(relativeTo))
+    l.info("Restoring to "+restoredFile)
     val fos = new FileOutputStream(restoredFile)
     for (x <- hashes) {
       l.trace(s"Restoring from block $x")
@@ -275,6 +276,7 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
 class SearchHandler(options: FindOptions) extends BackupBaseHandler[FindOptions](options) {
   import ByteHandling._
   def findInBackup(options: FindOptions) {
+    loadBackupProperties()
     l.info("Loading information")
     val oldOnes = oldBackupFiles
     l.info("Information loaded, filtering")
