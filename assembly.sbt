@@ -5,4 +5,4 @@ import AssemblyKeys._
 
 assemblySettings
 
-mainClass in assembly := Some("backup.CommandLine")
+//mainClass in assembly := Some("backup.CommandLine")

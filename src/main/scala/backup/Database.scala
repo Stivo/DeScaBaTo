@@ -80,7 +80,17 @@ trait Utils extends Logging {
     val digitGroups = (Math.log10(size)/Math.log10(1024)).toInt;
     return new DecimalFormat("#,##0.#").format(size/Math.pow(1024, digitGroups)) + " " + Utils.units(digitGroups);
   }
-
+  
+  var lastOne = 0L
+  
+  def printDeleted(message: String) = {
+    val timeNow = new Date().getTime()
+    if (timeNow > lastOne) {
+    	ConsoleManager.appender.writeDeleteLine(message)
+    	lastOne = timeNow + 10
+    }
+  }
+  
 } 
 
 trait BackupPart extends Utils {

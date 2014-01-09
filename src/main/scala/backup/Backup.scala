@@ -132,7 +132,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       hashChainMapTemp = new HashChainMap()
     }
     def walk(file: File) {
-      if (files.length >= 1000) {
+      if (files.length >= options.saveIndexEveryNFiles) {
         newFiles()
       }
       file.isDirectory() match {
@@ -181,9 +181,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   
   def backupFile(file: File) = {
     import blockStrategy._
-    
+    printDeleted(s"Analyzing File ${file.getName}")
     def makeNew(fa: FileAttributes) = {
-        l.info(s"File ${file.getName} is new / has changed, backing up")
+        printDeleted(s"File ${file.getName} is new / has changed, backing up")
 	    var hash: Array[Byte] = null
 	    var hashChain: Array[Byte] = null
 	    var faSave = fa
@@ -358,6 +358,7 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
   }
   
   def compareFiles(files: Iterable[String]) {
+    printDeleted("Starting to analyze group of "+files.size+" files: "+files)
     var results = Buffer[Iterable[String]]() 
     val helpers = files.map(f => new CompareHelper(f.toLowerCase()))
     val fileUtils = FileUtils.getInstance();

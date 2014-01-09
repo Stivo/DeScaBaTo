@@ -138,6 +138,8 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
   
   var blockSize : Size = new Size(1024*1024);
   
+  var saveIndexEveryNFiles = 1000
+  
   @Arg(description="If set to true, no actual backup will be performed, just an index of the files will be created")
   var onlyIndex : Boolean = false
   
@@ -362,7 +364,7 @@ class FindDuplicatesCommand extends BackupOptionCommand {
   
   def executeCommand(args: T) {
     println(args)
-    if (args.dryrun && args.action != DuplicateAction.report) {
+    if (!args.dryrun && args.action != DuplicateAction.report) {
     	askUser("This will delete or move files to trash, are you sure you want to continue?")
     }
     val bh = new SearchHandler(null, args)
