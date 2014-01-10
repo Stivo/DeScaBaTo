@@ -13,6 +13,7 @@ import java.util.Arrays
 import scala.collection.mutable.HashMap
 import java.io.BufferedInputStream
 import com.sun.jna.platform.FileUtils
+import scala.reflect.ManifestFactory
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization(folder.serialization) with Utils with CountingFileManager {
   import Streams._
@@ -125,12 +126,12 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       fileCounter += files.length
       sizeCounter += files.map(_.size).fold(0L)(_+_)
       val write = new File(options.backupFolder, filesName)
-      writeObject(files, write)(options)
+      writeObject(files, write)(options, ManifestFactory.classType(files.getClass))
       filesWritten += write
       if (!hashChainMapTemp.isEmpty) {
 	      var hashChainsName = s"hashchains_$nextHashChainNum.db"
 	      nextHashChainNum += 1
-	      writeObject(hashChainMapTemp.toList, new File(options.backupFolder, hashChainsName))(options)
+	      writeObject(hashChainMapTemp.toArray, new File(options.backupFolder, hashChainsName))(options, ManifestFactory.classType(files.getClass))
       }
       files.clear
       hashChainMapTemp = new HashChainMap()
@@ -260,6 +261,7 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
     folders.foreach(x => restoreFolderDesc(x))
     files.foreach(restoreFileDesc(_))
     folders.foreach(x => restoreFolderDesc(x))
+    blockStrategy.free()
   }
   
   def restoreFolderDesc(fd: FolderDescription) {

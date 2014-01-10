@@ -20,6 +20,14 @@ libraryDependencies += "com.fasterxml.jackson.module" % "jackson-module-scala_2.
 
 libraryDependencies += "de.undercouch" % "bson4jackson" % "2.3.1"
 
+libraryDependencies += "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.3.0"
+
+libraryDependencies += "com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.3.0"
+
+libraryDependencies += "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.3.0"
+
+libraryDependencies += "org.codehaus.woodstox" % "woodstox-core-asl" % "4.2.0"
+
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
     base / "src/main/resources"

@@ -13,6 +13,7 @@ trait BlockStrategy {
   def writeBlock(hash: Array[Byte], buf: Array[Byte])
   def readBlock(hash: Array[Byte]) : Array[Byte]
   def finishWriting() {}
+  def free() {}
 }
 
 class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
@@ -178,11 +179,17 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
   val buf = Array.ofDim[Byte](128*1024+10)
   
   var lastZip : Option[(Int, ZipFileReader)] = None
-  	
+  
+  override def free() {
+    lastZip.foreach{case (_, zip) => zip.close()}
+    lastZip = None
+  }
+  
   def getZipFileReader(num: Int) = {
     lastZip match {
       case Some((n, zip)) if (n == num) => zip
       case _ => {
+        lastZip.foreach{case (_, zip) => zip.close()}
         val out = new ZipFileReader(new File(option.backupFolder, volumeName(num)))
         lastZip = Some((num, out))
         out

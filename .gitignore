@@ -10,3 +10,4 @@ project/boot/
 backups/
 restore/
 /bin
+/testdata

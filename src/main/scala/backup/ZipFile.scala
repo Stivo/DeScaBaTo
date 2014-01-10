@@ -40,6 +40,10 @@ class ZipFileReader(zip: File) extends ZipFileHandler(zip) {
       }
       out.toArray
    }
+  
+  def close() {
+    zf.close()
+  }
 
 }
 

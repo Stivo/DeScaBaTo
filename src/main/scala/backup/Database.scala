@@ -55,8 +55,9 @@ class FileAttributes extends HashMap[String, Any] {
   }
   
   override def equals(other: Any) = {
+    def prepare(x: HashMap[String, _]) = x.asScala
     other match {
-      case x: HashMap[_, _] => this.asScala.equals(x.asScala) 
+      case x: HashMap[String, _] => prepare(x).equals(prepare(x)) 
       case _ => false
     }
   }

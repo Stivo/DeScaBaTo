@@ -27,22 +27,34 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import de.undercouch.bson4jackson.BsonFactory
 import ByteHandling._
 import de.undercouch.bson4jackson.BsonGenerator
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
+import com.fasterxml.jackson.dataformat.smile.SmileFactory
+import com.fasterxml.jackson.dataformat.smile.SmileGenerator
+import com.fasterxml.jackson.dataformat.smile.SmileParser
+import com.fasterxml.jackson.dataformat.csv.CsvMapper
+import java.io.OutputStream
+import com.fasterxml.jackson.dataformat.xml.JacksonXmlModule
+import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector
 
 trait Serialization {
-  def writeObject(a: Any, filename: File)(implicit options: FileHandlingOptions) : Unit
-  def readObject[T](filename: File)(implicit m: Manifest[T], options: FileHandlingOptions) : T 
+  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) : Unit
+  
+  def writeObject[T](t: T, file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) {
+    writeObject(t, newFileOutputStream(file))
+  }
+  def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) : T 
 }
 
 class DelegateSerialization(serialization: Serialization) extends Serialization {
-  def writeObject(a: Any, filename: File)(implicit options: FileHandlingOptions) { 
-    serialization.writeObject(a, filename)
+  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
+    serialization.writeObject(t, out)
   }
     
-  def readObject[T](filename: File)(implicit m: Manifest[T], options: FileHandlingOptions) =
-    serialization.readObject(filename)
+  def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) =
+    serialization.readObject(file)
 }
 
-abstract class AbstractJsonSerialization extends Serialization {
+abstract class AbstractJacksonSerialization extends Serialization {
     class BackupPartDeserializer extends StdDeserializer[BackupPart](classOf[BackupPart]) {
     def deserialize (jp: JsonParser, ctx: DeserializationContext) = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper];  
@@ -80,21 +92,21 @@ abstract class AbstractJsonSerialization extends Serialization {
   mapper.enable(SerializationFeature.INDENT_OUTPUT);
   mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
   
-  def writeObject(a: Any, file: File)(implicit options: FileHandlingOptions) {
-    mapper.writeValue(newFileOutputStream(file), a)
+  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
+    mapper.writeValue(out, t)
   } 
-    
-  def readObject[T](file: File)(implicit m: Manifest[T], options: FileHandlingOptions) = {
+  
+  def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) = {
     mapper.readValue(newFileInputStream(file))
   }
   
 }
 
-class JsonSerialization extends AbstractJsonSerialization {
+class JsonSerialization extends AbstractJacksonSerialization {
   lazy val mapper = new ObjectMapper() with ScalaObjectMapper
 }
 
-class BsonSerialization extends AbstractJsonSerialization {
+class BsonSerialization extends AbstractJacksonSerialization {
 
   lazy val fac = {
     val out = new BsonFactory
@@ -103,9 +115,45 @@ class BsonSerialization extends AbstractJsonSerialization {
   }
   
   lazy val mapper = new ObjectMapper(fac) with ScalaObjectMapper
-   
+  override def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) = {
+    val out = super.readObject(file)
+    val bools = Set("archive", "readonly", "hidden")
+    out match {
+      case x: FileDescription => {
+        x.attrs.asScala.filterKeys(_.endsWith("Time")).foreach {
+          case (k ,v) => x.attrs.put(k, v.toString.toLong)
+        }
+        x.attrs.asScala.filterKeys(bools contains).foreach {
+          case (k ,v) => x.attrs.put(k, v.toString.toBoolean)
+        }
+      }
+      case _ => 
+    }
+    out
+  }
 }
 
+class SmileSerialization extends AbstractJacksonSerialization {
+
+  lazy val fac = {
+    val out = new SmileFactory
+    out.disable(SmileParser.Feature.REQUIRE_HEADER)
+    out.disable(SmileGenerator.Feature.WRITE_HEADER)
+    out
+  }
+  
+  lazy val mapper = new ObjectMapper(fac) with ScalaObjectMapper
+}
+
+class XmlSerialization extends AbstractJacksonSerialization {
+  lazy val module = new JacksonXmlModule {
+    setDefaultUseWrapper(true)
+  }
+  lazy val inspector = new JacksonAnnotationIntrospector
+  lazy val mapper = new XmlMapper(module) with ScalaObjectMapper {
+    setAnnotationIntrospector(inspector)
+  }
+}
 
 class KryoSerialization extends Serialization {
   import ByteHandling._
@@ -133,16 +181,16 @@ class KryoSerialization extends Serialization {
     out
   }
   
-  def writeObject(a: Any, filename: File)(implicit options: FileHandlingOptions) {
+  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
     val kryo = getKryo()
-    val output = new Output(newFileOutputStream(filename));
-    try{ kryo.writeObject(output, a); }
+    val output = new Output(out);
+    try{ kryo.writeObject(output, t); }
     finally { output.close(); }
   }
   
-  def readObject[T](filename: File)(implicit m: Manifest[T], options: FileHandlingOptions) : T = {
+  def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) = {
     val kryo = getKryo()
-    val output = new Input(newFileInputStream(filename));
+    val output = new Input(newFileInputStream(file));
     try{ kryo.readObject(output, m.erasure).asInstanceOf[T] }
     finally { output.close() }
   }
