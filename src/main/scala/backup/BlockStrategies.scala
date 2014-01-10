@@ -8,7 +8,6 @@ import java.io.OutputStream
 import java.io.File
 import java.io.IOException
 
-
 trait BlockStrategy {
   def blockExists(hash: Array[Byte]) : Boolean
   def writeBlock(hash: Array[Byte], buf: Array[Byte])
@@ -56,6 +55,7 @@ class BAWrapper2(ba:Array[Byte], val length: Int) {
   override def equals(obj:Any):Boolean = 
     if (obj.isInstanceOf[BAWrapper2]) equals(obj.asInstanceOf[BAWrapper2]) 
     else false
+    
   override def hashCode:Int = Arrays.hashCode(data)
 }
 

@@ -14,13 +14,14 @@ import scala.collection.mutable.HashMap
 import java.io.BufferedInputStream
 import com.sun.jna.platform.FileUtils
 
-class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils with CountingFileManager {
+class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization(folder.serialization) with Utils with CountingFileManager {
   import Streams._
   import Test._
   import ByteHandling._
   import BAWrapper2.byteArrayToWrapper
   
   type HashChainMap = HashMap[BAWrapper2, Array[Byte]]
+  
   val blockStrategy = folder.getBlockStrategy
   
   def getMatchingFiles(prefix: String) = {
@@ -46,7 +47,10 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Utils wi
     val (filesToLoad, max) = getFilesAndNextNum(folder.backupFolder)
     nextHashChainNum = max
     implicit val options = folder
-    filesToLoad.map(readObject[HashChainMap]).fold(new HashChainMap())(_ ++ _)
+    val list = filesToLoad.map(readObject[List[(BAWrapper2, Array[Byte])]]).fold(List())(_ ++ _)
+    val map = new HashChainMap
+    map ++= list
+    map
   }
 
   val s = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
@@ -126,7 +130,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       if (!hashChainMapTemp.isEmpty) {
 	      var hashChainsName = s"hashchains_$nextHashChainNum.db"
 	      nextHashChainNum += 1
-	      writeObject(hashChainMapTemp, new File(options.backupFolder, hashChainsName))(options)
+	      writeObject(hashChainMapTemp.toList, new File(options.backupFolder, hashChainsName))(options)
       }
       files.clear
       hashChainMapTemp = new HashChainMap()

@@ -8,6 +8,5 @@ project/boot/
 .history
 .cache
 backups/
-test/
 restore/
 /bin

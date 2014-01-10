@@ -17,7 +17,13 @@ object ConsoleManager {
 	lazy val initAnsi = if (CommandLine.runsInJar) {
 	  AnsiConsole.systemInstall();
 	} else {
-	  Ansi.setEnabled(false)
+	  disableAnsi
+	}
+	
+	def disableAnsi = Ansi.setEnabled(false)
+	def testSetup {
+	  disableAnsi
+	  new ConsoleAppenderWithDeleteSupport()
 	}
 }
 

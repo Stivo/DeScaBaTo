@@ -16,6 +16,8 @@ libraryDependencies += ("com.twitter" %% "chill" % "0.3.5").exclude("com.esoteri
 
 libraryDependencies += "com.quantifind" %% "sumac" % "0.3-SNAPSHOT"
 
+libraryDependencies += "com.fasterxml.jackson.module" % "jackson-module-scala_2.10" % "2.3.1"
+
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
     base / "src/main/resources"

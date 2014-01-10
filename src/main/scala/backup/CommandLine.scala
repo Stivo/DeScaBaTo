@@ -111,6 +111,8 @@ trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig  {
     if (file != null)
     	PropertiesConfigCopy.saveConfig(this, file)
   }
+  
+  var serialization = new JsonSerialization()
 
 }
 
@@ -468,14 +470,14 @@ object CommandLine {
 	    parseCommandLine(a.toArray)
 	    
 	    a.clear()
-	    a += "find"
+	    a += "restore"
 //	    a ++= "-c" :: "zip" :: Nil
 //	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
 //	    a ++= "--passphrase" :: "password" :: Nil
 //	    a ++= "--keyLength" :: "128" :: Nil
 //	    a ++= "--relativeToFolder" :: "" :: Nil
-//	    a ++= "backups" :: "restore" :: Nil
-	    a ++= "backups" :: "." :: Nil
+	    a ++= "backups" :: "restore" :: Nil
+//	    a ++= "backups" :: "." :: Nil
 //	    printAllHelp
 	    parseCommandLine(a.toArray)
     }
