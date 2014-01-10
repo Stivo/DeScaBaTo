@@ -12,21 +12,11 @@ libraryDependencies += "com.typesafe" % "scalalogging-slf4j_2.10" % "1.0.1"
 
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % "test"
 
-libraryDependencies += ("com.twitter" %% "chill" % "0.3.5").exclude("com.esotericsoftware.minlog","minlog") 
-
 libraryDependencies += "com.quantifind" %% "sumac" % "0.3-SNAPSHOT"
 
 libraryDependencies += "com.fasterxml.jackson.module" % "jackson-module-scala_2.10" % "2.3.1"
 
-libraryDependencies += "de.undercouch" % "bson4jackson" % "2.3.1"
-
-libraryDependencies += "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.3.0"
-
 libraryDependencies += "com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.3.0"
-
-libraryDependencies += "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.3.0"
-
-libraryDependencies += "org.codehaus.woodstox" % "woodstox-core-asl" % "4.2.0"
 
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(

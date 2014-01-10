@@ -115,16 +115,13 @@ trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig {
     	PropertiesConfigCopy.saveConfig(this, file)
   }
   
-  @Arg(description="try json, bson, smile or kryo")
+  @Arg(description="try json or smile")
   var serializerType = "smile"
   
   def serialization = {
     serializerType.toLowerCase() match {
       case "json" => new JsonSerialization()
-      case "bson" => new BsonSerialization()
       case "smile" => new SmileSerialization()
-      case "kryo" => new KryoSerialization()
-      case "xml" => new XmlSerialization()
       case x => throw new IllegalArgumentException("Serializer "+x+" does not exist")
     }
     
@@ -472,6 +469,7 @@ object CommandLine {
   def main(args: Array[String]) {
     
     if (runsInJar) {
+      ConsoleManager.initAnsi
       parseCommandLine(args)
     } else {
 //        verifyBlock(new File("e:/temp/test/volume_23.zip"))

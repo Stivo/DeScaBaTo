@@ -25,14 +25,19 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
   
   val blockStrategy = folder.getBlockStrategy
   
-  def getMatchingFiles(prefix: String) = {
+  def getMatchingFiles(prefix: String) : Iterable[File] = {
     val files = folder.backupFolder.listFiles().filter(_.isFile()).filter(_.getName().startsWith(prefix))
     val sorted = files.sortBy(_.getName())
     if (files.isEmpty) {
       Nil
     } else {
       val lastPattern = sorted.last.getName().takeWhile(_!= '_')
-      sorted.dropWhile(!_.getName().contains(lastPattern)).toList
+      val onlyLast = sorted.dropWhile(!_.getName().contains(lastPattern)).toList
+      if (onlyLast.isEmpty)
+        // there was only one backup, use it
+        sorted.toList
+      else
+        onlyLast
     }
   }
   
@@ -48,7 +53,7 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
     val (filesToLoad, max) = getFilesAndNextNum(folder.backupFolder)
     nextHashChainNum = max
     implicit val options = folder
-    val list = filesToLoad.map(readObject[List[(BAWrapper2, Array[Byte])]]).fold(List())(_ ++ _)
+    val list = filesToLoad.map(readObject[Array[(BAWrapper2, Array[Byte])]]).fold(Array())(_ ++ _)
     val map = new HashChainMap
     map ++= list
     map
@@ -75,10 +80,16 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
     
   def loadBackupProperties(file: File = new File(folder.backupFolder, backupProperties)) {
     val backup = folder.propertyFile
+    val folderBefore = folder.backupFolder.getAbsolutePath()
     try {
       folder.propertyFile = file
       folder.propertyFileOverrides = true
       folder.readArgs(Map[String, String]())
+      if (folder.backupFolder.getPath != folderBefore) {
+        // the location of this backup has changed, the properties file needs to be updated
+        folder.backupFolder = new File(folderBefore)
+        folder.saveConfigFile(file)
+      }
       serialization = folder.serialization
     } finally {
       folder.propertyFile = backup
@@ -302,13 +313,24 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
     }
     l.info("Loading information")
     val loading = oldBackupFiles
-    l.info("Information loaded, filtering")
+    l.info("Information loaded (${loading.size} files), filtering")
     val filtered = loading.filter(_.path.contains(options.filePattern))
     l.info(s"Filtering done, found ${filtered.size} entries")
-    filtered.take(100).foreach(println)
+    filtered.take(100).foreach(printFile)
     if (filtered.size > 100) println("(Only listing 100 results)")
     val size = filtered.map(_.size).fold(0L)(_+_)
     l.info(s"Total ${readableFileSize(size)} found in ${filtered.size} files")
+  }
+  
+  def printFile(x: BackupPart) {
+    import org.fusesource.jansi.Ansi._
+    println (x match {
+      case fd@FileDescription(path, size, _, _, _) => {
+        val (parentPath, name) = (path.dropRight(fd.name.length), fd.name)
+        ansi().a("File: ").fg(Color.RED).a(parentPath).fg(Color.WHITE).a(s"$name ${readableFileSize(size)}")
+      }
+      case FolderDescription(path, _) => ansi().fg(Color.RED).a("Folder: ").fg(Color.WHITE).a(path)
+    })
   }
   
   implicit class RichString(s: String){

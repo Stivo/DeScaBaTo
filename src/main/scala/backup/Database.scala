@@ -11,10 +11,7 @@ import java.io.FileOutputStream
 import java.io.BufferedOutputStream
 import java.io.OutputStream
 import javax.xml.bind.DatatypeConverter
-import com.esotericsoftware.kryo.Kryo
-import com.esotericsoftware.kryo.io.Output
 import java.nio.file.Files
-import com.esotericsoftware.kryo.io.Input
 import scala.io.Source
 import java.io.PipedOutputStream
 import java.util.zip.GZIPOutputStream
@@ -23,9 +20,6 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.UserDefinedFileAttributeView
 import scala.collection.JavaConverters._
 import java.util.GregorianCalendar
-import com.twitter.chill.ScalaKryoInstantiator
-import com.twitter.chill.KryoSerializer
-import com.esotericsoftware.kryo.Serializer
 import java.io.IOException
 import java.net.URI
 import com.typesafe.scalalogging.slf4j.Logging

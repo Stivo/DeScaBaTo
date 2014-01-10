@@ -68,29 +68,14 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
     	assert(chainMap.map(_._1) === writeAndRead(ser, chainMap).map(_._1))
   }
   
-  "kryo" should "serialize backupparts" in {
-    val kryo = new KryoSerialization()
-    testWithFid(kryo)
-  }
-  
   "json" should "serialize backubparts" in {
     val json = new JsonSerialization()
     testWithFid(json)
   }
   
- "bson" should "serialize backubparts" in {
-    val bson = new BsonSerialization()
-    testWithFid(bson)
-  }
- 
  "smile" should "serialize backubparts" in {
     val smile = new SmileSerialization()
     testWithFid(smile)
   }
  
- "xml" should "serialize backubparts, but not chainmaps" in {
-    val xml = new XmlSerialization()
-    testWithFid(xml, false)
-  }
-  
 }
