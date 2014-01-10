@@ -313,7 +313,7 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
     }
     l.info("Loading information")
     val loading = oldBackupFiles
-    l.info("Information loaded (${loading.size} files), filtering")
+    l.info(s"Information loaded (${loading.size} files), filtering")
     val filtered = loading.filter(_.path.contains(options.filePattern))
     l.info(s"Filtering done, found ${filtered.size} entries")
     filtered.take(100).foreach(printFile)
@@ -324,12 +324,12 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
   
   def printFile(x: BackupPart) {
     import org.fusesource.jansi.Ansi._
-    println (x match {
-      case fd@FileDescription(path, size, _, _, _) => {
-        val (parentPath, name) = (path.dropRight(fd.name.length), fd.name)
-        ansi().a("File: ").fg(Color.RED).a(parentPath).fg(Color.WHITE).a(s"$name ${readableFileSize(size)}")
-      }
-      case FolderDescription(path, _) => ansi().fg(Color.RED).a("Folder: ").fg(Color.WHITE).a(path)
+    import ConsoleManager._
+    println(x match {
+      case FileDescription(path, size, _, _, _) =>
+        s"File: ${mark(path, findOptions.filePattern)} ${readableFileSize(size)}"
+      case FolderDescription(path, _) => 
+        s"Folder: ${mark(path, findOptions.filePattern)} "
     })
   }
   

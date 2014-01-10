@@ -93,14 +93,8 @@ trait Utils extends Logging {
     return new DecimalFormat("#,##0.#").format(size/Math.pow(1024, digitGroups)) + " " + Utils.units(digitGroups);
   }
   
-  var lastOne = 0L
-  
-  def printDeleted(message: String) = {
-    val timeNow = new Date().getTime()
-    if (timeNow > lastOne) {
-    	ConsoleManager.appender.writeDeleteLine(message)
-    	lastOne = timeNow + 10
-    }
+  def printDeleted(message: String) {
+    ConsoleManager.writeDeleteLine(message)
   }
   
 } 

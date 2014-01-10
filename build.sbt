@@ -1,8 +1,8 @@
 scalaVersion := "2.10.3"
 
-packageArchetype.java_application
-
 mainClass := Some("backup.CommandLine")
+
+packageArchetype.java_application
 
 libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.11"
 

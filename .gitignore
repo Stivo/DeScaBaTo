@@ -11,3 +11,5 @@ backups/
 restore/
 /bin
 /testdata
+/index
+/index2
