@@ -24,8 +24,9 @@ import scala.collection.JavaConverters._
 import java.util.Date
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.SerializationFeature
-
+import de.undercouch.bson4jackson.BsonFactory
 import ByteHandling._
+import de.undercouch.bson4jackson.BsonGenerator
 
 trait Serialization {
   def writeObject(a: Any, filename: File)(implicit options: FileHandlingOptions) : Unit
@@ -41,10 +42,8 @@ class DelegateSerialization(serialization: Serialization) extends Serialization 
     serialization.readObject(filename)
 }
 
-
-class JsonSerialization extends Serialization {
-
-  class BackupPartDeserializer extends StdDeserializer[BackupPart](classOf[BackupPart]) {
+abstract class AbstractJsonSerialization extends Serialization {
+    class BackupPartDeserializer extends StdDeserializer[BackupPart](classOf[BackupPart]) {
     def deserialize (jp: JsonParser, ctx: DeserializationContext) = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper];  
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode];
@@ -68,17 +67,19 @@ class JsonSerialization extends Serialization {
       }
   }
 
-  val mapper = new ObjectMapper() with ScalaObjectMapper
-  mapper.registerModule(DefaultScalaModule)
   val testModule = new SimpleModule("MyModule", new Version(1, 0, 0, null));
   testModule.addDeserializer(classOf[BackupPart], new BackupPartDeserializer())
   testModule.addDeserializer(classOf[BAWrapper2], new BAWrapper2Deserializer())
   testModule.addSerializer(classOf[BAWrapper2], new BAWrapper2Serializer())
+
+  def mapper : ObjectMapper with ScalaObjectMapper
+  
+  mapper.registerModule(DefaultScalaModule)
   
   mapper.registerModule(testModule)
   mapper.enable(SerializationFeature.INDENT_OUTPUT);
   mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-
+  
   def writeObject(a: Any, file: File)(implicit options: FileHandlingOptions) {
     mapper.writeValue(newFileOutputStream(file), a)
   } 
@@ -88,6 +89,23 @@ class JsonSerialization extends Serialization {
   }
   
 }
+
+class JsonSerialization extends AbstractJsonSerialization {
+  lazy val mapper = new ObjectMapper() with ScalaObjectMapper
+}
+
+class BsonSerialization extends AbstractJsonSerialization {
+
+  lazy val fac = {
+    val out = new BsonFactory
+    out.enable(BsonGenerator.Feature.ENABLE_STREAMING);
+    out
+  }
+  
+  lazy val mapper = new ObjectMapper(fac) with ScalaObjectMapper
+   
+}
+
 
 class KryoSerialization extends Serialization {
   import ByteHandling._

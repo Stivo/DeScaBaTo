@@ -40,7 +40,7 @@ class SerializationSpec extends FlatSpec {
   def testWithFid(ser: Serialization, fd: FileDescription) {
     assert(fd === writeAndRead(ser, fd))
     val fdNew = fd.copy(hash = "Testing byte serialization".getBytes)
-    val fd2 = writeAndRead(ser, fdNew)
+    var fd2 = writeAndRead(ser, fdNew)
     assert(true === Arrays.equals(fdNew.hash, fd2.hash))
     assert(fod === writeAndRead(ser, fod))
     assert(chainMap.map(_._1) === writeAndRead(ser, chainMap).map(_._1))
@@ -49,6 +49,11 @@ class SerializationSpec extends FlatSpec {
   "json" should "serialize backubparts too" in {
     val json = new JsonSerialization()
     testWithFid(json, fid)
+  }
+  
+ "bson" should "serialize backubparts too" in {
+    val bson = new BsonSerialization()
+    testWithFid(bson, fid)
   }
   
 }
