@@ -98,7 +98,10 @@ object SizeParser extends SimpleParser[Size] {
   }
 }
 
-trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig  {
+trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig {
+  
+  var noprompt = false
+  
   @Arg(shortcut="arg1")
   @Required
   var backupFolder: File = null
@@ -112,7 +115,20 @@ trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig  {
     	PropertiesConfigCopy.saveConfig(this, file)
   }
   
-  var serialization = new JsonSerialization()
+  @Arg(description="try json, bson, smile or kryo")
+  var serializerType = "smile"
+  
+  def serialization = {
+    serializerType.toLowerCase() match {
+      case "json" => new JsonSerialization()
+      case "bson" => new BsonSerialization()
+      case "smile" => new SmileSerialization()
+      case "kryo" => new KryoSerialization()
+      case "xml" => new XmlSerialization()
+      case x => throw new IllegalArgumentException("Serializer "+x+" does not exist")
+    }
+    
+  }
 
 }
 
@@ -293,18 +309,6 @@ trait OptionCommand extends Command {
   
   def execute(t: T)
   
-  def askUser(question: String = "Do you want to continue?") = {
-    println(question)
-    val bufferRead = new BufferedReader(new InputStreamReader(System.in));
-	val s = bufferRead.readLine();
-	val yes = Set("yes", "y")
-	if (yes.contains(s.toLowerCase().trim)) {
-	  true
-	} else {
-	  println("User aborted") 
-	  false
-	}
-  }
 }
 
 trait BackupOptionCommand extends OptionCommand {
@@ -317,6 +321,23 @@ trait BackupOptionCommand extends OptionCommand {
   }
   
   def executeCommand(t: T)
+  
+  def askUser(t: T, question: String = "Do you want to continue?") : Boolean = {
+    if (t.noprompt) {
+      return true
+    }
+    println(question)
+    val bufferRead = new BufferedReader(new InputStreamReader(System.in));
+	val s = bufferRead.readLine();
+	val yes = Set("yes", "y")
+	if (yes.contains(s.toLowerCase().trim)) {
+	  true
+	} else {
+	  println("User aborted") 
+	  false
+	}
+  }
+
     
 }
 
@@ -326,7 +347,7 @@ class BackupCommand extends BackupOptionCommand {
   def getNewOptions = new T()
   def executeCommand(args: T) {
     println(args)
-    if (askUser()) {
+    if (askUser(args)) {
       args.folderToBackup = args.folderToBackup.map(_.getAbsoluteFile())
       val bh = new BackupHandler(args)
       bh.backupFolder()
@@ -340,7 +361,7 @@ class RestoreCommand extends BackupOptionCommand {
   def getNewOptions = new T()
   def executeCommand(args: T) {
     println(args)
-    if (askUser()) {
+    if (askUser(args)) {
       val bh = new RestoreHandler(args)
       bh.restoreFolder()
     } 
@@ -367,7 +388,7 @@ class FindDuplicatesCommand extends BackupOptionCommand {
   def executeCommand(args: T) {
     println(args)
     if (!args.dryrun && args.action != DuplicateAction.report) {
-    	askUser("This will delete or move files to trash, are you sure you want to continue?")
+    	askUser(args, "This will delete or move files to trash, are you sure you want to continue?")
     }
     val bh = new SearchHandler(null, args)
     bh.findDuplicates

@@ -15,7 +15,7 @@ import java.io.BufferedInputStream
 import com.sun.jna.platform.FileUtils
 import scala.reflect.ManifestFactory
 
-class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization(folder.serialization) with Utils with CountingFileManager {
+class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization with Utils with CountingFileManager {
   import Streams._
   import Test._
   import ByteHandling._
@@ -79,6 +79,7 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
       folder.propertyFile = file
       folder.propertyFileOverrides = true
       folder.readArgs(Map[String, String]())
+      serialization = folder.serialization
     } finally {
       folder.propertyFile = backup
       folder.propertyFileOverrides = false
@@ -107,6 +108,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       l.info("Loading old backup properties")
       loadBackupProperties(backupPropertyFile)
     } else {
+      serialization = folder.serialization
       l.info("Saving backup properties")
       options.saveConfigFile(backupPropertyFile)
     }

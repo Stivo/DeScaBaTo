@@ -31,7 +31,6 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.dataformat.smile.SmileGenerator
 import com.fasterxml.jackson.dataformat.smile.SmileParser
-import com.fasterxml.jackson.dataformat.csv.CsvMapper
 import java.io.OutputStream
 import com.fasterxml.jackson.dataformat.xml.JacksonXmlModule
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector
@@ -45,7 +44,8 @@ trait Serialization {
   def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) : T 
 }
 
-class DelegateSerialization(serialization: Serialization) extends Serialization {
+trait DelegateSerialization extends Serialization {
+  var serialization: Serialization = null
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
     serialization.writeObject(t, out)
   }
