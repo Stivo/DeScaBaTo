@@ -13,31 +13,44 @@ import java.util.zip.GZIPOutputStream
 import java.util.zip.GZIPInputStream
 import java.io.File
 import scala.collection.mutable.Stack
+import scala.ref.WeakReference
 
 object Streams {
+  import ObjectPools.baosPool
   
-  object BaosFactory {
-    val stack = new Stack[ByteArrayOutputStream]()
-    def getByteArrayOutputStream = {
-      if (stack.isEmpty) 
-    	new ByteArrayOutputStream(1024*1024+10)
-      else
-        stack.pop
-    }
+  object ObjectPools {
     
-    def recycle(baos: ByteArrayOutputStream) {
-      if (stack.size < 10) {
-        stack.push(baos)
+    abstract class ObjectPool[T<: AnyRef] {
+      private val stack = new Stack[WeakReference[T]]()
+      def get : T = {
+	      while (!stack.isEmpty) {
+		      stack.pop match { 
+		          case WeakReference(x) => return x
+		          case _ => 
+		      }
+	      }
+	      makeNew
       }
+      def recycle(t: T) {
+        reset(t)
+        stack.push(WeakReference(t))
+      }
+      protected def reset(t: T)
+      protected def makeNew : T
     }
-    
+
+    val baosPool = new ObjectPool[ByteArrayOutputStream] {
+      def reset(t: ByteArrayOutputStream) = t.reset()
+      def makeNew = new ByteArrayOutputStream(1024*1024+10)
+    }
+
   }
   
   def readFully(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
-    val baos = BaosFactory.getByteArrayOutputStream
+    val baos = baosPool.get
     copy(wrapInputStream(in), baos)
     val out = baos.toByteArray()
-    BaosFactory.recycle(baos)
+    baosPool.recycle(baos)
     out
   }
 
@@ -87,12 +100,12 @@ object Streams {
   }
 
   def newByteArrayOut(content: Array[Byte])(implicit fileHandlingOptions: FileHandlingOptions) = {
-    var baos = BaosFactory.getByteArrayOutputStream
+    var baos = baosPool.get
     val wrapped = wrapOutputStream(baos)
     wrapped.write(content)
     wrapped.close()
     val out = baos.toByteArray
-    BaosFactory.recycle(baos)
+    baosPool.recycle(baos)
     out
   }
   
@@ -164,7 +177,7 @@ object Streams {
 
   class BlockOutputStream(val blockSize: Int, func: (Array[Byte] => _)) extends OutputStream {
     
-    var out = BaosFactory.getByteArrayOutputStream
+    var out = baosPool.get
     
     def write(b : Int)  {
       out.write(b)
@@ -194,7 +207,9 @@ object Streams {
     override def close() {
       func(out.toByteArray())
       super.close()
-      BaosFactory.recycle(out)
+      baosPool.recycle(out)
+      // out was returned to the pool, so remove instance pointer
+      out = null
     }
 	  
   }
