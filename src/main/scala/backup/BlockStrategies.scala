@@ -170,8 +170,11 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
         	new File(option.backupFolder, f(curNum, true))
         		.renameTo(new File(option.backupFolder, f(curNum, false)))
         }
+        
     	rename(volumeName)
     	rename(indexName)
+    	Actors.remoteManager ! UploadFile(new File(option.backupFolder, indexName(curNum)), false)
+    	Actors.remoteManager ! UploadFile(new File(option.backupFolder, volumeName(curNum)), true)
     	knownBlocks ++= knownBlocksTemp
     	knownBlocksTemp = Map()
     	curNum +=1

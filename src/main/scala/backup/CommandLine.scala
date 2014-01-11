@@ -23,6 +23,9 @@ import java.io.{FileOutputStream, PrintStream}
 import com.quantifind.sumac.ExternalConfig
 import java.io.BufferedInputStream
 import com.quantifind.sumac.ExternalConfigUtil
+import akka.actor.ActorSystem
+import akka.actor.Props
+import Utils._
 
 trait PropertiesConfig extends ExternalConfig {
   self: Args =>
@@ -57,7 +60,6 @@ trait PropertiesConfig extends ExternalConfig {
   }
 }
 
-
 trait ExplainHelp extends FieldArgs {
   
   def name = this.getClass().getSimpleName().dropRight("Options".length).toLowerCase()
@@ -82,7 +84,7 @@ case class Size(bytes: Long) {
 object SizeParser extends SimpleParser[Size] {
   val knownTypes: Set[Class[_]] = Set(classOf[Size])
   val patt = Pattern.compile("([\\d.]+)(\\s*)([GMK]B)", Pattern.CASE_INSENSITIVE);
-  
+
   def parse(size: String) = {
 	var out : Long = -1;
     val matcher = patt.matcher(size);
@@ -99,6 +101,14 @@ object SizeParser extends SimpleParser[Size] {
 }
 
 trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig {
+  import akka.pattern.{ ask, pipe }
+  import scala.concurrent.duration._
+  
+  val remote = new RemoteOptions()
+  
+  def configureRemoteHandler = {
+    ask(Actors.remoteManager , Configure(this))(5 seconds)
+  }
   
   var noprompt = false
   
@@ -151,9 +161,9 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
   @Required
   var folderToBackup: List[File] = _
   
-  var volumeSize : Size = SizeParser.parse("64Mb");
+  var volumeSize : Size = "64Mb";
   
-  var blockSize : Size = new Size(1024*1024);
+  var blockSize : Size = "1MB";
   
   var saveIndexEveryNFiles = 1000
   
@@ -168,6 +178,12 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
   
   override def getBlockStrategy() = new ZipBlockStrategy(this, Some(volumeSize))
   
+}
+
+class RemoteOptions extends FieldArgs {
+  def enabled = url.isDefined
+  var url : Option[String] = None
+  var localMaximumSize : Size = "1GB"
 }
 
 class RestoreOptions extends ExplainHelp with BackupFolderOption with EncryptionOptions {
@@ -187,7 +203,7 @@ class RestoreOptions extends ExplainHelp with BackupFolderOption with Encryption
 
 class RedundancyOptions extends FieldArgs {
 	var percentage : Int = 5
-	var blockSize = SizeParser.parse("1MB")
+	var blockSize : Size = "1MB"
 	var par2Executable = new File("tools/par2.exe")
 	var volumesToParTogether = 21
 	var enabled = false
@@ -385,7 +401,11 @@ class FindCommand extends BackupOptionCommand {
   def executeCommand(args: T) {
     println(args)
     val bh = new SearchHandler(args, null)
-    bh.searchForPattern(args.filePattern)
+    val bufferRead = new BufferedReader(new InputStreamReader(System.in));
+    while (true) {
+      args.filePattern = bufferRead.readLine()
+      bh.searchForPattern(args.filePattern)
+    }
   }
 }
 
@@ -458,6 +478,7 @@ object CommandLine {
   
   def printHelp(x: Array[String]) = println(prepareCommands(x(0)).getNewOptions.helpMessage)
   def runsInJar = classOf[FindCommand].getResource("FindCommand.class").toString.startsWith("jar:")
+  
   def main(args: Array[String]) {
     
     if (runsInJar) {

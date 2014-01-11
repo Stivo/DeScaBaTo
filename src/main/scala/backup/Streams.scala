@@ -14,36 +14,63 @@ import java.util.zip.GZIPInputStream
 import java.io.File
 import scala.collection.mutable.Stack
 import scala.ref.WeakReference
+import scala.reflect.ClassTag
 
 object Streams {
   import ObjectPools.baosPool
   
   object ObjectPools {
     
-    abstract class ObjectPool[T<: AnyRef] {
-      private val stack = new Stack[WeakReference[T]]()
-      def get : T = {
+    trait Arg[T<: AnyRef, A] {
+      def isValidForArg(x: T, arg: A) : Boolean
+    }
+    
+    trait NoneArg[T <: AnyRef] extends Arg[T, Unit] {
+      self : ObjectPool[T, Unit] =>
+        
+      def isValidForArg(x: T, arg: Unit) = true
+      def get() : T = get(())
+      def makeNew() : T = get(())
+    }
+    
+    trait ArrayArg[A] extends Arg[Array[A], Int] {
+      self : ObjectPool[Array[A], Int] =>
+      def classTag : ClassTag[A]
+      def isValidForArg(x: Array[A], arg: Int) = x.length >= arg
+      def makeNew(arg: Int) = Array.ofDim[A](arg)(classTag)
+    }
+   
+    abstract class ObjectPool[T<: AnyRef, A] {
+      self : Arg[T, A] =>
+      private val stack = Buffer[WeakReference[T]]()
+      def get(arg: A) : T = {
 	      while (!stack.isEmpty) {
-		      stack.pop match { 
-		          case WeakReference(x) => return x
-		          case _ => 
-		      }
+		      stack.foreach(_ match { 
+		          case wr@WeakReference(x) if (isValidForArg(x, arg))=> stack -= wr; return x
+		          case WeakReference(x) => // continue searching 
+		          case wr => // This is an empty reference now, we might as well delete it 
+		            stack -= wr 
+		      })
 	      }
-	      makeNew
+	      makeNew(arg)
       }
       def recycle(t: T) {
         reset(t)
-        stack.push(WeakReference(t))
+        stack += (WeakReference(t))
       }
-      protected def reset(t: T)
-      protected def makeNew : T
+      protected def reset(t: T) {}
+      protected def makeNew(arg: A) : T
     }
 
-    val baosPool = new ObjectPool[ByteArrayOutputStream] {
-      def reset(t: ByteArrayOutputStream) = t.reset()
-      def makeNew = new ByteArrayOutputStream(1024*1024+10)
+    val baosPool = new ObjectPool[ByteArrayOutputStream, Unit] with NoneArg[ByteArrayOutputStream] {
+      override def reset(t: ByteArrayOutputStream) = t.reset()
+      def makeNew(arg: Unit) = new ByteArrayOutputStream(1024*1024+10)
     }
 
+    val byteArrayPool = new ObjectPool[Array[Byte], Int] with ArrayArg[Byte] {
+      def classTag = ClassTag.Byte
+    }
+    
   }
   
   def readFully(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {

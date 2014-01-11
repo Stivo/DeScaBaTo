@@ -15,6 +15,9 @@ import java.io.BufferedInputStream
 import com.sun.jna.platform.FileUtils
 import scala.reflect.ManifestFactory
 import scala.collection.mutable.ArrayBuffer
+import backup.Streams.ObjectPools
+import akka.actor.PoisonPill
+import scala.concurrent.Await
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization with Utils with CountingFileManager {
   import Streams._
@@ -101,6 +104,7 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
 class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[BackupOptions](options){
   import Streams._
   import Utils._
+  import scala.concurrent.duration._
   
   var changed: Boolean = false
   
@@ -121,10 +125,13 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       l.info("Saving backup properties")
       options.saveConfigFile(backupPropertyFile)
     }
+    val future = options.configureRemoteHandler
   	l.info(s"Found ${oldBackupFiles.size} previously backed up files")
   	oldBackupFilesRemaining ++= oldBackupFiles.map(x => (x.path, x))
   	importOldHashChains
     val now = new Date()
+  	Await.ready(future, 10 seconds)
+  	Actors.remoteManager ! UploadFile(backupPropertyFile)
     val filename = s"${s.format(now)}"
     var (counter, fileCounter, sizeCounter) = (0, 0, 0L)
     val files = Buffer[BackupPart]()
@@ -142,7 +149,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       if (!hashChainMapTemp.isEmpty) {
 	      var hashChainsName = s"hashchains_$nextHashChainNum.db"
 	      nextHashChainNum += 1
-	      writeObject(hashChainMapTemp.toBuffer, new File(options.backupFolder, hashChainsName))(options, ManifestFactory.classType(files.getClass))
+	      val hashChainFile = new File(options.backupFolder, hashChainsName)
+	      writeObject(hashChainMapTemp.toBuffer, hashChainFile)(options, ManifestFactory.classType(files.getClass))
+	      Actors.remoteManager ! UploadFile(hashChainFile)
       }
       files.clear
       hashChainMapTemp = new HashChainMap()
@@ -152,7 +161,11 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
         newFiles()
       }
       file.isDirectory() match {
-        case true => files += backupFolderDesc(file); file.listFiles().foreach(walk)
+        case true => files += backupFolderDesc(file); try {
+          file.listFiles().foreach(walk)
+        } catch {
+          case e: Exception => l.error("Could not get children of "+file)
+        }
         case false => files += backupFile(file)
       }
     }
@@ -167,11 +180,14 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
     if (!changed) {
       l.info(s"Nothing has changed, removing this backup")
       filesWritten.foreach(_.delete)
+    } else {
+      filesWritten.foreach(x => Actors.remoteManager ! UploadFile(x))
     }
     if (options.redundancy.enabled) {
       val rh = new RedundancyHandler(options.backupFolder, options.redundancy)
       rh.createFiles
     }
+    Actors.stop()
   }
 
   def findOld[T <: BackupPart](file: File)(implicit manifest: Manifest[T]) : (Option[T], FileAttributes) = {
@@ -317,7 +333,8 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
     l.info(s"Information loaded (${loading.size} files), filtering")
     val filtered = loading.filter(_.path.contains(options.filePattern))
     l.info(s"Filtering done, found ${filtered.size} entries")
-    filtered.take(100).foreach(printFile)
+    val sorted = if (filtered.size < 10000) filtered.sortBy(-_.size) else filtered
+    sorted.take(100).foreach(printFile)
     if (filtered.size > 100) println("(Only listing 100 results)")
     val size = filtered.map(_.size).fold(0L)(_+_)
     l.info(s"Total ${readableFileSize(size)} found in ${filtered.size} files")
@@ -350,12 +367,14 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
         Set()
       }
     }
+    l.info("Loading")
     l.info("Found "+oldBackupFiles.size+" files in index")
+    val set = oldBackupFiles.map(_.path.toLowerCase()).toSet
     val filesFiltered = oldBackupFiles.flatMap{case x: FileDescription => Some(x); case _ => None}.filter(_.size >= size)
     l.info("Found "+filesFiltered.size+s" files that are larger than ${options.minSize}")
     filesFiltered.foreach(x => bag.update(x.size, bag(x.size)++Buffer(x.path)))
     l.info("There are "+bag.size+" size groups")
-    val duplicates = bag.values.filter(_.size > 1).toArray.sortBy(_.head.fileLength).reverse
+    val duplicates = bag.values.map(_.filter(new File(_).exists)).filter(_.size > 1).toArray.sortBy(_.head.fileLength).reverse
     l.info("There are "+duplicates.size+" size groups with more than one file in it")
     var rest = duplicates
     var totalSize = new Size(duplicates.map(x => x.map(_.fileLength).sum).sum)
@@ -374,19 +393,25 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
    * Helper class to keep the state for reading a 
    * file chunk-wise.
    */
-  class CompareHelper(val f: String, bufSize: Int = 10240) {
+  class CompareHelper(val f: String, bufSize: Int = 10240, skip: Int = 1024*1024) {
     val file = new File(f)
     if (!file.exists) {
       throw new IllegalArgumentException("File "+f+" does not exist")
     }
     val stream = new BufferedInputStream(new FileInputStream(file))
-    val buf = Array.ofDim[Byte](bufSize)
+    var buf = ObjectPools.byteArrayPool.get(bufSize)
     var last : BAWrapper2 = null
     var read = 1
     def finished = read < 0
     def readNext() {
       read = stream.read(buf)
+      stream.skip(skip)
       last = new BAWrapper2(buf)
+    }
+    def close() {
+      stream.close()
+      ObjectPools.byteArrayPool.recycle(buf)
+      buf = null
     }
   }
 
@@ -395,7 +420,8 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
    * Executes the actions with the found duplicates. 
    */
   def compareFiles(files: Iterable[String]) = {
-    printDeleted("Starting to analyze group of "+files.size+" files: "+files)
+    val size = new Size(files.map(_.fileLength).sum)
+    l.info("Starting to analyze group of "+files.size+" "+size+" "+"(files: "+files+")")
     var results = Buffer[Iterable[String]]() 
     val helpers = files.map(f => new CompareHelper(f.toLowerCase()))
     
@@ -421,7 +447,7 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
 	  remaining.foreach {compareHelpers _}
     }
     compareHelpers(helpers)
-    helpers.map(_.stream.close())
+    helpers.map(_.close())
     results
   }
   

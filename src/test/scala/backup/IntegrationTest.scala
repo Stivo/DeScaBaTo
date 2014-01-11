@@ -9,13 +9,10 @@ import java.security.MessageDigest
 import java.io.FileInputStream
 import java.nio.file.Files
 
-class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAll {
-
-  ConsoleManager.testSetup
-  
+trait PrepareBackupTestData {
   lazy val testdata = new File("testdata")
   lazy val backupFrom = new File(testdata, "backupinput")
-  override def beforeAll {
+  def prepare {
     val folder = new File(backupFrom, "testFolder")
     if (!folder.exists())
       folder.mkdirs()
@@ -28,8 +25,35 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
       f2.createNewFile()
     }
   }
-  
+}
+
+trait FileDeleter {
   var writtenFolders = Buffer[File]()
+  
+  private def deleteAll(f: File) {
+    def walk(f: File) {
+      f.isDirectory() match {
+        case true => f.listFiles().foreach(walk); f.delete()
+        case false => f.delete()
+      }
+    }
+    walk(f)
+  }
+  
+  def deleteFiles {
+    writtenFolders.foreach(deleteAll)
+    writtenFolders.clear
+  }
+
+}
+
+class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAll with PrepareBackupTestData with FileDeleter {
+  
+  ConsoleManager.testSetup
+  
+  override def beforeAll {
+    prepare
+  }
   
   var bo = new BackupOptions()
   var ro = new RestoreOptions()
@@ -126,19 +150,8 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     assert(files1.size === counter)
   }
   
-  def deleteAll(f: File) {
-    def walk(f: File) {
-      f.isDirectory() match {
-        case true => f.listFiles().foreach(walk); f.delete()
-        case false => f.delete()
-      }
-    }
-    walk(f)
-  }
-  
   after {
-    writtenFolders.foreach(deleteAll)
-    writtenFolders.clear
+    deleteFiles
   }
   
 }

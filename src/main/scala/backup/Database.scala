@@ -79,6 +79,8 @@ object FileAttributes {
 }
 
 object Utils {
+  implicit def string2Size(s: String) = SizeParser.parse(s)
+
   private val units = Array[String] ( "B", "KB", "MB", "GB", "TB" );
   def isWindows = System.getProperty("os.name").contains("indows")
   def readableFileSize(size: Long) : String = {

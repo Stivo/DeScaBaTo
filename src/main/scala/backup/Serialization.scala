@@ -85,6 +85,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
   
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
     mapper.writeValue(out, t)
+    out.close()
   } 
   
   def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) = {
