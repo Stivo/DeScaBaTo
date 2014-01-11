@@ -13,9 +13,10 @@ import akka.dispatch.BoundedMailbox
 import scala.concurrent.duration.FiniteDuration
 import akka.actor.ActorSystem
 import akka.actor.Props
-import akka.pattern.gracefulStop
+import akka.pattern.{ask, gracefulStop}
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import java.io.IOException
 
 object Actors {
    lazy val system = ActorSystem("HelloSystem")
@@ -26,56 +27,80 @@ object Actors {
 	   val stopped = gracefulStop(remoteManager, 30 minutes)
 	   Await.result(stopped, 30 minutes)
    }
+   
+   def downloadFile(f: File) = {
+     val wait = (remoteManager ? DownloadFile(f))(30 minutes)
+     Await.ready(wait, 30 minutes)
+     if (!f.exists) {
+       throw new IOException("Did not successfully download "+f)
+     }
+   }
+   
 }
 
-case class UploadFile(file: File, deleteLocalOnSuccess : Boolean  = false)
+case class DownloadFile(file: File)
+case class UploadFile(file: File, deleteLocalOnSuccess : Boolean = false)
 case class Configure(options: BackupFolderOption)
-
-class MyBoundedMailbox(settings: ActorSystem.Settings, config: Config) extends BoundedMailbox(5, FiniteDuration(30, "minutes"))
+case object DownloadMetadata 
 
 class FileUploadActor extends Actor with Utils with CountingFileManager {
   
   var options: BackupFolderOption = null
-  var backendClient : BackendClient = null
+  var backend : BackendClient = null
+  
+  private def localFile(s: String) = new File(options.backupFolder, s) 
+  
+  def reply { sender ! true }
   
   def receive = {
-    case Configure(o) => options = o; backendClient = new VfsBackendClient(options.remote.url.get)
-    case UploadFile(_, _) if !options.remote.enabled => // Ignore
+    case Configure(o) => options = o; backend = new VfsBackendClient(options.remote.url.get); sender ! true
+    case _ if !options.remote.enabled => sender ! true // Ignore
+    case DownloadFile(f) => {
+      l.info("Downloading file "+f)
+      backend.get(f)
+      sender ! true
+    }
+    case DownloadMetadata => {
+      val files = backend.list.filter(!_.startsWith("volume_"))
+      files.foreach { f=>
+        if (localFile(f).length() < backend.getSize(f)) {
+          l.info("Downloading file "+f)
+          backend.get(localFile(f))
+        }
+      }
+      l.info("Finished synchronizing")
+      sender ! true
+    }
     case UploadFile(file, true) => {
       l.info("Uploading file "+file)
       uploadAndDeleteLocal(file)
+      sender ! true
     }
     case UploadFile(file, false) => {
       l.info("Uploading file "+file)
       if (!isDone(file)) 
-    	 backendClient.put(file)
+    	 backend.put(file)
       if (isDone(file))
          l.info(s"Successfully uploaded ${file.getName}")
+         sender ! true
     }
-    case x => l.error("Received unknown message type") 
+    case x => sender ! akka.actor.Status.Failure(new IllegalArgumentException("Received unknown message type"))
   }
+    
+  def isDone(f: File) = backend.exists(f.getName()) && backend.getSize(f.getName()) == f.length()
   
-  def uploadVolumes {
-	val (files, num) = getFilesAndNextNum(options.backupFolder)("volume_")
-	files.foreach { f=>
-	  uploadAndDeleteLocal(f)
-	}
-  }
-  
-  def isDone(f: File) = backendClient.exists(f.getName()) && backendClient.getSize(f.getName()) == f.length()
-  
-  def delete(f: File) = {
+  def deleteLocal(f: File) = {
     FileUtils.getInstance().moveToTrash(Array(f));
   }
   
   def uploadAndDeleteLocal(f: File) {
     if (isDone(f)) {
-      delete(f)
+      deleteLocal(f)
     } else {
-      backendClient.put(f)
+      backend.put(f)
       if (isDone(f)) {
         l.info(s"Successfully uploaded ${f.getName}, deleting local copy")
-        delete(f)
+        deleteLocal(f)
       } else {
     	l.info(s"Did not upload ${f.getName} correctly, will try again")
       }
@@ -83,7 +108,6 @@ class FileUploadActor extends Actor with Utils with CountingFileManager {
   }
   
   override def postStop {
-    println("Request shutdown")
     context.system.shutdown()
   }
   
@@ -132,5 +156,7 @@ class VfsBackendClient(url: String) extends BackendClient {
     from.copyFrom(remoteDir.resolveFile(remoteName), new AllFileSelector())
   }
 
-  def getSize(name: String) = remoteDir.resolveFile(name).getContent().getSize()
+  def getSize(name: String) = {
+    if (!exists(name)) -1 else remoteDir.resolveFile(name).getContent().getSize()
+  }
 }

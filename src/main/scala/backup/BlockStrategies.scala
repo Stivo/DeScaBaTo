@@ -228,6 +228,9 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     l.trace(s"Getting block for hash $hashS")
     val num: Int = knownBlocks.get(hash).get
     val zipFile = getZipFileReader(num)
+    if (!zipFile.file.exists()) {
+      Actors.downloadFile(zipFile.file)
+    }
     val input = zipFile.getStream(hashS)
     readFully(input)(option)
   }

@@ -18,6 +18,7 @@ import scala.collection.mutable.ArrayBuffer
 import backup.Streams.ObjectPools
 import akka.actor.PoisonPill
 import scala.concurrent.Await
+import akka.pattern.{ ask, pipe }
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization with Utils with CountingFileManager {
   import Streams._
@@ -277,10 +278,18 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   import Streams._
   import Utils._
   
+  
   val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder)
       
   def restoreFolder() {
 	loadBackupProperties()
+	options.configureRemoteHandler
+	import scala.concurrent.Await
+	import scala.concurrent.duration._
+	l.info("Downloading files from remote storage if needed")
+	val future = (Actors.remoteManager ? DownloadMetadata)(30 minutes)
+	Await.ready(future, 30 minutes)
+	l.info("Finished downloading metadata")
     importOldHashChains
     val dest = options.restoreToFolder
     val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder) 
@@ -292,6 +301,7 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
     files.foreach(restoreFileDesc(_))
     folders.foreach(x => restoreFolderDesc(x))
     blockStrategy.free()
+    Actors.stop()
   }
   
   def restoreFolderDesc(fd: FolderDescription) {
