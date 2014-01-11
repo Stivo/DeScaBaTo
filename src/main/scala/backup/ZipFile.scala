@@ -28,7 +28,9 @@ class ZipFileReader(zip: File) extends ZipFileHandler(zip) {
   val names = _zipEntries.map(_.getName())
    
   def getStream(name: String) = zf.getInputStream(zf.getEntry(name))
-   
+ 
+  def getEntrySize(name: String) = zf.getEntry(name).getSize()
+  
   def close() {
     zf.close()
   }

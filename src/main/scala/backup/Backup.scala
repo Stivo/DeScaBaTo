@@ -31,7 +31,7 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
     if (files.isEmpty) {
       Nil
     } else {
-      val lastPattern = sorted.last.getName().takeWhile(_!= '_')
+      val lastPattern = sorted.last.getName().drop(prefix.length).takeWhile(_!= '_')
       val onlyLast = sorted.dropWhile(!_.getName().contains(lastPattern)).toList
       if (onlyLast.isEmpty)
         // there was only one backup, use it
@@ -110,7 +110,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   
   def backupFolder() {
     changed = false
-    new File(options.backupFolder, "blocks").mkdirs()
+    options.backupFolder.mkdirs()
     l.info("Starting to backup")
     val backupPropertyFile = new File(options.backupFolder, backupProperties)
     if (backupPropertyFile.exists) {
@@ -385,7 +385,7 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
     var read = 1
     def finished = read < 0
     def readNext() {
-      val read = stream.read(buf)
+      read = stream.read(buf)
       last = new BAWrapper2(buf)
     }
   }
@@ -471,6 +471,29 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
       fileUtils.moveToTrash(toDelete.toArray)
     }
   }
-
   
+}
+
+class CompactHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreOptions](options) {
+  import Streams._
+  import Utils._
+  implicit def long2Size(l: Long) = new Size(l)
+  
+  def calculateStorageOverhead {
+    loadBackupProperties()
+    val map = new HashChainMap()
+    map ++= oldBackupHashChains
+    oldBackupFiles.foreach { 
+      case x: FileDescription if x.hashChain == null => map -= x.hash
+      case x: FileDescription  => map -= x.hashChain
+      case _ =>
+    }
+    l.info("Found "+map.size+" unused hash chains")
+    val size: Size = map.values.map { x =>
+      x.grouped(options.hashLength).map(blockStrategy.getBlockSize).sum
+    }.sum
+    println("Wasted in total "+size)
+    println(blockStrategy.calculateOverhead(map.values))
+  }
+ 
 }

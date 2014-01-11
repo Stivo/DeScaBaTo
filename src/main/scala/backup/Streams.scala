@@ -12,13 +12,33 @@ import java.io.FileOutputStream
 import java.util.zip.GZIPOutputStream
 import java.util.zip.GZIPInputStream
 import java.io.File
+import scala.collection.mutable.Stack
 
 object Streams {
   
+  object BaosFactory {
+    val stack = new Stack[ByteArrayOutputStream]()
+    def getByteArrayOutputStream = {
+      if (stack.isEmpty) 
+    	new ByteArrayOutputStream(1024*1024+10)
+      else
+        stack.pop
+    }
+    
+    def recycle(baos: ByteArrayOutputStream) {
+      if (stack.size < 10) {
+        stack.push(baos)
+      }
+    }
+    
+  }
+  
   def readFully(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
-    val baos = new ByteArrayOutputStream(10240)
+    val baos = BaosFactory.getByteArrayOutputStream
     copy(wrapInputStream(in), baos)
-    baos.toByteArray()
+    val out = baos.toByteArray()
+    BaosFactory.recycle(baos)
+    out
   }
 
   def newFileInputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) = {
@@ -67,12 +87,13 @@ object Streams {
   }
 
   def newByteArrayOut(content: Array[Byte])(implicit fileHandlingOptions: FileHandlingOptions) = {
-    var out = new ByteArrayOutputStream()
-    val wrapped = wrapOutputStream(out)
+    var baos = BaosFactory.getByteArrayOutputStream
+    val wrapped = wrapOutputStream(baos)
     wrapped.write(content)
     wrapped.close()
-    val r = out.toByteArray
-    r
+    val out = baos.toByteArray
+    BaosFactory.recycle(baos)
+    out
   }
   
 
@@ -143,7 +164,7 @@ object Streams {
 
   class BlockOutputStream(val blockSize: Int, func: (Array[Byte] => _)) extends OutputStream {
     
-    var out = new ByteArrayOutputStream(blockSize+10)
+    var out = BaosFactory.getByteArrayOutputStream
     
     def write(b : Int)  {
       out.write(b)
@@ -173,6 +194,7 @@ object Streams {
     override def close() {
       func(out.toByteArray())
       super.close()
+      BaosFactory.recycle(out)
     }
 	  
   }

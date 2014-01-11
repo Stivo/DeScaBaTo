@@ -283,6 +283,9 @@ trait OptionCommand extends Command {
     if (a.length == 0 && argsAreOptional) {
     	// If args are optional, they may be omitted.
     	// needed for help, which can be called with the name of a command or without
+    } else if (a.length < numOfArgs) {
+      System.err.println(getNewOptions.helpMessage)
+      throw new IllegalArgumentException()
     } else {
        for (i <- numOfArgs to (1, -1)) {
 	     val last = list.last
@@ -444,13 +447,11 @@ object CommandLine {
   }
   def parseCommandLine(args: Array[String]) {
     val map = prepareCommands
-    val (firstA, tail) = args.splitAt(1)
-    val first = firstA.head
-    if (!(map contains first)) {
+    if (args.isEmpty || !map.contains(args(0))) {
       val help = map("help").asInstanceOf[HelpCommand]
-      help.execute(Array.apply(first))
+      help.execute(if (args.isEmpty) Array[String]() else args.tail)
     } else {
-      map(first).execute(tail)
+      map(args(0)).execute(args.drop(1))
     }
   }
   def printAllHelp = println(prepareCommands.mkString("\n"))
@@ -469,7 +470,6 @@ object CommandLine {
     conforming to GPL v3.""")
       parseCommandLine(args)
     } else {
-//        verifyBlock(new File("e:/temp/test/volume_23.zip"))
 	    var a = Buffer[String]()
 	    
 //	    a += "help"

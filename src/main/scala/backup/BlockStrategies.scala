@@ -16,6 +16,8 @@ trait BlockStrategy {
   def blockExists(hash: Array[Byte]) : Boolean
   def writeBlock(hash: Array[Byte], buf: Array[Byte])
   def readBlock(hash: Array[Byte]) : Array[Byte]
+  def getBlockSize(hash: Array[Byte]) : Long
+  def calculateOverhead(map: Iterable[Array[Byte]]) : Long
   def finishWriting() {}
   def free() {}
 }
@@ -39,15 +41,18 @@ class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
     fos.close()
   }
   
-  val buf = Array.ofDim[Byte](128*1024+10)
-  
   def readBlock(x: Array[Byte]) = {
       val out = new ByteArrayOutputStream()
       val fis = newFileInputStream(new File(blocksFolder, encodeBase64Url(x)))(option)
       copy(fis, out)
       out.toByteArray()
   }
-  
+  def getBlockSize(hash: Array[Byte]) = new File(blocksFolder, encodeBase64Url(hash)).length()
+  def calculateOverhead(map: Iterable[Array[Byte]]) = {
+    map.map(_.grouped(option.hashLength).foldLeft(0L){(x, y) =>
+      x + getBlockSize(y)
+    }).sum
+  }
 }
 
 /**
@@ -204,6 +209,15 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
       l.debug(s"File already contains this hash $hashS")
     }
   }
+
+  def getBlockSize(hash: Array[Byte]) = {
+    setup()
+    val hashS = encodeBase64Url(hash)
+    l.trace(s"Getting block for hash $hashS")
+    val num: Int = knownBlocks.get(hash).get
+    val zipFile = getZipFileReader(num)
+    zipFile.getEntrySize(hashS)
+  }
   
   def readBlock(hash: Array[Byte]) = {
     setup()
@@ -215,8 +229,19 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     readFully(input)(option)
   }
 
-  
-  val buf = Array.ofDim[Byte](128*1024+10)
+  def calculateOverhead(hashchains: Iterable[Array[Byte]]) = {
+    var remain = Map[BAWrapper2, Int]()
+    remain ++= knownBlocks
+    hashchains.foreach(_.grouped(option.hashLength).foreach(x => remain -= BAWrapper2.byteArrayToWrapper(x)))
+    val livingVolumes = remain.values.toSet
+    println(livingVolumes.toList.sorted)
+    val (files, _) = getFilesAndNextNum(option.backupFolder)
+    val deadNow = files.filter(x => !livingVolumes.contains(getNum(x)))
+    println(deadNow.mkString(" "))
+//    println(remain.toList.filter(_._2==258).mkString(" "))
+    deadNow.map(_.length()).sum
+  }
+
   
   var lastZip : Option[(Int, ZipFileReader)] = None
   
