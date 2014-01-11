@@ -79,19 +79,27 @@ object FileAttributes {
 }
 
 object Utils {
-  val units = Array[String] ( "B", "KB", "MB", "GB", "TB" );
-}
-
-trait Utils extends Logging {
-  lazy val l = logger
-  
+  private val units = Array[String] ( "B", "KB", "MB", "GB", "TB" );
   def isWindows = System.getProperty("os.name").contains("indows")
-
   def readableFileSize(size: Long) : String = {
     if(size <= 0) return "0";
     val digitGroups = (Math.log10(size)/Math.log10(1024)).toInt;
     return new DecimalFormat("#,##0.#").format(size/Math.pow(1024, digitGroups)) + " " + Utils.units(digitGroups);
   }
+  
+  def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes);
+  def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s);
+  
+  def encodeBase64Url(bytes: Array[Byte]) = encodeBase64(bytes).replace('+', '-').replace('/', '_')
+  def decodeBase64Url(s: String) = decodeBase64(s.replace('-', '+').replace('_', '/'));
+  
+}
+
+trait Utils extends Logging {
+  lazy val l = logger
+  import Utils._
+  
+  def readableFileSize(size: Long) : String = Utils.readableFileSize(size)
   
   def printDeleted(message: String) {
     ConsoleManager.writeDeleteLine(message)
@@ -109,13 +117,13 @@ trait BackupPart {
     // Different semantics on windows. Upper-/lowercase is ignored, ':' may not be part of the output
     def prepare(f: File) = {
         var path = f.getAbsolutePath
-        if (Test.isWindows) 
+        if (Utils.isWindows) 
             path = path.replaceAllLiterally("\\", "/")
         path.split("/").toList
     }
     val files = (prepare(to), prepare(new File(path)))
     
-    def compare(s1: String, s2: String) = if (Test.isWindows) s1.equalsIgnoreCase(s2) else s1 == s2    
+    def compare(s1: String, s2: String) = if (Utils.isWindows) s1.equalsIgnoreCase(s2) else s1 == s2    
     
     def cutFirst(files: (List[String], List[String])) : String = {
         files match {
@@ -124,7 +132,7 @@ trait BackupPart {
         }
     }
     val cut = cutFirst(files)
-    def cleaned(s: String) = if (Test.isWindows) s.replaceAllLiterally(":", "_") else s
+    def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
     val out = new File(cleaned(cut)).toString
     out
   }
@@ -152,119 +160,3 @@ case class FolderDescription(path: String, attrs: FileAttributes) extends Backup
   val size = 0L
 }
 
-object Test extends Utils {
-  import ByteHandling._
-  import Streams._
-
-  def deleteAll(f: File) {
-    def walk(f: File) {
-      f.isDirectory() match {
-        case true => f.listFiles().foreach(walk); f.delete()
-        case false => f.delete()
-      }
-    }
-    walk(f)
-  }
-  
-  def checkCompression() {
-    val backupDestinationFolder = new File("backups")
-    implicit val options = new FileHandlingOptions() {}
-    for (f <- backupDestinationFolder.listFiles().filter(_.isFile())) {
-      
-    val fis = newFileInputStream(f)
-    var count = 0
-    while (fis.read() >= 0) {
-      count += 1
-    }
-    fis.close()
-    l.info(s"${f.getName} saved: ${f.length} compressed, $count uncompressed")
-    }
-  }
-  
-}
-
-
-object ByteHandling {
-  
-  def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes);
-  def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s);
-  
-  def encodeBase64Url(bytes: Array[Byte]) = encodeBase64(bytes).replace('+', '-').replace('/', '_')
-  def decodeBase64Url(s: String) = decodeBase64(s.replace('-', '+').replace('_', '/'));
-    
-  def wrapOutputStream(stream: OutputStream)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
-    var out = stream
-    if (fileHandlingOptions.passphrase != null) {
-      if (fileHandlingOptions.algorithm == "AES") {
-        out = AES.wrapStreamWithEncryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
-      } else {
-        throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
-      }
-    }
-    if (fileHandlingOptions.compression == CompressionMode.zip) {
-      out = new GZIPOutputStream(out)
-    }
-    out
-  }
-  
-  def newFileOutputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
-    var out: OutputStream = new FileOutputStream(file)
-    wrapOutputStream(out)
-  }
-
-  def newByteArrayOut(content: Array[Byte])(implicit fileHandlingOptions: FileHandlingOptions) = {
-    var out = new ByteArrayOutputStream()
-    val wrapped = wrapOutputStream(out)
-    wrapped.write(content)
-    wrapped.close()
-    val r = out.toByteArray
-    r
-  }
-  
-  def readFully(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
-    val baos = new ByteArrayOutputStream(10240)
-    copy(wrapInputStream(in), baos)
-    baos.toByteArray()
-  }
-
-  def wrapInputStream(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
-    var out = in
-    if (fileHandlingOptions.passphrase != null) {
-      if (fileHandlingOptions.algorithm == "AES") {
-        out = AES.wrapStreamWithDecryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
-      } else {
-        throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
-      }
-    }
-    if (fileHandlingOptions.compression == CompressionMode.zip) {
-      out = new GZIPInputStream(out)
-    }
-    out
-  }
-  
-  def newFileInputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) = {
-    var out: InputStream = new FileInputStream(file)
-    wrapInputStream(out)
-  }
-
-  def readFrom(in: InputStream, f: (Array[Byte], Int) => Unit) {
-    val buf = Array.ofDim[Byte](10240)
-    var lastRead = 1
-    while (lastRead > 0) {
-      lastRead = in.read(buf)
-      if (lastRead > 0) {
-        f(buf, lastRead)
-      }
-    }
-    in.close()
-  }
-  
-  def copy(in: InputStream, out: OutputStream) {
-    readFrom(in, { (x: Array[Byte], len: Int) =>
-      out.write(x, 0, len)
-    })
-    in.close()
-    out.close()
-  }
-  
-}

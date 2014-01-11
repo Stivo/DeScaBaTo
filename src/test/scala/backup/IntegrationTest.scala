@@ -101,11 +101,11 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   
   def hash(f: File) = {
     val md = MessageDigest.getInstance("md5")
-    val buf = Array.ofDim[Byte](f.length().toInt)
-    val fis = new FileInputStream(f)
-    fis.read(buf)
-    fis.close()
-    ByteHandling.encodeBase64(md.digest(buf))
+    val fh = new FileHandlingOptions() {}
+    fh.compression = CompressionMode.none
+    fh.passphrase = null
+    val buf = Streams.readFully(new FileInputStream(f))(fh)
+    Utils.encodeBase64(md.digest(buf))
   }
   
   def compareBackups(f1: File, f2: File) {

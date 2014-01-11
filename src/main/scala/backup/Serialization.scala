@@ -19,7 +19,6 @@ import scala.collection.JavaConverters._
 import java.util.Date
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.SerializationFeature
-import ByteHandling._
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.dataformat.smile.SmileGenerator
 import com.fasterxml.jackson.dataformat.smile.SmileParser
@@ -30,7 +29,7 @@ trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) : Unit
   
   def writeObject[T](t: T, file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) {
-    writeObject(t, newFileOutputStream(file))
+    writeObject(t, Streams.newFileOutputStream(file))
   }
   def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) : T 
 }
@@ -80,6 +79,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
   mapper.registerModule(DefaultScalaModule)
   
   mapper.registerModule(testModule)
+  // TODO disable before a release
   mapper.enable(SerializationFeature.INDENT_OUTPUT);
   mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
   
@@ -88,7 +88,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
   } 
   
   def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) = {
-    mapper.readValue(newFileInputStream(file))
+    mapper.readValue(Streams.newFileInputStream(file))
   }
   
 }

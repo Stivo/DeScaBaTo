@@ -19,7 +19,7 @@ import java.io.ByteArrayInputStream
 import java.util.zip.GZIPInputStream
 import com.quantifind.sumac.Args
 import java.util.Properties
-import java.io.FileOutputStream
+import java.io.{FileOutputStream, PrintStream}
 import com.quantifind.sumac.ExternalConfig
 import java.io.BufferedInputStream
 import com.quantifind.sumac.ExternalConfigUtil
@@ -76,7 +76,7 @@ trait ExplainHelp extends FieldArgs {
 
 case class Size(bytes: Long) {
   def this() = this(-1L)
-  override def toString = Test.readableFileSize(bytes)
+  override def toString = Utils.readableFileSize(bytes)
 }
 
 object SizeParser extends SimpleParser[Size] {
@@ -145,6 +145,8 @@ object PropertiesConfigCopy {
 
 class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionOptions {
   
+  val redundancy = new RedundancyOptions()
+  
   @Arg(shortcut="arg2")
   @Required
   var folderToBackup: List[File] = _
@@ -181,7 +183,14 @@ class RestoreOptions extends ExplainHelp with BackupFolderOption with Encryption
     s"Restoring backup from $backupFolder to ${restoreToFolder}${relativeTo} (using $compression compression). "
     .+(super[EncryptionOptions].toString)
   }
-  
+}
+
+class RedundancyOptions extends FieldArgs {
+	var percentage : Int = 5
+	var blockSize = SizeParser.parse("1MB")
+	var par2Executable = new File("tools/par2.exe")
+	var volumesToParTogether = 21
+	var enabled = false
 }
 
 class FindOptions extends ExplainHelp with BackupFolderOption with EncryptionOptions {
@@ -423,24 +432,6 @@ class HelpCommand(list: Buffer[OptionCommand]) extends OptionCommand {
 
 object CommandLine {
   
-  def verifyBlock(f: File) {
-    val reader = new ZipFileReader(f)
-    reader.names.foreach{x => 
-      val bytes = reader.getBytes(x).get
-      val md = MessageDigest.getInstance("SHA-256")
-      val gzip = new ByteArrayInputStream(bytes)
-      var lastRead = 1
-      while (lastRead > 0) {
-      val buf = Array.ofDim[Byte](1024)
-      lastRead = gzip.read(buf)
-      if (lastRead > 0)
-    	  md.update(buf, 0, lastRead)
-      }
-      val out = md.digest()
-      println(ByteHandling.encodeBase64Url(out)+" == "+x)
-    }
-  }
-  
   def prepareCommands = {
     val list = Buffer[OptionCommand]()
     ParseHelper.registerParser(SizeParser)
@@ -469,7 +460,13 @@ object CommandLine {
   def main(args: Array[String]) {
     
     if (runsInJar) {
+      java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
       ConsoleManager.initAnsi
+      println(
+"""    DeScaBaTo  Copyright (C) 2014  Stefan Ackermann
+    This program comes with ABSOLUTELY NO WARRANTY.
+    This is free software, and you are welcome to redistribute it
+    conforming to GPL v3.""")
       parseCommandLine(args)
     } else {
 //        verifyBlock(new File("e:/temp/test/volume_23.zip"))

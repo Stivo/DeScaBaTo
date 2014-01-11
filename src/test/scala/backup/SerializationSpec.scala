@@ -33,7 +33,6 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
   
   def fixture =
     new {
-	  
 	  folder.backupFolder = new File("testdata/temp")
 	  folder.onlyIndex = true
 	  val dest = new File("test.obj")
@@ -43,7 +42,7 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
 	  val fod = handler.backupFolderDesc(testdata)
 	  type ChainMap = ArrayBuffer[(BAWrapper2, Array[Byte])]
 	  var chainMap : ChainMap = new ChainMap()
-	  chainMap.add(("asdf".getBytes,"agadfgdsfg".getBytes))
+	  chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
     }
 
   
@@ -56,7 +55,7 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
     t2
   }
   
-  def testWithFid(ser: Serialization, testChainMap: Boolean = true) {
+  def testWithFid(ser: Serialization) {
     val f = fixture
     import f._
     assert(fid === writeAndRead(ser, fid))
@@ -64,8 +63,7 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
     var fd2 = writeAndRead(ser, fdNew)
     assert(true === Arrays.equals(fdNew.hash, fd2.hash))
     assert(fod === writeAndRead(ser, fod))
-    if (testChainMap)
-    	assert(chainMap.map(_._1) === writeAndRead(ser, chainMap).map(_._1))
+    assert(chainMap.map(_._1) === writeAndRead(ser, chainMap).map(_._1))
   }
   
   "json" should "serialize backubparts" in {

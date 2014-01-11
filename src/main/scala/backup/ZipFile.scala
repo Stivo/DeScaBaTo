@@ -13,6 +13,10 @@ import backup.Streams.CountingOutputStream
 
 abstract class ZipFileHandler(zip: File) 
 
+/**
+ * A thin wrapper around a java zip file reader.
+ * Needs to be closed in the end.
+ */
 class ZipFileReader(zip: File) extends ZipFileHandler(zip) {
 
   val zf = new JZipFile(zip);
@@ -23,35 +27,26 @@ class ZipFileReader(zip: File) extends ZipFileHandler(zip) {
    
   val names = _zipEntries.map(_.getName())
    
-  def getBytes(name: String) = Option(zf.getEntry(name)).map(getContent)
-
-  def getString(name: String, enc: String = "utf-8") = getBytes(name).map(x => new String(x, enc))
-  
   def getStream(name: String) = zf.getInputStream(zf.getEntry(name))
    
-   private def getContent(ze: ZipEntry) = {
-     val input = zf.getInputStream(ze)
-      val out = Buffer[Byte]()
-      val byte = 0
-      val buf = Array.ofDim[Byte](10240)
-      while (input.available() > 0) {
-        val newOffset = input.read(buf, 0, buf.length - 1)
-        out ++= buf.slice(0, newOffset)
-      }
-      out.toArray
-   }
-  
   def close() {
     zf.close()
   }
 
 }
 
+/**
+ * A thin wrapper around a zip file writer.
+ * Has the current file size.
+ */
 class ZipFileWriter(zip: File) extends ZipFileHandler(zip) {
   
   val fos = new CountingOutputStream(new FileOutputStream(zip))
   val out = new ZipOutputStream(fos)
+  
+  // compression is done already before
   out.setLevel(ZipEntry.STORED)
+  
   def writeEntry(name: String, content: Array[Byte]) {
     out.putNextEntry(new ZipEntry(name))
     out.write(content)

@@ -71,6 +71,7 @@ object ConsoleManager {
 	case object cyan extends AnsiColor(CYAN)
 	case object black extends AnsiColor(BLACK)
 	case object red extends AnsiColor(RED)
+	case object default extends AnsiColor(DEFAULT)
 
 	case object reset extends AnsiCharacter
 		
@@ -103,7 +104,7 @@ object ConsoleManager {
 		        out = out.a(next)
 		        lastHadSpace = next.endsWith(" ")
 		      }
-		      out = out.reset //.restorCursorPosition()
+		      out = out.fg(default.c) //.restorCursorPosition()
 		      //out = out.cursorRight(100)
 		      out.toString
 		  }

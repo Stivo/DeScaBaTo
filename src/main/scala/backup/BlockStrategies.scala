@@ -8,6 +8,10 @@ import java.io.OutputStream
 import java.io.File
 import java.io.IOException
 
+/**
+ * A block strategy saves and retrieves blocks.
+ * Blocks are a chunk of a file, keyed with their hash.
+ */
 trait BlockStrategy {
   def blockExists(hash: Array[Byte]) : Boolean
   def writeBlock(hash: Array[Byte], buf: Array[Byte])
@@ -16,10 +20,12 @@ trait BlockStrategy {
   def free() {}
 }
 
+/**
+ * Simple block strategy that dumps all blocks into one folder.
+ */
 class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
   import Streams._
-  import Test._
-  import ByteHandling._
+  import Utils._
   val blocksFolder = new File(option.backupFolder, "blocks")
   
   def blockExists(b: Array[Byte]) = {
@@ -38,19 +44,16 @@ class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
   def readBlock(x: Array[Byte]) = {
       val out = new ByteArrayOutputStream()
       val fis = newFileInputStream(new File(blocksFolder, encodeBase64Url(x)))(option)
-      while (fis.available() > 0) {
-    	  val newOffset = fis.read(buf, 0, buf.length - 1)
-		  if (newOffset > 0) {
-			  out.write(buf, 0, newOffset)
-		  }
-      }
-      fis.close()
+      copy(fis, out)
       out.toByteArray()
   }
   
 }
 
-class BAWrapper2(ba:Array[Byte], val length: Int) {
+/**
+ * A wrapper for a byte array so it can be used in a map as a key.
+ */
+class BAWrapper2(ba:Array[Byte]) {
   def data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
   def equals(other:BAWrapper2):Boolean = Arrays.equals(data, other.data)
   override def equals(obj:Any):Boolean = 
@@ -61,15 +64,26 @@ class BAWrapper2(ba:Array[Byte], val length: Int) {
 }
 
 object BAWrapper2 {
-  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a, a.length)
+  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
 }
 
+/**
+ * Counts files in a given folder with a pattern "prefix_"+number.
+ * Extracts the number or gets all files matching that pattern.
+ */
 trait CountingFileManager {
-  def prefix : String
-  def getNum(file: File) = file.getName.drop(prefix.length()).takeWhile(x => (x+"").matches("\\d")).toInt
-  def getFilesAndNextNum(file: File) = {
+  
+  def getNum(file: File)(implicit prefix: String) = {
+    val num = file.getName.drop(prefix.length()).takeWhile(x => (x+"").matches("\\d"))
+    if (num == "") {
+      0
+    } else {
+      num.toInt
+    }
+  }
+  def getFilesAndNextNum(folder: File)(implicit prefix: String) = {
     var max : Int = -1
-    val indexes = file.listFiles().filter(_.isFile).filter(_.getName.startsWith(prefix)).sortBy(_.getName)
+    val indexes = folder.listFiles().filter(_.isFile).filter(_.getName.startsWith(prefix)).sortBy(_.getName)
     indexes.map(getNum).foreach { num =>
       max = Math.max(max, num)
     }
@@ -77,10 +91,18 @@ trait CountingFileManager {
   }
 }
 
-class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = None) extends BlockStrategy with CountingFileManager {
+/**
+ * A block strategy that creates zip files with parts of blocks in it.
+ * Additionally for each volume an index is written, which stores the hashes
+ * stored in that volume.
+ * File patterns:
+ * volume_num.zip => A zip file containing blocks with their hash used as filenames.
+ * index_num.zip => A file containing all the hashes of the volume with the same number.
+ * TODO Not a valid zip file!
+ */
+class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = None) extends BlockStrategy with CountingFileManager with Utils {
   import Streams._
-  import Test._
-  import ByteHandling._
+  import Utils._
   import BAWrapper2.byteArrayToWrapper
   
   var setupRan = false
@@ -88,8 +110,13 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
   var knownBlocksTemp: Map[BAWrapper2, Int] = Map()
   var curNum = 0
   
-  val prefix = "index_"
+  implicit val prefix = "index_"
   
+  /**
+   * Zip file strategy needs a mapping of hashes to volume to work.
+   * This has to be set up before any of the functions work, so all the
+   * functions call it first.
+   */
   def setup() {
     if (setupRan) 
       return
@@ -105,7 +132,6 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
       sis.readComplete
     }
     curNum = max
-    l.info(s"Found highest volume is ${max-1}, so starting at $curNum")
     setupRan = true
   }
   
@@ -148,7 +174,10 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     	currentIndex = null
     }
   }
-
+  
+  override def finishWriting() {
+    endZip
+  }
   
   var currentZip : ZipFileWriter = null
   
@@ -176,6 +205,17 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     }
   }
   
+  def readBlock(hash: Array[Byte]) = {
+    setup()
+    val hashS = encodeBase64Url(hash)
+    l.trace(s"Getting block for hash $hashS")
+    val num: Int = knownBlocks.get(hash).get
+    val zipFile = getZipFileReader(num)
+    val input = zipFile.getStream(hashS)
+    readFully(input)(option)
+  }
+
+  
   val buf = Array.ofDim[Byte](128*1024+10)
   
   var lastZip : Option[(Int, ZipFileReader)] = None
@@ -197,17 +237,4 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     }
   }
   
-  def readBlock(hash: Array[Byte]) = {
-    setup()
-    val hashS = encodeBase64Url(hash)
-    l.trace(s"Getting block for hash $hashS")
-    val num: Int = knownBlocks.get(hash).get
-    val zipFile = getZipFileReader(num)
-    val input = zipFile.getStream(hashS)
-    readFully(input)(option)
-  }
-  
-  override def finishWriting() {
-    endZip
-  }
 }
