@@ -36,3 +36,5 @@ libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
 libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.0"
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.2.3"
+
+testOptions in Test += Tests.Argument("-oF")
