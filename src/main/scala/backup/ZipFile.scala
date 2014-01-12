@@ -10,6 +10,7 @@ import java.util.zip.ZipOutputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import backup.Streams.CountingOutputStream
+import java.io.OutputStream
 
 abstract class ZipFileHandler(zip: File) 
 
@@ -49,9 +50,9 @@ class ZipFileWriter(val file: File) extends ZipFileHandler(file) {
   // compression is done already before
   out.setLevel(ZipEntry.STORED)
   
-  def writeEntry(name: String, content: Array[Byte]) {
+  def writeEntry(name: String, f: (OutputStream => Unit)) {
     out.putNextEntry(new ZipEntry(name))
-    out.write(content)
+    f(out)
     out.closeEntry()
   }
   

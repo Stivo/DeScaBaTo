@@ -73,7 +73,7 @@ import java.util.Date
     
     def write(x: T) = {
       val file = nextFile()
-      l.info("Writing "+x+" to file "+file)
+      //l.info("Writing "+x+" to file "+file)
       options.serialization.writeObject(x, file)(options, m)
       file
     }
@@ -114,7 +114,6 @@ class FileManager(options: BackupFolderOption) {
       val updates = filesDelta.getFiles().dropWhile(filesDelta.getDate(_).before(lastDate))
       (onlyLast ++ updates, !updates.isEmpty)
     }
-
   }
   
 }

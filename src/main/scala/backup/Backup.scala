@@ -31,7 +31,7 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
   lazy val oldBackupFiles : Iterable[BackupPart] = {
     implicit val options = folder
     val (filesToLoad, hasDeltas) = options.fileManager.getBackupAndUpdates
-    val updates = filesToLoad.map(readObject[Buffer[UpdatePart]]).fold(Buffer[UpdatePart]())(_ ++ _)
+    val updates = filesToLoad.par.map(readObject[Buffer[UpdatePart]]).fold(Buffer[UpdatePart]())(_ ++ _).seq
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
       updates.foreach{
@@ -47,7 +47,7 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
   lazy val oldBackupHashChains = {
     val filesToLoad = folder.fileManager.hashchains.getFiles()
     implicit val options = folder
-    val list = filesToLoad.map(readObject[ArrayBuffer[(BAWrapper2, Array[Byte])]]).fold(ArrayBuffer())(_ ++ _)
+    val list = filesToLoad.par.map(readObject[Buffer[(BAWrapper2, Array[Byte])]]).fold(Buffer())(_ ++ _).seq
     val map = new HashChainMap
     map ++= list
     map
@@ -124,15 +124,11 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   	options.fileManager.volumes.getFiles().foreach { f =>
       Actors.remoteManager ! UploadFile(f, true)
       //TODO find better solution
-      // Give mailbox a chance to realize it is full
-      Thread.sleep(1000)
     }
     var (counter, fileCounter, sizeCounter) = (0, 0, 0L)
     val files = Buffer[BackupPart]()
     var filesWritten = Buffer[File]()
     def newFiles() {
-      fileCounter += files.length
-      sizeCounter += files.map(_.size).fold(0L)(_+_)
       
       if (delta) {
         if (!deltaSet.isEmpty) {
@@ -154,6 +150,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       hashChainMapTemp = new HashChainMap()
     }
     def walk(file: File) {
+      fileCounter += 1
+      sizeCounter += (if (file.isFile()) file.length() else 0L)
+      printDeleted(s"File #$fileCounter, total size: ${readableFileSize(sizeCounter)}), Analyzing ${file.getName}")
       if (files.length >= options.saveIndexEveryNFiles) {
         newFiles()
       }
@@ -226,7 +225,6 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   
   def backupFile(file: File) = {
     import blockStrategy._
-    printDeleted(s"Analyzing File ${file.getName}")
     def makeNew(fa: FileAttributes) = {
         printDeleted(s"File ${file.getName} is new / has changed, backing up")
 	    var hash: Array[Byte] = null
@@ -334,6 +332,13 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   def restoreFileDesc(fd: FileDescription) {
     val hashes = getHashChain(fd).grouped(options.getMessageDigest.getDigestLength())
     val restoredFile = new File(options.restoreToFolder, fd.relativeTo(relativeTo))
+    if (restoredFile.exists()) {
+      if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
+        return
+      }
+      l.info(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
+      l.info("File exists, but has been modified, so overwrite")
+    }
     l.info("Restoring to "+restoredFile)
     val fos = new FileOutputStream(restoredFile)
     for (x <- hashes) {

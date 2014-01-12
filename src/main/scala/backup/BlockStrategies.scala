@@ -7,12 +7,14 @@ import java.util.Arrays
 import java.io.OutputStream
 import java.io.File
 import java.io.IOException
+import scala.concurrent.Future
 
 /**
  * A block strategy saves and retrieves blocks.
  * Blocks are a chunk of a file, keyed with their hash.
  */
 trait BlockStrategy {
+  def option: BackupFolderOption 
   def blockExists(hash: Array[Byte]) : Boolean
   def writeBlock(hash: Array[Byte], buf: Array[Byte])
   def readBlock(hash: Array[Byte]) : Array[Byte]
@@ -25,7 +27,7 @@ trait BlockStrategy {
 /**
  * Simple block strategy that dumps all blocks into one folder.
  */
-class FolderBlockStrategy(option: BackupFolderOption) extends BlockStrategy {
+class FolderBlockStrategy(val option: BackupFolderOption) extends BlockStrategy {
   import Streams._
   import Utils._
   val blocksFolder = new File(option.backupFolder, "blocks")
@@ -81,10 +83,14 @@ object BAWrapper2 {
  * index_num.zip => A file containing all the hashes of the volume with the same number.
  * TODO Not a valid zip file!
  */
-class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = None) extends BlockStrategy with Utils {
+class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] = None) extends BlockStrategy with Utils {
   import Streams._
   import Utils._
   import BAWrapper2.byteArrayToWrapper
+  import scala.concurrent._
+  import scala.concurrent.duration._
+  import ExecutionContext.Implicits.global
+
   
   var setupRan = false
   var knownBlocks: Map[BAWrapper2, Int] = Map()
@@ -160,30 +166,52 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
   }
   
   override def finishWriting() {
+    finishFutures(true)
     endZip
+  }
+  
+  def finishFutures(force: Boolean = false) {
+    while (!futures.isEmpty && (force || futures.head.isCompleted)) {
+      Await.result(futures.head, 10 minutes) match {
+        case (hash, block) => {
+            val hashS = encodeBase64Url(hash)
+		    if (currentZip != null && currentZip.size + block.length + hashS.length > volumeSize.get.bytes) {
+		      endZip
+		    }
+		    if (currentZip == null) {
+		      startZip
+		    }
+		    currentZip.writeEntry(hashS, {_.write(block)})
+		    currentIndex.write(hash)
+	     }
+      }
+      futures = futures.tail
+    }
+
   }
   
   var currentZip : ZipFileWriter = null
   
   var currentIndex : OutputStream = null
-  
+  private var futures : List[Future[(Array[Byte], Array[Byte])]] = List()
   def writeBlock(hash: Array[Byte], buf: Array[Byte]) {
     if (!volumeSize.isDefined) {
       throw new IllegalArgumentException("Volume size needs to be set when writing new volumes")
     }
     setup()
     val hashS = encodeBase64Url(hash)
-    if (currentZip != null && currentZip.size + buf.length + hashS.length > volumeSize.get.bytes) {
-      endZip
-    }
-    if (currentZip == null) {
-      startZip
-    }
     if (!knownBlocksTemp.contains(hash)) {
-    	l.trace(s"Writing hash to $curNum")
-       currentZip.writeEntry(hashS, newByteArrayOut(buf)(option))
-       currentIndex.write(hash)
-       knownBlocksTemp += ((hash, curNum))
+        
+        knownBlocksTemp += ((hash, curNum))
+
+        futures :+= future {
+          val encrypt = newByteArrayOut(buf)(option)
+          (hash, encrypt)
+        }
+        if (futures.size >= 8) {
+          Await.result(futures.head, 10 minutes)
+        }
+        finishFutures(false)
     } else {
       l.debug(s"File already contains this hash $hashS")
     }

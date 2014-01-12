@@ -55,6 +55,7 @@ object ConsoleManager {
 	def disableAnsi = Ansi.setEnabled(false)
 	def testSetup {
 	  disableAnsi
+	  Actors.testMode = true
 	  new ConsoleAppenderWithDeleteSupport()
 	}
 	

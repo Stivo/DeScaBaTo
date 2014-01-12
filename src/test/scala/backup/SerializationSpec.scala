@@ -29,10 +29,11 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
     }
   }
  
-  implicit val folder = new BackupOptions()
+  implicit var folder : BackupOptions = null
   
   def fixture =
     new {
+      folder = new BackupOptions()
 	  folder.backupFolder = new File("testdata/temp")
 	  folder.onlyIndex = true
 	  val dest = new File("test.obj")
@@ -44,8 +45,6 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
 	  var chainMap : ChainMap = new ChainMap()
 	  chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
     }
-
-  
   
   def writeAndRead[T](s: Serialization, t: T)(implicit m: Manifest[T]) = {
     s.writeObject(t, new File("test.obj"))
@@ -67,7 +66,9 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
   }
   
   "json" should "serialize backubparts" in {
+    val f = fixture
     val json = new JsonSerialization()
+    folder.compression = CompressionMode.none
     testWithFid(json)
   }
   
@@ -76,4 +77,26 @@ class SerializationSpec extends FlatSpec with BeforeAndAfterAll {
     testWithFid(smile)
   }
  
+  "smile" should "serialize backubparts with encryption" in {
+    val f = fixture
+    import f._
+    val backup = folder.passphrase
+    try {
+	    folder.passphrase = "TEST"
+	    val smile = new SmileSerialization()
+	    val written = smile.writeObject(fid, new File("test.obj"))
+	    val read = smile.readObject[FileDescription](new File("test.obj"))
+	    (read should equal (fid))
+	    folder.passphrase = "ASF"
+	    try{
+	      val read = smile.readObject[FileDescription](new File("test.obj"));
+	      fail("Wrong key, still could read object")
+	    } catch {
+	      case _ => // expected
+	    }
+    } finally {
+      folder.passphrase = backup
+    }
+  }
+
 }

@@ -41,9 +41,11 @@ class FileAttributes extends HashMap[String, Any] {
     val fromMap = get("lastModifiedTime")
     val lastMod = file.lastModified()
     
-    val out = fromMap match {
-      case Some(ft: Long) => ft != lastMod
-      case _ => false
+    val out = Option(fromMap) match {
+      case Some(l: Long) => ! (lastMod <= l && l <= lastMod)
+      case Some(ft: String) => val l = ft.toLong; ! (lastMod <= l && l <= lastMod)
+      case None => true
+      case x => println("Was modified: "+lastMod+" vs "+x+" "+x.getClass+" "); true
     }
     out
   }

@@ -43,8 +43,19 @@ object Streams {
    
     abstract class ObjectPool[T<: AnyRef, A] {
       self : Arg[T, A] =>
-      private val stack = Buffer[WeakReference[T]]()
-      def get(arg: A) : T = {
+      val local = new ThreadLocal[Buffer[WeakReference[T]]]
+      def getStack() = {
+        val out = local.get()
+        if (out == null) {
+          val n = Buffer[WeakReference[T]]()
+          local.set(n)
+          n
+        } else {
+          out
+        }
+      } 
+      final def get(arg: A) : T = {
+        val stack = getStack()
 	      while (!stack.isEmpty) {
 	        val toRemove = Buffer[WeakReference[T]]()
 		    val result = stack.find(_ match { 
@@ -61,7 +72,8 @@ object Streams {
 	      }
 	      makeNew(arg)
       }
-      def recycle(t: T) {
+      final def recycle(t: T) {
+        val stack = getStack
         reset(t)
         stack += (WeakReference(t))
       }
@@ -113,8 +125,11 @@ object Streams {
     out.close()
   }
 
-  def wrapOutputStream(stream: OutputStream)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
-    var out = stream
+  def wrapOutputStream(stream: OutputStream, disableClose : Boolean = false)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
+    
+    var out = if (disableClose) new DelegatingOutputStream(stream) {
+      override def close() { }
+    } else stream
     if (fileHandlingOptions.passphrase != null) {
       if (fileHandlingOptions.algorithm == "AES") {
         out = AES.wrapStreamWithEncryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
@@ -142,7 +157,6 @@ object Streams {
     baosPool.recycle(baos)
     out
   }
-  
 
   def wrapInputStream(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
     var out = in
@@ -172,6 +186,13 @@ object Streams {
     }
   }
   
+  class DelegatingOutputStream(out: OutputStream) extends OutputStream {
+    def write(b: Int) = out.write(b)
+    override def write(b: Array[Byte], start: Int, len: Int) = out.write(b, start, len)
+    override def close() = out.close()
+    override def flush() = out.flush()
+  }
+  
   class HashingOutputStream(val algorithm: String) extends OutputStream {
     val md = MessageDigest.getInstance(algorithm)
     
@@ -192,21 +213,20 @@ object Streams {
     
   }
   
-  class CountingOutputStream(val stream: OutputStream) extends OutputStream {
+  class CountingOutputStream(val stream: OutputStream) extends DelegatingOutputStream(stream) {
     var counter: Long = 0
-    def write(b : Int)  {
+    override def write(b : Int)  {
       counter += 1
-      stream.write(b)
+      super.write(b)
     }
   
     override def write(buf: Array[Byte], start: Int, len: Int)  {
       counter += len
-      stream.write(buf, start, len)
+      super.write(buf, start, len)
     }
 
     def count() = counter
     
-    override def close() = stream.close()
   }
 
   class BlockOutputStream(val blockSize: Int, func: (Array[Byte] => _)) extends OutputStream {

@@ -29,7 +29,7 @@ libraryDependencies ++= Seq(
 		"commons-net" % "commons-net" % "3.3"
 )
 
-libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "2.0" % "test"
 
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
 
@@ -37,4 +37,4 @@ libraryDependencies += "com.quantifind" %% "sumac" % "0.3-SNAPSHOT"
 
 libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.0"
 
-libraryDependencies += "com.typesafe.akka" % "akka-actor_2.10" % "2.2.3"
+libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.2.3"

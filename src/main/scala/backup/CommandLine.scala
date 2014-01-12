@@ -107,7 +107,11 @@ trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig {
   // For test purposes
   var _fileManager : FileManager = null
   
-  def fileManager = if(_fileManager != null) _fileManager else new FileManager(this)
+  def fileManager = {
+    if(_fileManager == null) 
+    	_fileManager = new FileManager(this)
+    _fileManager
+  }
   
   var useDeltas = false
   

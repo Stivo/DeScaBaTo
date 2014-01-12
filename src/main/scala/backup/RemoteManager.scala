@@ -20,9 +20,9 @@ import java.io.InputStream
 import backup.Streams.ReportingOutputStream
 
 object Actors {
-   lazy val system = ActorSystem("HelloSystem")
+   var system = ActorSystem("HelloSystem")
   
-   lazy val remoteManager = system.actorOf(Props[FileUploadActor].withDispatcher("consumer-dispatcher"), "consumer")
+   var remoteManager = system.actorOf(Props[FileUploadActor].withDispatcher("consumer-dispatcher"), "consumer")
    
    var testMode = false
    
@@ -30,6 +30,10 @@ object Actors {
      if (testMode) {
        val fut = (remoteManager ? Configure(null)) (10 hours)
        Await.result(fut, 10 hours)
+       system.shutdown
+       system.awaitTermination
+       system = ActorSystem("HelloSystem2")
+       remoteManager = system.actorOf(Props[FileUploadActor].withDispatcher("consumer-dispatcher"), "consumer")
      } else {
 	   val stopped = gracefulStop(remoteManager, 10 hours)
 	   Await.result(stopped, 10 hours)
@@ -67,7 +71,7 @@ class FileUploadActor extends Actor with Utils {
       } else if (o.remote.url.isDefined) {
         options = o; backend = new VfsBackendClient(o.remote.url.get); 
       }
-      sender ! true
+      reply
     }
     case _ if options == null || !options.remote.enabled => sender ! true // Ignore
     case DownloadFile(f) => {
@@ -90,7 +94,6 @@ class FileUploadActor extends Actor with Utils {
     case UploadFile(file, true) => {
       l.info("Uploading file "+file)
       uploadAndDeleteLocal(file)
-      sender ! true
     }
     case UploadFile(file, false) => {
       l.info("Uploading file "+file)
@@ -98,7 +101,6 @@ class FileUploadActor extends Actor with Utils {
     	 backend.put(file)
       if (isDone(file))
          l.info(s"Successfully uploaded ${file.getName}")
-         sender ! true
     }
     case x => sender ! akka.actor.Status.Failure(new IllegalArgumentException("Received unknown message type"))
   }

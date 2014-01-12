@@ -7,6 +7,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -25,14 +27,26 @@ public class AES {
 	static byte[] salt = null;
 	*/
 	
+	public static ThreadLocal<Map<String, SecretKeySpec>> local = new ThreadLocal<>();
+	
 	public static SecretKey deriveKey(String password, int keylength) throws NoSuchAlgorithmException, InvalidKeySpecException {
+		if (local.get()== null) {
+			local.set(new HashMap<String, SecretKeySpec>());
+		}
+		String key = password+keylength;
+		SecretKeySpec keySpec = local.get().get(password+keylength);
+		if (keySpec != null) {
+			return keySpec;
+		}
 		SecureRandom sr = new SecureRandom("test".getBytes());
 	    byte[] salt = new byte[1024];
 		sr.nextBytes(salt);
 	    SecretKeyFactory kf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
 	    KeySpec specs = new PBEKeySpec(password.toCharArray(), salt, 1024, keylength);
 	    SecretKey generateSecret = kf.generateSecret(specs);
-	    return new SecretKeySpec(generateSecret.getEncoded(), "AES");
+	    keySpec = new SecretKeySpec(generateSecret.getEncoded(), "AES");
+	    local.get().put(key, keySpec);
+	    return keySpec;
 	}
 	
 	public static InputStream wrapStreamWithDecryption(InputStream input, String encryptionKey, int keylength)
