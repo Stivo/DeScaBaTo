@@ -187,6 +187,8 @@ class BackupOptions extends ExplainHelp with BackupFolderOption with EncryptionO
     .+(super[EncryptionOptions].toString)
   }
   
+  var saveMetadata = false
+  
   override def getBlockStrategy() = new ZipBlockStrategy(this, Some(volumeSize))
   
 }

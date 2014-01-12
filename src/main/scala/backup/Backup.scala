@@ -197,7 +197,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
     val path = file.getAbsolutePath
     // if the file is in the map, no other file can have the same name. Therefore we remove it.
     val out = oldBackupFilesRemaining.remove(path)
-    val fa = FileAttributes(file)
+    val fa = FileAttributes(file, options)
     if (out.isDefined && 
         // if the backup part is of the wrong type => return (None, fa)
         manifest.erasure.isAssignableFrom(out.get.getClass()) &&

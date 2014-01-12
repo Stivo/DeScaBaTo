@@ -35,13 +35,20 @@ class FileAttributes extends HashMap[String, Any] {
 }
 
 object FileAttributes {
-  def apply(file: File) = {
-    val attrs = Files.readAttributes(file.toPath(),"dos:hidden,readonly,archive,creationTime,lastModifiedTime,lastAccessTime");
+  def apply(file: File, options: BackupOptions) = {
+    val attrs = if (options.saveMetadata) {
+    	  Files.readAttributes(file.toPath(),"dos:hidden,readonly,archive,creationTime,lastModifiedTime,lastAccessTime");
+      } else {
+        val hm = new HashMap[String, Object]()
+        hm.put("lastModifiedTime", file.lastModified().asInstanceOf[java.lang.Long]);
+        hm
+    }
     val map = attrs.asScala.map {
       // Lose some precision, millis is enough
       case (k, ft: FileTime) => (k, ft.toMillis())
+      case (k, ft: java.lang.Long) => (k, ft)
       case (k, ft) if (k.endsWith("Time")) => 
-        (k, FileTime.fromMillis(ft.toString.toLong))
+        (k, ft.toString.toLong)
       case x => x
     }
 //	    for ((k,v) <- map) {
