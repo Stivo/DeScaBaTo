@@ -73,30 +73,6 @@ object BAWrapper2 {
 }
 
 /**
- * Counts files in a given folder with a pattern "prefix_"+number.
- * Extracts the number or gets all files matching that pattern.
- */
-trait CountingFileManager {
-  
-  def getNum(file: File)(implicit prefix: String) = {
-    val num = file.getName.drop(prefix.length()).takeWhile(x => (x+"").matches("\\d"))
-    if (num == "") {
-      0
-    } else {
-      num.toInt
-    }
-  }
-  def getFilesAndNextNum(folder: File)(implicit prefix: String) = {
-    var max : Int = -1
-    val indexes = folder.listFiles().filter(_.isFile).filter(_.getName.startsWith(prefix)).sortBy(_.getName)
-    indexes.map(getNum).foreach { num =>
-      max = Math.max(max, num)
-    }
-    (indexes, max+1)
-  }
-}
-
-/**
  * A block strategy that creates zip files with parts of blocks in it.
  * Additionally for each volume an index is written, which stores the hashes
  * stored in that volume.
@@ -105,7 +81,7 @@ trait CountingFileManager {
  * index_num.zip => A file containing all the hashes of the volume with the same number.
  * TODO Not a valid zip file!
  */
-class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = None) extends BlockStrategy with CountingFileManager with Utils {
+class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = None) extends BlockStrategy with Utils {
   import Streams._
   import Utils._
   import BAWrapper2.byteArrayToWrapper
@@ -125,10 +101,10 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
   def setup() {
     if (setupRan) 
       return
-    
-    val (indexes, max) = getFilesAndNextNum(option.backupFolder)
+    val index = option.fileManager.index
+    val indexes = index.getFiles()
     indexes.foreach { f =>
-      val num: Int = getNum(f)
+      val num: Int = index.getNum(f)
       val bos = new BlockOutputStream(option.hashLength, { hash : Array[Byte] =>
         l.trace(s"Adding hash ${encodeBase64Url(hash)} for volume $num")
         knownBlocks += ((hash, num))
@@ -136,7 +112,7 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
       val sis = new SplitInputStream(newFileInputStream(f)(option), bos::Nil)
       sis.readComplete
     }
-    curNum = max
+    curNum = index.nextNum
     setupRan = true
   }
   
@@ -241,8 +217,8 @@ class ZipBlockStrategy(option: BackupFolderOption, volumeSize: Option[Size] = No
     hashchains.foreach(_.grouped(option.hashLength).foreach(x => remain -= BAWrapper2.byteArrayToWrapper(x)))
     val livingVolumes = remain.values.toSet
     println(livingVolumes.toList.sorted)
-    val (files, _) = getFilesAndNextNum(option.backupFolder)
-    val deadNow = files.filter(x => !livingVolumes.contains(getNum(x)))
+    val files = option.fileManager.index.getFiles()
+    val deadNow = files.filter(x => !livingVolumes.contains(option.fileManager.index.getNum(x)))
     println(deadNow.mkString(" "))
 //    println(remain.toList.filter(_._2==258).mkString(" "))
     deadNow.map(_.length()).sum

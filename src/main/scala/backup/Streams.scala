@@ -45,12 +45,18 @@ object Streams {
       private val stack = Buffer[WeakReference[T]]()
       def get(arg: A) : T = {
 	      while (!stack.isEmpty) {
-		      stack.foreach(_ match { 
-		          case wr@WeakReference(x) if (isValidForArg(x, arg))=> stack -= wr; return x
-		          case WeakReference(x) => // continue searching 
+	        val toRemove = Buffer[WeakReference[T]]()
+		    val result = stack.find(_ match { 
+		          case wr@WeakReference(x) if (isValidForArg(x, arg))=> toRemove += wr; true
+		          case WeakReference(x) => false // continue searching  
 		          case wr => // This is an empty reference now, we might as well delete it 
-		            stack -= wr 
-		      })
+		            toRemove += wr ; false
+		    })
+		     stack --= toRemove
+		     result match {
+	          	case Some(WeakReference(x)) => return x
+	          	case _ => 
+	        }
 	      }
 	      makeNew(arg)
       }

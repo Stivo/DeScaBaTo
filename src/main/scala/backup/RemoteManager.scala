@@ -2,7 +2,6 @@ package backup
 
 import java.io.File
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
-import org.apache.commons.vfs2.FileType
 import org.apache.commons.vfs2.AllFileSelector
 import com.sun.jna.platform.FileUtils
 import scala.collection.mutable.Queue
@@ -23,9 +22,16 @@ object Actors {
   
    lazy val remoteManager = system.actorOf(Props[FileUploadActor].withDispatcher("consumer-dispatcher"), "consumer")
    
+   var testMode = false
+   
    def stop() {
+     if (testMode) {
+       val fut = (remoteManager ? Configure(null)) (30 minutes)
+       Await.result(fut, 30 minutes)
+     } else {
 	   val stopped = gracefulStop(remoteManager, 30 minutes)
 	   Await.result(stopped, 30 minutes)
+     }
    }
    
    def downloadFile(f: File) = {
@@ -43,7 +49,7 @@ case class UploadFile(file: File, deleteLocalOnSuccess : Boolean = false)
 case class Configure(options: BackupFolderOption)
 case object DownloadMetadata 
 
-class FileUploadActor extends Actor with Utils with CountingFileManager {
+class FileUploadActor extends Actor with Utils {
   
   var options: BackupFolderOption = null
   var backend : BackendClient = null
@@ -53,8 +59,15 @@ class FileUploadActor extends Actor with Utils with CountingFileManager {
   def reply { sender ! true }
   
   def receive = {
-    case Configure(o) => options = o; backend = new VfsBackendClient(options.remote.url.get); sender ! true
-    case _ if !options.remote.enabled => sender ! true // Ignore
+    case Configure(o) => {
+      if (o == null) {
+        options = null
+      } else if (o.remote.url.isDefined) {
+        options = o; backend = new VfsBackendClient(o.remote.url.get); 
+      }
+      sender ! true
+    }
+    case _ if options == null || !options.remote.enabled => sender ! true // Ignore
     case DownloadFile(f) => {
       l.info("Downloading file "+f)
       backend.get(f)
@@ -126,6 +139,7 @@ class VfsBackendClient(url: String) extends BackendClient {
   val manager = new StandardFileSystemManager();
   manager.init()
   val remoteDir = manager.resolveFile(url); // TODO options?
+  import org.apache.commons.vfs2.FileType
   def list() : Iterable[String] = {
     remoteDir.getChildren().filter(_.getType()==FileType.FILE).map(x => x.getName().getBaseName())
   }

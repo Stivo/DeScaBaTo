@@ -8,6 +8,7 @@ import org.scalatest._
 import java.security.MessageDigest
 import java.io.FileInputStream
 import java.nio.file.Files
+import java.util.Properties
 
 trait PrepareBackupTestData {
   lazy val testdata = new File("testdata")
@@ -62,6 +63,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     bo = new BackupOptions()
     bo.backupFolder = new File(testdata, "temp/backup")
     bo.folderToBackup = List(backupFrom)
+//    bo.configureRemoteHandler
     ro = new RestoreOptions()
     ro.relativeToFolder = bo.folderToBackup.headOption
     ro.restoreToFolder = new File(testdata, "temp/restored")
@@ -72,6 +74,23 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   
   def getRestoreHandler(options: RestoreOptions) = new RestoreHandler(options)
   
+  "backup to ftp " should "backup and restore" in {
+    Actors.testMode = true
+    val prop = new Properties()
+    prop.load(this.getClass.getResourceAsStream("RemoteClientSpec.properties"))
+    val ftpUrl = prop.getProperty("ftps")
+    assume(ftpUrl != null, "Define a property for ftps to test ftp connections")
+
+    ro.restoreToFolder = new File(testdata, "temp/restored")
+    ro.relativeToFolder = bo.folderToBackup.headOption
+    ro.remote.url = Some(ftpUrl)
+    bo.remote.url = Some(ftpUrl)
+    backup(bo)
+    ro.backupFolder.listFiles().foreach(_.delete)
+    restore(ro)
+    compareBackups(bo.folderToBackup.head, ro.restoreToFolder)
+  }
+
   "backup" should "backup and restore" in {
     ro.restoreToFolder = new File(testdata, "temp/restored")
     ro.relativeToFolder = bo.folderToBackup.headOption

@@ -16,9 +16,9 @@ import scala.collection.mutable.Buffer
  * Creates par2 files for the backup folder that cover the
  * index, the hash chains and the volumes.
  */
-class RedundancyHandler(folder: File, options: RedundancyOptions) extends CountingFileManager with Utils {
+class RedundancyHandler(folder: BackupFolderOption, redundancy: RedundancyOptions) extends Utils {
 	def readCoveredFiles : Set[File] = {
-	    val list = folder.listFiles
+	    val list = folder.backupFolder.listFiles
 	    			.filter(_.isFile).filter(_.getName().endsWith(".par2"))
 	    list.map(f => new Par2Parser(f).parse()).fold(List())(_ ++ _).toSet
     }
@@ -34,51 +34,48 @@ class RedundancyHandler(folder: File, options: RedundancyOptions) extends Counti
       
     def notCovered = {
       val covered = readCoveredFiles
-      val out = folder.listFiles().filter(_.isFile())
+      val out = folder.backupFolder.listFiles().filter(_.isFile())
       	.filter(!_.getName().endsWith(".par2"))
       	.filter(x => !(covered contains x))
       out
     }
     
     def forVolumes {
-      import options._
-      val prefix = "volume_"
-      var volumes = filesMatchingPrefix(prefix)
+      val p2volume = folder.fileManager.par2ForVolumes
+      var volumes = filesMatchingPrefix(p2volume)
       while (!volumes.isEmpty) {
-	    val num = getFilesAndNextNum(folder)(s"par_$prefix")._2
-	    val f = new File(folder, s"par_$prefix$num.par2")
-        start(f, volumes.take(volumesToParTogether))
-        volumes = volumes.drop(volumesToParTogether)
+	    val f = p2volume.nextFile()
+        start(f, volumes.take(redundancy.volumesToParTogether))
+        volumes = volumes.drop(redundancy.volumesToParTogether)
       }
     }
 
-    def filesMatchingPrefix(prefix: String, sort : Boolean = true) = { 
+    def filesMatchingPrefix[T](ft: FileType[T], sort : Boolean = true) = { 
       val out = notCovered.filter{ file =>
         file.isFile() && 
         file.getName.toLowerCase().startsWith(prefix)
       }
       if (sort) {
-    	out.sortBy(getNum(_)("par_"+prefix))
+    	out.sortBy(ft.getNum(_))
       } else {
         out
       }
     }
     
-    def handleFiles(prefix: String) = {
-      val files = filesMatchingPrefix(prefix)
-      val num = getFilesAndNextNum(folder)("par_"+prefix)._2
-      val par2File = new File(folder, s"par_$prefix$num.par2")
-      start(par2File, files)
+    def handleFiles[T](ft: FileType[T]) = {
+      val num = ft.nextFile()
+      val par2File = num
+      start(par2File, ft.getFiles())
     }
     
     def forHashChainsAndIndex {
-      val backup = options.percentage
+      val backup = redundancy.percentage
       try {
-	 	  options.percentage = 50
-	      handleFiles("hashchains_")
-	 	  handleFiles("files_")
+	 	  redundancy.percentage = 50
+	      handleFiles(folder.fileManager.par2ForFiles)
+	 	  handleFiles(folder.fileManager.par2ForHashChains)
       } finally {
-        options.percentage = backup
+        redundancy.percentage = backup
       }
     }
     
@@ -86,7 +83,7 @@ class RedundancyHandler(folder: File, options: RedundancyOptions) extends Counti
      * Starts the command line utility to create the par2 files
      */
     def start(par2File: File, files: Iterable[File]) {
-      import options._
+      import redundancy._
       if (files.isEmpty) {
         return
       }

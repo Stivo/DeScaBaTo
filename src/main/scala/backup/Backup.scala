@@ -20,7 +20,7 @@ import akka.actor.PoisonPill
 import scala.concurrent.Await
 import akka.pattern.{ ask, pipe }
 
-class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization with Utils with CountingFileManager {
+class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization with Utils {
   import Streams._
   import Utils._
   import BAWrapper2.byteArrayToWrapper
@@ -51,12 +51,8 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
     filesToLoad.map(readObject[Buffer[BackupPart]]).fold(Buffer[BackupPart]())(_ ++ _)
   }
 
-  var nextHashChainNum = 0
-  implicit val prefix = "hashchains_"
-    
   lazy val oldBackupHashChains = {
-    val (filesToLoad, max) = getFilesAndNextNum(folder.backupFolder)
-    nextHashChainNum = max
+    val filesToLoad = folder.fileManager.hashchains.getFiles()
     implicit val options = folder
     val list = filesToLoad.map(readObject[ArrayBuffer[(BAWrapper2, Array[Byte])]]).fold(ArrayBuffer())(_ ++ _)
     val map = new HashChainMap
@@ -79,9 +75,9 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
     }
   }
     
-  val backupProperties = "backup.properties"
+  val backupProperties = new File(folder.backupFolder, "backup.properties")
     
-  def loadBackupProperties(file: File = new File(folder.backupFolder, backupProperties)) {
+  def loadBackupProperties(file: File = backupProperties) {
     val backup = folder.propertyFile
     val folderBefore = folder.backupFolder.getAbsolutePath()
     try {
@@ -111,13 +107,13 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   
   var hashChainMapTemp : HashChainMap = new HashChainMap()
   
-  val oldBackupFilesRemaining = HashMap[String, backup.BackupPart]()
+  val oldBackupFilesRemaining = HashMap[String, BackupPart]()
   
   def backupFolder() {
     changed = false
     options.backupFolder.mkdirs()
     l.info("Starting to backup")
-    val backupPropertyFile = new File(options.backupFolder, backupProperties)
+    val backupPropertyFile = backupProperties
     if (backupPropertyFile.exists) {
       l.info("Loading old backup properties")
       loadBackupProperties(backupPropertyFile)
@@ -130,9 +126,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   	l.info(s"Found ${oldBackupFiles.size} previously backed up files")
   	oldBackupFilesRemaining ++= oldBackupFiles.map(x => (x.path, x))
   	importOldHashChains
-    val now = new Date()
   	Await.ready(future, 10 seconds)
   	Actors.remoteManager ! UploadFile(backupPropertyFile)
+  	val now = new Date()
     val filename = s"${s.format(now)}"
     var (counter, fileCounter, sizeCounter) = (0, 0, 0L)
     val files = Buffer[BackupPart]()
@@ -148,11 +144,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       writeObject(files, write)(options, ManifestFactory.classType(files.getClass))
       filesWritten += write
       if (!hashChainMapTemp.isEmpty) {
-	      var hashChainsName = s"hashchains_$nextHashChainNum.db"
-	      nextHashChainNum += 1
-	      val hashChainFile = new File(options.backupFolder, hashChainsName)
-	      writeObject(hashChainMapTemp.toBuffer, hashChainFile)(options, ManifestFactory.classType(files.getClass))
-	      Actors.remoteManager ! UploadFile(hashChainFile)
+          val nextFile = options.fileManager.hashchains.nextFile()
+	      writeObject(hashChainMapTemp.toBuffer, nextFile)(options, ManifestFactory.classType(files.getClass))
+	      Actors.remoteManager ! UploadFile(nextFile)
       }
       files.clear
       hashChainMapTemp = new HashChainMap()
@@ -165,7 +159,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
         case true => files += backupFolderDesc(file); try {
           file.listFiles().foreach(walk)
         } catch {
-          case e: Exception => l.error("Could not get children of "+file)
+          case e: Exception => {
+            l.error("Could not get children of "+file+", because of "+e.getMessage())
+          }
         }
         case false => files += backupFile(file)
       }
@@ -185,7 +181,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       filesWritten.foreach(x => Actors.remoteManager ! UploadFile(x))
     }
     if (options.redundancy.enabled) {
-      val rh = new RedundancyHandler(options.backupFolder, options.redundancy)
+      val rh = new RedundancyHandler(options, options.redundancy)
       rh.createFiles
     }
     Actors.stop()
@@ -278,17 +274,22 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   import Streams._
   import Utils._
   
-  
   val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder)
       
   def restoreFolder() {
-	loadBackupProperties()
-	options.configureRemoteHandler
-	import scala.concurrent.Await
 	import scala.concurrent.duration._
+    if (!backupProperties.exists()) {
+    	val fut1 = options.configureRemoteHandler   
+        val fut = (Actors.remoteManager ? DownloadFile(backupProperties)) (1 minutes)
+        Await.ready(fut, 1 minutes)
+    }
+	loadBackupProperties()
 	l.info("Downloading files from remote storage if needed")
-	val future = (Actors.remoteManager ? DownloadMetadata)(30 minutes)
-	Await.ready(future, 30 minutes)
+	val fut2 = options.configureRemoteHandler
+	val newFut = fut2 match {
+	  case _ => (Actors.remoteManager ? DownloadMetadata)(30 minutes)
+	}
+	Await.ready(newFut, 30 minutes)
 	l.info("Finished downloading metadata")
     importOldHashChains
     val dest = options.restoreToFolder

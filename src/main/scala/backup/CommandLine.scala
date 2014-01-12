@@ -104,10 +104,12 @@ trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig {
   import akka.pattern.{ ask, pipe }
   import scala.concurrent.duration._
   
+  lazy val fileManager = new FileManager(this)
+  
   val remote = new RemoteOptions()
   
   def configureRemoteHandler = {
-    ask(Actors.remoteManager , Configure(this))(5 seconds)
+    ask(Actors.remoteManager, Configure(this))(5 seconds)
   }
   
   var noprompt = false
