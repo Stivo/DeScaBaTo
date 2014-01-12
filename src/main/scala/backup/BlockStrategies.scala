@@ -169,20 +169,24 @@ class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] 
     finishFutures(true)
     endZip
   }
+
+  private def writeProcessedBlock(hash: Array[Byte], block: Array[Byte]) {
+    val hashS = encodeBase64Url(hash)
+    if (currentZip != null && currentZip.size + block.length + hashS.length > volumeSize.get.bytes) {
+      endZip
+    }
+    if (currentZip == null) {
+      startZip
+    }
+    currentZip.writeEntry(hashS, {_.write(block)})
+    currentIndex.write(hash)
+  }
   
   def finishFutures(force: Boolean = false) {
     while (!futures.isEmpty && (force || futures.head.isCompleted)) {
       Await.result(futures.head, 10 minutes) match {
         case (hash, block) => {
-            val hashS = encodeBase64Url(hash)
-		    if (currentZip != null && currentZip.size + block.length + hashS.length > volumeSize.get.bytes) {
-		      endZip
-		    }
-		    if (currentZip == null) {
-		      startZip
-		    }
-		    currentZip.writeEntry(hashS, {_.write(block)})
-		    currentIndex.write(hash)
+          writeProcessedBlock(hash, block)
 	     }
       }
       futures = futures.tail
@@ -203,10 +207,16 @@ class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] 
     if (!knownBlocksTemp.contains(hash)) {
         
         knownBlocksTemp += ((hash, curNum))
-
-        futures :+= future {
+        val f = () => {
           val encrypt = newByteArrayOut(buf)(option)
           (hash, encrypt)
+        } 
+        if (false /*TODO add boolean variable here*/) {
+           futures :+= future { f() }
+        } else {
+          f() match {
+            case (hash, block) => writeProcessedBlock(hash, block)
+          }
         }
         if (futures.size >= 8) {
           Await.result(futures.head, 10 minutes)
