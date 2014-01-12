@@ -32,8 +32,6 @@ class RemoteClientSpec extends FlatSpec with BeforeAndAfterAll with BeforeAndAft
     
     }
 
-  val readme = "README.md"
-  
   "local files " should "work as client" in {
     val temp = new File(testdata, "testLocal")
     writtenFolders += temp

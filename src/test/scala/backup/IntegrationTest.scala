@@ -5,21 +5,24 @@ import java.io.File
 import org.scalatest.BeforeAndAfter
 import scala.collection.mutable.Buffer
 import org.scalatest._
+import org.scalatest.Matchers._
 import java.security.MessageDigest
 import java.io.FileInputStream
 import java.nio.file.Files
 import java.util.Properties
 
-trait PrepareBackupTestData {
+trait PrepareBackupTestData extends FileDeleter {
   lazy val testdata = new File("testdata")
   lazy val backupFrom = new File(testdata, "backupinput")
+  val readme = "README.md"
   def prepare {
+    deleteAll(backupFrom)
     val folder = new File(backupFrom, "testFolder")
     if (!folder.exists())
       folder.mkdirs()
-    val f = new File(backupFrom, "README.md")
+    val f = new File(backupFrom, readme)
     if (!f.exists) {
-      Files.copy(new File("README.md").toPath(), f.toPath())
+      Files.copy(new File(readme).toPath(), f.toPath())
     }
     val f2 = new File(backupFrom, "empty.txt")
     if (!f2.exists) {
@@ -31,7 +34,7 @@ trait PrepareBackupTestData {
 trait FileDeleter {
   var writtenFolders = Buffer[File]()
   
-  private def deleteAll(f: File) {
+  def deleteAll(f: File) {
     def walk(f: File) {
       f.isDirectory() match {
         case true => f.listFiles().foreach(walk); f.delete()
@@ -53,21 +56,25 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   ConsoleManager.testSetup
   
   override def beforeAll {
-    prepare
+    Actors.testMode = true
   }
   
   var bo = new BackupOptions()
   var ro = new RestoreOptions()
   
   before {
+    prepare
     bo = new BackupOptions()
+    bo.serializerType = "json"
+    bo.compression = CompressionMode.none
     bo.backupFolder = new File(testdata, "temp/backup")
     bo.folderToBackup = List(backupFrom)
-//    bo.configureRemoteHandler
     ro = new RestoreOptions()
     ro.relativeToFolder = bo.folderToBackup.headOption
     ro.restoreToFolder = new File(testdata, "temp/restored")
     ro.backupFolder = bo.backupFolder
+    deleteAll(bo.backupFolder)
+    deleteAll(ro.restoreToFolder)
   }
   
   def getHandler(options: BackupOptions) = new BackupHandler(options)
@@ -75,16 +82,14 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   def getRestoreHandler(options: RestoreOptions) = new RestoreHandler(options)
   
   "backup to ftp " should "backup and restore" in {
-    Actors.testMode = true
     val prop = new Properties()
     prop.load(this.getClass.getResourceAsStream("RemoteClientSpec.properties"))
     val ftpUrl = prop.getProperty("ftps")
     assume(ftpUrl != null, "Define a property for ftps to test ftp connections")
-
     ro.restoreToFolder = new File(testdata, "temp/restored")
     ro.relativeToFolder = bo.folderToBackup.headOption
-    ro.remote.url = Some(ftpUrl)
     bo.remote.url = Some(ftpUrl)
+    ro.remote.url = Some(ftpUrl)
     backup(bo)
     ro.backupFolder.listFiles().foreach(_.delete)
     restore(ro)
@@ -102,6 +107,11 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     testBackupAndRestore(bo, ro)
   }
 
+  "backup with deltas" should "backup and restore" in {
+    bo.compression = CompressionMode.zip
+    testBackupAndRestore(bo, ro, true)
+  }
+  
   "backup with encryption" should "backup and restore" in {
     bo.passphrase = "Test"
   	backup(bo)
@@ -124,7 +134,6 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   }
 
   def backup(backupOptions: BackupOptions) {
-    assert(false === backupOptions.backupFolder.exists())
     val handler = getHandler(backupOptions)
     writtenFolders += backupOptions.backupFolder
     handler.backupFolder
@@ -136,8 +145,24 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     writtenFolders += restoreOptions.restoreToFolder
   }
   
-  def testBackupAndRestore(backupOptions: BackupOptions, restoreOptions: RestoreOptions) {
+  def testBackupAndRestore(backupOptions: BackupOptions, restoreOptions: RestoreOptions, useDeltas : Boolean = false) {
+    backupOptions.useDeltas = useDeltas
+    val backupFolder = backupOptions.folderToBackup.head
     backup(backupOptions)
+    restore(restoreOptions)
+    compareBackups(backupOptions.folderToBackup.head, restoreOptions.restoreToFolder)
+    val r = new File(backupFolder, readme)
+    val to = new File(backupFolder, readme+".2")
+    assume(r.exists)
+    Files.move(r.toPath(), r.toPath.resolveSibling(to.getName()));
+    assume(to.exists)
+    assume(!r.exists)
+    deleteAll(restoreOptions.restoreToFolder)
+    backupOptions._fileManager = null
+    backup(backupOptions)
+    if (useDeltas) {
+    	(backupOptions.fileManager.fileUpdates.getFiles().toList should not be 'empty)
+    }
     restore(restoreOptions)
     compareBackups(backupOptions.folderToBackup.head, restoreOptions.restoreToFolder)
   }

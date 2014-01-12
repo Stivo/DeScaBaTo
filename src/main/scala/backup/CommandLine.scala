@@ -104,7 +104,12 @@ trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig {
   import akka.pattern.{ ask, pipe }
   import scala.concurrent.duration._
   
-  lazy val fileManager = new FileManager(this)
+  // For test purposes
+  var _fileManager : FileManager = null
+  
+  def fileManager = if(_fileManager != null) _fileManager else new FileManager(this)
+  
+  var useDeltas = false
   
   val remote = new RemoteOptions()
   
@@ -255,7 +260,7 @@ class FindDuplicateOptions extends ExplainHelp with BackupFolderOption with Encr
 
 trait CompressionOptions extends FieldArgs {
   @Arg(shortcut="c")
-  var compression : CompressionMode = CompressionMode.none
+  var compression : CompressionMode = CompressionMode.zip
 }
 
 trait EncryptionOptions extends FieldArgs {

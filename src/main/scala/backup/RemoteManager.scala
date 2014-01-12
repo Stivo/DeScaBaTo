@@ -74,6 +74,7 @@ class FileUploadActor extends Actor with Utils {
       sender ! true
     }
     case DownloadMetadata => {
+      // TODO use FileManager to correctly identify data?
       val files = backend.list.filter(!_.startsWith("volume_"))
       files.foreach { f=>
         if (localFile(f).length() < backend.getSize(f)) {

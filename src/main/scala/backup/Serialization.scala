@@ -45,11 +45,13 @@ trait DelegateSerialization extends Serialization {
 }
 
 abstract class AbstractJacksonSerialization extends Serialization {
-    class BackupPartDeserializer extends StdDeserializer[BackupPart](classOf[BackupPart]) {
+    class UpdatePartDeserializer extends StdDeserializer[UpdatePart](classOf[UpdatePart]) {
     def deserialize (jp: JsonParser, ctx: DeserializationContext) = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper];  
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode];
-      if (root.fieldNames().asScala.contains("hash")) {
+      if (root.fieldNames().asScala.contains("folder")) {
+        mapper.convertValue(root, classOf[FileDeleted])
+      } else if (root.fieldNames().asScala.contains("hash")) {
         mapper.convertValue(root, classOf[FileDescription]);  
       } else {
         mapper.convertValue(root, classOf[FolderDescription])
@@ -70,7 +72,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
   }
 
   val testModule = new SimpleModule("MyModule", new Version(1, 0, 0, null));
-  testModule.addDeserializer(classOf[BackupPart], new BackupPartDeserializer())
+  testModule.addDeserializer(classOf[UpdatePart], new UpdatePartDeserializer())
   testModule.addDeserializer(classOf[BAWrapper2], new BAWrapper2Deserializer())
   testModule.addSerializer(classOf[BAWrapper2], new BAWrapper2Serializer())
 

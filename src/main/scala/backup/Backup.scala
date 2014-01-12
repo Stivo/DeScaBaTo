@@ -2,10 +2,8 @@ package backup
 
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
 import scala.collection.mutable.Buffer
 import java.io.File
-import java.util.Date
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.util.Comparator
@@ -19,6 +17,7 @@ import backup.Streams.ObjectPools
 import akka.actor.PoisonPill
 import scala.concurrent.Await
 import akka.pattern.{ ask, pipe }
+import scala.collection.mutable
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization with Utils {
   import Streams._
@@ -29,26 +28,20 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
   
   val blockStrategy = folder.getBlockStrategy
   
-  def getMatchingFiles(prefix: String) : Iterable[File] = {
-    val files = folder.backupFolder.listFiles().filter(_.isFile()).filter(_.getName().startsWith(prefix))
-    val sorted = files.sortBy(_.getName())
-    if (files.isEmpty) {
-      Nil
-    } else {
-      val lastPattern = sorted.last.getName().drop(prefix.length).takeWhile(_!= '_')
-      val onlyLast = sorted.dropWhile(!_.getName().contains(lastPattern)).toList
-      if (onlyLast.isEmpty)
-        // there was only one backup, use it
-        sorted.toList
-      else
-        onlyLast
-    }
-  }
-  
-  lazy val oldBackupFiles = {
-    val filesToLoad = getMatchingFiles("files_")
+  lazy val oldBackupFiles : Iterable[BackupPart] = {
     implicit val options = folder
-    filesToLoad.map(readObject[Buffer[BackupPart]]).fold(Buffer[BackupPart]())(_ ++ _)
+    val (filesToLoad, hasDeltas) = options.fileManager.getBackupAndUpdates
+    val updates = filesToLoad.map(readObject[Buffer[UpdatePart]]).fold(Buffer[UpdatePart]())(_ ++ _)
+    if (hasDeltas) {
+      val map = mutable.LinkedHashMap[String, BackupPart]()
+      updates.foreach{
+        case FileDeleted(path, isFolder) => map -= path
+        case x : BackupPart => map(x.path) = x
+      }
+      map.values.toBuffer
+    } else {
+      updates.asInstanceOf[Buffer[BackupPart]]
+    }
   }
 
   lazy val oldBackupHashChains = {
@@ -59,8 +52,6 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
     map ++= list
     map
   }
-
-  val s = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
   var hashChainMap: HashChainMap = new HashChainMap()
 
   def importOldHashChains {
@@ -75,7 +66,7 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
     }
   }
     
-  val backupProperties = new File(folder.backupFolder, "backup.properties")
+  lazy val backupProperties = new File(folder.backupFolder, "backup.properties")
     
   def loadBackupProperties(file: File = backupProperties) {
     val backup = folder.propertyFile
@@ -108,6 +99,8 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   var hashChainMapTemp : HashChainMap = new HashChainMap()
   
   val oldBackupFilesRemaining = HashMap[String, BackupPart]()
+  val deltaSet = Buffer[UpdatePart]()
+  lazy val delta = options.useDeltas && !oldBackupFiles.isEmpty
   
   def backupFolder() {
     changed = false
@@ -128,27 +121,30 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   	importOldHashChains
   	Await.ready(future, 10 seconds)
   	Actors.remoteManager ! UploadFile(backupPropertyFile)
-  	val now = new Date()
-    val filename = s"${s.format(now)}"
     var (counter, fileCounter, sizeCounter) = (0, 0, 0L)
     val files = Buffer[BackupPart]()
-    
     var filesWritten = Buffer[File]()
-    
     def newFiles() {
-      var filesName = s"files_${filename}_$counter.db"
-      counter += 1
       fileCounter += files.length
       sizeCounter += files.map(_.size).fold(0L)(_+_)
-      val write = new File(options.backupFolder, filesName)
-      writeObject(files, write)(options, ManifestFactory.classType(files.getClass))
-      filesWritten += write
+      
+      if (delta) {
+        if (!deltaSet.isEmpty) {
+          val fi = options.fileManager.fileUpdates.write(deltaSet)
+          // if there was a delta added, changed must be true. We can upload directly.
+          Actors.remoteManager ! UploadFile(fi)
+        }
+      } else {
+        if (!files.isEmpty)
+        	filesWritten += options.fileManager.files.write(files)
+      }
+      
       if (!hashChainMapTemp.isEmpty) {
-          val nextFile = options.fileManager.hashchains.nextFile()
-	      writeObject(hashChainMapTemp.toBuffer, nextFile)(options, ManifestFactory.classType(files.getClass))
-	      Actors.remoteManager ! UploadFile(nextFile)
+          val fi = options.fileManager.hashchains.write(hashChainMapTemp.toBuffer)
+	      Actors.remoteManager ! UploadFile(fi)
       }
       files.clear
+      deltaSet.clear
       hashChainMapTemp = new HashChainMap()
     }
     def walk(file: File) {
@@ -173,6 +169,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
     if (!oldBackupFilesRemaining.isEmpty) {
       l.info(oldBackupFilesRemaining.size +" files have been deleted since last backup")
       changed = true
+      if (delta) {
+        options.fileManager.fileUpdates.write(oldBackupFilesRemaining.values.map(x => FileDeleted(x)).toBuffer)
+      }
     } 
     if (!changed) {
       l.info(s"Nothing has changed, removing this backup")
@@ -208,7 +207,12 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   def backupFolderDesc(file: File) = {
     findOld[FolderDescription](file) match {
       case (Some(x), _) => x
-      case (None, fa) => new FolderDescription(file.getAbsolutePath(), fa)
+      case (None, fa) =>
+        val out = new FolderDescription(file.getAbsolutePath(), fa)
+        if (delta) {
+          deltaSet += out
+        }
+        out
     }
   }
   
@@ -260,7 +264,11 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
 	    } else {
 	      faSave = null
 	    }
-	    new FileDescription(file.getAbsolutePath(), file.length(), hash, hashChain, fa)
+        val out = new FileDescription(file.getAbsolutePath(), file.length(), hash, hashChain, fa)
+        if (delta) {
+          deltaSet += out
+        }
+        out
     }
     findOld[FileDescription](file) match {
       case (Some(x), _) => x
@@ -279,9 +287,13 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   def restoreFolder() {
 	import scala.concurrent.duration._
     if (!backupProperties.exists()) {
+      if (options.remote.enabled) {
     	val fut1 = options.configureRemoteHandler   
         val fut = (Actors.remoteManager ? DownloadFile(backupProperties)) (1 minutes)
         Await.ready(fut, 1 minutes)
+      } else {
+        throw new IllegalArgumentException("No backup found at "+options.backupFolder)
+      }
     }
 	loadBackupProperties()
 	l.info("Downloading files from remote storage if needed")
@@ -342,7 +354,8 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
     l.info("Loading information")
     val loading = oldBackupFiles
     l.info(s"Information loaded (${loading.size} files), filtering")
-    val filtered = loading.filter(_.path.contains(options.filePattern))
+    // TODO choose correct collection for sorting etc
+    val filtered = loading.filter(_.path.contains(options.filePattern)).toList
     l.info(s"Filtering done, found ${filtered.size} entries")
     val sorted = if (filtered.size < 10000) filtered.sortBy(-_.size) else filtered
     sorted.take(100).foreach(printFile)
