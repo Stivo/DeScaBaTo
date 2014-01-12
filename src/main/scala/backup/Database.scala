@@ -1,39 +1,13 @@
 package backup;
 
-import java.io.File
-import java.security.MessageDigest
-import java.io.BufferedInputStream
-import java.io.FileInputStream
-import scala.collection.mutable.Buffer
-import scala.annotation.tailrec
-import java.nio.file.Path
-import java.io.FileOutputStream
-import java.io.BufferedOutputStream
-import java.io.OutputStream
-import javax.xml.bind.DatatypeConverter
-import java.nio.file.Files
-import scala.io.Source
-import java.io.PipedOutputStream
-import java.util.zip.GZIPOutputStream
-import java.util.zip.GZIPInputStream
-import java.nio.file.attribute.BasicFileAttributes
-import java.nio.file.attribute.UserDefinedFileAttributeView
 import scala.collection.JavaConverters._
-import java.util.GregorianCalendar
-import java.io.IOException
-import java.net.URI
-import com.typesafe.scalalogging.slf4j.Logging
-import java.util.Date
-import java.text.SimpleDateFormat
-import java.nio.file.attribute.FileTime
+import javax.xml.bind.DatatypeConverter
 import java.text.DecimalFormat
-import java.io.InputStream
-import java.io.ByteArrayOutputStream
-import java.io.ByteArrayInputStream
-import scala.collection.mutable.Map
 import java.util.HashMap
-import com.fasterxml.jackson.databind.JsonSerializable
-import scala.collection.convert.decorateAsScala
+import java.nio.file.Files
+import java.io.File
+import com.typesafe.scalalogging.slf4j.Logging
+import java.nio.file.attribute.FileTime
 
 class FileAttributes extends HashMap[String, Any] {
   
