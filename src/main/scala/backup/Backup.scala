@@ -121,6 +121,12 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
   	importOldHashChains
   	Await.ready(future, 10 seconds)
   	Actors.remoteManager ! UploadFile(backupPropertyFile)
+  	options.fileManager.volumes.getFiles().foreach { f =>
+      Actors.remoteManager ! UploadFile(f, true)
+      //TODO find better solution
+      // Give mailbox a chance to realize it is full
+      Thread.sleep(1000)
+    }
     var (counter, fileCounter, sizeCounter) = (0, 0, 0L)
     val files = Buffer[BackupPart]()
     var filesWritten = Buffer[File]()
@@ -130,7 +136,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       
       if (delta) {
         if (!deltaSet.isEmpty) {
-          val fi = options.fileManager.fileUpdates.write(deltaSet)
+          val fi = options.fileManager.filesDelta.write(deltaSet)
           // if there was a delta added, changed must be true. We can upload directly.
           Actors.remoteManager ! UploadFile(fi)
         }
@@ -156,7 +162,9 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
           file.listFiles().foreach(walk)
         } catch {
           case e: Exception => {
-            l.error("Could not get children of "+file+", because of "+e.getMessage())
+        	  // TODO more fine grained handling of exceptions.
+            //e.printStackTrace()
+            l.error("Could not get children of "+file+", because of "+e)
           }
         }
         case false => files += backupFile(file)
@@ -170,7 +178,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       l.info(oldBackupFilesRemaining.size +" files have been deleted since last backup")
       changed = true
       if (delta) {
-        options.fileManager.fileUpdates.write(oldBackupFilesRemaining.values.map(x => FileDeleted(x)).toBuffer)
+        options.fileManager.filesDelta.write(oldBackupFilesRemaining.values.map(x => FileDeleted(x)).toBuffer)
       }
     } 
     if (!changed) {

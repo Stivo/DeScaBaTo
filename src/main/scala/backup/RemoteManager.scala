@@ -16,6 +16,8 @@ import akka.pattern.{ask, gracefulStop}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import java.io.IOException
+import java.io.InputStream
+import backup.Streams.ReportingOutputStream
 
 object Actors {
    lazy val system = ActorSystem("HelloSystem")
@@ -26,17 +28,17 @@ object Actors {
    
    def stop() {
      if (testMode) {
-       val fut = (remoteManager ? Configure(null)) (30 minutes)
-       Await.result(fut, 30 minutes)
+       val fut = (remoteManager ? Configure(null)) (10 hours)
+       Await.result(fut, 10 hours)
      } else {
-	   val stopped = gracefulStop(remoteManager, 30 minutes)
-	   Await.result(stopped, 30 minutes)
+	   val stopped = gracefulStop(remoteManager, 10 hours)
+	   Await.result(stopped, 10 hours)
      }
    }
-   
+
    def downloadFile(f: File) = {
-     val wait = (remoteManager ? DownloadFile(f))(30 minutes)
-     Await.ready(wait, 30 minutes)
+     val wait = (remoteManager ? DownloadFile(f))(10 hours)
+     Await.ready(wait, Duration.Inf)
      if (!f.exists) {
        throw new IOException("Did not successfully download "+f)
      }
@@ -159,7 +161,11 @@ class VfsBackendClient(url: String) extends BackendClient {
       case None => f.getName
     }
     val from = manager.toFileObject(f)
-    remoteDir.resolveFile(remoteName).copyFrom(from, new AllFileSelector())
+    val to = remoteDir.resolveFile(remoteName)
+    val in = from.getContent().getInputStream()
+    val out =  to.getContent().getOutputStream()
+    val reporter = new ReportingOutputStream(out, s"Uploading $remoteName", size = from.getContent().getSize())
+    Streams.copy(in, reporter)
   }
   
   def get(f: File, name: Option[String] = None) {

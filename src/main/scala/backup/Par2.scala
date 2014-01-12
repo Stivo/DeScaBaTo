@@ -30,19 +30,16 @@ class RedundancyHandler(folder: BackupFolderOption, redundancy: RedundancyOption
     
     var numberOfFiles = 1
     
-    var prefix = ""
-      
-    def notCovered = {
+    def notCovered[T](ft: FileType[T]) = {
       val covered = readCoveredFiles
-      val out = folder.backupFolder.listFiles().filter(_.isFile())
-      	.filter(!_.getName().endsWith(".par2"))
+      val out = ft.getFiles()
       	.filter(x => !(covered contains x))
       out
     }
     
     def forVolumes {
       val p2volume = folder.fileManager.par2ForVolumes
-      var volumes = filesMatchingPrefix(p2volume)
+      var volumes = filesMatchingPrefix(folder.fileManager.volumes)
       while (!volumes.isEmpty) {
 	    val f = p2volume.nextFile()
         start(f, volumes.take(redundancy.volumesToParTogether))
@@ -51,10 +48,7 @@ class RedundancyHandler(folder: BackupFolderOption, redundancy: RedundancyOption
     }
 
     def filesMatchingPrefix[T](ft: FileType[T], sort : Boolean = true) = { 
-      val out = notCovered.filter{ file =>
-        file.isFile() && 
-        file.getName.toLowerCase().startsWith(prefix)
-      }
+      val out = notCovered(ft)
       if (sort) {
     	out.sortBy(ft.getNum(_))
       } else {
@@ -62,18 +56,18 @@ class RedundancyHandler(folder: BackupFolderOption, redundancy: RedundancyOption
       }
     }
     
-    def handleFiles[T](ft: FileType[T]) = {
-      val num = ft.nextFile()
-      val par2File = num
-      start(par2File, ft.getFiles())
+    def handleFiles[T](parFt: FileType[Parity], ft: FileType[T]) = {
+      val par2File = parFt.nextFile()
+      start(par2File, filesMatchingPrefix(ft, true))
     }
     
     def forHashChainsAndIndex {
       val backup = redundancy.percentage
       try {
 	 	  redundancy.percentage = 50
-	      handleFiles(folder.fileManager.par2ForFiles)
-	 	  handleFiles(folder.fileManager.par2ForHashChains)
+	      handleFiles(folder.fileManager.par2ForFiles, folder.fileManager.files)
+	 	  handleFiles(folder.fileManager.par2ForHashChains, folder.fileManager.hashchains)
+	 	  handleFiles(folder.fileManager.par2ForFilesDelta, folder.fileManager.filesDelta)
       } finally {
         redundancy.percentage = backup
       }

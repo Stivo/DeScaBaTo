@@ -6,7 +6,8 @@ packageArchetype.java_application
 
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
-    base / "src/main/resources"
+    base / "src/main/resources",
+    base / "src/test/resources"
   )
 }
 
@@ -30,8 +31,9 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % "test"
 
-libraryDependencies += "com.quantifind" %% "sumac" % "0.3-SNAPSHOT"
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
 
+libraryDependencies += "com.quantifind" %% "sumac" % "0.3-SNAPSHOT"
 
 libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.0"
 

@@ -52,11 +52,12 @@ class RemoteClientSpec extends FlatSpec with BeforeAndAfterAll with BeforeAndAft
   
   "ftp " should "work as client" in {
     val prop = new Properties()
-    prop.load(this.getClass.getResourceAsStream("RemoteClientSpec.properties"))
+    assume(new File("src/test/resources/RemoteClientSpec.properties").exists(), "please create the file to test ftp backups")
+    prop.load(new FileInputStream("src/test/resources/RemoteClientSpec.properties"))
     val ftpUrl = prop.getProperty("ftps")
     assume(ftpUrl != null, "Define a property for ftps to test ftp connections")
 	val backend = new VfsBackendClient(ftpUrl)
-	(backend.list shouldBe 'empty)
+	assume(backend.list.isEmpty, "please provide an empty folder")
 	backend.put(new File(backupFrom, readme))
 	backend.put(new File(backupFrom, "empty.txt"))
 	(backend.list should contain allOf ("empty.txt", readme))

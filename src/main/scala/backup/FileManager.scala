@@ -60,7 +60,7 @@ import java.util.Date
     }
       
     def getNum(x: File) = {
-      assert(matches(x))
+      assert(matches(x), s"$x does not match $prefix")
       var dropLength = prefix.length
       if (hasDate)
         dropLength += fileManager.dateFormatLength + 1
@@ -89,14 +89,15 @@ class FileManager(options: BackupFolderOption) {
   val volumes = new FileType[Volume]("volume_", false, ".zip", localC = false)
   val hashchains = new FileType[Buffer[(BAWrapper2, Array[Byte])]]("hashchains_", false, ".obj")
   val files = new FileType[Buffer[BackupPart]]("files_", true, ".obj", hasDateC=true)
-  val fileUpdates = new FileType[Buffer[UpdatePart]]("fileupdate_", true, ".obj", hasDateC=true)
+  val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".obj", hasDateC=true)
   val index = new FileType[VolumeIndex]("index_", true, ".obj", redundantC = true)
   val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
   val par2ForVolumes = new FileType[Parity]("par_volume_", true, ".par2", localC = false, redundantC = true)
   val par2ForHashChains = new FileType[Parity]("par_hashchain_", true, ".par2", localC = false, redundantC = true)
   val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
+  val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
   
-  private val types = List(volumes, hashchains, files, fileUpdates, index, par2ForFiles, par2ForVolumes, par2ForHashChains,  par2File)
+  private val types = List(volumes, hashchains, files, filesDelta, index, par2ForFiles, par2ForVolumes, par2ForHashChains, par2ForFilesDelta, par2File)
   
   types.foreach{ x=> x.options = options; x.fileManager = this}
   
@@ -110,7 +111,7 @@ class FileManager(options: BackupFolderOption) {
     } else {
       val lastDate = files.getDate(sorted.last)
       val onlyLast = sorted.dropWhile(x => files.getDate(x).before(lastDate))
-      val updates = fileUpdates.getFiles().dropWhile(fileUpdates.getDate(_).before(lastDate))
+      val updates = filesDelta.getFiles().dropWhile(filesDelta.getDate(_).before(lastDate))
       (onlyLast ++ updates, !updates.isEmpty)
     }
 

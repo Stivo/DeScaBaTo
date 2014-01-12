@@ -83,17 +83,28 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   
   "backup to ftp " should "backup and restore" in {
     val prop = new Properties()
-    prop.load(this.getClass.getResourceAsStream("RemoteClientSpec.properties"))
+    assume(new File("src/test/resources/RemoteClientSpec.properties").exists(), "please create the file to test ftp backups")
+    prop.load(new FileInputStream("src/test/resources/RemoteClientSpec.properties"))
     val ftpUrl = prop.getProperty("ftps")
     assume(ftpUrl != null, "Define a property for ftps to test ftp connections")
     ro.restoreToFolder = new File(testdata, "temp/restored")
     ro.relativeToFolder = bo.folderToBackup.headOption
     bo.remote.url = Some(ftpUrl)
     ro.remote.url = Some(ftpUrl)
-    backup(bo)
-    ro.backupFolder.listFiles().foreach(_.delete)
-    restore(ro)
-    compareBackups(bo.folderToBackup.head, ro.restoreToFolder)
+    val ftp = new VfsBackendClient(ftpUrl)
+    assume(ftp.list.isEmpty, "Please provide an empty folder on the ftp")
+    try {
+      backup(bo)
+	  ro.backupFolder.listFiles().foreach(_.delete)
+	  restore(ro)
+	  compareBackups(bo.folderToBackup.head, ro.restoreToFolder)
+	  Actors.stop()
+    } finally {
+      ftp.remoteDir.refresh()
+      ftp.list.foreach { f =>
+        ftp.delete(f) 
+      }  
+    }
   }
 
   "backup" should "backup and restore" in {
@@ -161,7 +172,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     backupOptions._fileManager = null
     backup(backupOptions)
     if (useDeltas) {
-    	(backupOptions.fileManager.fileUpdates.getFiles().toList should not be 'empty)
+    	(backupOptions.fileManager.filesDelta.getFiles().toList should not be 'empty)
     }
     restore(restoreOptions)
     compareBackups(backupOptions.folderToBackup.head, restoreOptions.restoreToFolder)

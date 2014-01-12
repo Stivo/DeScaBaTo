@@ -83,10 +83,11 @@ object Utils {
 
   private val units = Array[String] ( "B", "KB", "MB", "GB", "TB" );
   def isWindows = System.getProperty("os.name").contains("indows")
-  def readableFileSize(size: Long) : String = {
+  def readableFileSize(size: Long, afterDot: Int = 1) : String = {
     if(size <= 0) return "0";
     val digitGroups = (Math.log10(size)/Math.log10(1024)).toInt;
-    return new DecimalFormat("#,##0.#").format(size/Math.pow(1024, digitGroups)) + " " + Utils.units(digitGroups);
+    val afterDotPart = if (afterDot == 0) "#" else "0"*afterDot
+    return new DecimalFormat("#,##0."+afterDotPart).format(size/Math.pow(1024, digitGroups)) + " " + Utils.units(digitGroups);
   }
   
   def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes);

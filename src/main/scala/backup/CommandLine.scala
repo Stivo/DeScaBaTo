@@ -83,15 +83,15 @@ case class Size(bytes: Long) {
 
 object SizeParser extends SimpleParser[Size] {
   val knownTypes: Set[Class[_]] = Set(classOf[Size])
-  val patt = Pattern.compile("([\\d.]+)(\\s*)([GMK]B)", Pattern.CASE_INSENSITIVE);
+  val patt = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE);
 
   def parse(size: String) = {
 	var out : Long = -1;
     val matcher = patt.matcher(size);
-    val map = List(("GB", 3), ("MB", 2),("KB", 1), ("", 0)).toMap
+    val map = List(("GB", 3), ("MB", 2),("KB", 1), ("B", 0)).toMap
     if (matcher.find()) {
       val number = matcher.group(1);
-      val pow = map.get(matcher.group(3).toUpperCase()).get;
+      val pow = map.get(matcher.group(2).toUpperCase()).get;
       var bytes = new BigDecimal(new JBigDecimal(number));
       bytes = bytes.*(BigDecimal.valueOf(1024).pow(pow));
       out = bytes.longValue();

@@ -15,6 +15,7 @@ import java.io.File
 import scala.collection.mutable.Stack
 import scala.ref.WeakReference
 import scala.reflect.ClassTag
+import scala.concurrent.duration._
 
 object Streams {
   import ObjectPools.baosPool
@@ -245,6 +246,17 @@ object Streams {
       out = null
     }
 	  
+  }
+  
+  class ReportingOutputStream(val out: OutputStream, val message: String, 
+		  val interval: FiniteDuration = 5 seconds, var size : Long = -1) extends CountingOutputStream(out) {
+	override def write(buf: Array[Byte], start: Int, len: Int)  {
+	  val append = if (size > 1) {
+	    s"/${Utils.readableFileSize(size, 2)} ${(100*count/size).toInt}%"
+	  } else ""
+	  ConsoleManager.writeDeleteLine(s"$message ${Utils.readableFileSize(count)}$append")
+	  super.write(buf, start, len)
+	}
   }
   
 }
