@@ -106,7 +106,6 @@ class BackupFileObject(name: AbstractFileName, index: Index, fs: AbstractFileSys
     case x => println("Did not match " +x); Nil 
   }
   
-  
   protected override def doGetLastModifiedTime() = {
     if (backupPart.attrs != null) {
       backupPart.attrs.get("lastModifiedTime").toString.toLong

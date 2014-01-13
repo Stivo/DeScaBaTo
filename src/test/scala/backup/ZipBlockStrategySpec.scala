@@ -22,7 +22,9 @@ class ZipBlockStrategySpec extends FlatSpec with BeforeAndAfterAll with BeforeAn
   
   before {
     deleteAll(testdata)
-    testdata.mkdirs()
+    testdata.mkdir()
+    assume(testdata.exists())
+    assume(testdata.listFiles().isEmpty)
   }
   
   implicit var folder : BackupOptions = null
@@ -47,7 +49,7 @@ class ZipBlockStrategySpec extends FlatSpec with BeforeAndAfterAll with BeforeAn
   "zipblock" should "save and retrieve blocks when gzipped" in {
     val f = fixture
     folder.passphrase = "ASDF"
-    folder.compression = CompressionMode.none
+    folder.compression = CompressionMode.zip
     test()
   }
   
@@ -60,6 +62,7 @@ class ZipBlockStrategySpec extends FlatSpec with BeforeAndAfterAll with BeforeAn
     totest.finishWriting
     (totest.blockExists(key1) should be (true))
     (Arrays.equals(totest.readBlock(key1), content) should be)
+    totest.free
   }
 
   after {

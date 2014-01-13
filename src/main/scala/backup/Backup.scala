@@ -249,6 +249,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
 		    val hos = new HashingOutputStream(options.getHashAlgorithm)
 		    val sis = new SplitInputStream(fis, blockHasher::hos::Nil)
 		    sis.readComplete
+		    fis.close()
 		    val hashList = out.reduce(_ ++ _)
 		    hash = hos.out.get
 		    hashChain = if (hashList.length == hash.length) {

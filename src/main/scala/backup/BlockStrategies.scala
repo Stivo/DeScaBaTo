@@ -211,14 +211,14 @@ class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] 
           val encrypt = newByteArrayOut(buf)(option)
           (hash, encrypt)
         } 
-        if (false /*TODO add boolean variable here*/) {
+        if (true /*TODO add boolean variable here*/) {
            futures :+= future { f() }
         } else {
           f() match {
             case (hash, block) => writeProcessedBlock(hash, block)
           }
         }
-        if (futures.size >= 8) {
+        if (futures.size >= 2) {
           Await.result(futures.head, 10 minutes)
         }
         finishFutures(false)

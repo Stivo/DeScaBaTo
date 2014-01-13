@@ -16,6 +16,9 @@ import scala.collection.mutable.Stack
 import scala.ref.WeakReference
 import scala.reflect.ClassTag
 import scala.concurrent.duration._
+import org.tukaani.xz.XZOutputStream
+import org.tukaani.xz.XZInputStream
+import org.tukaani.xz.LZMA2Options
 
 object Streams {
   import ObjectPools.baosPool
@@ -137,8 +140,10 @@ object Streams {
         throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
       }
     }
-    if (fileHandlingOptions.compression == CompressionMode.zip) {
-      out = new GZIPOutputStream(out)
+    fileHandlingOptions.compression match {
+      case CompressionMode.zip => out = new GZIPOutputStream(out)
+      case CompressionMode.lzma => out = new XZOutputStream(out, new LZMA2Options())
+      case _ => 
     }
     out
   }
@@ -167,15 +172,17 @@ object Streams {
         throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
       }
     }
-    if (fileHandlingOptions.compression == CompressionMode.zip) {
-      out = new GZIPInputStream(out)
+    fileHandlingOptions.compression match {
+      case CompressionMode.zip => out = new GZIPInputStream(out)
+      case CompressionMode.lzma => out = new XZInputStream(out)
+      case _ => 
     }
     out
   }
 
   
   class SplitInputStream(in: InputStream, outStreams: List[OutputStream]) extends InputStream {
-    def read() = in.read()
+    def read() = throw new IllegalAccessException("This method should not be used")
     def readComplete() {
       readFrom(in, {(buf: Array[Byte], len: Int) =>
         for (outStream <- outStreams) {
@@ -184,6 +191,7 @@ object Streams {
       })
       outStreams.foreach(_.close)
     }
+    override def close() = in.close()
   }
   
   class DelegatingOutputStream(out: OutputStream) extends OutputStream {

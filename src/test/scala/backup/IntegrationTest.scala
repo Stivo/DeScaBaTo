@@ -10,6 +10,7 @@ import java.security.MessageDigest
 import java.io.FileInputStream
 import java.nio.file.Files
 import java.util.Properties
+import java.nio.file.StandardCopyOption
 
 trait PrepareBackupTestData extends FileDeleter {
   lazy val testdata = new File("testdata")
@@ -22,7 +23,7 @@ trait PrepareBackupTestData extends FileDeleter {
       folder.mkdirs()
     val f = new File(backupFrom, readme)
     if (!f.exists) {
-      Files.copy(new File(readme).toPath(), f.toPath())
+      Files.copy(new File(readme).toPath(), f.toPath(), StandardCopyOption.REPLACE_EXISTING)
     }
     val f2 = new File(backupFrom, "empty.txt")
     if (!f2.exists) {
@@ -102,7 +103,8 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
       ftp.remoteDir.refresh()
       ftp.list.foreach { f =>
         ftp.delete(f) 
-      }  
+      }
+	ftp.close()
     }
   }
 
@@ -117,6 +119,11 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     testBackupAndRestore(bo, ro)
   }
 
+  "backup with lzma" should "backup and restore" in {
+    bo.compression = CompressionMode.lzma
+    testBackupAndRestore(bo, ro)
+  }
+  
   "backup with deltas" should "backup and restore" in {
     bo.compression = CompressionMode.zip
     testBackupAndRestore(bo, ro, true)

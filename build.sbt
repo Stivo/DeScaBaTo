@@ -44,6 +44,8 @@ parallelExecution in Test := false
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.2.3"
 
+libraryDependencies += "org.tukaani" % "xz" % "1.4"
+
 testOptions in Test += Tests.Argument("-oF")
 
 // Dependencies for the otros vfs browser

@@ -127,8 +127,12 @@ class FileUploadActor extends Actor with Utils {
   
   override def postStop {
     if (!Actors.testMode) {
-      backend.close()
-      context.system.shutdown()
+      if (backend != null) try {
+    	  backend.close()
+      }
+      try {
+         context.system.shutdown()
+      }
     }
   }
   
