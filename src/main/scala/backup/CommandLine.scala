@@ -26,6 +26,7 @@ import com.quantifind.sumac.ExternalConfigUtil
 import akka.actor.ActorSystem
 import akka.actor.Props
 import Utils._
+import pl.otros.vfs.browser.demo.TestBrowser
 
 trait PropertiesConfig extends ExternalConfig {
   self: Args =>
@@ -437,6 +438,21 @@ class FindDuplicatesCommand extends BackupOptionCommand {
   }
 }
 
+class B extends BackupFolderOption
+
+class BrowseCommand extends BackupOptionCommand {
+  type T = B
+  def numOfArgs = 1
+  def getNewOptions = new T()
+  def executeCommand(args: T) {
+    BackupVfsProvider.passphrase = args.passphrase
+    val path = args.backupFolder.getAbsolutePath()
+    val url = s"backup:file://$path!"
+    TestBrowser.main(Array(url))
+  }
+}
+
+
 class HelpCommand(list: Buffer[OptionCommand]) extends OptionCommand {
   type T = HelpOptions
   def numOfArgs = 1
@@ -474,6 +490,7 @@ object CommandLine {
     list += new BackupCommand()
     list += new RestoreCommand()
     list += new FindCommand()
+    list += new BrowseCommand()
     list += new FindDuplicatesCommand()
     list += new HelpCommand(list)
     list.map(x => (x.name.toLowerCase(), x)).toMap

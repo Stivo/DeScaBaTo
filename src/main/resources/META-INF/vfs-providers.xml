@@ -1,0 +1,5 @@
+<providers>
+    <provider class-name="backup.BackupVfsProvider">
+        <scheme name="backup"/>
+    </provider>
+</providers>

@@ -18,6 +18,8 @@ import akka.actor.PoisonPill
 import scala.concurrent.Await
 import akka.pattern.{ ask, pipe }
 import scala.collection.mutable
+import java.io.InputStream
+import java.io.ByteArrayInputStream
 
 class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends DelegateSerialization with Utils {
   import Streams._
@@ -289,9 +291,13 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   import Utils._
   
   val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder)
-      
-  def restoreFolder() {
-	import scala.concurrent.duration._
+  var _setup = false
+  
+  def setup() {
+    if (_setup)
+      return
+    _setup = true
+    import scala.concurrent.duration._
     if (!backupProperties.exists()) {
       if (options.remote.enabled) {
     	val fut1 = options.configureRemoteHandler   
@@ -310,6 +316,10 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
 	Await.ready(newFut, 30 minutes)
 	l.info("Finished downloading metadata")
     importOldHashChains
+  }
+  
+  def restoreFolder() {
+	setup()
     val dest = options.restoreToFolder
     val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder) 
     val f = new File(options.backupFolder, "files.db")
@@ -329,8 +339,26 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
     fd.applyAttrsTo(restoredFile)
   }
   
+  def getInputStream(fd: FileDescription) : InputStream = {
+    setup()
+	val hashes = getHashChain(fd).grouped(options.getMessageDigest.getDigestLength()).toSeq
+	new InputStream() {
+	  val hashIterator = hashes.iterator
+	  var buf : ByteArrayInputStream = new ByteArrayInputStream(blockStrategy.readBlock(hashIterator.next))
+	  def read() = {
+	    if (buf.available() > 0) {
+	      buf.read()
+	    } else if (hashIterator.hasNext) {
+	        buf = new ByteArrayInputStream(blockStrategy.readBlock(hashIterator.next))
+	        buf.read()
+	    } else {
+	      -1
+	    }
+	  }
+	}
+  }
+  
   def restoreFileDesc(fd: FileDescription) {
-    val hashes = getHashChain(fd).grouped(options.getMessageDigest.getDigestLength())
     val restoredFile = new File(options.restoreToFolder, fd.relativeTo(relativeTo))
     if (restoredFile.exists()) {
       if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
@@ -341,11 +369,7 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
     }
     l.info("Restoring to "+restoredFile)
     val fos = new FileOutputStream(restoredFile)
-    for (x <- hashes) {
-      l.trace(s"Restoring from block $x")
-      fos.write(blockStrategy.readBlock(x))
-    }
-    fos.close()
+    copy(getInputStream(fd), fos)
     if (restoredFile.length() != fd.size) {
       l.error(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
     }
