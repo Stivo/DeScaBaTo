@@ -9,6 +9,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -38,7 +39,7 @@ public class AES {
 		if (keySpec != null) {
 			return keySpec;
 		}
-		SecureRandom sr = new SecureRandom("test".getBytes());
+		Random sr = new Random(6877347960117378046L);
 	    byte[] salt = new byte[1024];
 		sr.nextBytes(salt);
 	    SecretKeyFactory kf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
