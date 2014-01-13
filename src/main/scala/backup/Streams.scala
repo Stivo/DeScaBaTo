@@ -190,6 +190,7 @@ object Streams {
         }
       })
       outStreams.foreach(_.close)
+      close()
     }
     override def close() = in.close()
   }

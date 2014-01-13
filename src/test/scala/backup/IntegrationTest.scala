@@ -34,17 +34,18 @@ trait PrepareBackupTestData extends FileDeleter {
 
 trait FileDeleter {
   var writtenFolders = Buffer[File]()
-  
+
   def deleteAll(f: File) {
     def walk(f: File) {
       f.isDirectory() match {
-        case true => f.listFiles().foreach(walk); f.delete()
+        case true =>
+          f.listFiles().foreach(walk); f.delete()
         case false => f.delete()
       }
     }
     walk(f)
   }
-  
+
   def deleteFiles {
     writtenFolders.foreach(deleteAll)
     writtenFolders.clear
@@ -53,19 +54,19 @@ trait FileDeleter {
 }
 
 class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAll with PrepareBackupTestData with FileDeleter {
-  
+
   ConsoleManager.testSetup
-  
+
   var port = 0
-  
+
   override def beforeAll {
     Actors.testMode = true
     port = FtpServer.server
   }
-  
+
   var bo = new BackupOptions()
   var ro = new RestoreOptions()
-  
+
   before {
     prepare
     bo = new BackupOptions()
@@ -80,11 +81,11 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     deleteAll(bo.backupFolder)
     deleteAll(ro.restoreToFolder)
   }
-  
+
   def getHandler(options: BackupOptions) = new BackupHandler(options)
-  
+
   def getRestoreHandler(options: RestoreOptions) = new RestoreHandler(options)
-  
+
   "backup to ftp " should "backup and restore" in {
     val ftpUrl = s"ftp://testvfs:asdfasdf@localhost:$port/"
     ro.restoreToFolder = new File(testdata, "temp/restored")
@@ -95,16 +96,17 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     assume(ftp.list.isEmpty, "Please provide an empty folder on the ftp")
     try {
       backup(bo)
-	  ro.backupFolder.listFiles().foreach(_.delete)
-	  restore(ro)
-	  compareBackups(bo.folderToBackup.head, ro.restoreToFolder)
-	  Actors.stop()
+      (ro.backupFolder.list() should not contain "volume_0.zip")
+      ro.backupFolder.listFiles().foreach(_.delete)
+      restore(ro)
+      compareBackups(bo.folderToBackup.head, ro.restoreToFolder)
+      Actors.stop()
     } finally {
       ftp.remoteDir.refresh()
       ftp.list.foreach { f =>
-        ftp.delete(f) 
+        ftp.delete(f)
       }
-	ftp.close()
+      ftp.close()
     }
   }
 
@@ -123,27 +125,27 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     bo.compression = CompressionMode.lzma
     testBackupAndRestore(bo, ro)
   }
-  
+
   "backup with deltas" should "backup and restore" in {
     bo.compression = CompressionMode.zip
     testBackupAndRestore(bo, ro, true)
   }
-  
+
   "backup with encryption" should "backup and restore" in {
     bo.passphrase = "Test"
-  	backup(bo)
-    try{
-    	restore(ro)
-    	fail("Should not be able to restore ")
+    backup(bo)
+    try {
+      restore(ro)
+      fail("Should not be able to restore ")
     } catch {
-      case x: Exception =>  
+      case x: Exception =>
     }
     ro.passphrase = "wrong key"
-    try{
-    	restore(ro)
-    	fail("Should not be able to restore ")
+    try {
+      restore(ro)
+      fail("Should not be able to restore ")
     } catch {
-      case x: Exception =>  
+      case x: Exception =>
     }
     ro.passphrase = "Test"
     restore(ro)
@@ -161,15 +163,15 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     handler.restoreFolder
     writtenFolders += restoreOptions.restoreToFolder
   }
-  
-  def testBackupAndRestore(backupOptions: BackupOptions, restoreOptions: RestoreOptions, useDeltas : Boolean = false) {
+
+  def testBackupAndRestore(backupOptions: BackupOptions, restoreOptions: RestoreOptions, useDeltas: Boolean = false) {
     backupOptions.useDeltas = useDeltas
     val backupFolder = backupOptions.folderToBackup.head
     backup(backupOptions)
     restore(restoreOptions)
     compareBackups(backupOptions.folderToBackup.head, restoreOptions.restoreToFolder)
     val r = new File(backupFolder, readme)
-    val to = new File(backupFolder, readme+".2")
+    val to = new File(backupFolder, readme + ".2")
     assume(r.exists)
     Files.move(r.toPath(), r.toPath.resolveSibling(to.getName()));
     assume(to.exists)
@@ -178,12 +180,12 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     backupOptions._fileManager = null
     backup(backupOptions)
     if (useDeltas) {
-    	(backupOptions.fileManager.filesDelta.getFiles().toList should not be 'empty)
+      (backupOptions.fileManager.filesDelta.getFiles().toList should not be 'empty)
     }
     restore(restoreOptions)
     compareBackups(backupOptions.folderToBackup.head, restoreOptions.restoreToFolder)
   }
-  
+
   def hash(f: File) = {
     val md = MessageDigest.getInstance("md5")
     val fh = new FileHandlingOptions() {}
@@ -192,7 +194,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     val buf = Streams.readFully(new FileInputStream(f))(fh)
     Utils.encodeBase64(md.digest(buf))
   }
-  
+
   def compareBackups(f1: File, f2: File) {
     val files1 = f1.listFiles().toSet
     val files2 = f2.listFiles().toSet
@@ -205,20 +207,20 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
         assert(c1.getName === c2.getName)
         assert(c1.isDirectory() === c2.isDirectory())
         if (c1.isFile())
-        	assert(hash(c1) === hash(c2))
+          assert(hash(c1) === hash(c2))
       }
     }
     assert(files1.size === counter)
   }
-  
+
   after {
     deleteFiles
   }
-  
+
   override def afterAll {
     Actors.stop
     FtpServer.stop(port)
-    deleteAll(new File("testftp"+port))
+    deleteAll(new File("testftp" + port))
   }
-  
+
 }

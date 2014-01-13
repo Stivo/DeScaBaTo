@@ -323,7 +323,6 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
 	setup()
     val dest = options.restoreToFolder
     val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder) 
-    val f = new File(options.backupFolder, "files.db")
     val (foldersC, filesC) = oldBackupFiles.partition{case f: FolderDescription => true; case _ => false}
     val files = filesC.map(_.asInstanceOf[FileDescription])
     val folders = foldersC.map(_.asInstanceOf[FolderDescription])

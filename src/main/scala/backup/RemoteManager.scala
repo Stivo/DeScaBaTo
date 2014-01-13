@@ -107,9 +107,7 @@ class FileUploadActor extends Actor with Utils {
     
   def isDone(f: File) = backend.exists(f.getName()) && backend.getSize(f.getName()) == f.length()
   
-  def deleteLocal(f: File) = {
-    FileUtils.getInstance().moveToTrash(Array(f));
-  }
+  def deleteLocal(f: File) = f.delete()
   
   def uploadAndDeleteLocal(f: File) {
     if (isDone(f)) {
