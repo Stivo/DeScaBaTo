@@ -126,7 +126,10 @@ class FileUploadActor extends Actor with Utils {
   }
   
   override def postStop {
-    context.system.shutdown()
+    if (!Actors.testMode) {
+      backend.close()
+      context.system.shutdown()
+    }
   }
   
 }
@@ -138,6 +141,7 @@ trait BackendClient {
   def delete(name: String) 
   def list() : Iterable[String]
   def getSize(name: String) : Long
+  def close()
 }
 
 class VfsBackendClient(url: String) extends BackendClient {
@@ -182,4 +186,9 @@ class VfsBackendClient(url: String) extends BackendClient {
   def getSize(name: String) = {
     if (!exists(name)) -1 else remoteDir.resolveFile(name).getContent().getSize()
   }
+  
+  def close() {
+    manager.close()
+  }
+  
 }

@@ -20,9 +20,10 @@ import java.io.FileInputStream
 class RemoteClientSpec extends FlatSpec with BeforeAndAfterAll with BeforeAndAfter with PrepareBackupTestData with FileDeleter {
 
   ConsoleManager.testSetup
-  
+  var port = 0
   override def beforeAll {
     prepare
+    port = FtpServer.server
   }
  
   implicit val folder = new BackupOptions()
@@ -51,11 +52,7 @@ class RemoteClientSpec extends FlatSpec with BeforeAndAfterAll with BeforeAndAft
   }
   
   "ftp " should "work as client" in {
-    val prop = new Properties()
-    assume(new File("src/test/resources/RemoteClientSpec.properties").exists(), "please create the file to test ftp backups")
-    prop.load(new FileInputStream("src/test/resources/RemoteClientSpec.properties"))
-    val ftpUrl = prop.getProperty("ftps")
-    assume(ftpUrl != null, "Define a property for ftps to test ftp connections")
+	val ftpUrl = s"ftp://testvfs:asdfasdf@localhost:$port/"
 	val backend = new VfsBackendClient(ftpUrl)
 	assume(backend.list.isEmpty, "please provide an empty folder")
 	backend.put(new File(backupFrom, readme))
@@ -73,12 +70,17 @@ class RemoteClientSpec extends FlatSpec with BeforeAndAfterAll with BeforeAndAft
 	(backend.delete(readme))
 	(backend.delete("empty.txt"))
 	(backend.list shouldBe 'empty)
+	backend.close()
   }
- 
   
   after {
     deleteFiles
   }
-
+  
+  override def afterAll {
+    Actors.stop
+    FtpServer.stop(port)
+    deleteAll(new File("testftp"+port))
+  }
   
 }

@@ -33,9 +33,14 @@ libraryDependencies ++= Seq(
 		"commons-net" % "commons-net" % "3.3"
 )
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "2.0" % "test"
+// Test dependencies
+libraryDependencies ++= Seq(
+		"org.apache.ftpserver" % "ftpserver-core" % "1.0.6" % "test",
+		"org.scalatest" %% "scalatest" % "2.0" % "test",
+		"org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
+)
 
-libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
+parallelExecution in Test := false
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.2.3"
 

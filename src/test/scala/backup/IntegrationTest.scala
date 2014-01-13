@@ -55,8 +55,11 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   
   ConsoleManager.testSetup
   
+  var port = 0
+  
   override def beforeAll {
     Actors.testMode = true
+    port = FtpServer.server
   }
   
   var bo = new BackupOptions()
@@ -82,11 +85,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   def getRestoreHandler(options: RestoreOptions) = new RestoreHandler(options)
   
   "backup to ftp " should "backup and restore" in {
-    val prop = new Properties()
-    assume(new File("src/test/resources/RemoteClientSpec.properties").exists(), "please create the file to test ftp backups")
-    prop.load(new FileInputStream("src/test/resources/RemoteClientSpec.properties"))
-    val ftpUrl = prop.getProperty("ftps")
-    assume(ftpUrl != null, "Define a property for ftps to test ftp connections")
+    val ftpUrl = s"ftp://testvfs:asdfasdf@localhost:$port/"
     ro.restoreToFolder = new File(testdata, "temp/restored")
     ro.relativeToFolder = bo.folderToBackup.headOption
     bo.remote.url = Some(ftpUrl)
@@ -207,6 +206,12 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   
   after {
     deleteFiles
+  }
+  
+  override def afterAll {
+    Actors.stop
+    FtpServer.stop(port)
+    deleteAll(new File("testftp"+port))
   }
   
 }
