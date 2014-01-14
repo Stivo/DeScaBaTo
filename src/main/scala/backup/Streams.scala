@@ -22,31 +22,30 @@ import org.tukaani.xz.LZMA2Options
 import Streams.ObjectPools.baosPool
 
 object Streams {
-  
-  
+
   object ObjectPools {
-    
-    trait Arg[T<: AnyRef, A] {
-      def isValidForArg(x: T, arg: A) : Boolean
+
+    trait Arg[T <: AnyRef, A] {
+      def isValidForArg(x: T, arg: A): Boolean
     }
-    
+
     trait NoneArg[T <: AnyRef] extends Arg[T, Unit] {
-      self : ObjectPool[T, Unit] =>
-        
+      self: ObjectPool[T, Unit] =>
+
       def isValidForArg(x: T, arg: Unit) = true
-      def get() : T = get(())
-      def makeNew() : T = get(())
+      def get(): T = get(())
+      def makeNew(): T = get(())
     }
-    
+
     trait ArrayArg[A] extends Arg[Array[A], Int] {
-      self : ObjectPool[Array[A], Int] =>
-      def classTag : ClassTag[A]
+      self: ObjectPool[Array[A], Int] =>
+      def classTag: ClassTag[A]
       def isValidForArg(x: Array[A], arg: Int) = x.length >= arg
       def makeNew(arg: Int) = Array.ofDim[A](arg)(classTag)
     }
-   
-    abstract class ObjectPool[T<: AnyRef, A] {
-      self : Arg[T, A] =>
+
+    abstract class ObjectPool[T <: AnyRef, A] {
+      self: Arg[T, A] =>
       val local = new ThreadLocal[Buffer[WeakReference[T]]]
       def getStack() = {
         val out = local.get()
@@ -57,24 +56,25 @@ object Streams {
         } else {
           out
         }
-      } 
-      final def get(arg: A) : T = {
+      }
+      final def get(arg: A): T = {
         val stack = getStack()
-	      while (!stack.isEmpty) {
-	        val toRemove = Buffer[WeakReference[T]]()
-		    val result = stack.find(_ match { 
-		          case wr@WeakReference(x) if (isValidForArg(x, arg))=> toRemove += wr; true
-		          case WeakReference(x) => false // continue searching  
-		          case wr => // This is an empty reference now, we might as well delete it 
-		            toRemove += wr ; false
-		    })
-		     stack --= toRemove
-		     result match {
-	          	case Some(WeakReference(x)) => return x
-	          	case _ => 
-	        }
-	      }
-	      makeNew(arg)
+        while (!stack.isEmpty) {
+          val toRemove = Buffer[WeakReference[T]]()
+          val result = stack.find(_ match {
+            case wr @ WeakReference(x) if (isValidForArg(x, arg)) =>
+              toRemove += wr; true
+            case WeakReference(x) => false // continue searching  
+            case wr => // This is an empty reference now, we might as well delete it 
+              toRemove += wr; false
+          })
+          stack --= toRemove
+          result match {
+            case Some(WeakReference(x)) => return x
+            case _ =>
+          }
+        }
+        makeNew(arg)
       }
       final def recycle(t: T) {
         val stack = getStack
@@ -82,20 +82,20 @@ object Streams {
         stack += (WeakReference(t))
       }
       protected def reset(t: T) {}
-      protected def makeNew(arg: A) : T
+      protected def makeNew(arg: A): T
     }
 
     val baosPool = new ObjectPool[ByteArrayOutputStream, Unit] with NoneArg[ByteArrayOutputStream] {
       override def reset(t: ByteArrayOutputStream) = t.reset()
-      def makeNew(arg: Unit) = new ByteArrayOutputStream(1024*1024+10)
+      def makeNew(arg: Unit) = new ByteArrayOutputStream(1024 * 1024 + 10)
     }
 
     val byteArrayPool = new ObjectPool[Array[Byte], Int] with ArrayArg[Byte] {
       def classTag = ClassTag.Byte
     }
-    
+
   }
-  
+
   def readFully(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
     val baos = baosPool.get
     copy(wrapInputStream(in), baos)
@@ -120,7 +120,7 @@ object Streams {
     }
     in.close()
   }
-  
+
   def copy(in: InputStream, out: OutputStream) {
     readFrom(in, { (x: Array[Byte], len: Int) =>
       out.write(x, 0, len)
@@ -129,11 +129,12 @@ object Streams {
     out.close()
   }
 
-  def wrapOutputStream(stream: OutputStream, disableClose : Boolean = false)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
-    
+  def wrapOutputStream(stream: OutputStream, disableClose: Boolean = false)(implicit fileHandlingOptions: FileHandlingOptions): OutputStream = {
+
     var out = if (disableClose) new DelegatingOutputStream(stream) {
-      override def close() { }
-    } else stream
+      override def close() {}
+    }
+    else stream
     if (fileHandlingOptions.passphrase != null) {
       if (fileHandlingOptions.algorithm == "AES") {
         out = AES.wrapStreamWithEncryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
@@ -144,12 +145,12 @@ object Streams {
     fileHandlingOptions.compression match {
       case CompressionMode.zip => out = new GZIPOutputStream(out)
       case CompressionMode.lzma => out = new XZOutputStream(out, new LZMA2Options())
-      case _ => 
+      case _ =>
     }
     out
   }
-  
-  def newFileOutputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions) : OutputStream = {
+
+  def newFileOutputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions): OutputStream = {
     var out: OutputStream = new FileOutputStream(file)
     wrapOutputStream(out)
   }
@@ -176,16 +177,15 @@ object Streams {
     fileHandlingOptions.compression match {
       case CompressionMode.zip => out = new GZIPInputStream(out)
       case CompressionMode.lzma => out = new XZInputStream(out)
-      case _ => 
+      case _ =>
     }
     out
   }
 
-  
   class SplitInputStream(in: InputStream, outStreams: List[OutputStream]) extends InputStream {
     def read() = throw new IllegalAccessException("This method should not be used")
     def readComplete() {
-      readFrom(in, {(buf: Array[Byte], len: Int) =>
+      readFrom(in, { (buf: Array[Byte], len: Int) =>
         for (outStream <- outStreams) {
           outStream.write(buf, 0, len)
         }
@@ -195,24 +195,24 @@ object Streams {
     }
     override def close() = in.close()
   }
-  
+
   class DelegatingOutputStream(out: OutputStream) extends OutputStream {
     def write(b: Int) = out.write(b)
     override def write(b: Array[Byte], start: Int, len: Int) = out.write(b, start, len)
     override def close() = out.close()
     override def flush() = out.flush()
   }
-  
+
   class HashingOutputStream(val algorithm: String) extends OutputStream {
     val md = MessageDigest.getInstance(algorithm)
-    
+
     var out: Option[Array[Byte]] = None
-    
-    def write(b : Int)  {
-       md.update(b.toByte);
+
+    def write(b: Int) {
+      md.update(b.toByte);
     }
-  
-    override def write(buf: Array[Byte], start: Int, len: Int)  {
+
+    override def write(buf: Array[Byte], start: Int, len: Int) {
       md.update(buf, start, len);
     }
 
@@ -220,54 +220,54 @@ object Streams {
       out = Some(md.digest())
       super.close()
     }
-    
+
   }
-  
+
   class CountingOutputStream(val stream: OutputStream) extends DelegatingOutputStream(stream) {
     var counter: Long = 0
-    override def write(b : Int)  {
+    override def write(b: Int) {
       counter += 1
       super.write(b)
     }
-  
-    override def write(buf: Array[Byte], start: Int, len: Int)  {
+
+    override def write(buf: Array[Byte], start: Int, len: Int) {
       counter += len
       super.write(buf, start, len)
     }
 
     def count() = counter
-    
+
   }
 
   class BlockOutputStream(val blockSize: Int, func: (Array[Byte] => _)) extends OutputStream {
-    
+
     var out = baosPool.get
-    
-    def write(b : Int)  {
+
+    def write(b: Int) {
       out.write(b)
       handleEnd()
     }
-  
+
     def handleEnd() {
       if (cur == blockSize) {
-    	  func(out.toByteArray())
-    	  out.reset()
+        func(out.toByteArray())
+        out.reset()
       }
     }
-    
+
     def cur = out.size()
-    
-    override def write(buf: Array[Byte], start: Int, len: Int)  {
+
+    override def write(buf: Array[Byte], start: Int, len: Int) {
       var (lenC, startC) = (len, start)
       while (lenC > 0) {
-        val now = Math.min(blockSize-cur, lenC)
-	    out.write(buf, startC, now)
+        val now = Math.min(blockSize - cur, lenC)
+        out.write(buf, startC, now)
         lenC -= now
         startC += now
         handleEnd()
       }
     }
-    
+
     override def close() {
       func(out.toByteArray())
       super.close()
@@ -275,18 +275,18 @@ object Streams {
       // out was returned to the pool, so remove instance pointer
       out = null
     }
-	  
+
   }
-  
-  class ReportingOutputStream(val out: OutputStream, val message: String, 
-		  val interval: FiniteDuration = 5 seconds, var size : Long = -1) extends CountingOutputStream(out) {
-	override def write(buf: Array[Byte], start: Int, len: Int)  {
-	  val append = if (size > 1) {
-	    s"/${Utils.readableFileSize(size, 2)} ${(100*count/size).toInt}%"
-	  } else ""
-	  ConsoleManager.writeDeleteLine(s"$message ${Utils.readableFileSize(count)}$append")
-	  super.write(buf, start, len)
-	}
+
+  class ReportingOutputStream(val out: OutputStream, val message: String,
+    val interval: FiniteDuration = 5 seconds, var size: Long = -1) extends CountingOutputStream(out) {
+    override def write(buf: Array[Byte], start: Int, len: Int) {
+      val append = if (size > 1) {
+        s"/${Utils.readableFileSize(size, 2)} ${(100 * count / size).toInt}%"
+      } else ""
+      ConsoleManager.writeDeleteLine(s"$message ${Utils.readableFileSize(count)}$append")
+      super.write(buf, start, len)
+    }
   }
-  
+
 }

@@ -14,12 +14,12 @@ import scala.concurrent.Future
  * Blocks are a chunk of a file, keyed with their hash.
  */
 trait BlockStrategy {
-  def option: BackupFolderOption 
-  def blockExists(hash: Array[Byte]) : Boolean
+  def option: BackupFolderOption
+  def blockExists(hash: Array[Byte]): Boolean
   def writeBlock(hash: Array[Byte], buf: Array[Byte])
-  def readBlock(hash: Array[Byte]) : Array[Byte]
-  def getBlockSize(hash: Array[Byte]) : Long
-  def calculateOverhead(map: Iterable[Array[Byte]]) : Long
+  def readBlock(hash: Array[Byte]): Array[Byte]
+  def getBlockSize(hash: Array[Byte]): Long
+  def calculateOverhead(map: Iterable[Array[Byte]]): Long
   def finishWriting() {}
   def free() {}
 }
@@ -31,27 +31,27 @@ class FolderBlockStrategy(val option: BackupFolderOption) extends BlockStrategy 
   import Streams._
   import Utils._
   val blocksFolder = new File(option.backupFolder, "blocks")
-  
+
   def blockExists(b: Array[Byte]) = {
     new File(blocksFolder, encodeBase64Url(b)).exists()
   }
   def writeBlock(hash: Array[Byte], buf: Array[Byte]) {
     val hashS = encodeBase64Url(hash)
-    val f = new File(blocksFolder,hashS)
+    val f = new File(blocksFolder, hashS)
     val fos = newFileOutputStream(f)(option)
     fos.write(buf)
     fos.close()
   }
-  
+
   def readBlock(x: Array[Byte]) = {
-      val out = new ByteArrayOutputStream()
-      val fis = newFileInputStream(new File(blocksFolder, encodeBase64Url(x)))(option)
-      copy(fis, out)
-      out.toByteArray()
+    val out = new ByteArrayOutputStream()
+    val fis = newFileInputStream(new File(blocksFolder, encodeBase64Url(x)))(option)
+    copy(fis, out)
+    out.toByteArray()
   }
   def getBlockSize(hash: Array[Byte]) = new File(blocksFolder, encodeBase64Url(hash)).length()
   def calculateOverhead(map: Iterable[Array[Byte]]) = {
-    map.map(_.grouped(option.hashLength).foldLeft(0L){(x, y) =>
+    map.map(_.grouped(option.hashLength).foldLeft(0L) { (x, y) =>
       x + getBlockSize(y)
     }).sum
   }
@@ -60,14 +60,14 @@ class FolderBlockStrategy(val option: BackupFolderOption) extends BlockStrategy 
 /**
  * A wrapper for a byte array so it can be used in a map as a key.
  */
-class BAWrapper2(ba:Array[Byte]) {
+class BAWrapper2(ba: Array[Byte]) {
   def data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
-  def equals(other:BAWrapper2):Boolean = Arrays.equals(data, other.data)
-  override def equals(obj:Any):Boolean = 
-    if (obj.isInstanceOf[BAWrapper2]) equals(obj.asInstanceOf[BAWrapper2]) 
+  def equals(other: BAWrapper2): Boolean = Arrays.equals(data, other.data)
+  override def equals(obj: Any): Boolean =
+    if (obj.isInstanceOf[BAWrapper2]) equals(obj.asInstanceOf[BAWrapper2])
     else false
-    
-  override def hashCode:Int = Arrays.hashCode(data)
+
+  override def hashCode: Int = Arrays.hashCode(data)
 }
 
 object BAWrapper2 {
@@ -91,80 +91,79 @@ class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] 
   import scala.concurrent.duration._
   import ExecutionContext.Implicits.global
 
-  
   var setupRan = false
   var knownBlocks: Map[BAWrapper2, Int] = Map()
   var knownBlocksTemp: Map[BAWrapper2, Int] = Map()
   var curNum = 0
-  
+
   implicit val prefix = "index_"
-  
+
   /**
    * Zip file strategy needs a mapping of hashes to volume to work.
    * This has to be set up before any of the functions work, so all the
    * functions call it first.
    */
   def setup() {
-    if (setupRan) 
+    if (setupRan)
       return
     val index = option.fileManager.index
     val indexes = index.getFiles()
     indexes.foreach { f =>
       val num: Int = index.getNum(f)
-      val bos = new BlockOutputStream(option.hashLength, { hash : Array[Byte] =>
+      val bos = new BlockOutputStream(option.hashLength, { hash: Array[Byte] =>
         l.trace(s"Adding hash ${encodeBase64Url(hash)} for volume $num")
         knownBlocks += ((hash, num))
       });
-      val sis = new SplitInputStream(newFileInputStream(f)(option), bos::Nil)
+      val sis = new SplitInputStream(newFileInputStream(f)(option), bos :: Nil)
       sis.readComplete
     }
     curNum = index.nextNum
     setupRan = true
   }
-  
+
   def blockExists(b: Array[Byte]) = {
     setup()
     knownBlocks.keySet contains b
   }
-  
+
   def volumeName(num: Int, temp: Boolean = false) = {
     val add = if (temp) ".temp" else ""
     s"volume${add}_$num.zip"
   }
-  
+
   def indexName(num: Int, temp: Boolean = false) = {
     val add = if (temp) ".temp" else ""
     s"index${add}_$num.zip"
   }
-  
+
   def startZip {
     l.info(s"Starting volume ${volumeName(curNum)}")
     currentZip = new ZipFileWriter(new File(option.backupFolder, volumeName(curNum, true)))
     currentIndex = newFileOutputStream(new File(option.backupFolder, indexName(curNum, true)))(option)
   }
-  
+
   def endZip {
     if (currentZip != null) {
-        l.info(s"Ending zip file $curNum")
-    	currentZip.close()
-    	currentIndex.close()
-    	def rename(f : Function2[Int, Boolean, String]) {
-        	new File(option.backupFolder, f(curNum, true))
-        		.renameTo(new File(option.backupFolder, f(curNum, false)))
-        }
-        
-    	rename(volumeName)
-    	rename(indexName)
-    	Actors.remoteManager ! UploadFile(new File(option.backupFolder, indexName(curNum)), false)
-    	Actors.remoteManager ! UploadFile(new File(option.backupFolder, volumeName(curNum)), true)
-    	knownBlocks ++= knownBlocksTemp
-    	knownBlocksTemp = Map()
-    	curNum +=1
-    	currentZip = null
-    	currentIndex = null
+      l.info(s"Ending zip file $curNum")
+      currentZip.close()
+      currentIndex.close()
+      def rename(f: Function2[Int, Boolean, String]) {
+        new File(option.backupFolder, f(curNum, true))
+          .renameTo(new File(option.backupFolder, f(curNum, false)))
+      }
+
+      rename(volumeName)
+      rename(indexName)
+      Actors.remoteManager ! UploadFile(new File(option.backupFolder, indexName(curNum)), false)
+      Actors.remoteManager ! UploadFile(new File(option.backupFolder, volumeName(curNum)), true)
+      knownBlocks ++= knownBlocksTemp
+      knownBlocksTemp = Map()
+      curNum += 1
+      currentZip = null
+      currentIndex = null
     }
   }
-  
+
   override def finishWriting() {
     finishFutures(true)
     endZip
@@ -178,26 +177,26 @@ class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] 
     if (currentZip == null) {
       startZip
     }
-    currentZip.writeEntry(hashS, {_.write(block)})
+    currentZip.writeEntry(hashS, { _.write(block) })
     currentIndex.write(hash)
   }
-  
+
   def finishFutures(force: Boolean = false) {
     while (!futures.isEmpty && (force || futures.head.isCompleted)) {
       Await.result(futures.head, 10 minutes) match {
         case (hash, block) => {
           writeProcessedBlock(hash, block)
-	     }
+        }
       }
       futures = futures.tail
     }
 
   }
-  
-  var currentZip : ZipFileWriter = null
-  
-  var currentIndex : OutputStream = null
-  private var futures : List[Future[(Array[Byte], Array[Byte])]] = List()
+
+  var currentZip: ZipFileWriter = null
+
+  var currentIndex: OutputStream = null
+  private var futures: List[Future[(Array[Byte], Array[Byte])]] = List()
   def writeBlock(hash: Array[Byte], buf: Array[Byte]) {
     if (!volumeSize.isDefined) {
       throw new IllegalArgumentException("Volume size needs to be set when writing new volumes")
@@ -205,23 +204,23 @@ class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] 
     setup()
     val hashS = encodeBase64Url(hash)
     if (!knownBlocksTemp.contains(hash)) {
-        
-        knownBlocksTemp += ((hash, curNum))
-        val f = () => {
-          val encrypt = newByteArrayOut(buf)(option)
-          (hash, encrypt)
-        } 
-        if (true /*TODO add boolean variable here*/) {
-           futures :+= future { f() }
-        } else {
-          f() match {
-            case (hash, block) => writeProcessedBlock(hash, block)
-          }
+
+      knownBlocksTemp += ((hash, curNum))
+      val f = () => {
+        val encrypt = newByteArrayOut(buf)(option)
+        (hash, encrypt)
+      }
+      if (true /*TODO add boolean variable here*/ ) {
+        futures :+= future { f() }
+      } else {
+        f() match {
+          case (hash, block) => writeProcessedBlock(hash, block)
         }
-        if (futures.size >= 2) {
-          Await.result(futures.head, 10 minutes)
-        }
-        finishFutures(false)
+      }
+      if (futures.size >= 2) {
+        Await.result(futures.head, 10 minutes)
+      }
+      finishFutures(false)
     } else {
       l.debug(s"File already contains this hash $hashS")
     }
@@ -235,7 +234,7 @@ class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] 
     val zipFile = getZipFileReader(num)
     zipFile.getEntrySize(hashS)
   }
-  
+
   def readBlock(hash: Array[Byte]) = {
     setup()
     val hashS = encodeBase64Url(hash)
@@ -258,28 +257,27 @@ class ZipBlockStrategy(val option: BackupFolderOption, volumeSize: Option[Size] 
     val files = option.fileManager.index.getFiles()
     val deadNow = files.filter(x => !livingVolumes.contains(option.fileManager.index.getNum(x)))
     println(deadNow.mkString(" "))
-//    println(remain.toList.filter(_._2==258).mkString(" "))
+    //    println(remain.toList.filter(_._2==258).mkString(" "))
     deadNow.map(_.length()).sum
   }
 
-  
-  var lastZip : Option[(Int, ZipFileReader)] = None
-  
+  var lastZip: Option[(Int, ZipFileReader)] = None
+
   override def free() {
-    lastZip.foreach{case (_, zip) => zip.close()}
+    lastZip.foreach { case (_, zip) => zip.close() }
     lastZip = None
   }
-  
+
   def getZipFileReader(num: Int) = {
     lastZip match {
       case Some((n, zip)) if (n == num) => zip
       case _ => {
-        lastZip.foreach{case (_, zip) => zip.close()}
+        lastZip.foreach { case (_, zip) => zip.close() }
         val out = new ZipFileReader(new File(option.backupFolder, volumeName(num)))
         lastZip = Some((num, out))
         out
       }
     }
   }
-  
+
 }

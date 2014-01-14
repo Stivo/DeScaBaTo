@@ -26,12 +26,12 @@ import java.io.OutputStream
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector
 
 trait Serialization {
-  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) : Unit
-  
+  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit
+
   def writeObject[T](t: T, file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) {
     writeObject(t, Streams.newFileOutputStream(file))
   }
-  def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) : T 
+  def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]): T
 }
 
 trait DelegateSerialization extends Serialization {
@@ -39,36 +39,36 @@ trait DelegateSerialization extends Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
     serialization.writeObject(t, out)
   }
-    
+
   def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) =
     serialization.readObject(file)
 }
 
 abstract class AbstractJacksonSerialization extends Serialization {
-    class UpdatePartDeserializer extends StdDeserializer[UpdatePart](classOf[UpdatePart]) {
-    def deserialize (jp: JsonParser, ctx: DeserializationContext) = {
-      val mapper = jp.getCodec().asInstanceOf[ObjectMapper];  
+  class UpdatePartDeserializer extends StdDeserializer[UpdatePart](classOf[UpdatePart]) {
+    def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
+      val mapper = jp.getCodec().asInstanceOf[ObjectMapper];
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode];
       if (root.fieldNames().asScala.contains("folder")) {
         mapper.convertValue(root, classOf[FileDeleted])
       } else if (root.fieldNames().asScala.contains("hash")) {
-        mapper.convertValue(root, classOf[FileDescription]);  
+        mapper.convertValue(root, classOf[FileDescription]);
       } else {
         mapper.convertValue(root, classOf[FolderDescription])
       }
     }
   }
-  
+
   class BAWrapper2Deserializer extends StdDeserializer[BAWrapper2](classOf[BAWrapper2]) {
-    def deserialize (jp: JsonParser, ctx: DeserializationContext) = {
+    def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
       val bytes = jp.readValueAs(classOf[Array[Byte]])
       BAWrapper2.byteArrayToWrapper(bytes)
     }
   }
   class BAWrapper2Serializer extends StdSerializer[BAWrapper2](classOf[BAWrapper2]) {
-      def serialize(ba: BAWrapper2, jg: JsonGenerator, prov: SerializerProvider): Unit = {
-    	jg.writeBinary(ba.data)
-      }
+    def serialize(ba: BAWrapper2, jg: JsonGenerator, prov: SerializerProvider): Unit = {
+      jg.writeBinary(ba.data)
+    }
   }
 
   val testModule = new SimpleModule("MyModule", new Version(1, 0, 0, null));
@@ -76,24 +76,24 @@ abstract class AbstractJacksonSerialization extends Serialization {
   testModule.addDeserializer(classOf[BAWrapper2], new BAWrapper2Deserializer())
   testModule.addSerializer(classOf[BAWrapper2], new BAWrapper2Serializer())
 
-  def mapper : ObjectMapper with ScalaObjectMapper
-  
+  def mapper: ObjectMapper with ScalaObjectMapper
+
   mapper.registerModule(DefaultScalaModule)
-  
+
   mapper.registerModule(testModule)
   // TODO disable before a release
   mapper.enable(SerializationFeature.INDENT_OUTPUT);
   mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-  
+
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
     mapper.writeValue(out, t)
     out.close()
-  } 
-  
+  }
+
   def readObject[T](file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) = {
     mapper.readValue(Streams.newFileInputStream(file))
   }
-  
+
 }
 
 class JsonSerialization extends AbstractJacksonSerialization {
@@ -108,6 +108,6 @@ class SmileSerialization extends AbstractJacksonSerialization {
     out.disable(SmileGenerator.Feature.WRITE_HEADER)
     out
   }
-  
+
   lazy val mapper = new ObjectMapper(fac) with ScalaObjectMapper
 }
