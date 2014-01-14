@@ -118,12 +118,12 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
       options.saveConfigFile(backupPropertyFile)
     }
     val future = options.configureRemoteHandler
-  	l.info(s"Found ${oldBackupFiles.size} previously backed up files")
-  	oldBackupFilesRemaining ++= oldBackupFiles.map(x => (x.path, x))
-  	importOldHashChains
-  	Await.ready(future, 10 seconds)
-  	Actors.remoteManager ! UploadFile(backupPropertyFile)
-  	options.fileManager.volumes.getFiles().foreach { f =>
+      l.info(s"Found ${oldBackupFiles.size} previously backed up files")
+      oldBackupFilesRemaining ++= oldBackupFiles.map(x => (x.path, x))
+      importOldHashChains
+      Await.ready(future, 10 seconds)
+      Actors.remoteManager ! UploadFile(backupPropertyFile)
+      options.fileManager.volumes.getFiles().foreach { f =>
       Actors.remoteManager ! UploadFile(f, true)
       //TODO find better solution
     }
@@ -140,12 +140,12 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
         }
       } else {
         if (!files.isEmpty)
-        	filesWritten += options.fileManager.files.write(files)
+            filesWritten += options.fileManager.files.write(files)
       }
       
       if (!hashChainMapTemp.isEmpty) {
           val fi = options.fileManager.hashchains.write(hashChainMapTemp.toBuffer)
-	      Actors.remoteManager ! UploadFile(fi)
+          Actors.remoteManager ! UploadFile(fi)
       }
       files.clear
       deltaSet.clear
@@ -163,7 +163,7 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
           file.listFiles().foreach(walk)
         } catch {
           case e: Exception => {
-        	  // TODO more fine grained handling of exceptions.
+              // TODO more fine grained handling of exceptions.
             //e.printStackTrace()
             l.error("Could not get children of "+file+", because of "+e)
           }
@@ -229,50 +229,50 @@ class BackupHandler(val options: BackupOptions) extends BackupBaseHandler[Backup
     import blockStrategy._
     def makeNew(fa: FileAttributes) = {
         printDeleted(s"File ${file.getName} is new / has changed, backing up")
-	    var hash: Array[Byte] = null
-	    var hashChain: Array[Byte] = null
-	    var faSave = fa
-	    if (!options.onlyIndex) {
-	    	val fis = new FileInputStream(file)
-	    	val md = options.getMessageDigest
-		    var out = Buffer[Array[Byte]]()
-		    
-		    val blockHasher = new BlockOutputStream(options.blockSize.bytes.toInt, {
-		      buf : Array[Byte] => 
-		        
-		        val hash = md.digest(buf)
-		        out += hash
-		        if (!blockExists(hash)) {
-		          writeBlock(hash, buf)
-		        }
-		    })
-		    val hos = new HashingOutputStream(options.getHashAlgorithm)
-		    val sis = new SplitInputStream(fis, blockHasher::hos::Nil)
-		    sis.readComplete
-		    fis.close()
-		    val hashList = out.reduce(_ ++ _)
-		    hash = hos.out.get
-		    hashChain = if (hashList.length == hash.length) {
-		      null
-		    } else {
-		      val key = options.getMessageDigest.digest(hashList)
-	  		  if (!hashChainMap.contains(key)) {
-			      hashChainMap += ((key, hashList))
-			      hashChainMapTemp += ((key, hashList))
-	  		  } else {
-	  		    val collision = !Arrays.equals(hashChainMap(key), hashList)
-	  		    val keyS = encodeBase64(key)
-	  		    if (collision) {
-	  		      l.error(s"Found hash collision in a hash chain with $keyS!")
-	  		    } else {
-	  		      l.debug(s"Hash $keyS was already in HashChainMap")
-	  		    }
-	  		  }
-		      key
-		    }
-	    } else {
-	      faSave = null
-	    }
+        var hash: Array[Byte] = null
+        var hashChain: Array[Byte] = null
+        var faSave = fa
+        if (!options.onlyIndex) {
+            val fis = new FileInputStream(file)
+            val md = options.getMessageDigest
+            var out = Buffer[Array[Byte]]()
+            
+            val blockHasher = new BlockOutputStream(options.blockSize.bytes.toInt, {
+              buf : Array[Byte] => 
+                
+                val hash = md.digest(buf)
+                out += hash
+                if (!blockExists(hash)) {
+                  writeBlock(hash, buf)
+                }
+            })
+            val hos = new HashingOutputStream(options.getHashAlgorithm)
+            val sis = new SplitInputStream(fis, blockHasher::hos::Nil)
+            sis.readComplete
+            fis.close()
+            val hashList = out.reduce(_ ++ _)
+            hash = hos.out.get
+            hashChain = if (hashList.length == hash.length) {
+              null
+            } else {
+              val key = options.getMessageDigest.digest(hashList)
+                if (!hashChainMap.contains(key)) {
+                  hashChainMap += ((key, hashList))
+                  hashChainMapTemp += ((key, hashList))
+                } else {
+                  val collision = !Arrays.equals(hashChainMap(key), hashList)
+                  val keyS = encodeBase64(key)
+                  if (collision) {
+                    l.error(s"Found hash collision in a hash chain with $keyS!")
+                  } else {
+                    l.debug(s"Hash $keyS was already in HashChainMap")
+                  }
+                }
+              key
+            }
+        } else {
+          faSave = null
+        }
         val out = new FileDescription(file.getAbsolutePath(), file.length(), hash, hashChain, fa)
         if (delta) {
           deltaSet += out
@@ -301,26 +301,26 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
     import scala.concurrent.duration._
     if (!backupProperties.exists()) {
       if (options.remote.enabled) {
-    	val fut1 = options.configureRemoteHandler   
+        val fut1 = options.configureRemoteHandler   
         val fut = (Actors.remoteManager ? DownloadFile(backupProperties)) (1 minutes)
         Await.ready(fut, 1 minutes)
       } else {
         throw new IllegalArgumentException("No backup found at "+options.backupFolder)
       }
     }
-	loadBackupProperties()
-	l.info("Downloading files from remote storage if needed")
-	val fut2 = options.configureRemoteHandler
-	val newFut = fut2 match {
-	  case _ => (Actors.remoteManager ? DownloadMetadata)(30 minutes)
-	}
-	Await.ready(newFut, 30 minutes)
-	l.info("Finished downloading metadata")
+    loadBackupProperties()
+    l.info("Downloading files from remote storage if needed")
+    val fut2 = options.configureRemoteHandler
+    val newFut = fut2 match {
+      case _ => (Actors.remoteManager ? DownloadMetadata)(30 minutes)
+    }
+    Await.ready(newFut, 30 minutes)
+    l.info("Finished downloading metadata")
     importOldHashChains
   }
   
   def restoreFolder() {
-	setup()
+    setup()
     val dest = options.restoreToFolder
     val relativeTo = options.relativeToFolder.getOrElse(options.restoreToFolder) 
     val (foldersC, filesC) = oldBackupFiles.partition{case f: FolderDescription => true; case _ => false}
@@ -341,21 +341,21 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
   
   def getInputStream(fd: FileDescription) : InputStream = {
     setup()
-	val hashes = getHashChain(fd).grouped(options.getMessageDigest.getDigestLength()).toSeq
-	new InputStream() {
-	  val hashIterator = hashes.iterator
-	  var buf : ByteArrayInputStream = new ByteArrayInputStream(blockStrategy.readBlock(hashIterator.next))
-	  def read() = {
-	    if (buf.available() > 0) {
-	      buf.read()
-	    } else if (hashIterator.hasNext) {
-	        buf = new ByteArrayInputStream(blockStrategy.readBlock(hashIterator.next))
-	        buf.read()
-	    } else {
-	      -1
-	    }
-	  }
-	}
+    val hashes = getHashChain(fd).grouped(options.getMessageDigest.getDigestLength()).toSeq
+    new InputStream() {
+      val hashIterator = hashes.iterator
+      var buf : ByteArrayInputStream = new ByteArrayInputStream(blockStrategy.readBlock(hashIterator.next))
+      def read() = {
+        if (buf.available() > 0) {
+          buf.read()
+        } else if (hashIterator.hasNext) {
+            buf = new ByteArrayInputStream(blockStrategy.readBlock(hashIterator.next))
+            buf.read()
+        } else {
+          -1
+        }
+      }
+    }
   }
   
   def restoreFileDesc(fd: FileDescription) {
@@ -379,7 +379,7 @@ class RestoreHandler(options: RestoreOptions) extends BackupBaseHandler[RestoreO
 }
 
 class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplicateOptions) 
-	extends BackupBaseHandler[BackupFolderOption](if (findOptions != null) findOptions else findDuplicatesOptions) {
+    extends BackupBaseHandler[BackupFolderOption](if (findOptions != null) findOptions else findDuplicatesOptions) {
   import Utils._
     
   def searchForPattern(x: String) {
@@ -418,7 +418,7 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
   
   def findDuplicates() {
     loadBackupProperties()
-	val options = findDuplicatesOptions
+    val options = findDuplicatesOptions
     if (options == null) {
       throw new IllegalArgumentException("findOptions have to be defined")
     }
@@ -490,22 +490,22 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
       var remaining : Iterable[Iterable[CompareHelper]]= List(x)
       // while there is only one group, just keep comparing chunks
       while (remaining.size == 1) {
-    	// if one file is finished, all of them are, they are the same size.
+        // if one file is finished, all of them are, they are the same size.
         if (remaining.head.exists(_.finished)) {
-	      results += remaining.head.map(_.f)
-	      return
-	    }
+          results += remaining.head.map(_.f)
+          return
+        }
         // group them according to content
-	    val groups = helpers.map{ helper =>
-	      helper.readNext
-	      helper
-	    }.groupBy{_.last}
-	    // eliminate groups with only one in it
-	    remaining = groups.values.filter(_.size>1)
+        val groups = helpers.map{ helper =>
+          helper.readNext
+          helper
+        }.groupBy{_.last}
+        // eliminate groups with only one in it
+        remaining = groups.values.filter(_.size>1)
       }
       // there is more than one group now, we need to recursively look at the different
       // groups here
-	  remaining.foreach {compareHelpers _}
+      remaining.foreach {compareHelpers _}
     }
     compareHelpers(helpers)
     helpers.map(_.close())
@@ -530,14 +530,14 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
   
   def filterDuplicatesToDelete(files: Iterable[String]) : Iterable[File] = {
       files.toList
-      	.filter{file => val pattern = findDuplicatesOptions.filePatternToKeep;
-      		pattern == null || !file.contains(pattern)}
-      	.filter(file => file.contains(findDuplicatesOptions.filePatternToDelete))
-      	.map(new File(_))
+          .filter{file => val pattern = findDuplicatesOptions.filePatternToKeep;
+              pattern == null || !file.contains(pattern)}
+          .filter(file => file.contains(findDuplicatesOptions.filePatternToDelete))
+          .map(new File(_))
   }
   
   abstract class Action(desc: String) {
-	  def run(set: Iterable[String]) {
+      def run(set: Iterable[String]) {
          val toDelete = filterDuplicatesToDelete(set)
          if (!toDelete.isEmpty) {
            val verb = if (findDuplicatesOptions.dryrun) "Would" else "Will"
@@ -545,8 +545,8 @@ class SearchHandler(findOptions: FindOptions, findDuplicatesOptions: FindDuplica
            if (!findDuplicatesOptions.dryrun)
              completeAction(toDelete)
          }
-	  }
-	  def completeAction(toDelete: Iterable[File])
+      }
+      def completeAction(toDelete: Iterable[File])
   }
   class DeleteAction extends Action("delete") {
     def completeAction(toDelete: Iterable[File]) {

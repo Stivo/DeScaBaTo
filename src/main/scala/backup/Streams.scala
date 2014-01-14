@@ -19,9 +19,10 @@ import scala.concurrent.duration._
 import org.tukaani.xz.XZOutputStream
 import org.tukaani.xz.XZInputStream
 import org.tukaani.xz.LZMA2Options
+import Streams.ObjectPools.baosPool
 
 object Streams {
-  import ObjectPools.baosPool
+  
   
   object ObjectPools {
     

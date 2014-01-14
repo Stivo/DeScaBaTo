@@ -72,7 +72,7 @@ trait ExplainHelp extends FieldArgs {
     val withArgs = lines.drop(1).filter(_.contains("(-arg"))
     val sorted = withArgs.toArray.sortBy{x => regex.findFirstMatchIn(x).get.group(1).toInt}
     val sortedOptions = List("usage "+name+":")++List("(Commands with -argX shortcuts can be named last unnamed)")++
-    		sorted++lines.drop(1).filter(x => !sorted.contains(x))
+            sorted++lines.drop(1).filter(x => !sorted.contains(x))
     sortedOptions.mkString("\n")
   }
 }
@@ -87,7 +87,7 @@ object SizeParser extends SimpleParser[Size] {
   val patt = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE);
 
   def parse(size: String) = {
-	var out : Long = -1;
+    var out : Long = -1;
     val matcher = patt.matcher(size);
     val map = List(("GB", 3), ("MB", 2),("KB", 1), ("B", 0)).toMap
     if (matcher.find()) {
@@ -110,7 +110,7 @@ trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig {
   
   def fileManager = {
     if(_fileManager == null) 
-    	_fileManager = new FileManager(this)
+        _fileManager = new FileManager(this)
     _fileManager
   }
   
@@ -134,7 +134,7 @@ trait BackupFolderOption extends FileHandlingOptions with PropertiesConfig {
   
   def saveConfigFile(file: File = savePropertiesFile) {
     if (file != null)
-    	PropertiesConfigCopy.saveConfig(this, file)
+        PropertiesConfigCopy.saveConfig(this, file)
   }
   
   @Arg(description="try json or smile")
@@ -156,9 +156,9 @@ object PropertiesConfigCopy {
     val props = new Properties()
     // passphrase should not be saved
     args.getStringValues
-    	.filter(_._1 != "passphrase")
-    	.filter(_._1 != "savePropertiesFile")
-    	.foreach{case(k,v) => props.put(k,v)}
+        .filter(_._1 != "passphrase")
+        .filter(_._1 != "savePropertiesFile")
+        .foreach{case(k,v) => props.put(k,v)}
     val out = new FileOutputStream(propertyFile)
     props.store(out, "")
     out.close()
@@ -216,11 +216,11 @@ class RestoreOptions extends ExplainHelp with BackupFolderOption with Encryption
 }
 
 class RedundancyOptions extends FieldArgs {
-	var percentage : Int = 5
-	var blockSize : Size = "1MB"
-	var par2Executable = new File("tools/par2.exe")
-	var volumesToParTogether = 21
-	var enabled = false
+    var percentage : Int = 5
+    var blockSize : Size = "1MB"
+    var par2Executable = new File("tools/par2.exe")
+    var volumesToParTogether = 21
+    var enabled = false
 }
 
 class FindOptions extends ExplainHelp with BackupFolderOption with EncryptionOptions {
@@ -233,7 +233,7 @@ class FindOptions extends ExplainHelp with BackupFolderOption with EncryptionOpt
     s"Finding files in backup $backupFolder with pattern $filePattern (using $compression). "
     .+(super[EncryptionOptions].toString)
   }
-	  
+      
 }
 
 class FindDuplicateOptions extends ExplainHelp with BackupFolderOption with EncryptionOptions {
@@ -311,21 +311,21 @@ trait OptionCommand extends Command {
     var list = a.toList
     var append : List[String] = Nil
     if (a.length == 0 && argsAreOptional) {
-    	// If args are optional, they may be omitted.
-    	// needed for help, which can be called with the name of a command or without
+        // If args are optional, they may be omitted.
+        // needed for help, which can be called with the name of a command or without
     } else if (a.length < numOfArgs) {
       System.err.println(getNewOptions.helpMessage)
       throw new IllegalArgumentException()
     } else {
        for (i <- numOfArgs to (1, -1)) {
-	     val last = list.last
-	     if (last.startsWith("-")) {
-	    	 System.err.println(getNewOptions.helpMessage)
-	    	 throw new IllegalArgumentException("Main arguments are not in last position")
-	     }
-	     list = list.dropRight(1)
-	     append = s"-arg$i" :: last :: append
-	   }
+         val last = list.last
+         if (last.startsWith("-")) {
+             System.err.println(getNewOptions.helpMessage)
+             throw new IllegalArgumentException("Main arguments are not in last position")
+         }
+         list = list.dropRight(1)
+         append = s"-arg$i" :: last :: append
+       }
     }
     (list ++ append).toArray
   }
@@ -354,7 +354,7 @@ trait BackupOptionCommand extends OptionCommand {
   type T <: BackupFolderOption
   
   final def execute(t: T) {
-	// if savePropertiesFile is set, it will be saved here
+    // if savePropertiesFile is set, it will be saved here
     executeCommand(t)
     t.saveConfigFile()
   }
@@ -367,14 +367,14 @@ trait BackupOptionCommand extends OptionCommand {
     }
     println(question)
     val bufferRead = new BufferedReader(new InputStreamReader(System.in));
-	val s = bufferRead.readLine();
-	val yes = Set("yes", "y")
-	if (yes.contains(s.toLowerCase().trim)) {
-	  true
-	} else {
-	  println("User aborted") 
-	  false
-	}
+    val s = bufferRead.readLine();
+    val yes = Set("yes", "y")
+    if (yes.contains(s.toLowerCase().trim)) {
+      true
+    } else {
+      println("User aborted") 
+      false
+    }
   }
 
     
@@ -431,7 +431,7 @@ class FindDuplicatesCommand extends BackupOptionCommand {
   def executeCommand(args: T) {
     println(args)
     if (!args.dryrun && args.action != DuplicateAction.report) {
-    	askUser(args, "This will delete or move files to trash, are you sure you want to continue?")
+        askUser(args, "This will delete or move files to trash, are you sure you want to continue?")
     }
     val bh = new SearchHandler(null, args)
     bh.findDuplicates
@@ -521,32 +521,32 @@ object CommandLine {
     conforming to GPL v3.""")
       parseCommandLine(args)
     } else {
-	    var a = Buffer[String]()
-	    
-//	    a += "help"
-	    a += "backup"
-//	    a ++= "--propertyFile" :: "find.properties" :: Nil
-//	    a ++= "--onlyIndex" :: "true" :: Nil
-	    a ++= "-c" :: "none" :: Nil
-	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
-	    a ++= "--blockSize" :: "10Kb" :: Nil
-	    a ++= "--volumeSize" :: "1Mb" :: Nil
-//	    a ++= "--passphrase" :: "password" :: Nil
-	    a ++= "backups" :: "test" :: Nil
-//	    a ++= "backups" :: "." :: Nil
-	    parseCommandLine(a.toArray)
-	    
-	    a.clear()
-	    a += "restore"
-//	    a ++= "-c" :: "zip" :: Nil
-//	    a ++= "--hashAlgorithm" :: "md5" :: Nil 
-//	    a ++= "--passphrase" :: "password" :: Nil
-//	    a ++= "--keyLength" :: "128" :: Nil
-//	    a ++= "--relativeToFolder" :: "" :: Nil
-	    a ++= "backups" :: "restore" :: Nil
-//	    a ++= "backups" :: "." :: Nil
-//	    printAllHelp
-	    parseCommandLine(a.toArray)
+        var a = Buffer[String]()
+        
+//        a += "help"
+        a += "backup"
+//        a ++= "--propertyFile" :: "find.properties" :: Nil
+//        a ++= "--onlyIndex" :: "true" :: Nil
+        a ++= "-c" :: "none" :: Nil
+        a ++= "--hashAlgorithm" :: "md5" :: Nil 
+        a ++= "--blockSize" :: "10Kb" :: Nil
+        a ++= "--volumeSize" :: "1Mb" :: Nil
+//        a ++= "--passphrase" :: "password" :: Nil
+        a ++= "backups" :: "test" :: Nil
+//        a ++= "backups" :: "." :: Nil
+        parseCommandLine(a.toArray)
+        
+        a.clear()
+        a += "restore"
+//        a ++= "-c" :: "zip" :: Nil
+//        a ++= "--hashAlgorithm" :: "md5" :: Nil 
+//        a ++= "--passphrase" :: "password" :: Nil
+//        a ++= "--keyLength" :: "128" :: Nil
+//        a ++= "--relativeToFolder" :: "" :: Nil
+        a ++= "backups" :: "restore" :: Nil
+//        a ++= "backups" :: "." :: Nil
+//        printAllHelp
+        parseCommandLine(a.toArray)
     }
   }
 }
