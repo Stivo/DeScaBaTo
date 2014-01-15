@@ -81,10 +81,10 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     file
   }
 
-  def read(f: File) : T = {
+  def read(f: File): T = {
     //l.info("Writing "+x+" to file "+file)
-//    options.serialization.readObject(x, file)(options, m)
-//    file
+    //    options.serialization.readObject(x, file)(options, m)
+    //    file
     val read = StreamHeaders.readStream(new FileInputStream(f), options.passphrase)
     options.serialization.readObject[T](read)
   }

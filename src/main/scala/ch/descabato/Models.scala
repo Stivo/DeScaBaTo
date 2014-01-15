@@ -8,7 +8,6 @@ import java.nio.file.attribute.FileTime
 import java.util.Arrays
 import java.nio.file.attribute.BasicFileAttributes
 
-
 class FileAttributes extends HashMap[String, Any] {
 
   def hasBeenModified(file: File): Boolean = {
@@ -36,28 +35,28 @@ class FileAttributes extends HashMap[String, Any] {
 }
 
 case class MetadataOptions {
-  val saveMetadata : Boolean = false
+  val saveMetadata: Boolean = false
 }
 
 object FileAttributes {
-  
+
   def convert(attrs: BasicFileAttributes) = {
     var fa = new FileAttributes()
-    
+
     val keys = List("lastModifiedTime", "creationTime")
     keys.foreach { k =>
-    	val m = attrs.getClass().getMethod(k)
-    	m.setAccessible(true)
-    	add(k, m.invoke(attrs))
+      val m = attrs.getClass().getMethod(k)
+      m.setAccessible(true)
+      add(k, m.invoke(attrs))
     }
-    
+
     def add(attr: String, o: Object) = o match {
       case ft: FileTime => fa.put(attr, ft.toMillis())
     }
-    
+
     fa
   }
-  
+
   def apply(file: File, options: MetadataOptions) = {
     val attrs = if (options.saveMetadata) {
       Files.readAttributes(file.toPath(), "dos:hidden,readonly,archive,creationTime,lastModifiedTime,lastAccessTime");
@@ -97,7 +96,6 @@ object FileDeleted {
 
 case class FileDescription(path: String, size: Long, attrs: FileAttributes) extends BackupPart {
   var hash: Array[Byte] = null
-  var hashChain: Array[Byte] = null
   def name = path.split("""[/\\]""").last
 }
 

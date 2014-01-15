@@ -25,12 +25,11 @@ class ClosureVisitor(f: (File, BasicFileAttributes) => Unit) extends FileVisitor
     FileVisitResult.CONTINUE
   }
 
-  
 }
 
 class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
   recordNew: Boolean = false, recordAll: Boolean = false, recordUnchanged: Boolean = false) extends FileVisitorHelper {
-  
+
   val all = Buffer[BackupPart]()
   lazy val deleted = oldMap.values.toSeq
   val newFiles = Buffer[BackupPart]()
@@ -49,28 +48,28 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
         all += old.get
       }
     } else if (recordNew) {
-        newFiles += desc
+      newFiles += desc
     }
     if (recordAll && !wasadded) {
       all += desc
     }
-    
+
   }
-  
+
   override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = {
     handleFile(new FolderDescription(dir.toAbsolutePath().toString(), FileAttributes.convert(attrs)),
-        dir, attrs)
+      dir, attrs)
     super.preVisitDirectory(dir, attrs)
   }
 
   override def visitFile(file: Path, attrs: BasicFileAttributes) = {
     handleFile({
-      val out = new FileDescription(file.toAbsolutePath().toString(), file.toFile().length(), 
+      val out = new FileDescription(file.toAbsolutePath().toString(), file.toFile().length(),
         FileAttributes.convert(attrs))
       out.hash = "asdf".getBytes()
       out
     },
-        file, attrs)
+      file, attrs)
     super.visitFile(file, attrs)
   }
 
@@ -78,10 +77,10 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
     //Objects.requireNonNull(file);
     FileVisitResult.CONTINUE
   }
-  
+
   def walk(f: Seq[File]) = {
     f.foreach { x =>
-    	Files.walkFileTree(x.toPath(), this)
+      Files.walkFileTree(x.toPath(), this)
     }
     this
   }

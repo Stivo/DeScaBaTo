@@ -33,9 +33,9 @@ object CLI {
     if (runsInJar) {
       java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
     } else {
-//      parseCommandLine("backup dest src".split(" "))
-//      parseCommandLine("".split(" "))
-//      new BackupConf(List("--help")).printHelp
+      //      parseCommandLine("backup dest src".split(" "))
+      //      parseCommandLine("".split(" "))
+      //      new BackupConf(List("--help")).printHelp
       parseCommandLine("backup backups test".split(" "))
     }
   }
@@ -74,8 +74,8 @@ class BackupCommand(val args: Seq[String]) extends Command {
     t.builder.verify
     println(t.summary)
     val conf = new BackupConfigurationHandler(t).configure
-    val bdh = new BackupDataHandler(conf)
-    bdh.backup(t.folderToBackup()::Nil)
+    val bdh = new BackupDataHandler(conf) with ZipBlockStrategy
+    bdh.backup(t.folderToBackup() :: Nil)
     println("Starting backup")
   }
 }

@@ -29,9 +29,9 @@ import java.io.InputStream
 trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit
 
-//  def writeObject[T](t: T, file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) {
-//    writeObject(t, Streams.newFileOutputStream(file))
-//  }
+  //  def writeObject[T](t: T, file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) {
+  //    writeObject(t, Streams.newFileOutputStream(file))
+  //  }
   def readObject[T](in: InputStream)(implicit m: Manifest[T]): T
 }
 
@@ -60,7 +60,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
     }
   }
 
- class BackupPartDeserializer extends StdDeserializer[BackupPart](classOf[BackupPart]) {
+  class BackupPartDeserializer extends StdDeserializer[BackupPart](classOf[BackupPart]) {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper];
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode];

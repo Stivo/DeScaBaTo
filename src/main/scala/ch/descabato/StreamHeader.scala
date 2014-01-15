@@ -10,14 +10,17 @@ import java.util.zip.GZIPInputStream
 import org.tukaani.xz.XZInputStream
 import backup.AES
 import backup.CompressionMode
+import java.io.FileOutputStream
+import java.io.File
+import java.io.FileInputStream
 
 /**
  * Wraps the stream in some way, encoding the options used so they can be decoded.
  */
 trait StreamHeader {
-  def wrapStream(out: OutputStream, options: BackupFolderConfiguration) : OutputStream
-  
-  def readStream(in: InputStream, passphrase: Option[String] = None) : InputStream
+  def wrapStream(out: OutputStream, options: BackupFolderConfiguration): OutputStream
+
+  def readStream(in: InputStream, passphrase: Option[String] = None): InputStream
 }
 
 /**
@@ -25,7 +28,7 @@ trait StreamHeader {
  * handlers.
  */
 object StreamHeaders extends StreamHeader {
-  
+
   private[descabato] lazy val headers = mutable.Map[Int, StreamHeader]()
   lazy val init = {
     add(StreamHeaderV0)
@@ -34,11 +37,11 @@ object StreamHeaders extends StreamHeader {
     add(StreamHeaderV3)
     ()
   }
-  
+
   private def add(x: StreamHeaderBase) {
     headers += x.version -> x
   }
-  
+
   def wrapStream(out: OutputStream, options: BackupFolderConfiguration) = {
     init
     var version = 0
@@ -49,28 +52,47 @@ object StreamHeaders extends StreamHeader {
       version += 1
     }
     out.write(version)
-	headers(version).wrapStream(out, options)
+    headers(version).wrapStream(out, options)
   }
-  def readStream(in: InputStream, passphrase: Option[String] = None) : InputStream = {
+
+  def newFileOutputStream(file: File, options: BackupFolderConfiguration) = {
+    wrapStream(new FileOutputStream(file), options)
+  }
+
+  def readStream(in: InputStream, passphrase: Option[String] = None): InputStream = {
     init
     val version = in.read()
     headers(version).readStream(in, passphrase)
   }
-  
+
+  def newFileInputStream(file: File, options: BackupFolderConfiguration) = {
+    readStream(new FileInputStream(file), options.passphrase)
+  }
+
+  def newByteArrayOut(content: Array[Byte], option: BackupFolderConfiguration) = {
+    var baos = ObjectPools.baosPool.get
+    val wrapped = wrapStream(baos, option)
+    wrapped.write(content)
+    wrapped.close()
+    val out = baos.toByteArray
+    ObjectPools.baosPool.recycle(baos)
+    out
+  }
+
 }
 
 abstract class StreamHeaderBase extends StreamHeader {
-  def version : Int
+  def version: Int
 }
 
 /**
  * Sequentally executes the given stream wrappers
  */
-abstract class CompoundStreamHeader(args : StreamHeader*) extends StreamHeaderBase {
+abstract class CompoundStreamHeader(args: StreamHeader*) extends StreamHeaderBase {
   def wrapStream(out: OutputStream, options: BackupFolderConfiguration) = {
     args.foldLeft(out)((out, streamHeader) => streamHeader.wrapStream(out, options))
   }
-  
+
   def readStream(in: InputStream, passphrase: Option[String] = None) = {
     args.foldLeft(in)((in, streamHeader) => streamHeader.readStream(in, passphrase))
   }
@@ -85,8 +107,8 @@ object StreamHeaderV3 extends CompoundStreamHeader(StreamHeaderV1, StreamHeaderV
  */
 object StreamHeaderV0 extends StreamHeaderBase {
   val version = 0
-  def readStream(in: InputStream, passphrase: Option[String] = None) : InputStream = in
-  def wrapStream(out: OutputStream, options: BackupFolderConfiguration) = out  
+  def readStream(in: InputStream, passphrase: Option[String] = None): InputStream = in
+  def wrapStream(out: OutputStream, options: BackupFolderConfiguration) = out
 }
 
 /**
@@ -94,9 +116,9 @@ object StreamHeaderV0 extends StreamHeaderBase {
  */
 object StreamHeaderV1 extends StreamHeaderBase {
   val version = 1
-  def readStream(in: InputStream, passphrase: Option[String] = None) : InputStream = {
+  def readStream(in: InputStream, passphrase: Option[String] = None): InputStream = {
     val byte = in.read()
-    
+
     CompressionMode.values().apply(byte) match {
       case CompressionMode.gzip => new GZIPInputStream(in)
       case CompressionMode.lzma => new XZInputStream(in)
@@ -119,10 +141,10 @@ object StreamHeaderV1 extends StreamHeaderBase {
  */
 object StreamHeaderV2 extends StreamHeaderBase {
   val version = 2
-  def readStream(in: InputStream, passphrase: Option[String] = None) : InputStream = {
+  def readStream(in: InputStream, passphrase: Option[String] = None): InputStream = {
     val byte = in.read()
     val enabled = (byte & (1 << 3)) != 0
-    val keyLength = (byte >> 4) *64
+    val keyLength = (byte >> 4) * 64
     if (enabled && passphrase.isEmpty) {
       throw new IllegalArgumentException("Needs a password")
     }
@@ -132,12 +154,12 @@ object StreamHeaderV2 extends StreamHeaderBase {
       in
   }
   def wrapStream(out: OutputStream, options: BackupFolderConfiguration) = {
-   val keyLength = (options.keyLength / 64) << 4 // keep lower 4 bits for something else
-   val encrypting = options.passphrase != None
-   val enabled = if (encrypting) 1 << 3 else 0 // keep lower 3 bits for something else
-   val desc = keyLength | enabled
-   out.write(desc)
-   if (options.passphrase.isDefined) {
+    val keyLength = (options.keyLength / 64) << 4 // keep lower 4 bits for something else
+    val encrypting = options.passphrase != None
+    val enabled = if (encrypting) 1 << 3 else 0 // keep lower 3 bits for something else
+    val desc = keyLength | enabled
+    out.write(desc)
+    if (options.passphrase.isDefined) {
       AES.wrapStreamWithEncryption(out, options.passphrase.get, options.keyLength)
     } else {
       out
