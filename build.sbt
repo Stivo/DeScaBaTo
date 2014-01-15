@@ -59,6 +59,8 @@ testOptions in Test += Tests.Argument("-oF")
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
+libraryDependencies += "org.rogach" %% "scallop" % "0.9.4"
+
 // Dependencies for the otros vfs browser
 libraryDependencies ++= Seq(
 	"commons-collections" % "commons-collections" % "3.2.1",
