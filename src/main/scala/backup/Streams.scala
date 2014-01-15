@@ -96,9 +96,10 @@ object Streams {
 
   }
 
-  def readFully(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
+  def readFully(in: InputStream, wrap: Boolean = true)(implicit fileHandlingOptions: FileHandlingOptions) = {
     val baos = baosPool.get
-    copy(wrapInputStream(in), baos)
+    val readFrom = if (wrap) wrapInputStream(in) else in
+    copy(readFrom, baos)
     val out = baos.toByteArray()
     baosPool.recycle(baos)
     out
@@ -130,24 +131,11 @@ object Streams {
   }
 
   def wrapOutputStream(stream: OutputStream, disableClose: Boolean = false)(implicit fileHandlingOptions: FileHandlingOptions): OutputStream = {
-
     var out = if (disableClose) new DelegatingOutputStream(stream) {
       override def close() {}
     }
     else stream
-    if (fileHandlingOptions.passphrase != null) {
-      if (fileHandlingOptions.algorithm == "AES") {
-        out = AES.wrapStreamWithEncryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
-      } else {
-        throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
-      }
-    }
-    fileHandlingOptions.compression match {
-      case CompressionMode.zip => out = new GZIPOutputStream(out)
-      case CompressionMode.lzma => out = new XZOutputStream(out, new LZMA2Options())
-      case _ =>
-    }
-    out
+	StreamHeaders.wrapStream(out, fileHandlingOptions)
   }
 
   def newFileOutputStream(file: File)(implicit fileHandlingOptions: FileHandlingOptions): OutputStream = {
@@ -166,20 +154,7 @@ object Streams {
   }
 
   def wrapInputStream(in: InputStream)(implicit fileHandlingOptions: FileHandlingOptions) = {
-    var out = in
-    if (fileHandlingOptions.passphrase != null) {
-      if (fileHandlingOptions.algorithm == "AES") {
-        out = AES.wrapStreamWithDecryption(out, fileHandlingOptions.passphrase, fileHandlingOptions.keyLength)
-      } else {
-        throw new IllegalArgumentException(s"Unknown encryption algorithm ${fileHandlingOptions.algorithm}")
-      }
-    }
-    fileHandlingOptions.compression match {
-      case CompressionMode.zip => out = new GZIPInputStream(out)
-      case CompressionMode.lzma => out = new XZInputStream(out)
-      case _ =>
-    }
-    out
+    StreamHeaders.readStream(in, Option(fileHandlingOptions.passphrase))
   }
 
   class SplitInputStream(in: InputStream, outStreams: List[OutputStream]) extends InputStream {

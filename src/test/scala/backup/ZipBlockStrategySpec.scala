@@ -49,7 +49,7 @@ class ZipBlockStrategySpec extends FlatSpec with BeforeAndAfterAll with BeforeAn
   "zipblock" should "save and retrieve blocks when gzipped" in {
     val f = fixture
     folder.passphrase = "ASDF"
-    folder.compression = CompressionMode.zip
+    folder.compression = CompressionMode.gzip
     test()
   }
   

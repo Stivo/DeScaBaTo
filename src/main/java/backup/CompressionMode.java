@@ -1,8 +1,7 @@
 package backup;
 
 public enum CompressionMode {
-
+	gzip,
 	none,
-	zip,
 	lzma
 }

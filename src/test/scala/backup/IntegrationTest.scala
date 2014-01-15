@@ -117,7 +117,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   }
 
   "backup with zip" should "backup and restore" in {
-    bo.compression = CompressionMode.zip
+    bo.compression = CompressionMode.gzip
     testBackupAndRestore(bo, ro)
   }
 
@@ -127,7 +127,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
   }
 
   "backup with deltas" should "backup and restore" in {
-    bo.compression = CompressionMode.zip
+    bo.compression = CompressionMode.gzip
     testBackupAndRestore(bo, ro, true)
   }
 
@@ -191,7 +191,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     val fh = new FileHandlingOptions() {}
     fh.compression = CompressionMode.none
     fh.passphrase = null
-    val buf = Streams.readFully(new FileInputStream(f))(fh)
+    val buf = Streams.readFully(new FileInputStream(f), false)(fh)
     Utils.encodeBase64(md.digest(buf))
   }
 

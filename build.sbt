@@ -57,6 +57,8 @@ libraryDependencies += "org.tukaani" % "xz" % "1.4"
 
 testOptions in Test += Tests.Argument("-oF")
 
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
+
 // Dependencies for the otros vfs browser
 libraryDependencies ++= Seq(
 	"commons-collections" % "commons-collections" % "3.2.1",

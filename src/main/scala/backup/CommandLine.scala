@@ -267,14 +267,15 @@ class FindDuplicateOptions extends ExplainHelp with BackupFolderOption with Encr
 
 trait CompressionOptions extends FieldArgs {
   @Arg(shortcut = "c")
-  var compression: CompressionMode = CompressionMode.zip
+  var compression: CompressionMode = CompressionMode.gzip
+  override abstract def toString() = super.toString() + "Compression is "+compression+" "
 }
 
 trait EncryptionOptions extends FieldArgs {
   var passphrase: String = null
   var algorithm: String = "AES"
   var keyLength: Int = 128
-  override def toString() = if (passphrase == null)
+  override abstract def toString() = if (passphrase == null)
     "No Encryption"
   else
     s"""Encryption with passphrase "$passphrase" and algorithm $algorithm ($keyLength bits)"""

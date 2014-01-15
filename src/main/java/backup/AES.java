@@ -28,6 +28,10 @@ public class AES {
 	static byte[] salt = null;
 	*/
 	
+	public static boolean testMode() {
+		return Actors.testMode();
+	}
+	
 	public static ThreadLocal<Map<String, SecretKeySpec>> local = new ThreadLocal<>();
 	
 	public static SecretKey deriveKey(String password, int keylength) throws NoSuchAlgorithmException, InvalidKeySpecException {
@@ -65,9 +69,14 @@ public class AES {
 			throws Exception {
 		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE");
 		SecretKey deriveKey = deriveKey(encryptionKey, keylength);
-		SecureRandom secureRandom = new SecureRandom();
 		byte[] buf = new byte[16];
-		secureRandom.nextBytes(buf);
+		if (testMode()) {
+			Random random = new Random(25335235);
+			random.nextBytes(buf);
+		} else {
+			SecureRandom secureRandom = new SecureRandom();
+			secureRandom.nextBytes(buf);
+		}
 		cipher.init(Cipher.ENCRYPT_MODE, deriveKey,
 				new IvParameterSpec(buf));
 		cipherText.write(buf);
