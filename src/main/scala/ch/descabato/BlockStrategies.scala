@@ -85,8 +85,25 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   var knownBlocksTemp: Map[BAWrapper2, Int] = Map()
   var curNum = 0
 
-  //  implicit val prefix = "index_"
-
+  def deleteTempFiles() {
+    def deleteFile(x: File) = {
+      l.debug("Deleting temporary file "+x)
+      x.delete
+    }
+    
+    def deleteFiles(prefix: String, ft: FileType[_]) = {
+      val files = config.folder.listFiles().filter(_.getName.startsWith(prefix))
+      val nums = files.map(f => ft.getNum(f)).toSet
+      files.foreach(deleteFile)
+      nums
+    }
+    val set1 = deleteFiles("temp.index_", fileManager.index)
+    val set2 = deleteFiles("temp.volume_", fileManager.volumes)
+    val set = set1 union set2
+    fileManager.index.getFiles().filter(x => set contains (fileManager.index.getNum(x))).foreach(deleteFile)
+    fileManager.volumes.getFiles().filter(x => set contains (fileManager.volumes.getNum(x))).foreach(deleteFile)
+  }
+  
   /**
    * Zip file strategy needs a mapping of hashes to volume to work.
    * This has to be set up before any of the functions work, so all the
@@ -95,6 +112,8 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   def setup() {
     if (setupRan)
       return
+    deleteTempFiles()
+
     val index = fileManager.index
     val indexes = index.getFiles()
     indexes.foreach { f =>
@@ -117,13 +136,13 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   }
 
   def volumeName(num: Int, temp: Boolean = false) = {
-    val add = if (temp) ".temp" else ""
-    s"volume${add}_$num.zip"
+    val add = if (temp) Constants.tempPrefix else ""
+    s"${add}volume_$num.zip"
   }
 
   def indexName(num: Int, temp: Boolean = false) = {
-    val add = if (temp) ".temp" else ""
-    s"index${add}_$num.zip"
+    val add = if (temp) Constants.tempPrefix else ""
+    s"${add}index_$num.zip"
   }
 
   def startZip() {
