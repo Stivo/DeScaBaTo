@@ -16,6 +16,9 @@ import java.io.InputStream
  */
 trait BlockStrategy {
   def config: BackupFolderConfiguration
+  /**
+   * Returns true if and only if the block has been persisted in a non temporary way.
+   */
   def blockExists(hash: Array[Byte]): Boolean
   def writeBlock(hash: Array[Byte], buf: Array[Byte])
   def readBlock(hash: Array[Byte]): InputStream
@@ -110,7 +113,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
   def blockExists(b: Array[Byte]) = {
     setup()
-    knownBlocks.keySet contains b
+    knownBlocks contains b
   }
 
   def volumeName(num: Int, temp: Boolean = false) = {
@@ -123,14 +126,14 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     s"index${add}_$num.zip"
   }
 
-  def startZip {
+  def startZip() {
     l.info(s"Starting volume ${volumeName(curNum)}")
     currentZip = new ZipFileWriter(new File(config.folder, volumeName(curNum, true)))
     currentIndex = StreamHeaders.newFileOutputStream(new File(config.folder,
       indexName(curNum, true)), config)
   }
 
-  def endZip {
+  def endZip() {
     if (currentZip != null) {
       l.info(s"Ending zip file $curNum")
       currentZip.close()
@@ -195,7 +198,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
         val encrypt = StreamHeaders.newByteArrayOut(buf, config)
         (hash, encrypt)
       }
-      if (true /*TODO add boolean variable here*/ ) {
+      if (false /*TODO add boolean variable here*/ ) {
         futures :+= future { f() }
       } else {
         f() match {

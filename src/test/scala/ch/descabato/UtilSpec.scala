@@ -23,12 +23,12 @@ import org.scalacheck._
 import Arbitrary.arbitrary
 import backup.CompressionMode
 import backup.AES
-import backup.ConsoleManager
 
 class UtilSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
   
-  ConsoleManager.testSetup
+  //ConsoleManager.testSetup
+  AES.testMode = true
   
   var folder = new File("testdata/temp")
   

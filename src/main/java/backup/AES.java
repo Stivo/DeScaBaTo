@@ -21,16 +21,8 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class AES {
-	/*
-	static String IV = "AAAAAAAAAAAAAAAA";
-	static String plaintext = "test text 123\0\0\0"; /* Note null padding 
-	static String encryptionKey = "0123456789abcdef";
-	static byte[] salt = null;
-	*/
-	
-	public static boolean testMode() {
-		return Actors.testMode();
-	}
+
+	public static boolean testMode = false;
 	
 	public static ThreadLocal<Map<String, SecretKeySpec>> local = new ThreadLocal<>();
 	
@@ -70,7 +62,7 @@ public class AES {
 		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE");
 		SecretKey deriveKey = deriveKey(encryptionKey, keylength);
 		byte[] buf = new byte[16];
-		if (testMode()) {
+		if (testMode) {
 			Random random = new Random(25335235);
 			random.nextBytes(buf);
 		} else {

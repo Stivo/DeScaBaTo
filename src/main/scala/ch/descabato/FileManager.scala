@@ -15,8 +15,13 @@ class Volume extends HashMap[String, Array[Byte]]
 
 class Parity
 
-case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
+object Constants {
+  val tempPrefix = "temp."
+}
 
+case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
+  import Constants.tempPrefix
+  
   var options: BackupFolderConfiguration = null
   var fileManager: FileManager = null
 
@@ -43,21 +48,32 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     }
   }
 
-  def nextName = {
+  def nextName(tempFile: Boolean = false) = {
+    val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    s"$prefix$date$nextNum$suffix"
+    s"$temp$prefix$date$nextNum$suffix"
   }
 
-  def nextFile(f: File = options.folder) = new File(f, nextName)
+  def nextFile(f: File = options.folder, temp: Boolean = false) = new File(f, nextName(temp))
 
   def matches(x: File) = x.getName().startsWith(prefix)
 
   def getFiles(f: File = options.folder) = f.
     listFiles().filter(_.isFile()).
     filter(_.getName().startsWith(prefix))
+    
+  def getTempFiles(f: File = options.folder) = f.
+    listFiles().filter(_.isFile()).
+    filter(_.getName().startsWith(tempPrefix+prefix))
 
+  def deleteTempFiles(f: File = options.folder) = getTempFiles(f).foreach(_.delete)
+    
   def getDate(x: File) = {
-    val date = x.getName.drop(prefix.length()).take(fileManager.dateFormatLength)
+    val name = { 
+      val name = x.getName()
+      if (name.startsWith(tempPrefix)) name.drop(tempPrefix.length) else name
+    }
+    val date = name.drop(prefix.length()).take(fileManager.dateFormatLength)
     fileManager.dateFormat.parse(date)
   }
 
@@ -73,8 +89,8 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       num.toInt
   }
 
-  def write(x: T) = {
-    val file = nextFile()
+  def write(x: T, temp: Boolean = false) = {
+    val file = nextFile(temp = temp)
     //l.info("Writing "+x+" to file "+file)
     val out = StreamHeaders.wrapStream(new FileOutputStream(file), options)
     options.serialization.writeObject(x, out)
@@ -113,10 +129,13 @@ class FileManager(options: BackupFolderConfiguration) {
 
   def getFileType(x: File) = types.find(_.matches(x)).get
 
-  def getBackupAndUpdates: (Array[File], Boolean) = {
+  def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {
     val filesNow = options.folder.listFiles().filter(_.isFile()).filter(files.matches)
-    val sorted = filesNow.sortBy(_.getName())
-    if (filesNow.isEmpty) {
+    val allFiles = if (temp) {
+      filesNow ++ files.getTempFiles()
+    } else filesNow
+    val sorted = allFiles.sortBy(_.getName())
+    if (allFiles.isEmpty) {
       (Array(), false)
     } else {
       val lastDate = files.getDate(sorted.last)

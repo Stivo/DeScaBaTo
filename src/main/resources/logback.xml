@@ -9,7 +9,7 @@
 		</encoder>
 	</appender>
 
-	<appender name="STDOUT" class="backup.ConsoleAppenderWithDeleteSupport">
+	<appender name="STDOUT" class="ch.descabato.ConsoleAppenderWithDeleteSupport">
 		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
 			<level>INFO</level>
 		</filter>

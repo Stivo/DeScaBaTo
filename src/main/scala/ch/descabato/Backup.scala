@@ -39,13 +39,19 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
   val blockSize: Size = Size("64Kb")
   val volumeSize: Size = Size("64Mb")
-  val useDeltas = true
+  val checkPointEvery: Size = volumeSize
+  val useDeltas = false
   lazy val hasPassword = passphrase.isDefined
 }
 
 object InitBackupFolderConfiguration {
   def apply(option: BackupFolderOption) = {
     val out = BackupFolderConfiguration(new File(option.backupDestination()).getAbsoluteFile(), option.passphrase.get)
+    option match {
+      case o : CreateBackupOptions => 
+        o.serializerType.foreach(out.serializerType = _)
+        o.compression.foreach(x => out.compressor = CompressionMode.valueOf(x.toLowerCase))
+    }
     out
   }
 }
@@ -105,13 +111,29 @@ object BackupUtils {
   }
 }
 
+trait BackupProgressReporting extends Utils {
+  lazy val fileCounter = new Counter("Files", 0)
+  lazy val byteCounter = new Counter("Data", 0) {
+    override def format = s"${readableFileSize(current)}/${readableFileSize(maxValue)} ${percent}%"
+  }
+
+  def setMaximums(files: Int, bytes: Long) {
+    fileCounter.maxValue = files
+    byteCounter.maxValue = bytes
+  }
+  
+  def updateProgress() {
+    ProgressReporters.updateWithCounters(fileCounter::byteCounter::Nil)
+  }
+}
+
 abstract class BackupIndexHandler extends Utils {
   val config: BackupFolderConfiguration
 
   lazy val fileManager = new FileManager(config)
 
-  def loadOldIndex(): Buffer[BackupPart] = {
-    val (filesToLoad, hasDeltas) = fileManager.getBackupAndUpdates
+  def loadOldIndex(temp: Boolean = false): Buffer[BackupPart] = {
+    val (filesToLoad, hasDeltas) = fileManager.getBackupAndUpdates(temp)
     val updates = filesToLoad.par.map(fileManager.filesDelta.read).fold(Buffer[UpdatePart]())(_ ++ _).seq
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
@@ -125,8 +147,8 @@ abstract class BackupIndexHandler extends Utils {
     }
   }
 
-  def loadOldIndexAsMap(): mutable.Map[String, BackupPart] = {
-    val buffer = loadOldIndex()
+  def loadOldIndexAsMap(temp: Boolean = false): mutable.Map[String, BackupPart] = {
+    val buffer = loadOldIndex(temp)
     val oldBackupFilesRemaining = mutable.HashMap[String, BackupPart]()
     buffer.foreach(x => oldBackupFilesRemaining += x.path -> x)
     oldBackupFilesRemaining
@@ -136,8 +158,8 @@ abstract class BackupIndexHandler extends Utils {
     val folders = Buffer[FolderDescription]()
     val files = Buffer[FileDescription]()
     x.foreach {
-      case x: FolderDescription => folders += x
       case x: FileDescription => files += x
+      case x: FolderDescription => folders += x
     }
     (folders, files)
   }
@@ -152,7 +174,7 @@ abstract class BackupDataHandler extends BackupIndexHandler {
   lazy val delta = config.useDeltas && !loadOldIndex().isEmpty
 
   def oldBackupHashChains: mutable.Map[BAWrapper2, Array[Byte]] = {
-    val filesToLoad = fileManager.hashchains.getFiles()
+    val filesToLoad = fileManager.hashchains.getFiles()++fileManager.hashchains.getTempFiles()
     val list = filesToLoad.par.map(x => fileManager.hashchains.read(x)).fold(Buffer())(_ ++ _).seq
     val map = new HashChainMap
     map ++= list
@@ -166,11 +188,13 @@ abstract class BackupDataHandler extends BackupIndexHandler {
     hashChainMap ++= oldBackupHashChains
   }
 
-  def getHashChain(fd: FileDescription) = {
+  def hashChainSeq(a: Array[Byte]) = a.grouped(config.getMessageDigest.getDigestLength()).toSeq
+  
+  def getHashChain(fd: FileDescription) : Seq[Array[Byte]] = {
     if (fd.size <= config.blockSize.bytes) {
-      fd.hash
+      List(fd.hash)
     } else {
-      hashChainMap.get(fd.hash).get
+      hashChainSeq(hashChainMap.get(fd.hash).get)
     }
   }
 
@@ -183,15 +207,29 @@ abstract class BackupDataHandler extends BackupIndexHandler {
 }
 
 class BackupHandler(val config: BackupFolderConfiguration)
-  extends BackupDataHandler {
+  extends BackupDataHandler with BackupProgressReporting {
   self: BlockStrategy =>
 
   // Needed for backing up
-  var hashChainMapTemp: HashChainMap = new HashChainMap()
+  var hashChainMapNew: HashChainMap = new HashChainMap()
+  var hashChainMapCheckpoint: HashChainMap = new HashChainMap()
 
+  def checkpoint(seq: Seq[FileDescription]) = {
+     l.info("Checkpointing ")
+     val (toSave, toKeep) = seq.partition(x => blockExists(getHashChain(x).last))
+     fileManager.files.write(toSave.toBuffer, true)
+      if (!hashChainMapCheckpoint.isEmpty) {
+    	  val (toSave, toKeep) = hashChainMapCheckpoint.toBuffer.partition(x => blockExists(hashChainSeq(x._2).last))
+    	  fileManager.hashchains.write(toSave.toBuffer, true)
+    	  hashChainMapCheckpoint.clear
+    	  hashChainMapCheckpoint ++= toKeep
+      }
+     toKeep
+  }
+  
   def backup(files: Seq[File]) {
     config.folder.mkdirs()
-    val visitor = new OldIndexVisitor(loadOldIndexAsMap(), recordNew = true, recordUnchanged = true).walk(files)
+    val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true).walk(files)
     val (newParts, unchanged, deleted) = (visitor.newFiles, visitor.unchangedFiles, visitor.deleted)
     println("New Files      : " + statistics(newParts))
     println("Unchanged files: " + statistics(unchanged))
@@ -201,12 +239,28 @@ class BackupHandler(val config: BackupFolderConfiguration)
       return
     }
     val fileListOut = Buffer[BackupPart]()
-    val (newFolders, newFiles) = newParts.partition(x => x.size == 0 && x.isInstanceOf[FolderDescription])
+    
+    val (newFolders, newFiles) = partitionFolders(newParts)
+
+    setMaximums(newFiles.size, newFiles.map(_.size).sum)
     importOldHashChains
-    val saved = newFiles.collect { case x: FileDescription => x }.map(fileDesc => backupFileDesc(fileDesc))
+    var list = newFiles.toList
+    var toSave: Seq[FileDescription] = Buffer.empty
+    while (!list.isEmpty) {
+      var sum = config.checkPointEvery.bytes
+      val cur = list.takeWhile{x => val out = sum > 0; sum -= x.size; out}
+      val temp = cur.map(backupFileDesc)
+      l.info("Handled "+cur.size+" before checkpointing")
+      toSave ++= temp
+      toSave = checkpoint(toSave)
+      list = list.drop(cur.size)
+    }
+    val saved = newFiles.map(fileDesc => backupFileDesc(fileDesc))
     finishWriting
-    if (!hashChainMapTemp.isEmpty)
-      fileManager.hashchains.write(hashChainMapTemp.toBuffer)
+    if (!hashChainMapNew.isEmpty) {
+      fileManager.hashchains.write(hashChainMapNew.toBuffer)
+      fileManager.hashchains.deleteTempFiles()
+    }
     if (!delta) {
       fileListOut ++= unchanged
     }
@@ -217,6 +271,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
       fileManager.filesDelta.write(toWrite)
     } else {
       fileManager.files.write(fileListOut)
+      fileManager.files.deleteTempFiles()
     }
   }
 
@@ -247,12 +302,18 @@ class BackupHandler(val config: BackupFolderConfiguration)
     if (hashList.length == fileHash.length) {
       null
     } else {
-      if (!hashChainMap.contains(fileHash)) {
-        hashChainMap += ((fileHash, hashList))
-        hashChainMapTemp += ((fileHash, hashList))
+      // use same instance for the keys
+      val key : BAWrapper2 = fileHash
+      if (!hashChainMap.contains(key)) {
+        hashChainMap += ((key, hashList))
+        hashChainMapNew += ((key, hashList))
+        hashChainMapCheckpoint += ((key, hashList))
       }
     }
     fileDesc.hash = fileHash
+    fileCounter += 1
+    byteCounter += fileDesc.size
+    updateProgress()
     fileDesc
   }
 
@@ -294,7 +355,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   }
 
   def getInputStream(fd: FileDescription): InputStream = {
-    val hashes = getHashChain(fd).grouped(config.getMessageDigest.getDigestLength()).toSeq
+    val hashes = getHashChain(fd)
     val enumeration = new Enumeration[InputStream]() {
       val hashIterator = hashes.iterator
       def hasMoreElements = hashIterator.hasNext
@@ -327,7 +388,7 @@ class VfsIndex(config: BackupFolderConfiguration)
   extends RestoreHandler(config) {
   self: BlockStrategy =>
 
-  val files = loadOldIndex
+  val files = loadOldIndex()
 
   def registerIndex() {
     l.info("Loading information")

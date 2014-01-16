@@ -6,7 +6,6 @@ import java.util.regex.Pattern
 import java.math.{ BigDecimal => JBigDecimal }
 import javax.xml.bind.DatatypeConverter
 import java.text.DecimalFormat
-import backup.ConsoleManager
 import com.typesafe.scalalogging.slf4j.Logging
 import CLI._
 import java.io.PrintStream
@@ -35,6 +34,7 @@ object CLI {
   def main(args: Array[String]) {
     if (runsInJar) {
       java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
+      parseCommandLine(args)
     } else {
       parseCommandLine("backup -p asdf backups test".split(" "))
       parseCommandLine("browse -p asdf backups".split(" "))
@@ -71,6 +71,8 @@ trait BackupRelatedCommand extends Command {
 // Parsing classes
 
 trait CreateBackupOptions extends BackupFolderOption {
+  val serializerType = opt[String]()
+  val compression = opt[String]()
   val blockSize = opt[Size](default = Some(Size("100Kb")))
   val hashAlgorithm = opt[String](default = Some("md5"))
 }
@@ -125,7 +127,7 @@ class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
   }
 }
 
-class BackupConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
+class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
   val folderToBackup = trailArg[String]().map(x => new File(x))
   //lazy val folderToBackupFiles = List(folderToBackup).map(x => new File(x()))
 }
@@ -216,9 +218,5 @@ trait Utils extends Logging {
   import Utils._
 
   def readableFileSize(size: Long): String = Utils.readableFileSize(size)
-
-  def printDeleted(message: String) {
-    ConsoleManager.writeDeleteLine(message)
-  }
 
 }
