@@ -39,8 +39,8 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     hasDate = hasDateC
   }
 
-  def nextNum = {
-    val col = getFiles().map(getNum)
+  def nextNum(temp: Boolean = false) = {
+    val col = (if (temp) getTempFiles() else getFiles()).map(getNum)
     if (col.isEmpty) {
       0
     } else {
@@ -51,7 +51,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def nextName(tempFile: Boolean = false) = {
     val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    s"$temp$prefix$date$nextNum$suffix"
+    s"$temp$prefix$date${nextNum(tempFile)}$suffix"
   }
 
   def nextFile(f: File = options.folder, temp: Boolean = false) = new File(f, nextName(temp))
@@ -78,11 +78,14 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
 
   def getNum(x: File) = {
-    assert(matches(x), s"$x does not match $prefix")
+    val name = { 
+      val name = x.getName()
+      if (name.startsWith(tempPrefix)) name.drop(tempPrefix.length) else name
+    }
     var dropLength = prefix.length
     if (hasDate)
       dropLength += fileManager.dateFormatLength + 1
-    val num = x.getName().drop(dropLength).takeWhile(x => (x + "").matches("\\d"))
+    val num = name.drop(dropLength).takeWhile(x => (x + "").matches("\\d"))
     if (num.isEmpty()) {
       -1
     } else

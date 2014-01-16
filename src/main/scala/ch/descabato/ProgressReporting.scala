@@ -7,6 +7,13 @@ import java.util.Date
 import scala.collection.mutable.Buffer
 import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.classic.spi.ILoggingEvent
+import org.ocpsoft.prettytime.PrettyTime
+import org.ocpsoft.prettytime.Duration
+import org.ocpsoft.prettytime.impl.DurationImpl
+import org.ocpsoft.prettytime.TimeUnit
+import org.ocpsoft.prettytime.units.Millisecond
+import scala.collection.JavaConverters._
+import org.ocpsoft.prettytime.format.SimpleTimeFormat
 
 object ProgressReporters {
 
@@ -33,16 +40,60 @@ trait ProgressReporting {
 
 }
 
-class Counter(val name: String, var maxValue: Long) {
+trait Counter {
+  def name: String
   var current = 0L
+  var maxValue = 0L
 
   def format = s"$current/$maxValue"
 
   def percent = (100 * current / maxValue).toInt
 
   def update = s"$name: $format"
-  
-  def += (l: Long) { current += l }
+
+  def +=(l: Long) { current += l }
+}
+
+trait ETACounter extends Counter with Utils {
+  def window = 15
+  case class Snapshot(time: Long, l: Double)
+  val p = new PrettyTime();
+  val tu = p.getUnits().asScala.foreach {
+    p.getFormat(_) match {
+      case x: SimpleTimeFormat => x.setFutureSuffix ("")
+      case _ =>
+    }
+  }
+  var snapshots = List[Snapshot]()
+  var newSnapshotAt = 0L
+  override def +=(l: Long) {
+    super.+=(l)
+    val now = System.currentTimeMillis()
+    if (newSnapshotAt < now) {
+	    snapshots :+= Snapshot(now, current)
+	    val cutoff = now - window * 1000
+	    snapshots = snapshots.dropWhile(_.time < cutoff)
+	    newSnapshotAt = now + 100
+    }
+  }
+
+  def calcEta: String = {
+    if (snapshots.size < 2) {
+      return ""
+    }
+    val last = snapshots.last
+    val first = snapshots.head
+    val rate = (last.l - first.l) / (last.time - first.time)
+    val remaining = (maxValue - last.l).toDouble
+    val ms = remaining / rate
+    p.format(new Date(System.currentTimeMillis()+ms.toLong))
+  }
+
+  override def update = super.update + " " + calcEta
+}
+
+class StandardCounter(val name: String, maxValueIn: Long) extends Counter {
+  maxValue = maxValueIn
 }
 
 object ProgressReporter extends ProgressReporting {

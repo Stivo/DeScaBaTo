@@ -97,8 +97,8 @@ object BackupUtils {
     // if the file is in the map, no other file can have the same name. Therefore we remove it.
     val out = oldMap.remove(path)
     if (out.isDefined &&
-      // file size has not changed
-      out.get.size == file.length() &&
+      // file size has not changed, if it is a file
+      (file.isDirectory() || out.get.size == file.length()) &&
       // if the backup part is of the wrong type => return (None, fa)
       manifest.runtimeClass.isAssignableFrom(out.get.getClass()) &&
       // if the file has attributes and the last modified date is different, return (None, fa)
@@ -112,8 +112,8 @@ object BackupUtils {
 }
 
 trait BackupProgressReporting extends Utils {
-  lazy val fileCounter = new Counter("Files", 0)
-  lazy val byteCounter = new Counter("Data", 0) {
+  lazy val fileCounter = new StandardCounter("Files", 0) {}
+  lazy val byteCounter = new StandardCounter("Data", 0) with ETACounter {
     override def format = s"${readableFileSize(current)}/${readableFileSize(maxValue)} ${percent}%"
   }
 
@@ -174,8 +174,14 @@ abstract class BackupDataHandler extends BackupIndexHandler {
   lazy val delta = config.useDeltas && !loadOldIndex().isEmpty
 
   def oldBackupHashChains: mutable.Map[BAWrapper2, Array[Byte]] = {
-    val filesToLoad = fileManager.hashchains.getFiles()++fileManager.hashchains.getTempFiles()
-    val list = filesToLoad.par.map(x => fileManager.hashchains.read(x)).fold(Buffer())(_ ++ _).seq
+    def loadFor(x: Iterable[File]) = {
+      x.par.map(x => fileManager.hashchains.read(x)).fold(Buffer())(_ ++ _).toBuffer
+    }
+    val temps = loadFor(fileManager.hashchains.getTempFiles())
+    if (!temps.isEmpty) {
+      fileManager.hashchains.write(temps)
+    }
+    val list = loadFor(fileManager.hashchains.getFiles())
     val map = new HashChainMap
     map ++= list
     map
@@ -198,10 +204,14 @@ abstract class BackupDataHandler extends BackupIndexHandler {
     }
   }
 
-  def statistics(x: Seq[UpdatePart]) = {
+  def statistics(x: Seq[BackupPart]) = {
     val num = x.size
     val totalSize = new Size(x.map(_.size).sum)
-    f"$num%8d, $totalSize"
+    var out = f"$num%8d, $totalSize"
+    if ((1 to 10) contains num) {
+      out += "\n"+x.map(_.path).mkString("\n")
+    }
+    out
   }
 
 }
@@ -288,6 +298,8 @@ class BackupHandler(val config: BackupFolderConfiguration)
           if (!blockExists(hash)) {
             writeBlock(hash, buf)
           }
+          byteCounter += buf.size
+          updateProgress
         }
         val hash = {
           val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, hashAndWriteBlock _)
@@ -312,7 +324,6 @@ class BackupHandler(val config: BackupFolderConfiguration)
     }
     fileDesc.hash = fileHash
     fileCounter += 1
-    byteCounter += fileDesc.size
     updateProgress()
     fileDesc
   }

@@ -107,7 +107,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       val sis = new SplitInputStream(StreamHeaders.readStream(fis, config.passphrase), bos :: Nil)
       sis.readComplete
     }
-    curNum = index.nextNum
+    curNum = index.nextNum()
     setupRan = true
   }
 
