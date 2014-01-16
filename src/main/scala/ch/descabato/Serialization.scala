@@ -32,7 +32,7 @@ trait Serialization {
   //  def writeObject[T](t: T, file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) {
   //    writeObject(t, Streams.newFileOutputStream(file))
   //  }
-  def readObject[T](in: InputStream)(implicit m: Manifest[T]): T
+  def readObject[T](in: InputStream)(implicit m: Manifest[T]): Option[T]
 }
 
 trait DelegateSerialization extends Serialization {
@@ -41,7 +41,7 @@ trait DelegateSerialization extends Serialization {
     serialization.writeObject(t, out)
   }
 
-  def readObject[T](in: InputStream)(implicit m: Manifest[T]) =
+  def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Option[T] =
     serialization.readObject(in)
 }
 
@@ -103,8 +103,13 @@ abstract class AbstractJacksonSerialization extends Serialization {
     out.close()
   }
 
-  def readObject[T](in: InputStream)(implicit m: Manifest[T]) = {
-    mapper.readValue(in)
+  def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Option[T] = {
+    try {
+      Some(mapper.readValue(in))
+    } catch {
+      case exception => println(exception.getMessage())
+      None
+    }
   }
 
 }

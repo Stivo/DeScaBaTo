@@ -21,7 +21,7 @@ object Constants {
 
 case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
   import Constants.tempPrefix
-  
+
   var options: BackupFolderConfiguration = null
   var fileManager: FileManager = null
 
@@ -61,15 +61,15 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def getFiles(f: File = options.folder) = f.
     listFiles().filter(_.isFile()).
     filter(_.getName().startsWith(prefix))
-    
+
   def getTempFiles(f: File = options.folder) = f.
     listFiles().filter(_.isFile()).
-    filter(_.getName().startsWith(tempPrefix+prefix))
+    filter(_.getName().startsWith(tempPrefix + prefix))
 
   def deleteTempFiles(f: File = options.folder) = getTempFiles(f).foreach(_.delete)
-    
+
   def getDate(x: File) = {
-    val name = { 
+    val name = {
       val name = x.getName()
       if (name.startsWith(tempPrefix)) name.drop(tempPrefix.length) else name
     }
@@ -78,7 +78,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
 
   def getNum(x: File) = {
-    val name = { 
+    val name = {
       val name = x.getName()
       if (name.startsWith(tempPrefix)) name.drop(tempPrefix.length) else name
     }
@@ -100,12 +100,19 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     file
   }
 
-  def read(f: File): T = {
+  def read(f: File): Option[T] = {
     //l.info("Writing "+x+" to file "+file)
     //    options.serialization.readObject(x, file)(options, m)
     //    file
-    val read = StreamHeaders.readStream(new FileInputStream(f), options.passphrase)
-    options.serialization.readObject[T](read)
+    try {
+      val read = StreamHeaders.readStream(new FileInputStream(f), options.passphrase)
+      options.serialization.readObject[T](read)
+    } catch {
+      case e: Exception =>
+        l.warn("Exception while loading " + f)
+        logException(e)
+        None
+    }
   }
 
 }

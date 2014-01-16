@@ -12,6 +12,7 @@ import java.io.PrintStream
 import scala.collection.mutable.Buffer
 import java.io.File
 import pl.otros.vfs.browser.demo.TestBrowser
+import backup.CompressionMode
 
 object CLI {
 
@@ -36,9 +37,9 @@ object CLI {
       java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
       parseCommandLine(args)
     } else {
-      parseCommandLine("backup -p asdf backups test".split(" "))
-      parseCommandLine("browse -p asdf backups".split(" "))
-      //parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+      //parseCommandLine("backup --serializer-type json --compression none backups testdata".split(" "))
+      //      parseCommandLine("browse -p asdf backups".split(" "))
+      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
     }
   }
 
@@ -48,7 +49,7 @@ trait Command {
   type T <: ScallopConf
   val args: Seq[String]
   def newT: T
-  
+
   //  def name : String
   final def execute() {
     start(newT)
@@ -59,13 +60,13 @@ trait Command {
 trait BackupRelatedCommand extends Command {
   type T <: BackupFolderOption
   def start(t: T) {
-     t.afterInit
-     val conf = new BackupConfigurationHandler(t).configure
-     start(t, conf)
+    t.afterInit
+    val conf = new BackupConfigurationHandler(t).configure
+    start(t, conf)
   }
-  
+
   def start(t: T, conf: BackupFolderConfiguration)
-  
+
 }
 
 // Parsing classes
@@ -75,14 +76,19 @@ trait CreateBackupOptions extends BackupFolderOption {
   val compression = opt[String]()
   val blockSize = opt[Size](default = Some(Size("100Kb")))
   val hashAlgorithm = opt[String](default = Some("md5"))
+  validate(compression) { x =>
+    try {
+      CompressionMode.valueOf(x); Right(Unit)
+    } catch {
+      case ilarg: Exception => Left("compression should be one of " + CompressionMode.values.mkString(", "))
+    }
+  }
 }
 
 trait BackupFolderOption extends ScallopConf {
   val passphrase = opt[String](default = None)
   val backupDestination = trailArg[String]()
 }
-
-
 
 class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOption
 
@@ -103,13 +109,13 @@ class RestoreCommand(val args: Seq[String]) extends BackupRelatedCommand {
   def start(t: T, conf: BackupFolderConfiguration) {
     t.builder.verify
     println(t.summary)
-    
+
     val rh = new RestoreHandler(conf) with ZipBlockStrategy
     rh.restore(t)
   }
 }
 
-class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption 
+class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
 
 class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
   type T = SimpleBackupFolderOption
@@ -117,7 +123,7 @@ class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
   def start(t: T, conf: BackupFolderConfiguration) {
     t.afterInit
     println(t.summary)
-    
+
     val bh = new VfsIndex(conf) with ZipBlockStrategy
     bh.registerIndex()
     val path = conf.folder.getAbsolutePath()
@@ -134,13 +140,12 @@ class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupO
 
 class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
   val restoreToOriginalPath = toggle()
-  val restoreToFolder = opt[String]( )
-  val relativeToFolder = opt[String]( )
-//  val overwriteExisting = toggle(default = Some(false))
+  val restoreToFolder = opt[String]()
+  val relativeToFolder = opt[String]()
+  //  val overwriteExisting = toggle(default = Some(false))
   val pattern = opt[String]()
   mutuallyExclusive(restoreToOriginalPath, restoreToFolder)
 }
-
 
 //class HelpCommand extends Command wit{
 //    def execute(t: T) : Unit {}
@@ -218,5 +223,13 @@ trait Utils extends Logging {
   import Utils._
 
   def readableFileSize(size: Long): String = Utils.readableFileSize(size)
+
+  def logException(t: Throwable) {
+    ObjectPools.baosPool.withObject(Unit, { baos =>
+      val ps = new PrintStream(baos)
+      t.printStackTrace(ps)
+      l.debug(new String(baos.toByteArray))
+    })
+  }
 
 }

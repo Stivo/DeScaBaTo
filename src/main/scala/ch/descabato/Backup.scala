@@ -19,6 +19,8 @@ import java.io.FileOutputStream
 import java.io.SequenceInputStream
 import java.util.Enumeration
 import com.fasterxml.jackson.annotation.JsonIgnore
+import java.io.IOException
+import java.io.PrintStream
 
 /**
  * The configuration to use when working with a backup folder.
@@ -48,7 +50,7 @@ object InitBackupFolderConfiguration {
   def apply(option: BackupFolderOption) = {
     val out = BackupFolderConfiguration(new File(option.backupDestination()).getAbsoluteFile(), option.passphrase.get)
     option match {
-      case o : CreateBackupOptions => 
+      case o: CreateBackupOptions =>
         o.serializerType.foreach(out.serializerType = _)
         o.compression.foreach(x => out.compressor = CompressionMode.valueOf(x.toLowerCase))
     }
@@ -66,7 +68,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) {
   def hasOld = new File(folder, mainFile).exists()
   def loadOld() = {
     val json = new JsonSerialization()
-    json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile)))
+    json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))).get
   }
   def configure(): BackupFolderConfiguration = {
     if (hasOld) {
@@ -121,9 +123,9 @@ trait BackupProgressReporting extends Utils {
     fileCounter.maxValue = files
     byteCounter.maxValue = bytes
   }
-  
+
   def updateProgress() {
-    ProgressReporters.updateWithCounters(fileCounter::byteCounter::Nil)
+    ProgressReporters.updateWithCounters(fileCounter :: byteCounter :: Nil)
   }
 }
 
@@ -134,7 +136,7 @@ abstract class BackupIndexHandler extends Utils {
 
   def loadOldIndex(temp: Boolean = false): Buffer[BackupPart] = {
     val (filesToLoad, hasDeltas) = fileManager.getBackupAndUpdates(temp)
-    val updates = filesToLoad.par.map(fileManager.filesDelta.read).fold(Buffer[UpdatePart]())(_ ++ _).seq
+    val updates = filesToLoad.par.flatMap(fileManager.filesDelta.read).fold(Buffer[UpdatePart]())(_ ++ _).seq
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
       updates.foreach {
@@ -175,7 +177,7 @@ abstract class BackupDataHandler extends BackupIndexHandler {
 
   def oldBackupHashChains: mutable.Map[BAWrapper2, Array[Byte]] = {
     def loadFor(x: Iterable[File]) = {
-      x.par.map(x => fileManager.hashchains.read(x)).fold(Buffer())(_ ++ _).toBuffer
+      x.par.flatMap(x => fileManager.hashchains.read(x)).fold(Buffer())(_ ++ _).toBuffer
     }
     val temps = loadFor(fileManager.hashchains.getTempFiles())
     if (!temps.isEmpty) {
@@ -195,8 +197,8 @@ abstract class BackupDataHandler extends BackupIndexHandler {
   }
 
   def hashChainSeq(a: Array[Byte]) = a.grouped(config.getMessageDigest.getDigestLength()).toSeq
-  
-  def getHashChain(fd: FileDescription) : Seq[Array[Byte]] = {
+
+  def getHashChain(fd: FileDescription): Seq[Array[Byte]] = {
     if (fd.size <= config.blockSize.bytes) {
       List(fd.hash)
     } else {
@@ -209,7 +211,7 @@ abstract class BackupDataHandler extends BackupIndexHandler {
     val totalSize = new Size(x.map(_.size).sum)
     var out = f"$num%8d, $totalSize"
     if ((1 to 10) contains num) {
-      out += "\n"+x.map(_.path).mkString("\n")
+      out += "\n" + x.map(_.path).mkString("\n")
     }
     out
   }
@@ -225,18 +227,20 @@ class BackupHandler(val config: BackupFolderConfiguration)
   var hashChainMapCheckpoint: HashChainMap = new HashChainMap()
 
   def checkpoint(seq: Seq[FileDescription]) = {
-     l.info("Checkpointing ")
-     val (toSave, toKeep) = seq.partition(x => blockExists(getHashChain(x).last))
-     fileManager.files.write(toSave.toBuffer, true)
-      if (!hashChainMapCheckpoint.isEmpty) {
-    	  val (toSave, toKeep) = hashChainMapCheckpoint.toBuffer.partition(x => blockExists(hashChainSeq(x._2).last))
-    	  fileManager.hashchains.write(toSave.toBuffer, true)
-    	  hashChainMapCheckpoint.clear
-    	  hashChainMapCheckpoint ++= toKeep
-      }
-     toKeep
+    l.info("Checkpointing ")
+    val (toSave, toKeep) = seq.partition(x => blockExists(getHashChain(x).last))
+    fileManager.files.write(toSave.toBuffer, true)
+    if (!hashChainMapCheckpoint.isEmpty) {
+      val (toSave, toKeep) = hashChainMapCheckpoint.toBuffer.partition(x => blockExists(hashChainSeq(x._2).last))
+      fileManager.hashchains.write(toSave.toBuffer, true)
+      hashChainMapCheckpoint.clear
+      hashChainMapCheckpoint ++= toKeep
+    }
+    toKeep
   }
-  
+
+  var failed = Buffer[FileDescription]()
+
   def backup(files: Seq[File]) {
     config.folder.mkdirs()
     val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true).walk(files)
@@ -249,7 +253,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
       return
     }
     val fileListOut = Buffer[BackupPart]()
-    
+
     val (newFolders, newFiles) = partitionFolders(newParts)
 
     setMaximums(newFiles.size, newFiles.map(_.size).sum)
@@ -258,14 +262,27 @@ class BackupHandler(val config: BackupFolderConfiguration)
     var toSave: Seq[FileDescription] = Buffer.empty
     while (!list.isEmpty) {
       var sum = config.checkPointEvery.bytes
-      val cur = list.takeWhile{x => val out = sum > 0; sum -= x.size; out}
-      val temp = cur.map(backupFileDesc)
-      l.info("Handled "+cur.size+" before checkpointing")
+      val cur = list.takeWhile { x => val out = sum > 0; sum -= x.size; out }
+      val temp = cur.flatMap(backupFileDesc(_))
+      l.info("Handled " + cur.size + " before checkpointing")
+      fileListOut ++= temp
       toSave ++= temp
       toSave = checkpoint(toSave)
       list = list.drop(cur.size)
     }
-    val saved = newFiles.map(fileDesc => backupFileDesc(fileDesc))
+    
+    if (!failed.isEmpty) {
+      l.info(failed.size + " files could not be backed up due to file locks, trying again.")
+      val copy = failed.toBuffer
+      failed.clear()
+      val succeeded = copy.flatMap(fileDesc => backupFileDesc(fileDesc))
+      if (succeeded.size == copy.size) {
+        l.info("All files backed up now")
+      } else {
+        l.info(copy.size-succeeded.size+" Files could not be backed up. See log for a complete list")
+        failed.foreach{f => l.debug("File "+f+" was not backed up due to locks")}
+      }
+    }
     finishWriting
     if (!hashChainMapNew.isEmpty) {
       fileManager.hashchains.write(hashChainMapNew.toBuffer)
@@ -275,7 +292,6 @@ class BackupHandler(val config: BackupFolderConfiguration)
       fileListOut ++= unchanged
     }
     fileListOut ++= newFolders
-    fileListOut ++= saved
     if (delta) {
       val toWrite = deleted.map { case x: BackupPart => FileDeleted(x.path) }.toBuffer ++ fileListOut
       fileManager.filesDelta.write(toWrite)
@@ -283,49 +299,60 @@ class BackupHandler(val config: BackupFolderConfiguration)
       fileManager.files.write(fileListOut)
       fileManager.files.deleteTempFiles()
     }
+    l.info("Backup completed")
   }
 
-  def backupFileDesc(fileDesc: FileDescription) = {
-    // This is a new file, so we start hashing its contents, fill those in and return the same instance
-    val file = new File(fileDesc.path)
-    val fis = new FileInputStream(file)
-    val (fileHash, hashList) = ObjectPools.baosPool.withObject((), {
-      out: ByteArrayOutputStream =>
-        val md = config.getMessageDigest
-        def hashAndWriteBlock(buf: Array[Byte]) {
-          val hash = md.digest(buf)
-          out.write(hash)
-          if (!blockExists(hash)) {
-            writeBlock(hash, buf)
+  def backupFileDesc(fileDesc: FileDescription): Option[FileDescription] = {
+    val byteCounterbackup = byteCounter.current
+    try {
+      // This is a new file, so we start hashing its contents, fill those in and return the same instance
+      val file = new File(fileDesc.path)
+      val fis = new FileInputStream(file)
+      val (fileHash, hashList) = ObjectPools.baosPool.withObject((), {
+        out: ByteArrayOutputStream =>
+          val md = config.getMessageDigest
+          def hashAndWriteBlock(buf: Array[Byte]) {
+            val hash = md.digest(buf)
+            out.write(hash)
+            if (!blockExists(hash)) {
+              writeBlock(hash, buf)
+            }
+            byteCounter += buf.size
+            updateProgress
           }
-          byteCounter += buf.size
-          updateProgress
+          val hash = {
+            val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, hashAndWriteBlock _)
+            val hos = new HashingOutputStream(config.hashAlgorithm)
+            val sis = new SplitInputStream(fis, blockHasher :: hos :: Nil)
+            sis.readComplete
+            sis.close()
+            hos.out.get
+          }
+          (hash, out.toByteArray())
+      })
+      if (hashList.length == fileHash.length) {
+        null
+      } else {
+        // use same instance for the keys
+        val key: BAWrapper2 = fileHash
+        if (!hashChainMap.contains(key)) {
+          hashChainMap += ((key, hashList))
+          hashChainMapNew += ((key, hashList))
+          hashChainMapCheckpoint += ((key, hashList))
         }
-        val hash = {
-          val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, hashAndWriteBlock _)
-          val hos = new HashingOutputStream(config.hashAlgorithm)
-          val sis = new SplitInputStream(fis, blockHasher :: hos :: Nil)
-          sis.readComplete
-          sis.close()
-          hos.out.get
-        }
-        (hash, out.toByteArray())
-    })
-    if (hashList.length == fileHash.length) {
-      null
-    } else {
-      // use same instance for the keys
-      val key : BAWrapper2 = fileHash
-      if (!hashChainMap.contains(key)) {
-        hashChainMap += ((key, hashList))
-        hashChainMapNew += ((key, hashList))
-        hashChainMapCheckpoint += ((key, hashList))
       }
+      fileDesc.hash = fileHash
+      fileCounter += 1
+      updateProgress()
+      Some(fileDesc)
+    } catch {
+      case io: IOException if (io.getMessage().contains("The process cannot access the file")) => { 
+        failed += fileDesc
+        l.warn("Could not backup file " + fileDesc.path + " because it is locked.")
+        None
+      }
+      case e: IOException => throw e 
     }
-    fileDesc.hash = fileHash
-    fileCounter += 1
-    updateProgress()
-    fileDesc
   }
 
 }
@@ -376,6 +403,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   }
 
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
+    try {
     val restoredFile = makePath(fd)
     if (restoredFile.exists()) {
       if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
@@ -388,9 +416,14 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     val fos = new FileOutputStream(restoredFile)
     copy(getInputStream(fd), fos)
     if (restoredFile.length() != fd.size) {
-      l.error(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
+      l.warn(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
     }
     fd.applyAttrsTo(restoredFile)
+    } catch {
+      case e: Exception => 
+        l.warn("Exception while restoring "+fd.path+" ("+e.getMessage()+")")
+        logException(e)
+    }
   }
 
 }
