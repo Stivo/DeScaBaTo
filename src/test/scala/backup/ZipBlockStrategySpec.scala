@@ -14,7 +14,7 @@ import java.util.ArrayList
 import scala.collection.convert.DecorateAsScala
 import scala.collection.JavaConversions._
 
-class ZipBlockStrategySpec extends FlatSpec with BeforeAndAfterAll with BeforeAndAfter with FileDeleter {
+class ZipBlockStrategySpecOld extends FlatSpec with BeforeAndAfterAll with BeforeAndAfter with FileDeleter {
 
   ConsoleManager.testSetup
   

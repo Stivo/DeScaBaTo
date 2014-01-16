@@ -1,5 +1,5 @@
 <providers>
-    <provider class-name="backup.BackupVfsProvider">
+    <provider class-name="ch.descabato.BackupVfsProvider">
         <scheme name="backup"/>
     </provider>
 </providers>

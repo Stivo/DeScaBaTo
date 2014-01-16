@@ -50,7 +50,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper];
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode];
-      if (root.fieldNames().asScala.contains("folder")) {
+      if (root.fieldNames().asScala.find(_=="attrs").isEmpty) {
         mapper.convertValue(root, classOf[FileDeleted])
       } else if (root.fieldNames().asScala.contains("hash")) {
         mapper.convertValue(root, classOf[FileDescription]);

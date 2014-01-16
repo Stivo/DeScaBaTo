@@ -8,7 +8,6 @@ import scala.collection.mutable.Buffer
 import scala.collection.mutable
 import backup.CompressionMode
 import scala.collection.immutable.SortedMap
-import org.scalatest.events.RecordableEvent
 import Streams._
 import java.io.FileInputStream
 import java.security.MessageDigest
@@ -19,20 +18,36 @@ import java.io.ByteArrayInputStream
 import java.io.FileOutputStream
 import java.io.SequenceInputStream
 import java.util.Enumeration
+import com.fasterxml.jackson.annotation.JsonIgnore
 
 /**
  * The configuration to use when working with a backup folder.
  */
-case class BackupFolderConfiguration(folder: File, passphrase: Option[String], newBackup: Boolean = false) {
-  def serialization = new JsonSerialization()
-  var keyLength = 1281
+case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
+  def this() = this(null)
+  var version = 1
+  var serializerType = "smile"
+  @JsonIgnore
+  def serialization = serializerType match {
+    case "smile" => new SmileSerialization
+    case "json" => new JsonSerialization
+  }
+  var keyLength = 192
   var compressor = CompressionMode.none
-  val hashLength = 16
+  def hashLength = getMessageDigest().getDigestLength()
   val hashAlgorithm = "MD5"
-  def getMessageDigest = MessageDigest.getInstance(hashAlgorithm)
-  val blockSize: Size = new Size("64Kb")
-  val volumeSize: Size = new Size("64Mb")
+  @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
+  val blockSize: Size = Size("64Kb")
+  val volumeSize: Size = Size("64Mb")
   val useDeltas = true
+  lazy val hasPassword = passphrase.isDefined
+}
+
+object InitBackupFolderConfiguration {
+  def apply(option: BackupFolderOption) = {
+    val out = BackupFolderConfiguration(new File(option.backupDestination()).getAbsoluteFile(), option.passphrase.get)
+    out
+  }
 }
 
 /**
@@ -40,20 +55,31 @@ case class BackupFolderConfiguration(folder: File, passphrase: Option[String], n
  */
 class BackupConfigurationHandler(supplied: BackupFolderOption) {
 
-  val mainFile = "backup.properties"
+  val mainFile = "backup.json"
   val folder: File = new File(supplied.backupDestination())
   def hasOld = new File(folder, mainFile).exists()
-  def loadOld() = new BackupFolderConfiguration(folder, None)
+  def loadOld() = {
+    val json = new JsonSerialization()
+    json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile)))
+  }
   def configure(): BackupFolderConfiguration = {
     if (hasOld) {
       val oldConfig = loadOld()
       merge(oldConfig, supplied)
     } else {
-      new BackupFolderConfiguration(folder, None, true)
+      folder.mkdirs()
+      val out = InitBackupFolderConfiguration(supplied)
+      val json = new JsonSerialization()
+      val fos = new FileOutputStream(new File(folder, mainFile))
+      json.writeObject(out, fos)
+      out
     }
   }
 
-  def merge(old: BackupFolderConfiguration, newC: BackupFolderOption) = {
+  def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption) = {
+    old.passphrase = supplied.passphrase.get
+    // TODO other properties that can be set again
+    println("After merge " + old)
     old
   }
 
@@ -180,7 +206,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
     val saved = newFiles.collect { case x: FileDescription => x }.map(fileDesc => backupFileDesc(fileDesc))
     finishWriting
     if (!hashChainMapTemp.isEmpty)
-    	fileManager.hashchains.write(hashChainMapTemp.toBuffer)
+      fileManager.hashchains.write(hashChainMapTemp.toBuffer)
     if (!delta) {
       fileListOut ++= unchanged
     }
@@ -247,6 +273,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     folders.foreach(restoreFolderDesc)
     files.foreach(restoreFileDesc)
     folders.foreach(restoreFolderDesc)
+    free()
   }
 
   def makePath(fd: BackupPart)(implicit options: RestoreConf) = {
@@ -292,6 +319,21 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       l.error(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
     }
     fd.applyAttrsTo(restoredFile)
+  }
+
+}
+
+class VfsIndex(config: BackupFolderConfiguration)
+  extends RestoreHandler(config) {
+  self: BlockStrategy =>
+
+  val files = loadOldIndex
+
+  def registerIndex() {
+    l.info("Loading information")
+    val path = config.folder.getAbsolutePath()
+    l.info("Path is loaded as " + path)
+    BackupVfsProvider.indexes += Utils.normalizePath(path) -> this
   }
 
 }

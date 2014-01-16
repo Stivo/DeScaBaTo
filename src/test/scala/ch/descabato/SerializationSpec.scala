@@ -15,7 +15,7 @@ import scala.collection.convert.DecorateAsScala
 import scala.collection.JavaConversions._
 import java.io.ByteArrayInputStream
 
-class SerializationSpec extends FlatSpec {
+class SerializationSpec extends FlatSpec with TestUtils {
  
   def fixture =
     new {
@@ -31,10 +31,6 @@ class SerializationSpec extends FlatSpec {
       val list : Seq[UpdatePart] = List(fid, fod, fd)
       val baout = new ByteArrayOutputStream()
     }
-  
-  def replay(out: ByteArrayOutputStream) = {
-	  new ByteArrayInputStream(out.toByteArray())
-  }
   
   def writeAndRead[T](s: Serialization, t: T)(implicit m: Manifest[T]) = {
     val f = fixture

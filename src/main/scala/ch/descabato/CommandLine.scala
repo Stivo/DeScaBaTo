@@ -12,16 +12,18 @@ import CLI._
 import java.io.PrintStream
 import scala.collection.mutable.Buffer
 import java.io.File
+import pl.otros.vfs.browser.demo.TestBrowser
 
 object CLI {
 
-  implicit val sizeConverter = singleArgConverter[Size](x => SizeParser.parse(x))
+  implicit val sizeConverter = singleArgConverter[Size](x => Size(x))
 
   def runsInJar = classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
 
   def getCommand(args: Seq[String]): Command = args.toList match {
     case "backup" :: args => new BackupCommand(args)
     case "restore" :: args => new RestoreCommand(args)
+    case "browse" :: args => new BrowseCommand(args)
     //    case "newbackup" :: args => new NewBackupCommand(args)
     case _ => println("TODO"); throw new IllegalArgumentException("asdf") //new HelpCommand()
   }
@@ -34,8 +36,9 @@ object CLI {
     if (runsInJar) {
       java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
     } else {
-      parseCommandLine("backup backups test".split(" "))
-      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+      parseCommandLine("backup -p asdf backups test".split(" "))
+      parseCommandLine("browse -p asdf backups".split(" "))
+      //parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
     }
   }
 
@@ -56,8 +59,8 @@ trait Command {
 trait BackupRelatedCommand extends Command {
   type T <: BackupFolderOption
   def start(t: T) {
-    t.builder.verify
-     val conf = new BackupConfigurationHandler(newT).configure
+     t.afterInit
+     val conf = new BackupConfigurationHandler(t).configure
      start(t, conf)
   }
   
@@ -68,7 +71,7 @@ trait BackupRelatedCommand extends Command {
 // Parsing classes
 
 trait CreateBackupOptions extends BackupFolderOption {
-  val blockSize = opt[Size](default = Some(new Size("100Kb")))
+  val blockSize = opt[Size](default = Some(Size("100Kb")))
   val hashAlgorithm = opt[String](default = Some("md5"))
 }
 
@@ -85,7 +88,7 @@ class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
   type T = BackupConf
   val newT = new BackupConf(args)
   def start(t: T, conf: BackupFolderConfiguration) {
-    t.builder.verify
+    t.afterInit
     println(t.summary)
     val bdh = new BackupHandler(conf) with ZipBlockStrategy
     bdh.backup(t.folderToBackup() :: Nil)
@@ -101,6 +104,24 @@ class RestoreCommand(val args: Seq[String]) extends BackupRelatedCommand {
     
     val rh = new RestoreHandler(conf) with ZipBlockStrategy
     rh.restore(t)
+  }
+}
+
+class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption 
+
+class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
+  type T = SimpleBackupFolderOption
+  val newT = new SimpleBackupFolderOption(args)
+  def start(t: T, conf: BackupFolderConfiguration) {
+    t.afterInit
+    println(t.summary)
+    
+    val bh = new VfsIndex(conf) with ZipBlockStrategy
+    bh.registerIndex()
+    val path = conf.folder.getAbsolutePath()
+    val url = s"backup:file://$path!"
+    TestBrowser.main(Array(url))
+
   }
 }
 
@@ -147,15 +168,14 @@ class BackupCommands(args: Seq[String]) extends ScallopConf(args) {
 
 // Domain classes
 case class Size(bytes: Long) {
-  def this(s: String) = this(SizeParser.parse(s).bytes)
   override def toString = Utils.readableFileSize(bytes)
 }
 
-object SizeParser {
+object Size {
   val knownTypes: Set[Class[_]] = Set(classOf[Size])
   val patt = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE);
 
-  def parse(size: String): Size = {
+  def apply(size: String): Size = {
     var out: Long = -1;
     val matcher = patt.matcher(size);
     val map = List(("GB", 3), ("MB", 2), ("KB", 1), ("B", 0)).toMap
@@ -171,7 +191,6 @@ object SizeParser {
 }
 
 object Utils {
-  implicit def string2Size(s: String) = SizeParser.parse(s)
 
   private val units = Array[String]("B", "KB", "MB", "GB", "TB");
   def isWindows = System.getProperty("os.name").contains("indows")
@@ -187,6 +206,8 @@ object Utils {
 
   def encodeBase64Url(bytes: Array[Byte]) = encodeBase64(bytes).replace('+', '-').replace('/', '_')
   def decodeBase64Url(s: String) = decodeBase64(s.replace('-', '+').replace('_', '/'));
+
+  def normalizePath(x: String) = x.replace('\\', '/')
 
 }
 

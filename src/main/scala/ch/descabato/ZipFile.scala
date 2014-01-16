@@ -9,8 +9,8 @@ import java.io.BufferedInputStream
 import java.util.zip.ZipOutputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import backup.Streams.CountingOutputStream
 import java.io.OutputStream
+import ch.descabato.Streams.CountingOutputStream
 
 abstract class ZipFileHandler(zip: File)
 

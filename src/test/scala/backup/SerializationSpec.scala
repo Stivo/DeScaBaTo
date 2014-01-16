@@ -14,7 +14,7 @@ import java.util.ArrayList
 import scala.collection.convert.DecorateAsScala
 import scala.collection.JavaConversions._
 
-class SerializationSpec2 extends FlatSpec with BeforeAndAfterAll {
+class SerializationSpecOld extends FlatSpec with BeforeAndAfterAll {
 
   ConsoleManager.testSetup
   

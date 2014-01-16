@@ -1,4 +1,4 @@
-package backup
+package ch.descabato
 
 import org.scalatest._
 import java.io.File
@@ -21,12 +21,17 @@ import scala.util.Random
 import org.scalacheck.Arbitrary
 import org.scalacheck._
 import Arbitrary.arbitrary
+import backup.CompressionMode
+import backup.AES
+import backup.ConsoleManager
 
-class UtilSpecOld extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPropertyChecks {
+class UtilSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
   
   ConsoleManager.testSetup
-
+  
+  var folder = new File("testdata/temp")
+  
   "sizeparser" should "parse sizes" in {
     val mb = 1024 * 1024
     test("512B", 512)
@@ -39,7 +44,7 @@ class UtilSpecOld extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPr
 
   def test(s: String, l: Long) {
     import Utils._
-    val size: Size = s
+    val size: Size = Size(s)
     assert(size.bytes === l)
   }
   
@@ -56,21 +61,22 @@ class UtilSpecOld extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPr
     val int = r.nextInt(ar.length - 1)
     ar(int)
   }
-
+  
   implicit val genNode = Arbitrary {
     for {
       v <- oneOf(CompressionMode.values)
       keyLength <- oneOf(128, 192, 256)
+      passphrase <- arbitrary[Option[String]]
     } yield {
-      val out = new FHO();
-      out.compression = v;
+      val out = new FHO(passphrase);
+      out.compressor = v;
       out.keyLength = keyLength;
       out
     }
   }
   
-  class FHO extends FileHandlingOptions {
-    override def toString = s"Compression mode is $compression, keylength is $keyLength"
+  class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, passphrase) {
+    override def toString = s"Compression mode is $compressor, keylength is $keyLength"
   }
 
   def testEncryption(password: String, plaintext: String) {
@@ -87,23 +93,22 @@ class UtilSpecOld extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPr
     (compare should equal(plaintext))
   }
 
-  forAll { (fho: FHO, passphrase: Option[String], toEncode: Array[Byte]) =>
-    passphrase.foreach(fho.passphrase = _)
+  forAll { (fho: FHO, toEncode: Array[Byte]) =>
     val baosOriginal = new ByteArrayOutputStream()
     val wrapped = StreamHeaders.wrapStream(baosOriginal, fho)
     wrapped.write(toEncode)
     wrapped.close()
     val encoded = baosOriginal.toByteArray()
-    if (passphrase.isDefined && fho.compression == CompressionMode.none) {
+    if (fho.passphrase.isDefined && fho.compressor == CompressionMode.none) {
       val baosVerify = new ByteArrayOutputStream()
-      val wrapped = AES.wrapStreamWithEncryption(baosVerify, passphrase.get, fho.keyLength)
+      val wrapped = AES.wrapStreamWithEncryption(baosVerify, fho.passphrase.get, fho.keyLength)
       wrapped.write(toEncode)
       wrapped.close()
-      val verify = baosVerify.toByteArray()
-      assert(Arrays.equals(encoded.drop(encoded.length - verify.length), verify))
+      val verify = finishByteArrayOutputStream(baosVerify)
+      assert(Arrays.equals(encoded.drop(encoded.length - verify.length), verify), "Wasnt encrypted correctly")
     }
     val in = new ByteArrayInputStream(encoded)
-    val read = StreamHeaders.readStream(in, passphrase).readFully
+    val read = StreamHeaders.readStream(in, fho.passphrase).readFully
     assert(Arrays.equals(read, toEncode))
   }
 

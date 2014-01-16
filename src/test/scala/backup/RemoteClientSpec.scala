@@ -17,7 +17,7 @@ import java.util.Properties
 import java.io.FileInputStream
 import java.io.FileInputStream
 
-class RemoteClientSpec extends FlatSpec with BeforeAndAfterAll with BeforeAndAfter with PrepareBackupTestData with FileDeleter {
+class RemoteClientSpecOld extends FlatSpec with BeforeAndAfterAll with BeforeAndAfter with PrepareBackupTestData with FileDeleter {
 
   ConsoleManager.testSetup
   var port = 0

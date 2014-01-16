@@ -53,7 +53,7 @@ trait FileDeleter {
 
 }
 
-class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAll with PrepareBackupTestData with FileDeleter {
+class IntegrationTestOld extends FlatSpec with BeforeAndAfter with BeforeAndAfterAll with PrepareBackupTestData with FileDeleter {
 
   ConsoleManager.testSetup
 
@@ -126,10 +126,10 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with BeforeAndAfterAl
     testBackupAndRestore(bo, ro)
   }
 
-  "backup with deltas" should "backup and restore" in {
-    bo.compression = CompressionMode.gzip
-    testBackupAndRestore(bo, ro, true)
-  }
+//  "backup with deltas" should "backup and restore" in {
+//    bo.compression = CompressionMode.gzip
+//    testBackupAndRestore(bo, ro, true)
+//  }
 
   "backup with encryption" should "backup and restore" in {
     bo.passphrase = "Test"
