@@ -27,7 +27,7 @@ class SerializationSpec extends FlatSpec {
       fid.hash = "adsfasdfasdf".getBytes()
       val fod = new FolderDescription("test.txt", FileAttributes.apply(f, new MetadataOptions()))
       fid.hash = "asdf".getBytes()
-      val fd = new FileDeleted("asdf", true)
+      val fd = new FileDeleted("asdf")
       val list : Seq[UpdatePart] = List(fid, fod, fd)
       val baout = new ByteArrayOutputStream()
     }

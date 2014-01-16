@@ -7,6 +7,7 @@ import java.nio.file.Files
 import java.nio.file.attribute.FileTime
 import java.util.Arrays
 import java.nio.file.attribute.BasicFileAttributes
+import com.fasterxml.jackson.annotation.JsonIgnore
 
 class FileAttributes extends HashMap[String, Any] {
 
@@ -83,27 +84,34 @@ object FileAttributes {
 
 }
 
-trait UpdatePart
+trait UpdatePart {
+  def size : Long
+}
 
-case class FileDeleted(val path: String, val folder: Boolean) extends UpdatePart
+case class FileDeleted(val path: String) extends UpdatePart {
+  def size = 0L
+}
 
 object FileDeleted {
   def apply(x: BackupPart) = x match {
-    case FolderDescription(path, _) => new FileDeleted(path, true)
-    case FileDescription(path, _, _) => new FileDeleted(path, false)
+    case FolderDescription(path, _) => new FileDeleted(path)
+    case FileDescription(path, _, _) => new FileDeleted(path)
   }
 }
 
 case class FileDescription(path: String, size: Long, attrs: FileAttributes) extends BackupPart {
   var hash: Array[Byte] = null
   def name = path.split("""[/\\]""").last
+  @JsonIgnore def isFolder = false
 }
 
 case class FolderDescription(path: String, attrs: FileAttributes) extends BackupPart {
-  val size = 0L
+  @JsonIgnore val size = 0L
+  @JsonIgnore def isFolder = true
 }
 
 trait BackupPart extends UpdatePart {
+  @JsonIgnore def isFolder: Boolean
   def path: String
   def attrs: FileAttributes
   def size: Long

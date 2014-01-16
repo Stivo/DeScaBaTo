@@ -21,6 +21,7 @@ object CLI {
 
   def getCommand(args: Seq[String]): Command = args.toList match {
     case "backup" :: args => new BackupCommand(args)
+    case "restore" :: args => new RestoreCommand(args)
     //    case "newbackup" :: args => new NewBackupCommand(args)
     case _ => println("TODO"); throw new IllegalArgumentException("asdf") //new HelpCommand()
   }
@@ -33,10 +34,8 @@ object CLI {
     if (runsInJar) {
       java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
     } else {
-      //      parseCommandLine("backup dest src".split(" "))
-      //      parseCommandLine("".split(" "))
-      //      new BackupConf(List("--help")).printHelp
       parseCommandLine("backup backups test".split(" "))
+      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
     }
   }
 
@@ -46,11 +45,24 @@ trait Command {
   type T <: ScallopConf
   val args: Seq[String]
   def newT: T
+  
   //  def name : String
   final def execute() {
     start(newT)
   }
   def start(t: T)
+}
+
+trait BackupRelatedCommand extends Command {
+  type T <: BackupFolderOption
+  def start(t: T) {
+    t.builder.verify
+     val conf = new BackupConfigurationHandler(newT).configure
+     start(t, conf)
+  }
+  
+  def start(t: T, conf: BackupFolderConfiguration)
+  
 }
 
 // Parsing classes
@@ -65,18 +77,30 @@ trait BackupFolderOption extends ScallopConf {
   val backupDestination = trailArg[String]()
 }
 
+
+
 class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOption
 
-class BackupCommand(val args: Seq[String]) extends Command {
+class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
   type T = BackupConf
   val newT = new BackupConf(args)
-  def start(t: T) {
+  def start(t: T, conf: BackupFolderConfiguration) {
     t.builder.verify
     println(t.summary)
-    val conf = new BackupConfigurationHandler(t).configure
-    val bdh = new BackupDataHandler(conf) with ZipBlockStrategy
+    val bdh = new BackupHandler(conf) with ZipBlockStrategy
     bdh.backup(t.folderToBackup() :: Nil)
-    println("Starting backup")
+  }
+}
+
+class RestoreCommand(val args: Seq[String]) extends BackupRelatedCommand {
+  type T = RestoreConf
+  val newT = new RestoreConf(args)
+  def start(t: T, conf: BackupFolderConfiguration) {
+    t.builder.verify
+    println(t.summary)
+    
+    val rh = new RestoreHandler(conf) with ZipBlockStrategy
+    rh.restore(t)
   }
 }
 
@@ -84,6 +108,16 @@ class BackupConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderO
   val folderToBackup = trailArg[String]().map(x => new File(x))
   //lazy val folderToBackupFiles = List(folderToBackup).map(x => new File(x()))
 }
+
+class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
+  val restoreToOriginalPath = toggle()
+  val restoreToFolder = opt[String]( )
+  val relativeToFolder = opt[String]( )
+//  val overwriteExisting = toggle(default = Some(false))
+  val pattern = opt[String]()
+  mutuallyExclusive(restoreToOriginalPath, restoreToFolder)
+}
+
 
 //class HelpCommand extends Command wit{
 //    def execute(t: T) : Unit {}

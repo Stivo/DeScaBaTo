@@ -96,12 +96,12 @@ trait Utils extends Logging {
 
 trait UpdatePart
 
-case class FileDeleted(val path: String, val folder: Boolean) extends UpdatePart
+case class FileDeleted(val path: String) extends UpdatePart
 
 object FileDeleted {
   def apply(x: BackupPart) = x match {
-    case FolderDescription(path, _) => new FileDeleted(path, true)
-    case FileDescription(path, _, _, _, _) => new FileDeleted(path, false)
+    case FolderDescription(path, _) => new FileDeleted(path)
+    case FileDescription(path, _, _, _, _) => new FileDeleted(path)
   }
 }
 

@@ -37,7 +37,7 @@ class BackupBaseHandler[T <: BackupFolderOption](val folder: T) extends Delegate
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
       updates.foreach {
-        case FileDeleted(path, isFolder) => map -= path
+        case FileDeleted(path) => map -= path
         case x: BackupPart => map(x.path) = x
       }
       map.values.toBuffer
