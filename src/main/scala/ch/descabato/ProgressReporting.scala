@@ -55,7 +55,7 @@ trait Counter {
 }
 
 trait ETACounter extends Counter with Utils {
-  def window = 15
+  def window = 60
   case class Snapshot(time: Long, l: Double)
   val p = new PrettyTime();
   val tu = p.getUnits().asScala.foreach {
@@ -86,7 +86,7 @@ trait ETACounter extends Counter with Utils {
     val rate = (last.l - first.l) / (last.time - first.time)
     val remaining = (maxValue - last.l).toDouble
     val ms = remaining / rate
-    p.format(new Date(System.currentTimeMillis()+ms.toLong))
+    readableFileSize((1000*rate).toLong)+"/s, ETA: "+p.format(new Date(System.currentTimeMillis()+ms.toLong))
   }
 
   override def update = super.update + " " + calcEta

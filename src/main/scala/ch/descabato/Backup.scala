@@ -34,13 +34,13 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
     case "smile" => new SmileSerialization
     case "json" => new JsonSerialization
   }
-  var keyLength = 192
-  var compressor = CompressionMode.none
+  var keyLength = 128
+  var compressor = CompressionMode.gzip
   def hashLength = getMessageDigest().getDigestLength()
   val hashAlgorithm = "MD5"
   @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
-  val blockSize: Size = Size("64Kb")
-  val volumeSize: Size = Size("64Mb")
+  val blockSize: Size = Size("16Kb")
+  val volumeSize: Size = Size("100Mb")
   val checkPointEvery: Size = volumeSize
   val useDeltas = false
   lazy val hasPassword = passphrase.isDefined
@@ -52,7 +52,7 @@ object InitBackupFolderConfiguration {
     option match {
       case o: CreateBackupOptions =>
         o.serializerType.foreach(out.serializerType = _)
-        o.compression.foreach(x => out.compressor = CompressionMode.valueOf(x.toLowerCase))
+        o.compression.foreach(x => out.compressor = x)
     }
     out
   }
@@ -182,6 +182,7 @@ abstract class BackupDataHandler extends BackupIndexHandler {
     val temps = loadFor(fileManager.hashchains.getTempFiles())
     if (!temps.isEmpty) {
       fileManager.hashchains.write(temps)
+      fileManager.hashchains.deleteTempFiles()
     }
     val list = loadFor(fileManager.hashchains.getFiles())
     val map = new HashChainMap
@@ -227,7 +228,6 @@ class BackupHandler(val config: BackupFolderConfiguration)
   var hashChainMapCheckpoint: HashChainMap = new HashChainMap()
 
   def checkpoint(seq: Seq[FileDescription]) = {
-    l.info("Checkpointing ")
     val (toSave, toKeep) = seq.partition(x => blockExists(getHashChain(x).last))
     fileManager.files.write(toSave.toBuffer, true)
     if (!hashChainMapCheckpoint.isEmpty) {
@@ -243,6 +243,9 @@ class BackupHandler(val config: BackupFolderConfiguration)
 
   def backup(files: Seq[File]) {
     config.folder.mkdirs()
+    
+    // Walk tree and compile to do list
+    
     val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true).walk(files)
     val (newParts, unchanged, deleted) = (visitor.newFiles, visitor.unchangedFiles, visitor.deleted)
     println("New Files      : " + statistics(newParts))
@@ -253,9 +256,10 @@ class BackupHandler(val config: BackupFolderConfiguration)
       return
     }
     val fileListOut = Buffer[BackupPart]()
+	val (newFolders, newFiles) = partitionFolders(newParts)
 
-    val (newFolders, newFiles) = partitionFolders(newParts)
-
+    // Backup files 
+    
     setMaximums(newFiles.size, newFiles.map(_.size).sum)
     importOldHashChains
     var list = newFiles.toList
@@ -264,12 +268,14 @@ class BackupHandler(val config: BackupFolderConfiguration)
       var sum = config.checkPointEvery.bytes
       val cur = list.takeWhile { x => val out = sum > 0; sum -= x.size; out }
       val temp = cur.flatMap(backupFileDesc(_))
-      l.info("Handled " + cur.size + " before checkpointing")
       fileListOut ++= temp
       toSave ++= temp
       toSave = checkpoint(toSave)
+      l.debug(s"Checkpointing: ${temp.size} files processed, ${toSave.size} pending to be saved")
       list = list.drop(cur.size)
     }
+    
+    // Clean up, handle failed entries
     
     if (!failed.isEmpty) {
       l.info(failed.size + " files could not be backed up due to file locks, trying again.")
@@ -283,6 +289,9 @@ class BackupHandler(val config: BackupFolderConfiguration)
         failed.foreach{f => l.debug("File "+f+" was not backed up due to locks")}
       }
     }
+    
+    // finish writing, complete the backup
+    
     finishWriting
     if (!hashChainMapNew.isEmpty) {
       fileManager.hashchains.write(hashChainMapNew.toBuffer)

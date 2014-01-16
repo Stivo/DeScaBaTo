@@ -13,10 +13,9 @@ import scala.collection.mutable.Buffer
 import java.io.File
 import pl.otros.vfs.browser.demo.TestBrowser
 import backup.CompressionMode
+import ScallopConverters._
 
 object CLI {
-
-  implicit val sizeConverter = singleArgConverter[Size](x => Size(x))
 
   def runsInJar = classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
 
@@ -42,6 +41,24 @@ object CLI {
       parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
     }
   }
+
+}
+
+object ScallopConverters {
+    def singleArgConverter[A](conv: String => A, msg: String = "wrong arguments format")(implicit tt: TypeTag[A]) = new ValueConverter[A] {
+    def parse(s: List[(String, List[String])]) = {
+      s match {
+        case (_, i :: Nil) :: Nil =>
+          try { Right(Some(conv(i))) } catch { case _: Throwable => Left(msg) }
+        case Nil => Right(None)
+        case _ => Left("you should provide exactly one argument for this option")
+      }
+    }
+    val tag = tt
+    val argType = ArgType.SINGLE
+  }
+  implicit val modeConverter = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of "+CompressionMode.values.mkString(", "))
+  implicit val sizeConverter = singleArgConverter[Size](x => Size(x))
 
 }
 
@@ -73,16 +90,9 @@ trait BackupRelatedCommand extends Command {
 
 trait CreateBackupOptions extends BackupFolderOption {
   val serializerType = opt[String]()
-  val compression = opt[String]()
+  val compression = opt[CompressionMode]()
   val blockSize = opt[Size](default = Some(Size("100Kb")))
   val hashAlgorithm = opt[String](default = Some("md5"))
-  validate(compression) { x =>
-    try {
-      CompressionMode.valueOf(x); Right(Unit)
-    } catch {
-      case ilarg: Exception => Left("compression should be one of " + CompressionMode.values.mkString(", "))
-    }
-  }
 }
 
 trait BackupFolderOption extends ScallopConf {
@@ -153,8 +163,6 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
 
 class BackupCommands(args: Seq[String]) extends ScallopConf(args) {
   def this(args: String) = this(args.split(" "))
-
-  //implicit val modeConverter = singleArgConverter[CompressionMode](CompressionMode.valueOf)
 
   val backup = new Subcommand("backup") with BackupFolderOption {
     //val mode = opt[CompressionMode]()

@@ -141,18 +141,13 @@ class FileManager(options: BackupFolderConfiguration) {
 
   def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {
     val filesNow = options.folder.listFiles().filter(_.isFile()).filter(files.matches)
-    val allFiles = if (temp) {
-      filesNow ++ files.getTempFiles()
-    } else filesNow
-    val sorted = allFiles.sortBy(_.getName())
-    if (allFiles.isEmpty) {
-      (Array(), false)
-    } else {
-      val lastDate = files.getDate(sorted.last)
-      val onlyLast = sorted.dropWhile(x => files.getDate(x).before(lastDate))
-      val updates = filesDelta.getFiles().dropWhile(filesDelta.getDate(_).before(lastDate))
-      (onlyLast ++ updates, !updates.isEmpty)
-    }
+    val sorted = filesNow.sortBy(_.getName())
+    val lastDate = if (sorted.isEmpty) new Date(0) else files.getDate(sorted.filterNot(_.getName.startsWith(Constants.tempPrefix)).last)
+    val onlyLast = sorted.dropWhile(x => files.getDate(x).before(lastDate))
+    val updates = filesDelta.getFiles().dropWhile(filesDelta.getDate(_).before(lastDate))
+    val out1 = onlyLast ++ updates
+    val complete = if (temp) out1 ++ files.getTempFiles() else out1
+    (complete, !updates.isEmpty)
   }
 
 }
