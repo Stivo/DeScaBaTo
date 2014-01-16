@@ -21,6 +21,8 @@ import java.util.Enumeration
 import com.fasterxml.jackson.annotation.JsonIgnore
 import java.io.IOException
 import java.io.PrintStream
+import java.util.Date
+import java.security.DigestOutputStream
 
 /**
  * The configuration to use when working with a backup folder.
@@ -134,8 +136,12 @@ abstract class BackupIndexHandler extends Utils {
 
   lazy val fileManager = new FileManager(config)
 
-  def loadOldIndex(temp: Boolean = false): Buffer[BackupPart] = {
-    val (filesToLoad, hasDeltas) = fileManager.getBackupAndUpdates(temp)
+  def loadOldIndex(temp: Boolean = false, date: Option[Date] = None): Buffer[BackupPart] = {
+    val (filesToLoad, hasDeltas) = if (date.isDefined) {
+      (fileManager.getBackupForDate(date.get).toArray, false)
+    } else {
+      fileManager.getBackupAndUpdates(temp)
+    }
     val updates = filesToLoad.par.flatMap(fileManager.filesDelta.read).fold(Buffer[UpdatePart]())(_ ++ _).seq
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
@@ -243,9 +249,9 @@ class BackupHandler(val config: BackupFolderConfiguration)
 
   def backup(files: Seq[File]) {
     config.folder.mkdirs()
-    
+
     // Walk tree and compile to do list
-    
+
     val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true).walk(files)
     val (newParts, unchanged, deleted) = (visitor.newFiles, visitor.unchangedFiles, visitor.deleted)
     println("New Files      : " + statistics(newParts))
@@ -256,10 +262,10 @@ class BackupHandler(val config: BackupFolderConfiguration)
       return
     }
     val fileListOut = Buffer[BackupPart]()
-	val (newFolders, newFiles) = partitionFolders(newParts)
+    val (newFolders, newFiles) = partitionFolders(newParts)
 
     // Backup files 
-    
+
     setMaximums(newFiles.size, newFiles.map(_.size).sum)
     importOldHashChains
     var list = newFiles.toList
@@ -274,9 +280,9 @@ class BackupHandler(val config: BackupFolderConfiguration)
       l.debug(s"Checkpointing: ${temp.size} files processed, ${toSave.size} pending to be saved")
       list = list.drop(cur.size)
     }
-    
+
     // Clean up, handle failed entries
-    
+
     if (!failed.isEmpty) {
       l.info(failed.size + " files could not be backed up due to file locks, trying again.")
       val copy = failed.toBuffer
@@ -285,13 +291,13 @@ class BackupHandler(val config: BackupFolderConfiguration)
       if (succeeded.size == copy.size) {
         l.info("All files backed up now")
       } else {
-        l.info(copy.size-succeeded.size+" Files could not be backed up. See log for a complete list")
-        failed.foreach{f => l.debug("File "+f+" was not backed up due to locks")}
+        l.info(copy.size - succeeded.size + " Files could not be backed up. See log for a complete list")
+        failed.foreach { f => l.debug("File " + f + " was not backed up due to locks") }
       }
     }
-    
+
     // finish writing, complete the backup
-    
+
     finishWriting
     if (!hashChainMapNew.isEmpty) {
       fileManager.hashchains.write(hashChainMapNew.toBuffer)
@@ -355,33 +361,38 @@ class BackupHandler(val config: BackupFolderConfiguration)
       updateProgress()
       Some(fileDesc)
     } catch {
-      case io: IOException if (io.getMessage().contains("The process cannot access the file")) => { 
+      case io: IOException if (io.getMessage().contains("The process cannot access the file")) => {
         failed += fileDesc
         l.warn("Could not backup file " + fileDesc.path + " because it is locked.")
         None
       }
-      case e: IOException => throw e 
+      case e: IOException => throw e
     }
   }
 
 }
 
 class RestoreHandler(val config: BackupFolderConfiguration)
-  extends BackupDataHandler {
+  extends BackupDataHandler with BackupProgressReporting {
   self: BlockStrategy =>
 
   val hashChains = importOldHashChains()
 
-  def restore(options: RestoreConf) {
+  def restore(options: RestoreConf, d: Option[Date] = None) {
     implicit val o = options
-    val filesInBackup = loadOldIndex()
+    val filesInBackup = loadOldIndex(date = d)
     val filtered = if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
-    println("Going to restore " + statistics(filtered))
+    l.info("Going to restore " + statistics(filtered))
+    setMaximums(filtered.size, filtered.map(_.size).sum)
     val (folders, files) = partitionFolders(filtered)
     folders.foreach(restoreFolderDesc)
     files.foreach(restoreFileDesc)
     folders.foreach(restoreFolderDesc)
     free()
+  }
+
+  def restoreFromDate(t: RestoreConf, d: Date) {
+    restore(t, Some(d))
   }
 
   def makePath(fd: BackupPart)(implicit options: RestoreConf) = {
@@ -399,6 +410,8 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     val restoredFile = makePath(fd)
     restoredFile.mkdirs()
     fd.applyAttrsTo(restoredFile)
+    fileCounter += 1
+    updateProgress
   }
 
   def getInputStream(fd: FileDescription): InputStream = {
@@ -413,26 +426,35 @@ class RestoreHandler(val config: BackupFolderConfiguration)
 
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
     try {
-    val restoredFile = makePath(fd)
-    if (restoredFile.exists()) {
-      if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
-        return
+      val restoredFile = makePath(fd)
+      if (restoredFile.exists()) {
+        if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
+          fileCounter += 1
+          byteCounter += fd.size
+          return
+        }
+        l.debug(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
+        l.warn("File exists, but has been modified, so overwrite")
       }
-      l.info(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
-      l.info("File exists, but has been modified, so overwrite")
-    }
-    l.info("Restoring to " + restoredFile)
-    val fos = new FileOutputStream(restoredFile)
-    copy(getInputStream(fd), fos)
-    if (restoredFile.length() != fd.size) {
-      l.warn(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
-    }
-    fd.applyAttrsTo(restoredFile)
+      val fos = new FileOutputStream(restoredFile)
+      val dos = new DigestOutputStream(fos, config.getMessageDigest)
+      copy(getInputStream(fd), dos)
+      val hash = dos.getMessageDigest().digest()
+      if (!Arrays.equals(fd.hash, hash)) {
+        l.warn("Error while restoring file, hash is not correct")
+      }
+      if (restoredFile.length() != fd.size) {
+        l.warn(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
+      }
+      fd.applyAttrsTo(restoredFile)
     } catch {
-      case e: Exception => 
-        l.warn("Exception while restoring "+fd.path+" ("+e.getMessage()+")")
+      case e: Exception =>
+        l.warn("Exception while restoring " + fd.path + " (" + e.getMessage() + ")")
         logException(e)
     }
+    fileCounter += 1
+    byteCounter += fd.size
+    updateProgress
   }
 
 }

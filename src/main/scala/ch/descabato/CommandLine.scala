@@ -14,6 +14,8 @@ import java.io.File
 import pl.otros.vfs.browser.demo.TestBrowser
 import backup.CompressionMode
 import ScallopConverters._
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 object CLI {
 
@@ -45,7 +47,7 @@ object CLI {
 }
 
 object ScallopConverters {
-    def singleArgConverter[A](conv: String => A, msg: String = "wrong arguments format")(implicit tt: TypeTag[A]) = new ValueConverter[A] {
+  def singleArgConverter[A](conv: String => A, msg: String = "wrong arguments format")(implicit tt: TypeTag[A]) = new ValueConverter[A] {
     def parse(s: List[(String, List[String])]) = {
       s match {
         case (_, i :: Nil) :: Nil =>
@@ -57,7 +59,7 @@ object ScallopConverters {
     val tag = tt
     val argType = ArgType.SINGLE
   }
-  implicit val modeConverter = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of "+CompressionMode.values.mkString(", "))
+  implicit val modeConverter = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
   implicit val sizeConverter = singleArgConverter[Size](x => Size(x))
 
 }
@@ -72,6 +74,25 @@ trait Command {
     start(newT)
   }
   def start(t: T)
+
+  def askUser(question: String = "Do you want to continue?"): String = {
+    println(question)
+    val bufferRead = new BufferedReader(new InputStreamReader(System.in));
+    val s = bufferRead.readLine();
+    s
+  }
+
+  def askUserYesNo(question: String = "Do you want to continue?"): Boolean = {
+    val answer = askUser(question)
+    val yes = Set("yes", "y")
+    if (yes.contains(answer.toLowerCase().trim)) {
+      true
+    } else {
+      println("User aborted")
+      false
+    }
+  }
+
 }
 
 trait BackupRelatedCommand extends Command {
@@ -106,7 +127,6 @@ class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
   type T = BackupConf
   val newT = new BackupConf(args)
   def start(t: T, conf: BackupFolderConfiguration) {
-    t.afterInit
     println(t.summary)
     val bdh = new BackupHandler(conf) with ZipBlockStrategy
     bdh.backup(t.folderToBackup() :: Nil)
@@ -117,11 +137,17 @@ class RestoreCommand(val args: Seq[String]) extends BackupRelatedCommand {
   type T = RestoreConf
   val newT = new RestoreConf(args)
   def start(t: T, conf: BackupFolderConfiguration) {
-    t.builder.verify
     println(t.summary)
-
     val rh = new RestoreHandler(conf) with ZipBlockStrategy
-    rh.restore(t)
+    if (t.chooseDate()) {
+      val fm = new FileManager(conf)
+      val options = fm.getBackupDates.zipWithIndex
+      options.foreach { case (date, num) => println(s"[$num]: $date") }
+      val option = askUser("Which backup would you like to restore from?").toInt
+      rh.restoreFromDate(t, options.find(_._2 == option).get._1)
+    } else {
+      rh.restore(t)
+    }
   }
 }
 
@@ -149,7 +175,8 @@ class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupO
 }
 
 class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
-  val restoreToOriginalPath = toggle()
+  val restoreToOriginalPath = opt[Boolean]()
+  val chooseDate = opt[Boolean]()
   val restoreToFolder = opt[String]()
   val relativeToFolder = opt[String]()
   //  val overwriteExisting = toggle(default = Some(false))

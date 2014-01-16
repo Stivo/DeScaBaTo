@@ -149,5 +149,13 @@ class FileManager(options: BackupFolderConfiguration) {
     val complete = if (temp) out1 ++ files.getTempFiles() else out1
     (complete, !updates.isEmpty)
   }
+  
+  def getBackupDates(): Seq[Date] = {
+    files.getFiles().map(files.getDate).toList.distinct.sorted
+  }
 
+  def getBackupForDate(d: Date) : Seq[File] = {
+    files.getFiles().filter(f => files.getDate(f) == d)
+  }
+  
 }
