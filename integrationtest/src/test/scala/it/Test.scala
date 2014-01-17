@@ -60,6 +60,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
 
   def testWith(config: String, configRestore: String, iterations: Int, crash: Boolean = false) {
     println(baseFolder.getAbsolutePath())
+    baseFolder.mkdirs()
     assume(baseFolder.getAbsoluteFile().exists())
     deleteAll(backup1)
     deleteAll(restore1)
