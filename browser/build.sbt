@@ -9,12 +9,13 @@ version := "0.1.0-SNAPSHOT"
 
 scalaVersion := "2.10.3"
 
+mainClass := Some("ch.descabato.browser.Main")
+
 packageArchetype.java_application
 
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
-    base / "src/main/resources",
-    base / "src/test/resources"
+    base / "src/main/resources"
   )
 }
 

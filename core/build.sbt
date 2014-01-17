@@ -15,8 +15,7 @@ packageArchetype.java_application
 
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
-    base / "src/main/resources",
-    base / "src/test/resources"
+    base / "src/main/resources"
   )
 }
 

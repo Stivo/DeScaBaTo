@@ -10,4 +10,3 @@ object HelloBuild extends Build {
   val browser = Project(id = "browser", base = file("browser")) dependsOn(core)
   
 }
-

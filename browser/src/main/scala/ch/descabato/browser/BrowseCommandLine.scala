@@ -5,6 +5,7 @@ import ch.descabato.BackupFolderConfiguration
 import ch.descabato.BackupRelatedCommand
 import ch.descabato.ZipBlockStrategy
 import pl.otros.vfs.browser.demo.TestBrowser
+import ch.descabato.CLI
 
 
 
@@ -21,5 +22,11 @@ class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
     
     TestBrowser.main(Array(url))
 
+  }
+}
+
+object Main {
+  def main(args: Array[String]) {
+    CLI.main(args)
   }
 }
