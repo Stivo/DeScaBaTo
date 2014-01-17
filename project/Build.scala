@@ -9,4 +9,6 @@ object HelloBuild extends Build {
   
   val browser = Project(id = "browser", base = file("browser")) dependsOn(core)
   
+  val it = Project(id = "it", base = file("integrationtest")) dependsOn(core % "test->test")
+  
 }

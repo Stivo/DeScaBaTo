@@ -8,7 +8,6 @@ import java.util.Arrays
 import java.io.ByteArrayOutputStream
 import java.io.ByteArrayInputStream
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.util.zip.GZIPOutputStream
 import java.util.zip.GZIPInputStream
 import java.io.File
@@ -19,6 +18,9 @@ import scala.concurrent.duration._
 import org.tukaani.xz.XZOutputStream
 import org.tukaani.xz.XZInputStream
 import org.tukaani.xz.LZMA2Options
+import scala.collection.mutable.SynchronizedSet
+import scala.collection.mutable.HashSet
+import java.io.FileOutputStream
 
 object ObjectPools {
 
@@ -103,7 +105,7 @@ object ObjectPools {
 
 }
 
-object Streams {
+object Streams extends Utils {
   import ObjectPools.baosPool
 
   def readFrom(in: InputStream, f: (Array[Byte], Int) => Unit) {
@@ -232,5 +234,33 @@ object Streams {
       super.write(buf, start, len)
     }
   }
+  
+  class UnclosedFileOutputStream(f: File) extends FileOutputStream(f) {
+    unclosedStreams += this
+    override def close() {
+      super.close()
+      unclosedStreams -= this
+    }
+    
+    override def equals(other: Any) = {
+      other match {
+        case x: UnclosedFileOutputStream => x eq this
+        case _ => false
+      }
+    }
+    
+    override def hashCode() = {
+      f.hashCode()
+    }
+    
+  }
 
+  val unclosedStreams = new HashSet[UnclosedFileOutputStream] with SynchronizedSet[UnclosedFileOutputStream]
+  
+  def closeAll() {
+    l.info("Closing "+unclosedStreams.size+" outputstreams")
+    while (!unclosedStreams.isEmpty)
+      unclosedStreams.head.close
+  }
+  
 }

@@ -8,7 +8,6 @@ import scala.collection.mutable.Buffer
 import java.io.BufferedInputStream
 import java.util.zip.ZipOutputStream
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.OutputStream
 import ch.descabato.Streams.CountingOutputStream
 
@@ -44,7 +43,7 @@ class ZipFileReader(val file: File) extends ZipFileHandler(file) {
  */
 class ZipFileWriter(val file: File) extends ZipFileHandler(file) {
 
-  val fos = new CountingOutputStream(new FileOutputStream(file))
+  val fos = new CountingOutputStream(new Streams.UnclosedFileOutputStream(file))
   val out = new ZipOutputStream(fos)
 
   // compression is done already before

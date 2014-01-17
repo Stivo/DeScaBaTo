@@ -14,7 +14,6 @@ import java.util.Arrays
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.ByteArrayInputStream
-import java.io.FileOutputStream
 import java.io.SequenceInputStream
 import java.util.Enumeration
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -85,7 +84,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) {
       folder.mkdirs()
       val out = InitBackupFolderConfiguration(supplied)
       val json = new JsonSerialization()
-      val fos = new FileOutputStream(new File(folder, mainFile))
+      val fos = new UnclosedFileOutputStream(new File(folder, mainFile))
       json.writeObject(out, fos)
       out
     }
@@ -447,7 +446,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
         l.debug(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
         l.warn("File exists, but has been modified, so overwrite")
       }
-      val fos = new FileOutputStream(restoredFile)
+      val fos = new UnclosedFileOutputStream(restoredFile)
       val dos = new DigestOutputStream(fos, config.getMessageDigest)
       copy(getInputStream(fd), dos)
       val hash = dos.getMessageDigest().digest()

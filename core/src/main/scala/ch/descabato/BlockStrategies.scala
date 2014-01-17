@@ -1,7 +1,6 @@
 package ch.descabato
 
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.ByteArrayOutputStream
 import java.util.Arrays
 import java.io.OutputStream
@@ -42,7 +41,7 @@ class FolderBlockStrategy(val config: BackupFolderConfiguration) extends BlockSt
   def writeBlock(hash: Array[Byte], buf: Array[Byte]) {
     val hashS = encodeBase64Url(hash)
     val f = new File(blocksFolder, hashS)
-    val out = StreamHeaders.newFileOutputStream(f, config)
+    val out = StreamHeaders.newUnclosedFileOutputStream(f, config)
     out.write(buf)
     out.close()
   }
@@ -148,7 +147,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   def startZip() {
     l.info(s"Starting volume ${volumeName(curNum)}")
     currentZip = new ZipFileWriter(new File(config.folder, volumeName(curNum, true)))
-    currentIndex = StreamHeaders.newFileOutputStream(new File(config.folder,
+    currentIndex = StreamHeaders.newUnclosedFileOutputStream(new File(config.folder,
       indexName(curNum, true)), config)
   }
 

@@ -8,7 +8,6 @@ import java.util.zip.GZIPOutputStream
 import org.tukaani.xz.LZMA2Options
 import java.util.zip.GZIPInputStream
 import org.tukaani.xz.XZInputStream
-import java.io.FileOutputStream
 import java.io.File
 import java.io.FileInputStream
 
@@ -53,8 +52,8 @@ object StreamHeaders extends StreamHeader {
     headers(version).wrapStream(out, options)
   }
 
-  def newFileOutputStream(file: File, options: BackupFolderConfiguration) = {
-    wrapStream(new FileOutputStream(file), options)
+  def newUnclosedFileOutputStream(file: File, options: BackupFolderConfiguration) = {
+    wrapStream(new Streams.UnclosedFileOutputStream(file), options)
   }
 
   def readStream(in: InputStream, passphrase: Option[String] = None): InputStream = {

@@ -14,11 +14,12 @@ import java.io.File
 import ScallopConverters._
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.FileOutputStream
 
 object CLI {
 
-  def runsInJar = classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
+  var _overrideRunsInJar = false
+  
+  def runsInJar = _overrideRunsInJar || classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
 
   def callWithReflection(args: Seq[String], className: String) = {
     val constructor = Class.forName(className).getConstructor(classOf[Seq[String]])
@@ -144,7 +145,7 @@ class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
     def writeTo(f: File) {
       val bat = new File(f, s"${conf.folder.getName()}$suffix")
       if (!bat.exists) {
-        val ps = new PrintStream(new FileOutputStream(bat))
+        val ps = new PrintStream(new Streams.UnclosedFileOutputStream(bat))
         ps.print(line)
         ps.close()
         println("A file " + bat + " has been written to execute this backup again")

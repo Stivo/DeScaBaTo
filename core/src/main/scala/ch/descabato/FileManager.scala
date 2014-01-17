@@ -6,7 +6,6 @@ import scala.collection.mutable.HashMap
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.io.FileOutputStream
 import java.io.FileInputStream
 
 class VolumeIndex extends HashMap[String, Int]
@@ -95,7 +94,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def write(x: T, temp: Boolean = false) = {
     val file = nextFile(temp = temp)
     //l.info("Writing "+x+" to file "+file)
-    val out = StreamHeaders.wrapStream(new FileOutputStream(file), options)
+    val out = StreamHeaders.wrapStream(new Streams.UnclosedFileOutputStream(file), options)
     options.serialization.writeObject(x, out)
     file
   }

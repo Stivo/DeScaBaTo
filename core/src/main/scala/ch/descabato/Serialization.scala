@@ -29,9 +29,6 @@ import java.io.InputStream
 trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit
 
-  //  def writeObject[T](t: T, file: File)(implicit options: FileHandlingOptions, m: Manifest[T]) {
-  //    writeObject(t, Streams.newFileOutputStream(file))
-  //  }
   def readObject[T](in: InputStream)(implicit m: Manifest[T]): Option[T]
 }
 

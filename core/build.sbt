@@ -1,6 +1,3 @@
-import de.johoop.jacoco4sbt._
-import JacocoPlugin._
-
 name := "core"
 
 organization := "ch.descabato"
@@ -42,13 +39,7 @@ libraryDependencies ++= Seq(
 
 parallelExecution in Test := false
 
-jacoco.settings
-
 org.scalastyle.sbt.ScalastylePlugin.Settings
-
-parallelExecution in jacoco.Config := false
-
-//libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.2.3"
 
 libraryDependencies += "org.tukaani" % "xz" % "1.4"
 
