@@ -11,7 +11,6 @@ import CLI._
 import java.io.PrintStream
 import scala.collection.mutable.Buffer
 import java.io.File
-import pl.otros.vfs.browser.demo.TestBrowser
 import ScallopConverters._
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -21,10 +20,15 @@ object CLI {
 
   def runsInJar = classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
 
+  def callWithReflection(args: Seq[String], className: String) = {
+    val constructor = Class.forName(className).getConstructor(classOf[Seq[String]])
+    constructor.newInstance(args).asInstanceOf[Command]
+  }
+  
   def getCommand(args: Seq[String]): Command = args.toList match {
     case "backup" :: args => new BackupCommand(args)
     case "restore" :: args => new RestoreCommand(args)
-    case "browse" :: args => new BrowseCommand(args)
+    case "browse" :: args => callWithReflection(args, "ch.descabato.browser.BrowseCommand")
     case "help" :: args => new HelpCommand(args)
     //    case "newbackup" :: args => new NewBackupCommand(args)
     case _ => new HelpCommand(Nil)
@@ -179,22 +183,6 @@ class RestoreCommand(val args: Seq[String]) extends BackupRelatedCommand {
 }
 
 class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
-
-class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
-  type T = SimpleBackupFolderOption
-  val newT = new SimpleBackupFolderOption(args)
-  def start(t: T, conf: BackupFolderConfiguration) {
-    t.afterInit
-    println(t.summary)
-
-    val bh = new VfsIndex(conf) with ZipBlockStrategy
-    bh.registerIndex()
-    val path = conf.folder.getAbsolutePath()
-    val url = s"backup:file://$path!"
-    TestBrowser.main(Array(url))
-
-  }
-}
 
 class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
   val folderToBackup = trailArg[File]().map(_.getAbsoluteFile())

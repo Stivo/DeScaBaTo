@@ -469,18 +469,3 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   }
 
 }
-
-class VfsIndex(config: BackupFolderConfiguration)
-  extends RestoreHandler(config) {
-  self: BlockStrategy =>
-
-  val files = loadOldIndex()
-
-  def registerIndex() {
-    l.info("Loading information")
-    val path = config.folder.getAbsolutePath()
-    l.info("Path is loaded as " + path)
-    BackupVfsProvider.indexes += Utils.normalizePath(path) -> this
-  }
-
-}

@@ -1,33 +1,35 @@
-package ch.descabato
+package ch.descabato.browser
 
-import java.util.Collections
 import org.apache.commons.vfs2.Capability
 import org.apache.commons.vfs2.FileSystemOptions
 import org.apache.commons.vfs2.FileName
 import java.util.Collection
 import java.util.ArrayList
 import org.apache.commons.vfs2.provider.FileProvider
-import org.apache.commons.vfs2.provider.AbstractOriginatingFileProvider
 import org.apache.commons.vfs2.provider.AbstractFileSystem
 import org.apache.commons.vfs2.provider.AbstractFileName
 import org.apache.commons.vfs2.FileObject
 import org.apache.commons.vfs2.provider.AbstractLayeredFileProvider
 import org.apache.commons.vfs2.provider.AbstractFileObject
-import scala.collection.mutable.Buffer
 import org.apache.commons.vfs2.{ FileType => VfsFileType }
-import java.nio.file.FileSystemException
-import org.apache.commons.vfs2.FileSystem
-import java.io.ByteArrayInputStream
 import org.apache.commons.vfs2.provider.LayeredFileName
-import org.apache.commons.vfs2.provider.local.LocalFileName
-import java.io.File
-import org.apache.commons.vfs2.impl.StandardFileSystemManager
-import org.apache.commons.vfs2.provider.jar.JarFileSystem
-import org.apache.commons.vfs2.provider.zip.ZipFileSystem
-import org.apache.commons.vfs2.provider.jar.JarFileProvider
-import java.util.Arrays
 import java.util.Date
-import pl.otros.vfs.browser.demo.TestBrowser
+import ch.descabato.BackupFolderConfiguration
+import ch.descabato.BackupPart
+import ch.descabato.BlockStrategy
+import ch.descabato.FileAttributes
+import ch.descabato.FileDescription
+import ch.descabato.FolderDescription
+import ch.descabato.RestoreHandler
+import org.apache.commons.vfs2.Capability.COMPRESS
+import org.apache.commons.vfs2.Capability.GET_LAST_MODIFIED
+import org.apache.commons.vfs2.Capability.GET_TYPE
+import org.apache.commons.vfs2.Capability.LAST_MODIFIED
+import org.apache.commons.vfs2.Capability.LIST_CHILDREN
+import org.apache.commons.vfs2.Capability.READ_CONTENT
+import org.apache.commons.vfs2.Capability.VIRTUAL
+import org.apache.commons.vfs2.{FileType => VfsFileType}
+import ch.descabato.Utils
 
 object BackupVfsProvider {
 
@@ -155,5 +157,20 @@ class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFile
   protected def doGetContentSize() = backupPart.size
 
   protected def doGetInputStream() = index.getInputStream(backupPart.asInstanceOf[FileDescription])
+
+}
+
+class VfsIndex(config: BackupFolderConfiguration)
+  extends RestoreHandler(config) {
+  self: BlockStrategy =>
+
+  val files = loadOldIndex()
+
+  def registerIndex() {
+    l.info("Loading information")
+    val path = config.folder.getAbsolutePath()
+    l.info("Path is loaded as " + path)
+    BackupVfsProvider.indexes += Utils.normalizePath(path) -> this
+  }
 
 }
