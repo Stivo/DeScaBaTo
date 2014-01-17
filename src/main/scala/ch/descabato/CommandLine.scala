@@ -12,7 +12,6 @@ import java.io.PrintStream
 import scala.collection.mutable.Buffer
 import java.io.File
 import pl.otros.vfs.browser.demo.TestBrowser
-import backup.CompressionMode
 import ScallopConverters._
 import java.io.BufferedReader
 import java.io.InputStreamReader

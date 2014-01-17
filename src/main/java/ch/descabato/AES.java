@@ -1,4 +1,4 @@
-package backup;
+package ch.descabato;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,9 +49,9 @@ public class AES {
 	public static InputStream wrapStreamWithDecryption(InputStream input, String encryptionKey, int keylength)
 			throws Exception {
 		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE");
-		SecretKey deriveKey = deriveKey(encryptionKey, keylength);
 		byte[] buf = new byte[16];
 		input.read(buf);
+		SecretKey deriveKey = deriveKey(encryptionKey, keylength);
 		cipher.init(Cipher.DECRYPT_MODE, deriveKey,
 				new IvParameterSpec(buf));
 		return new CipherInputStream(input, cipher);

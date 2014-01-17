@@ -8,8 +8,6 @@ import java.util.zip.GZIPOutputStream
 import org.tukaani.xz.LZMA2Options
 import java.util.zip.GZIPInputStream
 import org.tukaani.xz.XZInputStream
-import backup.AES
-import backup.CompressionMode
 import java.io.FileOutputStream
 import java.io.File
 import java.io.FileInputStream

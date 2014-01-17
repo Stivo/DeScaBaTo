@@ -6,7 +6,6 @@ import java.nio.file.Files
 import java.nio.file.SimpleFileVisitor
 import scala.collection.mutable.Buffer
 import scala.collection.mutable
-import backup.CompressionMode
 import scala.collection.immutable.SortedMap
 import Streams._
 import java.io.FileInputStream

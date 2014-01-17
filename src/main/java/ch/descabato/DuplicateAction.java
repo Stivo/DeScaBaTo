@@ -1,4 +1,4 @@
-package backup;
+package ch.descabato;
 
 enum DuplicateAction {
   report,

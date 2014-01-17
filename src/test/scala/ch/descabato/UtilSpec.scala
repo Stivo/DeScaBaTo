@@ -21,8 +21,6 @@ import scala.util.Random
 import org.scalacheck.Arbitrary
 import org.scalacheck._
 import Arbitrary.arbitrary
-import backup.CompressionMode
-import backup.AES
 
 class UtilSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
@@ -75,7 +73,7 @@ class UtilSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPrope
     }
   }
   
-  class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, passphrase) {
+  class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, "", passphrase) {
     override def toString = s"Compression mode is $compressor, keylength is $keyLength"
   }
 
