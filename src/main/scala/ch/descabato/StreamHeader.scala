@@ -4,7 +4,7 @@ import java.io.OutputStream
 import java.io.InputStream
 import scala.collection.mutable
 import org.tukaani.xz.XZOutputStream
-import com.jcraft.jzlib.GZIPOutputStream
+import java.util.zip.GZIPOutputStream
 import org.tukaani.xz.LZMA2Options
 import java.util.zip.GZIPInputStream
 import org.tukaani.xz.XZInputStream

@@ -27,7 +27,7 @@ import java.security.DigestOutputStream
 /**
  * The configuration to use when working with a backup folder.
  */
-case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
+case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
   def this() = this(null)
   var version = 1
   var serializerType = "smile"
@@ -39,10 +39,10 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   var keyLength = 128
   var compressor = CompressionMode.gzip
   def hashLength = getMessageDigest().getDigestLength()
-  val hashAlgorithm = "MD5"
+  var hashAlgorithm = "MD5"
   @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
-  val blockSize: Size = Size("16Kb")
-  val volumeSize: Size = Size("100Mb")
+  var blockSize: Size = Size("16Kb")
+  var volumeSize: Size = Size("100Mb")
   val checkPointEvery: Size = volumeSize
   val useDeltas = false
   lazy val hasPassword = passphrase.isDefined
@@ -50,11 +50,17 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
 
 object InitBackupFolderConfiguration {
   def apply(option: BackupFolderOption) = {
-    val out = BackupFolderConfiguration(new File(option.backupDestination()).getAbsoluteFile(), option.passphrase.get)
+    val out = BackupFolderConfiguration(option.backupDestination(), option.prefix(), option.passphrase.get)
     option match {
       case o: CreateBackupOptions =>
         o.serializerType.foreach(out.serializerType = _)
         o.compression.foreach(x => out.compressor = x)
+        o.blockSize.foreach(out.blockSize = _)
+        o.hashAlgorithm.foreach(out.hashAlgorithm = _)
+      case o: ChangeableBackupOptions =>
+        o.keylength.foreach(out.keyLength = _)
+        o.volumeSize.foreach(out.volumeSize = _)
+      case _ => // TODO
     }
     out
   }
@@ -66,7 +72,7 @@ object InitBackupFolderConfiguration {
 class BackupConfigurationHandler(supplied: BackupFolderOption) {
 
   val mainFile = "backup.json"
-  val folder: File = new File(supplied.backupDestination())
+  val folder: File = supplied.backupDestination()
   def hasOld = new File(folder, mainFile).exists()
   def loadOld() = {
     val json = new JsonSerialization()
@@ -88,7 +94,13 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) {
 
   def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption) = {
     old.passphrase = supplied.passphrase.get
-    // TODO other properties that can be set again
+    supplied match {
+      case o: ChangeableBackupOptions =>
+        o.keylength.foreach(old.keyLength = _)
+        o.volumeSize.foreach(old.volumeSize = _)
+        // TODO other properties that can be set again
+      case _ => 
+    }
     println("After merge " + old)
     old
   }

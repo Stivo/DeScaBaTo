@@ -16,6 +16,7 @@ import backup.CompressionMode
 import ScallopConverters._
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.FileOutputStream
 
 object CLI {
 
@@ -25,8 +26,9 @@ object CLI {
     case "backup" :: args => new BackupCommand(args)
     case "restore" :: args => new RestoreCommand(args)
     case "browse" :: args => new BrowseCommand(args)
+    case "help" :: args => new HelpCommand(args)
     //    case "newbackup" :: args => new NewBackupCommand(args)
-    case _ => println("TODO"); throw new IllegalArgumentException("asdf") //new HelpCommand()
+    case _ => new HelpCommand(Nil)
   }
 
   def parseCommandLine(args: Seq[String]) {
@@ -40,7 +42,7 @@ object CLI {
     } else {
       //parseCommandLine("backup --serializer-type json --compression none backups testdata".split(" "))
       //      parseCommandLine("browse -p asdf backups".split(" "))
-      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+//      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
     }
   }
 
@@ -65,21 +67,13 @@ object ScallopConverters {
 }
 
 trait Command {
-  type T <: ScallopConf
-  val args: Seq[String]
-  def newT: T
 
-  //  def name : String
-  final def execute() {
-    start(newT)
-  }
-  def start(t: T)
-
+  def execute()
+  
   def askUser(question: String = "Do you want to continue?"): String = {
     println(question)
     val bufferRead = new BufferedReader(new InputStreamReader(System.in));
-    val s = bufferRead.readLine();
-    s
+    bufferRead.readLine();
   }
 
   def askUserYesNo(question: String = "Do you want to continue?"): Boolean = {
@@ -97,6 +91,15 @@ trait Command {
 
 trait BackupRelatedCommand extends Command {
   type T <: BackupFolderOption
+  
+  val args: Seq[String]
+  def newT: T
+
+  //  def name : String
+  final override def execute() {
+    start(newT)
+  }
+  
   def start(t: T) {
     t.afterInit
     val conf = new BackupConfigurationHandler(t).configure
@@ -109,7 +112,12 @@ trait BackupRelatedCommand extends Command {
 
 // Parsing classes
 
-trait CreateBackupOptions extends BackupFolderOption {
+trait ChangeableBackupOptions extends BackupFolderOption {
+  val keylength = opt[Int](default = Some(128))
+  val volumeSize = opt[Size](default = Some(Size("100Mb")))
+}
+
+trait CreateBackupOptions extends ChangeableBackupOptions {
   val serializerType = opt[String]()
   val compression = opt[CompressionMode]()
   val blockSize = opt[Size](default = Some(Size("100Kb")))
@@ -118,17 +126,37 @@ trait CreateBackupOptions extends BackupFolderOption {
 
 trait BackupFolderOption extends ScallopConf {
   val passphrase = opt[String](default = None)
-  val backupDestination = trailArg[String]()
+  val prefix = opt[String](default = Some(""))
+  val backupDestination = trailArg[String](required = true).map(new File(_).getAbsoluteFile())
 }
 
 class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOption
 
 class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
+
+  def writeBat(t: T, conf: BackupFolderConfiguration) = {
+    val path = new File("descabato.bat").getAbsolutePath()
+    val suffix = if (Utils.isWindows) ".bat" else ""
+    val line = s"$path backup ${t.backupDestination()} ${t.folderToBackup()}"
+    def writeTo(f: File) {
+      val bat = new File(f, s"${conf.folder.getName()}$suffix")
+      if (!bat.exists) {
+        val ps = new PrintStream(new FileOutputStream(bat))
+        ps.print(line)
+        ps.close()
+        println("A file " + bat + " has been written to execute this backup again")
+      }
+    }
+    writeTo(new File("."))
+    writeTo(conf.folder)
+  }
+
   type T = BackupConf
   val newT = new BackupConf(args)
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
     val bdh = new BackupHandler(conf) with ZipBlockStrategy
+    writeBat(t, conf)
     bdh.backup(t.folderToBackup() :: Nil)
   }
 }
@@ -170,8 +198,7 @@ class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
 }
 
 class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
-  val folderToBackup = trailArg[String]().map(x => new File(x))
-  //lazy val folderToBackupFiles = List(folderToBackup).map(x => new File(x()))
+  val folderToBackup = trailArg[File]().map(_.getAbsoluteFile())
 }
 
 class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
@@ -184,28 +211,18 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   mutuallyExclusive(restoreToOriginalPath, restoreToFolder)
 }
 
-//class HelpCommand extends Command wit{
-//    def execute(t: T) : Unit {}
-//}
-
-class BackupCommands(args: Seq[String]) extends ScallopConf(args) {
-  def this(args: String) = this(args.split(" "))
-
-  val backup = new Subcommand("backup") with BackupFolderOption {
-    //val mode = opt[CompressionMode]()
-    val folderToBackup = trailArg[File]()
-
-    override def toString() = "This is backup, hi there"
-  }
-  val restore = new Subcommand("restore") with BackupFolderOption {
-    val restoreToOriginal = toggle(default = Some(false))
-  }
-  val browse = new Subcommand("browse") with BackupFolderOption {
-    val hidden = opt[String](hidden = true)
-  }
-  val help = new Subcommand("help") {
-    val command = trailArg[String](required = false)
-  }
+class HelpCommand(val args: Seq[String]) extends Command {
+  val T = ScallopConf
+  def newT = throw new IllegalAccessException("Should not be called")
+    override def execute() {
+      args match {
+        case Nil => println(
+"""The available commands are: backup, restore, browse. 
+For further help about a specific command type 'help backup' or 'backup --help'.
+For general usage guide go to https://github.com/Stivo/DeScaBaTo""")
+        case command :: _ => CLI.parseCommandLine(command::"--help"::Nil)
+      }
+    }
 }
 
 // Domain classes
