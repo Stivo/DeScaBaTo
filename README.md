@@ -1,48 +1,78 @@
-DeScaBaTo
+DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
 =========
 
-The Deduplicating Scala Backup Tool. It is inspired by duplicati. It could potentially become useful for backing up data locally. I just started writing this tool, so the functionality right now is very basic.
+The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups.
 
 As of now, it has these features:
 - Backup and restore files and folders, including metadata (lastModified)
-- A deduplicating storage mechanism. Parts of a file that are the same are only saved once.
-- Supports compression (none or gzip) and encryption (aes or none)
+- A deduplicating storage mechanism. Parts of a file that are the same are only saved once. 
+- Supports compression (gzip or lzma) and encryption (aes or none)
 - Command line interface
 
-### Compilation
-Besides the normal dependencies it depends on a modified version of Sumac. Clone my sumac repository here and publish it locally with sbt (core/publishLocal) before compiling DeScaBaTo.
-You will need sbt to compile or to set up eclipse. sbt assembly will create a runnable jar with all dependencies included (~12Mb).
+Compared to duplicati:
+- Duplicati is a mature program with a long history and a userbase, DeScaBaTo is very new
+- DeScaBaTo is faster
+- By using md5 there is less space required for metadata
+- The design is simpler (no database to keep synchronized), and should be more robust
 
-### Implementation idea
-The current implementation finds all the files in a directory and hashes them block wise. A block contains a fixed number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used. The blocks are then not needed on a daily basis and can go on a external medium, however they are useless without the small files describing their contents. Blocks are bundled into zip volumes, so that they can easily be uploaded to remote storage (cloud, ftp etc). 
+I plan to support these features:
+- Par2 creation for redundancy. Soon.
+- Useable file browser to restore files. Soonish.
+- Upload backup to cloud services. A while out.
 
 ### Usage
 
-To backup a file:
+To backup a directory:
 
     backup [options] backupFolder folderToBackup
     
-The options are:
+Once a backup is executed, a batch file will be created to restart this backup. You don't need to set any options, but you can. The options are:
 
-    usage: 
-    --blockSize                       Size        	    1 MB
-    --volumeSize                      Size        	    64 MB
-    --hashAlgorithm                   HashMethod  	    md5
-    --passphrase                      String      	    null
-    --algorithm                       String      	    AES
-    --keyLength                       int         	    128
-    --compression            (-c)     CompressionMode	none
+    -b, --block-size  <arg>         (default = 100.0KB) *
+    -c, --compression  <arg>                            
+    -h, --hash-algorithm  <arg>     (default = md5)     *
+    -k, --keylength  <arg>          (default = 128)
+    -p, --passphrase  <arg>                             *
+        --prefix  <arg>             (default = )        *
+    -s, --serializer-type  <arg>
+    -v, --volume-size  <arg>        (default = 100.0MB)
+        --help                     Show help message
 
-These options apply to backup, restore and find (except for blockSize and volumeSize which is only for backup). Options are optional.
+These options apply to backup only. The options with a star in the end can only be defined on the first run, they can not be changed afterwards. All these options will be stored in the backup, except for the passphrase. 
 
-    restore [options] backupFolder restoreDestinationFolder
+    restore [options] backupFolder 
 
-The options for restore have to be identical to the options used for a backup. Valid compression modes are (none, zip). if the passphrase is null, no encryption will be used. To use AES with longer keylength than 128, install the jce policy files (google it). MD5 is old and unsafe, but will do fine here and saves space. SHA1, SHA256 are also supported.
+    -c, --choose-date
+    -p, --passphrase  <arg>
+        --pattern  <arg>
+        --prefix  <arg>                (default = )
+        --relative-to-folder  <arg>
+        --restore-to-folder  <arg>
+    -r  --restore-to-original-path
+        --help                        Show help message
 
-    find [options] backupFolder pattern
+Either restore-to-original-path or restore-to-folder has to be set. --choose-date will ask you for the version from which you want to restore from. Pattern is a simple contains pattern, no regex currently.
 
-Will list all files containing pattern in their path. No wildcards or regex for now.
+Browse will launch an interactive browser to look at the files contained in the backup. It is not possible yet to restore files from within the browser, but it will be added.
 
-backup and restore will summarize their intended actions before starting. Answer yes or 'y'.
+    browse [options] backupFolder
+    
+    -p, --passphrase  <arg>
+        --prefix  <arg>        (default = )
+        --help                Show help message
 
-Absolutely no warranty given. Don't rely exclusively on this tool for backup. 
+
+To use AES with longer keylength than 128, install the jce policy files (google it). MD5 is old and unsafe, but will do fine here and saves space. SHA1, SHA256 are also supported.
+
+Absolutely no warranty given. 
+
+### Compilation
+You will need sbt to compile or to set up eclipse. sbt universal:packageBin will create a zip file which an be distributed.
+The project is split up into three parts:
+- core: The backup logic and command line interface
+- browser: A visual browser for the backups
+- integrationtest: A test that runs backups and restores and tests them for correctness
+
+### Implementation idea
+The current implementation finds all the files in a directory and hashes them block wise. A block contains a fixed number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used. 
+The blocks are then not needed until the data should be restored and can go on a external medium. Blocks are bundled into zip volumes, so that they can easily be uploaded to remote storage (cloud, ftp etc). 
