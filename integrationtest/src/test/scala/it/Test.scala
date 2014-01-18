@@ -30,7 +30,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   import org.scalacheck.Gen._
 
   CLI._overrideRunsInJar = true
-
+  CLI.testMode = true
   //ConsoleManager.testSetup
   AES.testMode = true
 
@@ -58,6 +58,10 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     testWith(" --volume-size 10Mb", "", 5, true)
   }
 
+  "backup with multiple threads" should "work" in {
+    testWith(" --threads 4 --volume-size 20Mb", "", 5, false)
+  }
+  
   def testWith(config: String, configRestore: String, iterations: Int, crash: Boolean = false) {
     println(baseFolder.getAbsolutePath())
     baseFolder.mkdirs()
@@ -86,6 +90,9 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
       CLI.main(s"backup$config $backup1 $input".split(" "))
       // no temp files in backup
       input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
+      // verify backup
+      CLI.main(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" "))
+      CLI.lastErrors should be (0)
       // restore backup to folder, folder already contains old restored files.
       CLI.main(s"restore$configRestore --restore-to-folder $restore1 --relative-to-folder $input $backup1".split(" "))
       // compare files

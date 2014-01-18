@@ -25,6 +25,7 @@ trait BlockStrategy {
   def calculateOverhead(map: Iterable[Array[Byte]]): Long
   def finishWriting() {}
   def free() {}
+  def verify(problemCounter: Counter) {}
 }
 
 /**
@@ -86,10 +87,10 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
   def deleteTempFiles() {
     def deleteFile(x: File) = {
-      l.debug("Deleting temporary file "+x)
+      l.debug("Deleting temporary file " + x)
       x.delete
     }
-    
+
     def deleteFiles(prefix: String, ft: FileType[_]) = {
       val files = config.folder.listFiles().filter(_.getName.startsWith(prefix))
       val nums = files.map(f => ft.getNum(f)).toSet
@@ -102,28 +103,54 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     fileManager.index.getFiles().filter(x => set contains (fileManager.index.getNum(x))).foreach(deleteFile)
     fileManager.volumes.getFiles().filter(x => set contains (fileManager.volumes.getNum(x))).foreach(deleteFile)
   }
-  
+
+  override def verify(problemCounter: Counter) {
+    setup(true, problemCounter)
+  }
+
   /**
    * Zip file strategy needs a mapping of hashes to volume to work.
    * This has to be set up before any of the functions work, so all the
    * functions call it first.
    */
-  def setup() {
+  private def setup(verify: Boolean = false, counter: Counter = null) {
     if (setupRan)
       return
     deleteTempFiles()
 
     val index = fileManager.index
     val indexes = index.getFiles()
+    var lastSet = Set[String]()
     indexes.foreach { f =>
+
       val num: Int = index.getNum(f)
       val bos = new BlockOutputStream(config.hashLength, { hash: Array[Byte] =>
         l.trace(s"Adding hash ${encodeBase64Url(hash)} for volume $num")
+        if (verify) lastSet += encodeBase64Url(hash)
         knownBlocks += ((hash, num))
       });
       val fis = new FileInputStream(f)
       val sis = new SplitInputStream(StreamHeaders.readStream(fis, config.passphrase), bos :: Nil)
       sis.readComplete
+      if (verify) {
+        val zip = getZipFileReader(num)
+        for (name <- zip.names) {
+          if (!(lastSet contains (name))) {
+            if (counter != null) {
+              counter += 1
+            }
+            l.warn("Index file is broken, does not contain " + name)
+          }
+          lastSet -= name
+        }
+        for (hash <- lastSet) {
+          if (counter != null) {
+            counter += 1
+          }
+          l.warn("Hash " + hash + " is in index, but not in volume")
+        }
+        lastSet = Set.empty
+      }
     }
     curNum = index.nextNum()
     setupRan = true

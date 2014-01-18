@@ -15,7 +15,7 @@ import ch.descabato.TestUtils
 class FileGen(val folder : File) extends TestUtils {
 
   var random = new Random(255)
-  var maxSize = Size("200MB")
+  var maxSize = Size("500MB")
   var maxFiles = 1000
   var maxFolders = 50
   val subfolderChance = 20

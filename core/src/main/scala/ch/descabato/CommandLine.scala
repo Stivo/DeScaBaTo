@@ -17,26 +17,28 @@ import java.io.InputStreamReader
 
 object CLI {
 
-  var _overrideRunsInJar = false
+  var testMode: Boolean = false
   
+  var lastErrors : Long = 0L
+  
+  var _overrideRunsInJar = false
+
   def runsInJar = _overrideRunsInJar || classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
 
-  def callWithReflection(args: Seq[String], className: String) = {
-    val constructor = Class.forName(className).getConstructor(classOf[Seq[String]])
-    constructor.newInstance(args).asInstanceOf[Command]
-  }
-  
-  def getCommand(args: Seq[String]): Command = args.toList match {
-    case "backup" :: args => new BackupCommand(args)
-    case "restore" :: args => new RestoreCommand(args)
-    case "browse" :: args => callWithReflection(args, "ch.descabato.browser.BrowseCommand")
-    case "help" :: args => new HelpCommand(args)
-    //    case "newbackup" :: args => new NewBackupCommand(args)
-    case _ => new HelpCommand(Nil)
+  def getCommands() = List(
+    new BackupCommand(),
+    new VerifyCommand(),
+    new RestoreCommand(),
+    new ReflectionCommand("browse", "ch.descabato.browser.BrowseCommand"),
+    new HelpCommand()).map(x => (x.name.toLowerCase, x)).toMap
+
+  def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
+    case Some(x) => x
+    case None => println("No command named "+name+" exists."); new HelpCommand()
   }
 
   def parseCommandLine(args: Seq[String]) {
-    getCommand(args).execute()
+    getCommand(args.head).execute(args.tail)
   }
 
   def main(args: Array[String]) {
@@ -44,9 +46,11 @@ object CLI {
       java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
       parseCommandLine(args)
     } else {
-      //parseCommandLine("backup --serializer-type json --compression none backups testdata".split(" "))
+      //      parseCommandLine("backup --serializer-type json --compression none backups ..\\testdata".split(" "))
+      parseCommandLine("verify e:\\backups\\pics".split(" "))
+//      parseCommandLine("restore --help".split(" "))
       //      parseCommandLine("browse -p asdf backups".split(" "))
-//      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+      //      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
     }
   }
 
@@ -72,8 +76,10 @@ object ScallopConverters {
 
 trait Command {
 
-  def execute()
-  
+  def name = this.getClass().getSimpleName().replace("Command", "").toLowerCase()
+
+  def execute(args: Seq[String])
+
   def askUser(question: String = "Do you want to continue?"): String = {
     println(question)
     val bufferRead = new BufferedReader(new InputStreamReader(System.in));
@@ -93,17 +99,24 @@ trait Command {
 
 }
 
+class ReflectionCommand(override val name: String, clas: String) extends Command {
+
+  def execute(args: Seq[String]) {
+    val constructor = Class.forName(clas).getConstructor(classOf[Seq[String]])
+    constructor.newInstance(args).asInstanceOf[Command]
+  }
+
+}
+
 trait BackupRelatedCommand extends Command {
   type T <: BackupFolderOption
-  
-  val args: Seq[String]
-  def newT: T
 
-  //  def name : String
-  final override def execute() {
-    start(newT)
+  def newT(args: Seq[String]): T
+
+  final override def execute(args: Seq[String]) {
+    start(newT(args))
   }
-  
+
   def start(t: T) {
     t.afterInit
     val conf = new BackupConfigurationHandler(t).configure
@@ -138,7 +151,7 @@ trait BackupFolderOption extends ScallopConf {
 
 class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOption
 
-class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
+class BackupCommand extends BackupRelatedCommand {
 
   val suffix = if (Utils.isWindows) ".bat" else ""
 
@@ -153,25 +166,25 @@ class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
         println("A file " + bat + " has been written to execute this backup again")
       }
     }
-    writeTo(new File(".", conf.folder.getName()+suffix))
-    writeTo(new File(conf.folder, "_"+conf.folder.getName()+suffix))
+    writeTo(new File(".", conf.folder.getName() + suffix))
+    writeTo(new File(conf.folder, "_" + conf.folder.getName() + suffix))
   }
 
   type T = BackupConf
-  val newT = new BackupConf(args)
+  def newT(args: Seq[String]) = new BackupConf(args)
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
     val bdh = new BackupHandler(conf) with ZipBlockStrategy
     if (!t.noScriptCreation()) {
-    	writeBat(t, conf)
+      writeBat(t, conf)
     }
     bdh.backup(t.folderToBackup() :: Nil)
   }
 }
 
-class RestoreCommand(val args: Seq[String]) extends BackupRelatedCommand {
+class RestoreCommand extends BackupRelatedCommand {
   type T = RestoreConf
-  val newT = new RestoreConf(args)
+  def newT(args: Seq[String]) = new RestoreConf(args)
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
     val rh = new RestoreHandler(conf) with ZipBlockStrategy
@@ -183,6 +196,20 @@ class RestoreCommand(val args: Seq[String]) extends BackupRelatedCommand {
       rh.restoreFromDate(t, options.find(_._2 == option).get._1)
     } else {
       rh.restore(t)
+    }
+  }
+}
+
+class VerifyCommand extends BackupRelatedCommand {
+  type T = VerifyConf
+  def newT(args: Seq[String]) = new VerifyConf(args)
+  def start(t: T, conf: BackupFolderConfiguration) = {
+    println(t.summary)
+    val rh = new VerifyHandler(conf) with ZipBlockStrategy
+    val count = rh.verify(t)
+    CLI.lastErrors = count
+    if (!CLI.testMode) {
+      System.exit(count.toInt)
     }
   }
 }
@@ -203,18 +230,29 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   mutuallyExclusive(restoreToOriginalPath, restoreToFolder)
 }
 
-class HelpCommand(val args: Seq[String]) extends Command {
+class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
+  val percentOfFilesToCheck = opt[Int](default = Some(5))
+  validate(percentOfFilesToCheck) { x: Int =>
+    x match {
+      case x if x > 0 && x <= 100 => Right(Unit)
+      case _ => Left("Needs to be percent")
+    }
+  }
+}
+
+class HelpCommand extends Command {
   val T = ScallopConf
-  def newT = throw new IllegalAccessException("Should not be called")
-    override def execute() {
-      args match {
-        case Nil => println(
-"""The available commands are: backup, restore, browse. 
+  override def execute(args: Seq[String]) {
+    args.toList match {
+      case command :: _ if CLI.getCommands().contains(command) => CLI.parseCommandLine(command :: "--help" :: Nil)
+      case _ =>
+      	val commands = CLI.getCommands().keys.mkString(", ") 
+        println(
+        s"""The available commands are: $commands
 For further help about a specific command type 'help backup' or 'backup --help'.
 For general usage guide go to https://github.com/Stivo/DeScaBaTo""")
-        case command :: _ => CLI.parseCommandLine(command::"--help"::Nil)
-      }
     }
+  }
 }
 
 // Domain classes

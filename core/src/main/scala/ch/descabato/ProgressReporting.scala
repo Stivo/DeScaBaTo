@@ -14,6 +14,7 @@ import org.ocpsoft.prettytime.TimeUnit
 import org.ocpsoft.prettytime.units.Millisecond
 import scala.collection.JavaConverters._
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
+import org.ocpsoft.prettytime.units.JustNow
 
 object ProgressReporters {
 
@@ -58,9 +59,10 @@ trait ETACounter extends Counter with Utils {
   def window = 60
   case class Snapshot(time: Long, l: Double)
   val p = new PrettyTime();
-  val tu = p.getUnits().asScala.foreach {
-    p.getFormat(_) match {
-      case x: SimpleTimeFormat => x.setFutureSuffix ("")
+  val tu = p.getUnits().asScala.foreach { u =>
+    (u, p.getFormat(u)) match {
+      case (u: JustNow, _) => 
+      case (_, x: SimpleTimeFormat) => x.setFutureSuffix("")
       case _ =>
     }
   }
@@ -70,10 +72,10 @@ trait ETACounter extends Counter with Utils {
     super.+=(l)
     val now = System.currentTimeMillis()
     if (newSnapshotAt < now) {
-	    snapshots :+= Snapshot(now, current)
-	    val cutoff = now - window * 1000
-	    snapshots = snapshots.dropWhile(_.time < cutoff)
-	    newSnapshotAt = now + 100
+      snapshots :+= Snapshot(now, current)
+      val cutoff = now - window * 1000
+      snapshots = snapshots.dropWhile(_.time < cutoff)
+      newSnapshotAt = now + 100
     }
   }
 
@@ -86,7 +88,8 @@ trait ETACounter extends Counter with Utils {
     val rate = (last.l - first.l) / (last.time - first.time)
     val remaining = (maxValue - last.l).toDouble
     val ms = remaining / rate
-    readableFileSize((1000*rate).toLong)+"/s, ETA: "+p.format(new Date(System.currentTimeMillis()+ms.toLong))
+    readableFileSize((1000 * rate).toLong) + "/s, ETF: " + 
+    	p.format(new Date(System.currentTimeMillis() + ms.toLong)) +" ("+ms.toInt/1000+"s)"
   }
 
   override def update = super.update + " " + calcEta
@@ -193,12 +196,15 @@ object ConsoleManager extends ProgressReporting {
   var lastOne = 0L
 
   def ephemeralMessage(message: String) {
-    if (!AnsiUtil.deleteLinesEnabled)
-      return
     val timeNow = new Date().getTime()
     if (timeNow > lastOne) {
-      ConsoleManager.appender.writeDeleteLine(message)
-      lastOne = timeNow + 10
+      if (AnsiUtil.deleteLinesEnabled) {
+        ConsoleManager.appender.writeDeleteLine(message)
+        lastOne = timeNow + 10
+      } else {
+        ConsoleManager.appender.writeDeleteLine(message+"\n", false)
+        lastOne = timeNow + 5000
+      }
     }
   }
 
@@ -225,9 +231,9 @@ class ConsoleAppenderWithDeleteSupport extends ConsoleAppender[ILoggingEvent] {
     getOutputStream().flush()
   }
 
-  def writeDeleteLine(message: String) {
-    if (!Ansi.isEnabled()) {
-      return
+  def writeDeleteLine(message: String, delete: Boolean = true) {
+    if (!delete) {
+      canDeleteLast = false
     }
     canDeleteLast match {
       case true => sendAnsiLine(message)

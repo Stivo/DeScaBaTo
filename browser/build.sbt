@@ -5,9 +5,9 @@ name := "browser"
 
 organization := "ch.descabato"
 
-version := "0.1.0-SNAPSHOT"
+version := Common.version
 
-scalaVersion := "2.10.3"
+scalaVersion := Common.scalaVersion
 
 mainClass := Some("ch.descabato.browser.Main")
 

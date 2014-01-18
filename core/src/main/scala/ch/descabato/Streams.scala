@@ -215,7 +215,8 @@ object Streams extends Utils {
     }
 
     override def close() {
-      func(out.toByteArray())
+      if (out.size() > 0)
+    	  func(out.toByteArray())
       super.close()
       baosPool.recycle(out)
       // out was returned to the pool, so remove instance pointer

@@ -22,6 +22,7 @@ import java.io.PrintStream
 import java.util.Date
 import java.security.DigestOutputStream
 import scala.io.Source
+import scala.util.Random
 
 /**
  * The configuration to use when working with a backup folder.
@@ -82,20 +83,20 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     val json = new JsonSerialization()
     json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))).get
   }
-  
+
   def write(out: BackupFolderConfiguration) {
-      val json = new JsonSerialization()
-      val fos = new UnclosedFileOutputStream(new File(folder, mainFile))
-      json.writeObject(out, fos)
-      // writeObject closes
+    val json = new JsonSerialization()
+    val fos = new UnclosedFileOutputStream(new File(folder, mainFile))
+    json.writeObject(out, fos)
+    // writeObject closes
   }
-  
+
   def configure(): BackupFolderConfiguration = {
     if (hasOld) {
       val oldConfig = loadOld()
       val (out, changed) = merge(oldConfig, supplied)
       if (changed) {
-    	  write(out)
+        write(out)
       }
       out
     } else {
@@ -111,11 +112,11 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     var changed = false
     supplied match {
       case o: ChangeableBackupOptions =>
-        o.keylength.foreach{changed = true; old.keyLength = _}
-        o.volumeSize.foreach{changed = true; old.volumeSize = _}
-        o.threads.foreach{changed = true; old.threads = _}
-        // TODO other properties that can be set again
-      case _ => 
+        o.keylength.foreach { changed = true; old.keyLength = _ }
+        o.volumeSize.foreach { changed = true; old.volumeSize = _ }
+        o.threads.foreach { changed = true; old.threads = _ }
+      // TODO other properties that can be set again
+      case _ =>
     }
     l.debug("Configuration after merge " + old)
     (old, changed)
@@ -149,9 +150,9 @@ trait BackupProgressReporting extends Utils {
     override def format = s"${readableFileSize(current)}/${readableFileSize(maxValue)} ${percent}%"
   }
 
-  def setMaximums(files: Int, bytes: Long) {
-    fileCounter.maxValue = files
-    byteCounter.maxValue = bytes
+  def setMaximums(files: Iterable[BackupPart]) {
+    fileCounter.maxValue = files.size
+    byteCounter.maxValue = files.map(_.size).sum
   }
 
   def updateProgress() {
@@ -294,7 +295,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
 
     // Backup files 
 
-    setMaximums(newFiles.size, newFiles.map(_.size).sum)
+    setMaximums(newFiles)
     importOldHashChains
     var list = newFiles.toList
     var toSave: Seq[FileDescription] = Buffer.empty
@@ -346,20 +347,21 @@ class BackupHandler(val config: BackupFolderConfiguration)
   }
 
   val useNoCompressionList = true
-  
-  lazy val noCompressionSet : Set[String] = {
+
+  lazy val noCompressionSet: Set[String] = {
     try {
       val source = Source.fromInputStream(classOf[BackupHandler].getResourceAsStream("/default_compressed_extensions.txt"))
-      val out = source.getLines.toList.map(_.takeWhile(_!='#').trim.toLowerCase()).filterNot(_.isEmpty()).toSet
+      val out = source.getLines.toList.map(_.takeWhile(_ != '#').trim.toLowerCase()).filterNot(_.isEmpty()).toSet
       l.debug("Not going to compress these file types: ")
       l.debug(out.toString)
       out
     } catch {
-      case io @ (_ : IOException | _ : NullPointerException) => l.info("No compression list not found "+io.getMessage())
-      Set()
+      case io @ (_: IOException | _: NullPointerException) =>
+        l.info("No compression list not found " + io.getMessage())
+        Set()
     }
   }
-  
+
   /**
    * Returns true if the compression should be disabled.
    */
@@ -367,7 +369,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
     val index = fileDesc.path.lastIndexOf(".")
     noCompressionSet contains (fileDesc.path.drop(index).toLowerCase())
   }
-  
+
   def backupFileDesc(fileDesc: FileDescription): Option[FileDescription] = {
     val byteCounterbackup = byteCounter.current
     try {
@@ -424,22 +426,35 @@ class BackupHandler(val config: BackupFolderConfiguration)
 
 }
 
-class RestoreHandler(val config: BackupFolderConfiguration)
-  extends BackupDataHandler with BackupProgressReporting {
+abstract class ReadingHandler(option: Option[Date] = None) extends BackupDataHandler {
   self: BlockStrategy =>
 
-  val hashChains = importOldHashChains()
+  def getInputStream(fd: FileDescription): InputStream = {
+    val hashes = getHashChain(fd)
+    val enumeration = new Enumeration[InputStream]() {
+      val hashIterator = hashes.iterator
+      def hasMoreElements = hashIterator.hasNext
+      def nextElement = readBlock(hashIterator.next)
+    }
+    new SequenceInputStream(enumeration)
+  }
+
+}
+
+class RestoreHandler(val config: BackupFolderConfiguration) 
+	extends ReadingHandler() with BackupProgressReporting {
+  self: BlockStrategy =>
 
   def restore(options: RestoreConf, d: Option[Date] = None) {
     implicit val o = options
     val filesInBackup = loadOldIndex(date = d)
     val filtered = if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
     l.info("Going to restore " + statistics(filtered))
-    setMaximums(filtered.size, filtered.map(_.size).sum)
+    setMaximums(filtered)
     val (folders, files) = partitionFolders(filtered)
-    folders.foreach(restoreFolderDesc)
+    folders.foreach(restoreFolderDesc(_))
     files.foreach(restoreFileDesc)
-    folders.foreach(restoreFolderDesc)
+    folders.foreach(restoreFolderDesc(_, false))
     free()
   }
 
@@ -458,22 +473,13 @@ class RestoreHandler(val config: BackupFolderConfiguration)
 
   }
 
-  def restoreFolderDesc(fd: FolderDescription)(implicit options: RestoreConf) {
+  def restoreFolderDesc(fd: FolderDescription, count: Boolean = true)(implicit options: RestoreConf) {
     val restoredFile = makePath(fd)
     restoredFile.mkdirs()
     fd.applyAttrsTo(restoredFile)
-    fileCounter += 1
+    if (count)
+      fileCounter += 1
     updateProgress
-  }
-
-  def getInputStream(fd: FileDescription): InputStream = {
-    val hashes = getHashChain(fd)
-    val enumeration = new Enumeration[InputStream]() {
-      val hashIterator = hashes.iterator
-      def hasMoreElements = hashIterator.hasNext
-      def nextElement = readBlock(hashIterator.next)
-    }
-    new SequenceInputStream(enumeration)
   }
 
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
@@ -507,6 +513,86 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     fileCounter += 1
     byteCounter += fd.size
     updateProgress
+  }
+
+}
+
+class ProblemCounter extends Counter {
+  def name = "Problems"
+}
+
+class VerifyHandler(val config: BackupFolderConfiguration)
+  extends ReadingHandler with Utils with BackupProgressReporting {
+  self: BlockStrategy =>
+  val block: BlockStrategy = self
+  
+  var problemCounter = new ProblemCounter()
+  
+  def verify(t: VerifyConf) = {
+    problemCounter = new ProblemCounter()
+    try {
+      block.verify(problemCounter)
+      importOldHashChains
+      verifyHashes()
+      verifySomeFiles(t.percentOfFilesToCheck())
+    } catch {
+      case x : Error => l.warn("Aborting verification because of error ", x) 
+    }
+    problemCounter.current
+  }
+  
+  val index = loadOldIndex(false)
+  
+  def verifyHashes() {
+    val it = index.iterator
+    while (it.hasNext) {
+      it.next match {
+        case f: FileDescription => 
+          val chain = getHashChain(f)
+          val missing = chain.filterNot {blockExists}
+          if (!missing.isEmpty) {
+            problemCounter += missing.size
+            l.warn(s"Missing ${missing.size} blocks for $f")
+          }
+        case _ =>
+      }
+    }
+  }
+  
+  val random = new Random()
+ 
+  def getRandomXElements[T](x: Int, array: Array[T]) = {
+    def swap(i: Int, i2: Int) {
+      val bak = array(i)
+      array(i) = array(i2)
+      array(i2) = bak
+    }
+    val end = Math.min(x, array.length-2)+1
+    (0 to end).foreach { i =>
+      swap(i, random.nextInt(array.length-1-i)+i)
+    }
+    array.take(end)
+  }
+  
+  def verifySomeFiles(percent: Int) {
+   
+    var files = partitionFolders(index)._2.toArray
+    val probes = ((percent *1.0 / 100.0) * files.size).toInt+1
+    val tests = getRandomXElements(probes, files)
+    setMaximums(tests)
+    tests.foreach { file =>
+      val in = getInputStream(file)
+      val hos = new HashingOutputStream(config.hashAlgorithm)
+      copy(in, hos)
+      if (!Arrays.equals(file.hash, hos.out.get)) {
+        l.warn("File " + file + " is broken in backup")
+        l.warn(Utils.encodeBase64Url(file.hash)+" "+Utils.encodeBase64Url(hos.out.get))
+        problemCounter += 1
+      }
+      byteCounter += file.size
+      fileCounter += 1
+      updateProgress
+    }
   }
 
 }
