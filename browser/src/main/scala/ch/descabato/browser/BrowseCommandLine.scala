@@ -20,7 +20,7 @@ class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
     val path = conf.folder.getAbsolutePath()
     val url = s"backup:file://$path!"
     
-    TestBrowser.main(Array(url))
+    TestBrowser.main2(Array(url))
 
   }
 }

@@ -21,6 +21,7 @@ import java.io.IOException
 import java.io.PrintStream
 import java.util.Date
 import java.security.DigestOutputStream
+import scala.io.Source
 
 /**
  * The configuration to use when working with a backup folder.
@@ -41,6 +42,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
   var blockSize: Size = Size("16Kb")
   var volumeSize: Size = Size("100Mb")
+  var threads: Int = 1
   val checkPointEvery: Size = volumeSize
   val useDeltas = false
   lazy val hasPassword = passphrase.isDefined
@@ -50,14 +52,18 @@ object InitBackupFolderConfiguration {
   def apply(option: BackupFolderOption) = {
     val out = BackupFolderConfiguration(option.backupDestination(), option.prefix(), option.passphrase.get)
     option match {
+      case o: ChangeableBackupOptions =>
+        o.keylength.foreach(out.keyLength = _)
+        o.volumeSize.foreach(out.volumeSize = _)
+        o.threads.foreach(out.threads = _)
+      case _ =>
+    }
+    option match {
       case o: CreateBackupOptions =>
         o.serializerType.foreach(out.serializerType = _)
         o.compression.foreach(x => out.compressor = x)
         o.blockSize.foreach(out.blockSize = _)
         o.hashAlgorithm.foreach(out.hashAlgorithm = _)
-      case o: ChangeableBackupOptions =>
-        o.keylength.foreach(out.keyLength = _)
-        o.volumeSize.foreach(out.volumeSize = _)
       case _ => // TODO
     }
     out
@@ -67,7 +73,7 @@ object InitBackupFolderConfiguration {
 /**
  * Loads a configuration and verifies the command line arguments
  */
-class BackupConfigurationHandler(supplied: BackupFolderOption) {
+class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
   val mainFile = "backup.json"
   val folder: File = supplied.backupDestination()
@@ -76,31 +82,43 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) {
     val json = new JsonSerialization()
     json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))).get
   }
-  def configure(): BackupFolderConfiguration = {
-    if (hasOld) {
-      val oldConfig = loadOld()
-      merge(oldConfig, supplied)
-    } else {
-      folder.mkdirs()
-      val out = InitBackupFolderConfiguration(supplied)
+  
+  def write(out: BackupFolderConfiguration) {
       val json = new JsonSerialization()
       val fos = new UnclosedFileOutputStream(new File(folder, mainFile))
       json.writeObject(out, fos)
+      // writeObject closes
+  }
+  
+  def configure(): BackupFolderConfiguration = {
+    if (hasOld) {
+      val oldConfig = loadOld()
+      val (out, changed) = merge(oldConfig, supplied)
+      if (changed) {
+    	  write(out)
+      }
+      out
+    } else {
+      folder.mkdirs()
+      val out = InitBackupFolderConfiguration(supplied)
+      write(out)
       out
     }
   }
 
   def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption) = {
     old.passphrase = supplied.passphrase.get
+    var changed = false
     supplied match {
       case o: ChangeableBackupOptions =>
-        o.keylength.foreach(old.keyLength = _)
-        o.volumeSize.foreach(old.volumeSize = _)
+        o.keylength.foreach{changed = true; old.keyLength = _}
+        o.volumeSize.foreach{changed = true; old.volumeSize = _}
+        o.threads.foreach{changed = true; old.threads = _}
         // TODO other properties that can be set again
       case _ => 
     }
-    println("After merge " + old)
-    old
+    l.debug("Configuration after merge " + old)
+    (old, changed)
   }
 
 }
@@ -327,9 +345,33 @@ class BackupHandler(val config: BackupFolderConfiguration)
     l.info("Backup completed")
   }
 
+  val useNoCompressionList = true
+  
+  lazy val noCompressionSet : Set[String] = {
+    try {
+      val source = Source.fromInputStream(classOf[BackupHandler].getResourceAsStream("/default_compressed_extensions.txt"))
+      val out = source.getLines.toList.map(_.takeWhile(_!='#').trim.toLowerCase()).filterNot(_.isEmpty()).toSet
+      l.debug("Not going to compress these file types: ")
+      l.debug(out.toString)
+      out
+    } catch {
+      case io @ (_ : IOException | _ : NullPointerException) => l.info("No compression list not found "+io.getMessage())
+      Set()
+    }
+  }
+  
+  /**
+   * Returns true if the compression should be disabled.
+   */
+  def compressionFor(fileDesc: FileDescription) = {
+    val index = fileDesc.path.lastIndexOf(".")
+    noCompressionSet contains (fileDesc.path.drop(index).toLowerCase())
+  }
+  
   def backupFileDesc(fileDesc: FileDescription): Option[FileDescription] = {
     val byteCounterbackup = byteCounter.current
     try {
+      val compressionDisabled = compressionFor(fileDesc)
       // This is a new file, so we start hashing its contents, fill those in and return the same instance
       val file = new File(fileDesc.path)
       val fis = new FileInputStream(file)
@@ -340,7 +382,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
             val hash = md.digest(buf)
             out.write(hash)
             if (!blockExists(hash)) {
-              writeBlock(hash, buf)
+              writeBlock(hash, buf, compressionDisabled)
             }
             byteCounter += buf.size
             updateProgress

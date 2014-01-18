@@ -19,7 +19,7 @@ trait BlockStrategy {
    * Returns true if and only if the block has been persisted in a non temporary way.
    */
   def blockExists(hash: Array[Byte]): Boolean
-  def writeBlock(hash: Array[Byte], buf: Array[Byte])
+  def writeBlock(hash: Array[Byte], buf: Array[Byte], disableCompression: Boolean = false)
   def readBlock(hash: Array[Byte]): InputStream
   def getBlockSize(hash: Array[Byte]): Long
   def calculateOverhead(map: Iterable[Array[Byte]]): Long
@@ -38,7 +38,7 @@ class FolderBlockStrategy(val config: BackupFolderConfiguration) extends BlockSt
   def blockExists(b: Array[Byte]) = {
     new File(blocksFolder, encodeBase64Url(b)).exists()
   }
-  def writeBlock(hash: Array[Byte], buf: Array[Byte]) {
+  def writeBlock(hash: Array[Byte], buf: Array[Byte], disableCompression: Boolean = false) {
     val hashS = encodeBase64Url(hash)
     val f = new File(blocksFolder, hashS)
     val out = StreamHeaders.newUnclosedFileOutputStream(f, config)
@@ -206,24 +206,24 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
   var currentIndex: OutputStream = null
   private var futures: List[Future[(Array[Byte], Array[Byte])]] = List()
-  def writeBlock(hash: Array[Byte], buf: Array[Byte]) {
+  def writeBlock(hash: Array[Byte], buf: Array[Byte], disableCompression: Boolean = false) {
     setup()
     val hashS = encodeBase64Url(hash)
     if (!knownBlocksTemp.contains(hash)) {
 
       knownBlocksTemp += ((hash, curNum))
       val f = () => {
-        val encrypt = StreamHeaders.newByteArrayOut(buf, config)
+        val encrypt = StreamHeaders.newByteArrayOut(buf, config, disableCompression)
         (hash, encrypt)
       }
-      if (false /*TODO add boolean variable here*/ ) {
+      if (config.threads > 1) {
         futures :+= future { f() }
       } else {
         f() match {
           case (hash, block) => writeProcessedBlock(hash, block)
         }
       }
-      if (futures.size >= 2) {
+      if (futures.size >= config.threads) {
         Await.result(futures.head, 10 minutes)
       }
       finishFutures(false)

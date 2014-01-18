@@ -41,7 +41,7 @@ public class TestBrowser {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TestBrowser.class);
 
-  public static void main(final String[] args) throws InterruptedException, InvocationTargetException, SecurityException, IOException {
+  public static void main2(final String[] args) throws InterruptedException, InvocationTargetException, SecurityException, IOException {
     if (args.length > 1)
       throw new IllegalArgumentException("SYNTAX:  java... "
           + TestBrowser.class.getName() + " [initialPath]");

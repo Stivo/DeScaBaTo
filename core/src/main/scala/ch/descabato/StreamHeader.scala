@@ -24,7 +24,7 @@ trait StreamHeader {
  * Writes the version number into the stream. Then delegates to the correct
  * handlers.
  */
-object StreamHeaders extends StreamHeader {
+object StreamHeaders {
 
   private[descabato] lazy val headers = mutable.Map[Int, StreamHeader]()
   lazy val init = {
@@ -39,13 +39,13 @@ object StreamHeaders extends StreamHeader {
     headers += x.version -> x
   }
 
-  def wrapStream(out: OutputStream, options: BackupFolderConfiguration) = {
+  def wrapStream(out: OutputStream, options: BackupFolderConfiguration, disableCompression: Boolean = false) = {
     init
     var version = 0
     if (options.passphrase != None) {
       version += 2
     }
-    if (options.compressor != CompressionMode.none) {
+    if (!disableCompression && options.compressor != CompressionMode.none) {
       version += 1
     }
     out.write(version)
@@ -66,9 +66,9 @@ object StreamHeaders extends StreamHeader {
     readStream(new FileInputStream(file), options.passphrase)
   }
 
-  def newByteArrayOut(content: Array[Byte], option: BackupFolderConfiguration) = {
+  def newByteArrayOut(content: Array[Byte], option: BackupFolderConfiguration, disableCompression: Boolean = false) = {
     var baos = ObjectPools.baosPool.get
-    val wrapped = wrapStream(baos, option)
+    val wrapped = wrapStream(baos, option, disableCompression)
     wrapped.write(content)
     wrapped.close()
     val out = baos.toByteArray

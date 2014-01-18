@@ -119,6 +119,8 @@ trait BackupRelatedCommand extends Command {
 trait ChangeableBackupOptions extends BackupFolderOption {
   val keylength = opt[Int](default = Some(128))
   val volumeSize = opt[Size](default = Some(Size("100Mb")))
+  val threads = opt[Int](default = Some(1))
+  val noScriptCreation = opt[Boolean](default = Some(false))
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
@@ -138,12 +140,12 @@ class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOpt
 
 class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
 
+  val suffix = if (Utils.isWindows) ".bat" else ""
+
   def writeBat(t: T, conf: BackupFolderConfiguration) = {
-    val path = new File("descabato.bat").getAbsolutePath()
-    val suffix = if (Utils.isWindows) ".bat" else ""
+    val path = new File(s"descabato$suffix").getAbsolutePath()
     val line = s"$path backup ${t.backupDestination()} ${t.folderToBackup()}"
-    def writeTo(f: File) {
-      val bat = new File(f, s"${conf.folder.getName()}$suffix")
+    def writeTo(bat: File) {
       if (!bat.exists) {
         val ps = new PrintStream(new Streams.UnclosedFileOutputStream(bat))
         ps.print(line)
@@ -151,8 +153,8 @@ class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
         println("A file " + bat + " has been written to execute this backup again")
       }
     }
-    writeTo(new File("."))
-    writeTo(conf.folder)
+    writeTo(new File(".", conf.folder.getName()+suffix))
+    writeTo(new File(conf.folder, "_"+conf.folder.getName()+suffix))
   }
 
   type T = BackupConf
@@ -160,7 +162,9 @@ class BackupCommand(val args: Seq[String]) extends BackupRelatedCommand {
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
     val bdh = new BackupHandler(conf) with ZipBlockStrategy
-    writeBat(t, conf)
+    if (!t.noScriptCreation()) {
+    	writeBat(t, conf)
+    }
     bdh.backup(t.folderToBackup() :: Nil)
   }
 }

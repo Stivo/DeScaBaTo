@@ -10,6 +10,8 @@ mainClass := Some("ch.descabato.CLI")
 
 packageArchetype.java_application
 
+normalizedName in Universal := "descabato"
+
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
     base / "src/main/resources"
@@ -48,3 +50,7 @@ testOptions in Test += Tests.Argument("-oF")
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
 libraryDependencies += "org.rogach" %% "scallop" % "0.9.4"
+
+packSettings
+
+packMain := Map("descabato" -> "ch.descabato.CLI")

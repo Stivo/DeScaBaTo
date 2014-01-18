@@ -11,8 +11,6 @@ scalaVersion := "2.10.3"
 
 mainClass := Some("ch.descabato.browser.Main")
 
-packageArchetype.java_application
-
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
     base / "src/main/resources"
@@ -46,3 +44,7 @@ libraryDependencies ++= Seq(
 	"org.ocpsoft.prettytime" % "prettytime" % "3.1.0.Final",
 	"com.github.insubstantial" % "substance" % "7.2.1"
 )
+
+packSettings
+
+packMain := Map("descabato" -> "ch.descabato.browser.Main")
