@@ -127,9 +127,9 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
         c2 should be('directory)
         compareBackups(c1, c2)
       } else {
-        assert(c1.lastModified === c2.lastModified, "Last modified should be the same")
-        assert(c1.getName === c2.getName, "name should be same for " + c1)
-        assert(c1.length === c2.length, "length should be same for " + c1)
+    	assert(c1.getName === c2.getName, "name should be same for " + c1)
+     	assert(c1.length === c2.length, "length should be same for " + c1)
+        assert(c1.lastModified === c2.lastModified +- 1000, "Last modified should be within a second")
         assert(hash(c1) === hash(c2), "content should be same for " + c1)
       }
     }

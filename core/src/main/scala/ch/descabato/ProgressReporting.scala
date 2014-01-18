@@ -105,7 +105,7 @@ object ProgressReporter extends ProgressReporting {
 }
 
 object AnsiUtil {
-  lazy val initAnsi = if (CLI.runsInJar) {
+  lazy val initAnsi = if (CLI.runsInJar && System.getProperty("user.name").toLowerCase()!="travis") {
     AnsiConsole.systemInstall();
   } else {
     deleteLinesEnabled = false

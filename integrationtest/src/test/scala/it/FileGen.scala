@@ -15,8 +15,9 @@ import ch.descabato.TestUtils
 class FileGen(val folder : File) extends TestUtils {
 
   var random = new Random(255)
-  var maxSize = Size("500MB")
+  var maxSize = Size("200MB")
   var maxFiles = 1000
+  var minFiles = 200
   var maxFolders = 50
   val subfolderChance = 20
   var folderList = Buffer[File]()
@@ -31,8 +32,8 @@ class FileGen(val folder : File) extends TestUtils {
     newFile(maxSize.bytes.toInt / 2)
     val copyFrom1 = fileList.last
     newFile(maxSize.bytes.toInt / 10)
-    while (fileList.map(_.length).sum < maxSize.bytes) {
-      newFile(random.nextInt(1000000))
+    while (fileList.size < minFiles || fileList.map(_.length).sum < maxSize.bytes) {
+      newFile(1000000)
     }
     Files.copy(copyFrom1.toPath, new File(folder, "copy1").toPath)
     Files.copy(select(fileList).toPath, new File(folder, "copy2").toPath)

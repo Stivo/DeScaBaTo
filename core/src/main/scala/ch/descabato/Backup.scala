@@ -447,6 +447,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
 
   def restore(options: RestoreConf, d: Option[Date] = None) {
     implicit val o = options
+    importOldHashChains
     val filesInBackup = loadOldIndex(date = d)
     val filtered = if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
     l.info("Going to restore " + statistics(filtered))

@@ -9,9 +9,9 @@ import ch.descabato.CLI
 
 
 
-class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
+class BrowseCommand extends BackupRelatedCommand {
   type T = SimpleBackupFolderOption
-  val newT = new SimpleBackupFolderOption(args)
+  def newT(args: Seq[String]) = new SimpleBackupFolderOption(args)
   def start(t: T, conf: BackupFolderConfiguration) {
     t.afterInit
     println(t.summary)
@@ -21,7 +21,6 @@ class BrowseCommand(val args: Seq[String]) extends BackupRelatedCommand {
     val url = s"backup:file://$path!"
     
     TestBrowser.main2(Array(url))
-
   }
 }
 
