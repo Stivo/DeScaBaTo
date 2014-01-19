@@ -39,7 +39,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     s.writeObject(t, baout)
     println("Serialization size of "+t+" with "+s.getClass().getSimpleName()+" is "+baout.size())
     val in = replay(baout)
-    val t2 = s.readObject[T](in).get
+    val t2 = s.readObject[T](in).left.get
     t2
   }
   

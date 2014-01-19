@@ -7,6 +7,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.io.FileInputStream
+import java.io.BufferedOutputStream
+import java.io.BufferedInputStream
 
 class VolumeIndex extends HashMap[String, Int]
 
@@ -18,8 +20,17 @@ object Constants {
   val tempPrefix = "temp."
 }
 
+/**
+ * Describes the file patterns for a certain kind of file.
+ * Supports a global prefix from the BackupFolderConfiguration,
+ * a prefix for it's file type, a date and a temp modifier.
+ * Can be used to get all files of this type from a folder and to
+ * read and write objects using serialization.
+ */
 case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
   import Constants.tempPrefix
+
+  def globalPrefix = options.prefix
 
   var options: BackupFolderConfiguration = null
   var fileManager: FileManager = null
@@ -50,41 +61,48 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def nextName(tempFile: Boolean = false) = {
     val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    s"$temp$prefix$date${nextNum(tempFile)}$suffix"
+    s"$globalPrefix$temp$prefix$date${nextNum(tempFile)}$suffix"
   }
 
   def nextFile(f: File = options.folder, temp: Boolean = false) = new File(f, nextName(temp))
 
-  def matches(x: File) = x.getName().startsWith(prefix)
+  def matches(x: File) = x.getName().startsWith(globalPrefix + prefix)
 
   def getFiles(f: File = options.folder) = f.
     listFiles().filter(_.isFile()).
-    filter(_.getName().startsWith(prefix))
+    filter(_.getName().startsWith(globalPrefix + prefix))
 
   def getTempFiles(f: File = options.folder) = f.
     listFiles().filter(_.isFile()).
-    filter(_.getName().startsWith(tempPrefix + prefix))
+    filter(_.getName().startsWith(globalPrefix + tempPrefix + prefix))
 
   def deleteTempFiles(f: File = options.folder) = getTempFiles(f).foreach(_.delete)
 
-  def getDate(x: File) = {
-    val name = {
-      val name = x.getName()
-      if (name.startsWith(tempPrefix)) name.drop(tempPrefix.length) else name
+  /**
+   * Removes the global prefix, the temp prefix and the file type prefix.
+   * Leaves the date (if there) and number and suffix
+   */
+  def stripPrefixes(f: File) = {
+    var rest = f.getName().drop(globalPrefix.length())
+    if (rest.startsWith(tempPrefix)) {
+      rest = rest.drop(tempPrefix.length)
     }
-    val date = name.drop(prefix.length()).take(fileManager.dateFormatLength)
+    assert(rest.startsWith(prefix))
+    rest = rest.drop(prefix.length)
+    rest
+  }
+  
+  def getDate(x: File) = {
+    val name = stripPrefixes(x)
+    val date = name.take(fileManager.dateFormatLength)
     fileManager.dateFormat.parse(date)
   }
 
   def getNum(x: File) = {
-    val name = {
-      val name = x.getName()
-      if (name.startsWith(tempPrefix)) name.drop(tempPrefix.length) else name
-    }
-    var dropLength = prefix.length
+    var rest = stripPrefixes(x)
     if (hasDate)
-      dropLength += fileManager.dateFormatLength + 1
-    val num = name.drop(dropLength).takeWhile(x => (x + "").matches("\\d"))
+      rest = rest.drop(fileManager.dateFormatLength + 1)
+    val num = rest.takeWhile(x => (x + "").matches("\\d"))
     if (num.isEmpty()) {
       -1
     } else
@@ -93,22 +111,29 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def write(x: T, temp: Boolean = false) = {
     val file = nextFile(temp = temp)
-    //l.info("Writing "+x+" to file "+file)
-    val out = StreamHeaders.wrapStream(new Streams.UnclosedFileOutputStream(file), options)
+    val fos = new Streams.UnclosedFileOutputStream(file)
+    val bos = new BufferedOutputStream(fos, 20 * 1024)
+    val out = StreamHeaders.wrapStream(bos, options)
     options.serialization.writeObject(x, out)
     file
   }
 
   def read(f: File): Option[T] = {
-    //l.info("Writing "+x+" to file "+file)
-    //    options.serialization.readObject(x, file)(options, m)
-    //    file
     try {
-      val read = StreamHeaders.readStream(new FileInputStream(f), options.passphrase)
-      options.serialization.readObject[T](read)
+      val fis = new FileInputStream(f)
+      val bis = new BufferedInputStream(fis)
+      val read = StreamHeaders.readStream(bis, options.passphrase)
+      options.serialization.readObject[T](read) match {
+        case Left(read) => Some(read)
+        case Right(e) => throw e
+      }
     } catch {
+      case c: SecurityException => throw c
+      case e: Exception if ((e.getMessage+e.getStackTraceString).contains("CipherInputStream")) => {
+        throw new PasswordWrongException("Exception while loading "+f+", most likely the supplied passphrase is wrong.", e) 
+      }
       case e: Exception =>
-        l.warn("Exception while loading " + f)
+        l.warn("Exception while loading " + f +", file may be corrupt")
         logException(e)
         None
     }
@@ -116,6 +141,9 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
 }
 
+/**
+ * Provides different file types and does some common backup file operations.
+ */
 class FileManager(options: BackupFolderConfiguration) {
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
   val dateFormatLength = dateFormat.format(new Date()).length()
@@ -148,13 +176,13 @@ class FileManager(options: BackupFolderConfiguration) {
     val complete = if (temp) out1 ++ files.getTempFiles() else out1
     (complete, !updates.isEmpty)
   }
-  
+
   def getBackupDates(): Seq[Date] = {
     files.getFiles().map(files.getDate).toList.distinct.sorted
   }
 
-  def getBackupForDate(d: Date) : Seq[File] = {
+  def getBackupForDate(d: Date): Seq[File] = {
     files.getFiles().filter(f => files.getDate(f) == d)
   }
-  
+
 }

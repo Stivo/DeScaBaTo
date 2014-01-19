@@ -74,7 +74,6 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
   }
 
   override def visitFileFailed(file: Path, exc: IOException) = {
-    //Objects.requireNonNull(file);
     FileVisitResult.CONTINUE
   }
 

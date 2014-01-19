@@ -129,7 +129,7 @@ object Streams extends Utils {
   }
 
   class SplitInputStream(in: InputStream, outStreams: List[OutputStream]) extends InputStream {
-    def read() = throw new IllegalAccessException("This method should not be used")
+    def read() : Int = throw new IllegalAccessException("This method should not be used")
     def readComplete() {
       readFrom(in, { (buf: Array[Byte], len: Int) =>
         for (outStream <- outStreams) {

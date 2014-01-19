@@ -97,8 +97,8 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       files.foreach(deleteFile)
       nums
     }
-    val set1 = deleteFiles("temp.index_", fileManager.index)
-    val set2 = deleteFiles("temp.volume_", fileManager.volumes)
+    val set1 = deleteFiles(config.prefix+"temp.index_", fileManager.index)
+    val set2 = deleteFiles(config.prefix+"temp.volume_", fileManager.volumes)
     val set = set1 union set2
     fileManager.index.getFiles().filter(x => set contains (fileManager.index.getNum(x))).foreach(deleteFile)
     fileManager.volumes.getFiles().filter(x => set contains (fileManager.volumes.getNum(x))).foreach(deleteFile)
@@ -163,12 +163,12 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
   def volumeName(num: Int, temp: Boolean = false) = {
     val add = if (temp) Constants.tempPrefix else ""
-    s"${add}volume_$num.zip"
+    s"${config.prefix}${add}volume_$num.zip"
   }
 
   def indexName(num: Int, temp: Boolean = false) = {
     val add = if (temp) Constants.tempPrefix else ""
-    s"${add}index_$num.zip"
+    s"${config.prefix}${add}index_$num.zip"
   }
 
   def startZip() {

@@ -143,7 +143,8 @@ object StreamHeaderV2 extends StreamHeaderBase {
     val enabled = (byte & (1 << 3)) != 0
     val keyLength = (byte >> 4) * 64
     if (enabled && passphrase.isEmpty) {
-      throw new IllegalArgumentException("Needs a password")
+      // TODO this should not be possible anymore
+      throw new PasswordWrongException("Needs a password", null)
     }
     if (enabled)
       AES.wrapStreamWithDecryption(in, passphrase.get, keyLength)

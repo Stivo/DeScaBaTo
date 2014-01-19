@@ -46,12 +46,12 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var threads: Int = 1
   val checkPointEvery: Size = volumeSize
   val useDeltas = false
-  lazy val hasPassword = passphrase.isDefined
+  var hasPassword = passphrase.isDefined
 }
 
 object InitBackupFolderConfiguration {
-  def apply(option: BackupFolderOption) = {
-    val out = BackupFolderConfiguration(option.backupDestination(), option.prefix(), option.passphrase.get)
+  def apply(option: BackupFolderOption, passphrase: Option[String]) = {
+    val out = BackupFolderConfiguration(option.backupDestination(), option.prefix(), passphrase)
     option match {
       case o: ChangeableBackupOptions =>
         o.keylength.foreach(out.keyLength = _)
@@ -71,17 +71,28 @@ object InitBackupFolderConfiguration {
   }
 }
 
+object BackupVerification {
+  trait VerificationResult
+
+  case object PasswordNeeded extends VerificationResult
+
+  case object BackupDoesntExist extends Exception("This backup was not found.\nSpecify backup folder and prefix if needed") 
+  	with VerificationResult with BackupException
+
+  case object OK extends VerificationResult
+}
+
 /**
  * Loads a configuration and verifies the command line arguments
  */
 class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
-  val mainFile = "backup.json"
+  val mainFile = supplied.prefix() + "backup.json"
   val folder: File = supplied.backupDestination()
   def hasOld = new File(folder, mainFile).exists()
-  def loadOld() = {
+  def loadOld() : BackupFolderConfiguration = {
     val json = new JsonSerialization()
-    json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))).get
+    json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))).left.get
   }
 
   def write(out: BackupFolderConfiguration) {
@@ -91,24 +102,37 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     // writeObject closes
   }
 
-  def configure(): BackupFolderConfiguration = {
+  def verify(existing: Boolean) : BackupVerification.VerificationResult = {
+    import BackupVerification._
+	  if (existing && !hasOld) {
+	    return BackupDoesntExist
+	  }
+      if (hasOld) {
+        if (loadOld().hasPassword && supplied.passphrase.isEmpty) {
+          return PasswordNeeded
+        }
+      }
+      OK
+  }
+
+  def configure(passphrase: Option[String]): BackupFolderConfiguration = {
     if (hasOld) {
       val oldConfig = loadOld()
-      val (out, changed) = merge(oldConfig, supplied)
+      val (out, changed) = merge(oldConfig, supplied, passphrase)
       if (changed) {
         write(out)
       }
       out
     } else {
       folder.mkdirs()
-      val out = InitBackupFolderConfiguration(supplied)
+      val out = InitBackupFolderConfiguration(supplied, passphrase)
       write(out)
       out
     }
   }
 
-  def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption) = {
-    old.passphrase = supplied.passphrase.get
+  def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption, passphrase: Option[String]) = {
+    old.passphrase = passphrase
     var changed = false
     supplied match {
       case o: ChangeableBackupOptions =>
@@ -420,6 +444,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
         l.warn("Could not backup file " + fileDesc.path + " because it is locked.")
         None
       }
+      // TODO linux add case for symlinks
       case e: IOException => throw e
     }
   }
@@ -526,9 +551,9 @@ class VerifyHandler(val config: BackupFolderConfiguration)
   extends ReadingHandler with Utils with BackupProgressReporting {
   self: BlockStrategy =>
   val block: BlockStrategy = self
-  
+
   var problemCounter = new ProblemCounter()
-  
+
   def verify(t: VerifyConf) = {
     problemCounter = new ProblemCounter()
     try {
@@ -537,20 +562,22 @@ class VerifyHandler(val config: BackupFolderConfiguration)
       verifyHashes()
       verifySomeFiles(t.percentOfFilesToCheck())
     } catch {
-      case x : Error => l.warn("Aborting verification because of error ", x) 
+      case x: Error => 
+      	l.warn("Aborting verification because of error ", x)
+      	logException(x)
     }
     problemCounter.current
   }
-  
+
   val index = loadOldIndex(false)
-  
+
   def verifyHashes() {
     val it = index.iterator
     while (it.hasNext) {
       it.next match {
-        case f: FileDescription => 
+        case f: FileDescription =>
           val chain = getHashChain(f)
-          val missing = chain.filterNot {blockExists}
+          val missing = chain.filterNot { blockExists }
           if (!missing.isEmpty) {
             problemCounter += missing.size
             l.warn(s"Missing ${missing.size} blocks for $f")
@@ -559,26 +586,26 @@ class VerifyHandler(val config: BackupFolderConfiguration)
       }
     }
   }
-  
+
   val random = new Random()
- 
+
   def getRandomXElements[T](x: Int, array: Array[T]) = {
     def swap(i: Int, i2: Int) {
       val bak = array(i)
       array(i) = array(i2)
       array(i2) = bak
     }
-    val end = Math.min(x, array.length-2)+1
+    val end = Math.min(x, array.length - 2) + 1
     (0 to end).foreach { i =>
-      swap(i, random.nextInt(array.length-1-i)+i)
+      swap(i, random.nextInt(array.length - 1 - i) + i)
     }
     array.take(end)
   }
-  
+
   def verifySomeFiles(percent: Int) {
-   
+
     var files = partitionFolders(index)._2.toArray
-    val probes = ((percent *1.0 / 100.0) * files.size).toInt+1
+    val probes = ((percent * 1.0 / 100.0) * files.size).toInt + 1
     val tests = getRandomXElements(probes, files)
     setMaximums(tests)
     tests.foreach { file =>
@@ -587,7 +614,7 @@ class VerifyHandler(val config: BackupFolderConfiguration)
       copy(in, hos)
       if (!Arrays.equals(file.hash, hos.out.get)) {
         l.warn("File " + file + " is broken in backup")
-        l.warn(Utils.encodeBase64Url(file.hash)+" "+Utils.encodeBase64Url(hos.out.get))
+        l.warn(Utils.encodeBase64Url(file.hash) + " " + Utils.encodeBase64Url(hos.out.get))
         problemCounter += 1
       }
       byteCounter += file.size

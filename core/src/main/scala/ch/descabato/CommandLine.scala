@@ -7,20 +7,20 @@ import java.math.{ BigDecimal => JBigDecimal }
 import javax.xml.bind.DatatypeConverter
 import java.text.DecimalFormat
 import com.typesafe.scalalogging.slf4j.Logging
-import CLI._
 import java.io.PrintStream
 import scala.collection.mutable.Buffer
 import java.io.File
 import ScallopConverters._
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.lang.reflect.InvocationTargetException
 
-object CLI {
+object CLI extends Utils {
 
   var testMode: Boolean = false
-  
-  var lastErrors : Long = 0L
-  
+
+  var lastErrors: Long = 0L
+
   var _overrideRunsInJar = false
 
   def runsInJar = _overrideRunsInJar || classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
@@ -34,23 +34,34 @@ object CLI {
 
   def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
     case Some(x) => x
-    case None => println("No command named "+name+" exists."); new HelpCommand()
+    case None => println("No command named " + name + " exists."); new HelpCommand()
   }
 
   def parseCommandLine(args: Seq[String]) {
-    getCommand(args.head).execute(args.tail)
+    val (command, tail) = if (args.isEmpty) {
+      ("help", Nil)
+    } else {
+      (args.head, args.tail)
+    }
+    getCommand(command).execute(tail)
   }
 
   def main(args: Array[String]) {
-    if (runsInJar) {
-      java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
-      parseCommandLine(args)
-    } else {
-      //      parseCommandLine("backup --serializer-type json --compression none backups ..\\testdata".split(" "))
-      parseCommandLine("verify e:\\backups\\pics".split(" "))
-//      parseCommandLine("restore --help".split(" "))
-      //      parseCommandLine("browse -p asdf backups".split(" "))
-      //      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+    try {
+      if (runsInJar) {
+        java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
+        parseCommandLine(args)
+      } else {
+        //      parseCommandLine("backup --serializer-type json --compression none backups ..\\testdata".split(" "))
+        parseCommandLine("verify e:\\backups\\pics".split(" "))
+        //      parseCommandLine("restore --help".split(" "))
+        //      parseCommandLine("browse -p asdf backups".split(" "))
+        //      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+      }
+    } catch {
+      case e @ PasswordWrongException(m, cause) =>
+        println(m); logException(e)
+      case e @ BackupVerification.BackupDoesntExist => println(e.getMessage); logException(e)
     }
   }
 
@@ -80,10 +91,12 @@ trait Command {
 
   def execute(args: Seq[String])
 
-  def askUser(question: String = "Do you want to continue?"): String = {
+  def askUser(question: String = "Do you want to continue?", mask: Boolean = false): String = {
     println(question)
-    val bufferRead = new BufferedReader(new InputStreamReader(System.in));
-    bufferRead.readLine();
+    if (mask)
+      System.console().readPassword().mkString
+    else
+      System.console().readLine()
   }
 
   def askUserYesNo(question: String = "Do you want to continue?"): Boolean = {
@@ -102,8 +115,13 @@ trait Command {
 class ReflectionCommand(override val name: String, clas: String) extends Command {
 
   def execute(args: Seq[String]) {
-    val constructor = Class.forName(clas).getConstructor(classOf[Seq[String]])
-    constructor.newInstance(args).asInstanceOf[Command]
+    try {
+      val clazz = Class.forName(clas)
+      val instance = clazz.getConstructor().newInstance()
+      clazz.getMethod("execute", classOf[Seq[String]]).invoke(instance, args)
+    } catch {
+      case e: ReflectiveOperationException if e.getCause().isInstanceOf[BackupException] => throw e.getCause
+    }
   }
 
 }
@@ -113,13 +131,23 @@ trait BackupRelatedCommand extends Command {
 
   def newT(args: Seq[String]): T
 
+  def needsExistingBackup = true
+
   final override def execute(args: Seq[String]) {
     start(newT(args))
   }
 
   def start(t: T) {
+    import BackupVerification._
     t.afterInit
-    val conf = new BackupConfigurationHandler(t).configure
+    val confHandler = new BackupConfigurationHandler(t)
+    var passphrase = t.passphrase.get
+    confHandler.verify(needsExistingBackup) match {
+      case b @ BackupDoesntExist => throw b
+      case PasswordNeeded => passphrase = Some(askUser("This backup is passphrase protected. Please type your passphrase.", true))
+      case OK =>
+    }
+    val conf = confHandler.configure(passphrase)
     start(t, conf)
   }
 
@@ -145,7 +173,16 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
 
 trait BackupFolderOption extends ScallopConf {
   val passphrase = opt[String](default = None)
-  val prefix = opt[String](default = Some(""))
+  val prefix = opt[String](default = Some("")).map { x =>
+    if (x == "") {
+      x
+    } else {
+      x.last match {
+        case '.' | '_' | '-' | ';' => x
+        case _ => x + "_"
+      }
+    }
+  }
   val backupDestination = trailArg[String](required = true).map(new File(_).getAbsoluteFile())
 }
 
@@ -157,7 +194,8 @@ class BackupCommand extends BackupRelatedCommand {
 
   def writeBat(t: T, conf: BackupFolderConfiguration) = {
     val path = new File(s"descabato$suffix").getAbsolutePath()
-    val line = s"$path backup ${t.backupDestination()} ${t.folderToBackup()}"
+    val prefix = if (conf.prefix == "") "" else "--prefix " + conf.prefix
+    val line = s"$path backup $prefix ${t.backupDestination()} ${t.folderToBackup()}"
     def writeTo(bat: File) {
       if (!bat.exists) {
         val ps = new PrintStream(new Streams.UnclosedFileOutputStream(bat))
@@ -180,6 +218,8 @@ class BackupCommand extends BackupRelatedCommand {
     }
     bdh.backup(t.folderToBackup() :: Nil)
   }
+
+  override def needsExistingBackup = false
 }
 
 class RestoreCommand extends BackupRelatedCommand {
@@ -246,9 +286,9 @@ class HelpCommand extends Command {
     args.toList match {
       case command :: _ if CLI.getCommands().contains(command) => CLI.parseCommandLine(command :: "--help" :: Nil)
       case _ =>
-      	val commands = CLI.getCommands().keys.mkString(", ") 
+        val commands = CLI.getCommands().keys.mkString(", ")
         println(
-        s"""The available commands are: $commands
+          s"""The available commands are: $commands
 For further help about a specific command type 'help backup' or 'backup --help'.
 For general usage guide go to https://github.com/Stivo/DeScaBaTo""")
     }
@@ -309,7 +349,15 @@ trait Utils extends Logging {
   def logException(t: Throwable) {
     ObjectPools.baosPool.withObject(Unit, { baos =>
       val ps = new PrintStream(baos)
-      t.printStackTrace(ps)
+      def print(t: Throwable) {
+        t.printStackTrace(ps)
+        if (t.getCause() != null) {
+          ps.println()
+          ps.println("Caused by: ")
+          print(t.getCause())
+        }
+      }
+      print(t)
       l.debug(new String(baos.toByteArray))
     })
   }

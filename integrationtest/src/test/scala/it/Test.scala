@@ -50,8 +50,8 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     testWith(" --passphrase mypassword", " --passphrase mypassword", 3)
   }
 
-  "low volumesize backup" should "work" in {
-    testWith(" --volume-size 1Mb --block-size 2Kb", "", 3)
+  "low volumesize backup with prefix" should "work" in {
+    testWith(" --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
   }
 
   "backup with crashes" should "work" in {

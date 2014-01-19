@@ -25,21 +25,12 @@ import com.fasterxml.jackson.dataformat.smile.SmileParser
 import java.io.OutputStream
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector
 import java.io.InputStream
+import java.io.BufferedOutputStream
 
 trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit
 
-  def readObject[T](in: InputStream)(implicit m: Manifest[T]): Option[T]
-}
-
-trait DelegateSerialization extends Serialization {
-  var serialization: Serialization = null
-  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
-    serialization.writeObject(t, out)
-  }
-
-  def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Option[T] =
-    serialization.readObject(in)
+  def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Either[T, Exception] 
 }
 
 abstract class AbstractJacksonSerialization extends Serialization {
@@ -100,12 +91,11 @@ abstract class AbstractJacksonSerialization extends Serialization {
     out.close()
   }
 
-  def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Option[T] = {
+  def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Either[T, Exception] = {
     try {
-      Some(mapper.readValue(in))
+      Left(mapper.readValue(in))
     } catch {
-      case exception => println(exception.getMessage())
-      None
+      case exception : Exception => Right(exception)
     }
   }
 

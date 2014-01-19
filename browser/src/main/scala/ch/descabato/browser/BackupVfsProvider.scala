@@ -173,4 +173,14 @@ class VfsIndex(config: BackupFolderConfiguration)
     BackupVfsProvider.indexes += Utils.normalizePath(path) -> this
   }
 
+  var setup = false
+  
+  override def getInputStream(fd: FileDescription) = {
+    if (!setup) {
+      importOldHashChains
+      setup = true
+    }
+    super.getInputStream(fd)
+  }
+  
 }
