@@ -190,7 +190,7 @@ trait BackupFolderOption extends ScallopConf {
 
 class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOption
 
-class BackupCommand extends BackupRelatedCommand {
+class BackupCommand extends BackupRelatedCommand with Utils {
 
   val suffix = if (Utils.isWindows) ".bat" else ""
 
@@ -219,6 +219,9 @@ class BackupCommand extends BackupRelatedCommand {
       writeBat(t, conf)
     }
     bdh.backup(t.folderToBackup() :: Nil)
+    l.info("Running redundancy creation")
+    new RedundancyHandler(conf).createFiles
+    l.info("Redundancy creation finished")
   }
 
   override def needsExistingBackup = false

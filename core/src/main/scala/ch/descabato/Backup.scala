@@ -49,6 +49,9 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   val useDeltas = false
   var hasPassword = passphrase.isDefined
   var renameDetection = true
+  
+  @JsonIgnore lazy val fileManager = new FileManager(this)
+  
 }
 
 object InitBackupFolderConfiguration {
@@ -195,9 +198,9 @@ trait BackupProgressReporting extends Utils {
 
 abstract class BackupIndexHandler extends Utils {
   val config: BackupFolderConfiguration
-
-  lazy val fileManager = new FileManager(config)
-
+  
+  lazy val fileManager = config.fileManager
+  
   def loadOldIndex(temp: Boolean = false, date: Option[Date] = None): Buffer[BackupPart] = {
     val (filesToLoad, hasDeltas) = if (date.isDefined) {
       (fileManager.getBackupForDate(date.get).toArray, false)

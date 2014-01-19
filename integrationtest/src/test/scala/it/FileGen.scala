@@ -18,7 +18,7 @@ class FileGen(val folder: File) extends TestUtils {
   var random = new Random()
   var maxSize = Size("200MB")
   var maxFiles = 1000
-  var minFiles = 50
+  var minFiles = 80
   var maxFolders = 50
   val subfolderChance = 20
   var folderList = Buffer[File]()
@@ -83,6 +83,9 @@ class FileGen(val folder: File) extends TestUtils {
       done = file.renameTo(fileNew)
     }
     rescan
+    if (fileList.size < 10) {
+      times(10) newFile(10000)
+    }
   }
 
   def deleteFile() {
