@@ -240,7 +240,7 @@ object Streams extends Utils {
       val append = if (size > 1) {
         s"/${Utils.readableFileSize(size, 2)} ${(100 * count / size).toInt}%"
       } else ""
-      ProgressReporter.ephemeralMessage(s"$message ${Utils.readableFileSize(count)}$append")
+      ProgressReporters.reporter.ephemeralMessage(s"$message ${Utils.readableFileSize(count)}$append")
       super.write(buf, start, len)
     }
   }

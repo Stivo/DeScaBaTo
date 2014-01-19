@@ -163,6 +163,7 @@ trait ChangeableBackupOptions extends BackupFolderOption {
   val threads = opt[Int](default = Some(1))
   val noScriptCreation = opt[Boolean](default = Some(false))
   val checkpointEvery = opt[Size](default = Some(Size("100Mb")))
+  val renameDetection = opt[Boolean](default = Some(false))
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {

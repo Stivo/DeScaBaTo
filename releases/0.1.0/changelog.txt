@@ -1,4 +1,4 @@
-Version 0.1.0 (18.01.2014): First release.
+Version 0.1.0 (19.01.2014): First release.
 
 The release includes the following commands:
 - backup
@@ -8,3 +8,7 @@ The release includes the following commands:
 
 Features are: Deduplication, optional encryption, compression (without compression of already compressed files), visual browsing of backups, saving of metadata (last modified time, creation time).
 The archive format is open and not tied to Java.
+
+Version 0.1.1 (19.01.2014): Bugfix release.
+
+Added checkpoint-every command line option.

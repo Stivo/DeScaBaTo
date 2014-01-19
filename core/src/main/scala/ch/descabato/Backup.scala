@@ -23,6 +23,7 @@ import java.util.Date
 import java.security.DigestOutputStream
 import scala.io.Source
 import scala.util.Random
+import java.io.FileNotFoundException
 
 /**
  * The configuration to use when working with a backup folder.
@@ -47,6 +48,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var checkPointEvery: Size = volumeSize
   val useDeltas = false
   var hasPassword = passphrase.isDefined
+  var renameDetection = true
 }
 
 object InitBackupFolderConfiguration {
@@ -58,6 +60,7 @@ object InitBackupFolderConfiguration {
         o.volumeSize.foreach(out.volumeSize = _)
         o.threads.foreach(out.threads = _)
         o.checkpointEvery.foreach(out.checkPointEvery = _)
+        o.renameDetection.foreach(out.renameDetection = _)
       case _ =>
     }
     option match {
@@ -70,6 +73,25 @@ object InitBackupFolderConfiguration {
     }
     out
   }
+  
+  def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption, passphrase: Option[String]) = {
+    old.passphrase = passphrase
+    var changed = false
+    supplied match {
+      case o: ChangeableBackupOptions =>
+        o.keylength.foreach { changed = true; old.keyLength = _ }
+        o.volumeSize.foreach { changed = true; old.volumeSize = _ }
+        o.threads.foreach { changed = true; old.threads = _ }
+        o.checkpointEvery.foreach { changed = true; old.checkPointEvery = _ }
+        o.renameDetection.foreach {changed = true; old.renameDetection = _}
+      // TODO other properties that can be set again
+      case _ =>
+    }
+    l.debug("Configuration after merge " + old)
+    (old, changed)
+  }
+
+  
 }
 
 object BackupVerification {
@@ -119,7 +141,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {
     if (hasOld) {
       val oldConfig = loadOld()
-      val (out, changed) = merge(oldConfig, supplied, passphrase)
+      val (out, changed) = InitBackupFolderConfiguration.merge(oldConfig, supplied, passphrase)
       if (changed) {
         write(out)
       }
@@ -130,22 +152,6 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
       write(out)
       out
     }
-  }
-
-  def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption, passphrase: Option[String]) = {
-    old.passphrase = passphrase
-    var changed = false
-    supplied match {
-      case o: ChangeableBackupOptions =>
-        o.keylength.foreach { changed = true; old.keyLength = _ }
-        o.volumeSize.foreach { changed = true; old.volumeSize = _ }
-        o.threads.foreach { changed = true; old.threads = _ }
-        o.checkpointEvery.foreach { changed = true; old.checkPointEvery = _ }
-      // TODO other properties that can be set again
-      case _ =>
-    }
-    l.debug("Configuration after merge " + old)
-    (old, changed)
   }
 
 }
@@ -171,8 +177,9 @@ object BackupUtils {
 }
 
 trait BackupProgressReporting extends Utils {
-  lazy val fileCounter = new StandardCounter("Files", 0) {}
-  lazy val byteCounter = new StandardCounter("Data", 0) with ETACounter {
+  lazy val scanCounter = new StandardCounter("Files found: ")
+  lazy val fileCounter = new StandardMaxValueCounter("Files", 0) {}
+  lazy val byteCounter = new StandardMaxValueCounter("Data", 0) with ETACounter {
     override def format = s"${readableFileSize(current)}/${readableFileSize(maxValue)} ${percent}%"
   }
 
@@ -302,12 +309,13 @@ class BackupHandler(val config: BackupFolderConfiguration)
 
   var failed = Buffer[FileDescription]()
 
+  var deletedCopy: Buffer[FileDescription] = Buffer()
+
   def backup(files: Seq[File]) {
     config.folder.mkdirs()
-
+    l.info("Starting backup")
     // Walk tree and compile to do list
-
-    val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true).walk(files)
+    val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
     val (newParts, unchanged, deleted) = (visitor.newFiles, visitor.unchangedFiles, visitor.deleted)
     println("New Files      : " + statistics(newParts))
     println("Unchanged files: " + statistics(unchanged))
@@ -318,7 +326,9 @@ class BackupHandler(val config: BackupFolderConfiguration)
     }
     val fileListOut = Buffer[BackupPart]()
     val (newFolders, newFiles) = partitionFolders(newParts)
-
+    if (config.renameDetection) {
+      deletedCopy = partitionFolders(deleted)._2
+    }
     // Backup files 
 
     setMaximums(newFiles)
@@ -396,14 +406,55 @@ class BackupHandler(val config: BackupFolderConfiguration)
     noCompressionSet contains (fileDesc.path.drop(index).toLowerCase())
   }
 
+  def checkForRename(file: File, fileDesc: FileDescription, input: FileInputStream): Option[FileDescription] = {
+    try {
+      lazy val firstBlockHash = {
+        val buf = Array.ofDim[Byte](config.blockSize.bytes.toInt)
+        val read = input.read(buf)
+        val digest = config.getMessageDigest
+        digest.update(buf, 0, read)
+        digest.digest()
+      }
+      def checkFilter(candidates: Seq[FileDescription], fil: (String, FileDescription => Boolean)) = {
+        if (candidates.isEmpty) {
+          throw new IllegalStateException()
+        }
+        val out = candidates.filter(fil._2)
+//        l.info(s"${fil._1}: ${out.size}")
+        out
+      }
+      val filters = List(
+        ("Same size", { fd: FileDescription => fd.size == fileDesc.size }),
+        ("same modification date", { fd: FileDescription => !fd.attrs.hasBeenModified(file) }),
+        ("same name", { fd: FileDescription => println(fd.pathParts.mkString(" / ")); fd.pathParts.last == file.getName() }),
+        ("same first block", { fd: FileDescription => Arrays.equals(getHashChain(fd).head, firstBlockHash) })
+        )
+      filters.foldLeft(deletedCopy.toSeq)((x, y) => checkFilter(x, y)).headOption
+    } catch {
+      case i: IllegalStateException => None
+    }
+  }
+
   def backupFileDesc(fileDesc: FileDescription): Option[FileDescription] = {
     val byteCounterbackup = byteCounter.current
-    var fis : InputStream = null
+
+    var fis: FileInputStream = null
     try {
-      val compressionDisabled = compressionFor(fileDesc)
       // This is a new file, so we start hashing its contents, fill those in and return the same instance
       val file = new File(fileDesc.path)
       fis = new FileInputStream(file)
+      if (config.renameDetection) {
+        val oldOne = checkForRename(file, fileDesc, fis)
+        for(old <- oldOne) {
+          l.info("Detected rename from "+old.path+" to "+fileDesc.path)
+          deletedCopy -= old
+          val out = old.copy(path = fileDesc.path)
+          out.hash = old.hash
+          return Some(out)
+        }
+        fis.getChannel.position(0)
+      }
+      lazy val compressionDisabled = compressionFor(fileDesc)
       val (fileHash, hashList) = ObjectPools.baosPool.withObject((), {
         out: ByteArrayOutputStream =>
           val md = config.getMessageDigest
@@ -448,6 +499,13 @@ class BackupHandler(val config: BackupFolderConfiguration)
         l.warn("Could not backup file " + fileDesc.path + " because it is locked.")
         None
       // TODO linux add case for symlinks
+      case io: IOException if (io.getMessage().contains("The system cannot find the")) =>
+        l.info(s"File ${fileDesc.path} has been deleted since starting the backup")
+        None
+      case io: FileNotFoundException if (io.getMessage().contains("Access is denied")) =>
+        l.info(s"File ${fileDesc.path} can not be accessed")
+        failed += fileDesc
+        None
       case e: IOException => throw e
     } finally {
       if (fis != null)

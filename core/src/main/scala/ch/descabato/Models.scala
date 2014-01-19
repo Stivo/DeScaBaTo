@@ -101,7 +101,7 @@ object FileDeleted {
 
 case class FileDescription(path: String, size: Long, attrs: FileAttributes) extends BackupPart {
   var hash: Array[Byte] = null
-  def name = path.split("""[/\\]""").last
+  def name = pathParts.last
   @JsonIgnore def isFolder = false
 }
 
@@ -112,6 +112,7 @@ case class FolderDescription(path: String, attrs: FileAttributes) extends Backup
 
 trait BackupPart extends UpdatePart {
   @JsonIgnore def isFolder: Boolean
+  @JsonIgnore def pathParts = path.split("[\\\\/]")
   def path: String
   def attrs: FileAttributes
   def size: Long

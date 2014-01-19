@@ -29,42 +29,54 @@ object ProgressReporters {
   private var counters = Map[String, Counter]()
 
   def updateWithCounters(counters: Seq[Counter]) {
-    val string = counters.map(_.update).mkString(" ")
-    reporter.ephemeralMessage(string)
+    reporter.ephemeralMessage{
+      counters.map(_.update).mkString(" ")
+    }
   }
 
 }
 
 trait ProgressReporting {
 
-  def ephemeralMessage(message: String)
+  def ephemeralMessage(message: => String)
 
 }
 
-trait Counter {
-  def name: String
-  var current = 0L
+trait MaxValueCounter extends Counter {
   var maxValue = 0L
 
   def format = s"$current/$maxValue"
 
   def percent = (100 * current / maxValue).toInt
 
-  def update = s"$name: $format"
-
-  def +=(l: Long) { current += l }
+  override def update = s"$name: $format"  
 }
 
-trait ETACounter extends Counter with Utils {
+trait Counter {
+  def name: String
+  var current = 0L
+
+  def +=(l: Long) { current += l }
+  
+  def update = s"$name $current"
+}
+
+class StandardCounter(val name: String) extends Counter 
+
+trait ETACounter extends MaxValueCounter with Utils {
   def window = 60
   case class Snapshot(time: Long, l: Double)
-  val p = new PrettyTime();
-  val tu = p.getUnits().asScala.foreach { u =>
-    (u, p.getFormat(u)) match {
-      case (u: JustNow, _) =>
+  val p = {
+    val out = new PrettyTime()
+    val justNow = out.getUnits.asScala.find{
+      case u: JustNow => true
+      case _ => false
+    }.get
+    out.removeUnit(justNow)
+    out.getUnits.asScala.map(x => (x, out.getFormat(x))).foreach{
       case (_, x: SimpleTimeFormat) => x.setFutureSuffix("")
-      case _ =>
     }
+    out
   }
   var snapshots = List[Snapshot]()
   var newSnapshotAt = 0L
@@ -95,13 +107,8 @@ trait ETACounter extends Counter with Utils {
   override def update = super.update + " " + calcEta
 }
 
-class StandardCounter(val name: String, maxValueIn: Long) extends Counter {
+class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxValueCounter {
   maxValue = maxValueIn
-}
-
-object ProgressReporter extends ProgressReporting {
-  def ephemeralMessage(message: String) {}
-  def setTotalPercent(x: Int) {}
 }
 
 object AnsiUtil {
@@ -195,12 +202,12 @@ object ConsoleManager extends ProgressReporting {
 
   var lastOne = 0L
 
-  def ephemeralMessage(message: String) {
-    val timeNow = new Date().getTime()
+  def ephemeralMessage(message: => String) {
+    val timeNow = System.currentTimeMillis()
     if (timeNow > lastOne) {
       if (AnsiUtil.deleteLinesEnabled) {
         ConsoleManager.appender.writeDeleteLine(message)
-        lastOne = timeNow + 10
+        lastOne = timeNow + 20
       } else {
         ConsoleManager.appender.writeDeleteLine(message + "\n", false)
         lastOne = timeNow + 5000
@@ -238,7 +245,7 @@ class ConsoleAppenderWithDeleteSupport extends ConsoleAppender[ILoggingEvent] {
       }
       canDeleteLast match {
         case true => sendAnsiLine(message)
-        case false => writeSafe(message)
+        case false => writeSafe("\n"+message)
       }
       canDeleteLast = true
     }

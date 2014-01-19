@@ -8,6 +8,7 @@ import scala.collection.mutable.Buffer
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
+import ch.descabato.ProgressReporters
 
 class ClosureVisitor(f: (File, BasicFileAttributes) => Unit) extends FileVisitorHelper {
 
@@ -28,7 +29,8 @@ class ClosureVisitor(f: (File, BasicFileAttributes) => Unit) extends FileVisitor
 }
 
 class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
-  recordNew: Boolean = false, recordAll: Boolean = false, recordUnchanged: Boolean = false) extends FileVisitorHelper {
+  recordNew: Boolean = false, recordAll: Boolean = false, recordUnchanged: Boolean = false,
+  progress: Option[Counter] = None) extends FileVisitorHelper {
 
   val all = Buffer[BackupPart]()
   lazy val deleted = oldMap.values.toSeq
@@ -53,7 +55,10 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
     if (recordAll && !wasadded) {
       all += desc
     }
-
+    progress.foreach{x =>
+      x += 1
+  	  ProgressReporters.updateWithCounters(List(x))
+    }
   }
 
   override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = {
