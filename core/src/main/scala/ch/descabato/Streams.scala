@@ -121,23 +121,29 @@ object Streams extends Utils {
   }
 
   def copy(in: InputStream, out: OutputStream) {
-    readFrom(in, { (x: Array[Byte], len: Int) =>
-      out.write(x, 0, len)
-    })
-    in.close()
-    out.close()
+    try {
+      readFrom(in, { (x: Array[Byte], len: Int) =>
+        out.write(x, 0, len)
+      })
+    } finally {
+      in.close()
+      out.close()
+    }
   }
 
   class SplitInputStream(in: InputStream, outStreams: List[OutputStream]) extends InputStream {
-    def read() : Int = throw new IllegalAccessException("This method should not be used")
+    def read(): Int = throw new IllegalAccessException("This method should not be used")
     def readComplete() {
-      readFrom(in, { (buf: Array[Byte], len: Int) =>
-        for (outStream <- outStreams) {
-          outStream.write(buf, 0, len)
-        }
-      })
-      outStreams.foreach(_.close)
-      close()
+      try {
+        readFrom(in, { (buf: Array[Byte], len: Int) =>
+          for (outStream <- outStreams) {
+            outStream.write(buf, 0, len)
+          }
+        })
+      } finally {
+        outStreams.foreach(_.close)
+        close()
+      }
     }
     override def close() = in.close()
   }
@@ -189,6 +195,8 @@ object Streams extends Utils {
 
     var out = baosPool.get
 
+    var funcWasCalledOnce = false
+
     def write(b: Int) {
       out.write(b)
       handleEnd()
@@ -196,6 +204,7 @@ object Streams extends Utils {
 
     def handleEnd() {
       if (cur == blockSize) {
+        funcWasCalledOnce = true
         func(out.toByteArray())
         out.reset()
       }
@@ -215,8 +224,8 @@ object Streams extends Utils {
     }
 
     override def close() {
-      if (out.size() > 0)
-    	  func(out.toByteArray())
+      if (out.size() > 0 || !funcWasCalledOnce)
+        func(out.toByteArray())
       super.close()
       baosPool.recycle(out)
       // out was returned to the pool, so remove instance pointer
@@ -235,33 +244,33 @@ object Streams extends Utils {
       super.write(buf, start, len)
     }
   }
-  
+
   class UnclosedFileOutputStream(f: File) extends FileOutputStream(f) {
     unclosedStreams += this
     override def close() {
       super.close()
       unclosedStreams -= this
     }
-    
+
     override def equals(other: Any) = {
       other match {
         case x: UnclosedFileOutputStream => x eq this
         case _ => false
       }
     }
-    
+
     override def hashCode() = {
       f.hashCode()
     }
-    
+
   }
 
   val unclosedStreams = new HashSet[UnclosedFileOutputStream] with SynchronizedSet[UnclosedFileOutputStream]
-  
+
   def closeAll() {
-    l.info("Closing "+unclosedStreams.size+" outputstreams")
+    l.info("Closing " + unclosedStreams.size + " outputstreams")
     while (!unclosedStreams.isEmpty)
       unclosedStreams.head.close
   }
-  
+
 }

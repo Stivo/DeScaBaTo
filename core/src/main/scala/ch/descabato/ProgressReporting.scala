@@ -61,7 +61,7 @@ trait ETACounter extends Counter with Utils {
   val p = new PrettyTime();
   val tu = p.getUnits().asScala.foreach { u =>
     (u, p.getFormat(u)) match {
-      case (u: JustNow, _) => 
+      case (u: JustNow, _) =>
       case (_, x: SimpleTimeFormat) => x.setFutureSuffix("")
       case _ =>
     }
@@ -88,8 +88,8 @@ trait ETACounter extends Counter with Utils {
     val rate = (last.l - first.l) / (last.time - first.time)
     val remaining = (maxValue - last.l).toDouble
     val ms = remaining / rate
-    readableFileSize((1000 * rate).toLong) + "/s, ETF: " + 
-    	p.format(new Date(System.currentTimeMillis() + ms.toLong)) +" ("+ms.toInt/1000+"s)"
+    readableFileSize((1000 * rate).toLong) + "/s, ETF: " +
+      p.format(new Date(System.currentTimeMillis() + ms.toLong))
   }
 
   override def update = super.update + " " + calcEta
@@ -105,7 +105,7 @@ object ProgressReporter extends ProgressReporting {
 }
 
 object AnsiUtil {
-  lazy val initAnsi = if (CLI.runsInJar && System.getProperty("user.name").toLowerCase()!="travis") {
+  lazy val initAnsi = if (CLI.runsInJar && System.getProperty("user.name").toLowerCase() != "travis") {
     AnsiConsole.systemInstall();
   } else {
     deleteLinesEnabled = false
@@ -202,7 +202,7 @@ object ConsoleManager extends ProgressReporting {
         ConsoleManager.appender.writeDeleteLine(message)
         lastOne = timeNow + 10
       } else {
-        ConsoleManager.appender.writeDeleteLine(message+"\n", false)
+        ConsoleManager.appender.writeDeleteLine(message + "\n", false)
         lastOne = timeNow + 5000
       }
     }
@@ -232,19 +232,21 @@ class ConsoleAppenderWithDeleteSupport extends ConsoleAppender[ILoggingEvent] {
   }
 
   def writeDeleteLine(message: String, delete: Boolean = true) {
-    if (!delete) {
-      canDeleteLast = false
+    lock.synchronized {
+      if (!delete) {
+        canDeleteLast = false
+      }
+      canDeleteLast match {
+        case true => sendAnsiLine(message)
+        case false => writeSafe(message)
+      }
+      canDeleteLast = true
     }
-    canDeleteLast match {
-      case true => sendAnsiLine(message)
-      case false => writeSafe(message)
-    }
-    canDeleteLast = true
   }
 
-  def eraseLast = ansi().cursorLeft(100).eraseLine(Erase.FORWARD)
+  private def eraseLast = ansi().cursorLeft(100).eraseLine(Erase.FORWARD)
 
-  def sendAnsiLine(message: String) {
+  private def sendAnsiLine(message: String) {
     writeSafe(eraseLast.a(message).toString)
   }
 

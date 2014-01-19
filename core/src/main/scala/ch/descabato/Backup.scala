@@ -44,7 +44,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var blockSize: Size = Size("16Kb")
   var volumeSize: Size = Size("100Mb")
   var threads: Int = 1
-  val checkPointEvery: Size = volumeSize
+  var checkPointEvery: Size = volumeSize
   val useDeltas = false
   var hasPassword = passphrase.isDefined
 }
@@ -57,6 +57,7 @@ object InitBackupFolderConfiguration {
         o.keylength.foreach(out.keyLength = _)
         o.volumeSize.foreach(out.volumeSize = _)
         o.threads.foreach(out.threads = _)
+        o.checkpointEvery.foreach(out.checkPointEvery = _)
       case _ =>
     }
     option match {
@@ -76,8 +77,8 @@ object BackupVerification {
 
   case object PasswordNeeded extends VerificationResult
 
-  case object BackupDoesntExist extends Exception("This backup was not found.\nSpecify backup folder and prefix if needed") 
-  	with VerificationResult with BackupException
+  case object BackupDoesntExist extends Exception("This backup was not found.\nSpecify backup folder and prefix if needed")
+    with VerificationResult with BackupException
 
   case object OK extends VerificationResult
 }
@@ -90,7 +91,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   val mainFile = supplied.prefix() + "backup.json"
   val folder: File = supplied.backupDestination()
   def hasOld = new File(folder, mainFile).exists()
-  def loadOld() : BackupFolderConfiguration = {
+  def loadOld(): BackupFolderConfiguration = {
     val json = new JsonSerialization()
     json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))).left.get
   }
@@ -102,17 +103,17 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     // writeObject closes
   }
 
-  def verify(existing: Boolean) : BackupVerification.VerificationResult = {
+  def verify(existing: Boolean): BackupVerification.VerificationResult = {
     import BackupVerification._
-	  if (existing && !hasOld) {
-	    return BackupDoesntExist
-	  }
-      if (hasOld) {
-        if (loadOld().hasPassword && supplied.passphrase.isEmpty) {
-          return PasswordNeeded
-        }
+    if (existing && !hasOld) {
+      return BackupDoesntExist
+    }
+    if (hasOld) {
+      if (loadOld().hasPassword && supplied.passphrase.isEmpty) {
+        return PasswordNeeded
       }
-      OK
+    }
+    OK
   }
 
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {
@@ -139,6 +140,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
         o.keylength.foreach { changed = true; old.keyLength = _ }
         o.volumeSize.foreach { changed = true; old.volumeSize = _ }
         o.threads.foreach { changed = true; old.threads = _ }
+        o.checkpointEvery.foreach { changed = true; old.checkPointEvery = _ }
       // TODO other properties that can be set again
       case _ =>
     }
@@ -396,11 +398,12 @@ class BackupHandler(val config: BackupFolderConfiguration)
 
   def backupFileDesc(fileDesc: FileDescription): Option[FileDescription] = {
     val byteCounterbackup = byteCounter.current
+    var fis : InputStream = null
     try {
       val compressionDisabled = compressionFor(fileDesc)
       // This is a new file, so we start hashing its contents, fill those in and return the same instance
       val file = new File(fileDesc.path)
-      val fis = new FileInputStream(file)
+      fis = new FileInputStream(file)
       val (fileHash, hashList) = ObjectPools.baosPool.withObject((), {
         out: ByteArrayOutputStream =>
           val md = config.getMessageDigest
@@ -423,6 +426,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
           }
           (hash, out.toByteArray())
       })
+      assert(hashList.length != 0)
       if (hashList.length == fileHash.length) {
         null
       } else {
@@ -439,13 +443,15 @@ class BackupHandler(val config: BackupFolderConfiguration)
       updateProgress()
       Some(fileDesc)
     } catch {
-      case io: IOException if (io.getMessage().contains("The process cannot access the file")) => {
+      case io: IOException if (io.getMessage().contains("The process cannot access the file")) =>
         failed += fileDesc
         l.warn("Could not backup file " + fileDesc.path + " because it is locked.")
         None
-      }
       // TODO linux add case for symlinks
       case e: IOException => throw e
+    } finally {
+      if (fis != null)
+        fis.close()
     }
   }
 
@@ -466,8 +472,8 @@ abstract class ReadingHandler(option: Option[Date] = None) extends BackupDataHan
 
 }
 
-class RestoreHandler(val config: BackupFolderConfiguration) 
-	extends ReadingHandler() with BackupProgressReporting {
+class RestoreHandler(val config: BackupFolderConfiguration)
+  extends ReadingHandler() with BackupProgressReporting {
   self: BlockStrategy =>
 
   def restore(options: RestoreConf, d: Option[Date] = None) {
@@ -481,7 +487,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     folders.foreach(restoreFolderDesc(_))
     files.foreach(restoreFileDesc)
     folders.foreach(restoreFolderDesc(_, false))
-    free()
+    finishReading()
   }
 
   def restoreFromDate(t: RestoreConf, d: Date) {
@@ -518,7 +524,8 @@ class RestoreHandler(val config: BackupFolderConfiguration)
           return
         }
         l.debug(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
-        l.warn("File exists, but has been modified, so overwrite")
+        // TODO add option
+        l.info("File exists, but has been modified, so overwrite")
       }
       val fos = new UnclosedFileOutputStream(restoredFile)
       val dos = new DigestOutputStream(fos, config.getMessageDigest)
@@ -562,9 +569,10 @@ class VerifyHandler(val config: BackupFolderConfiguration)
       verifyHashes()
       verifySomeFiles(t.percentOfFilesToCheck())
     } catch {
-      case x: Error => 
-      	l.warn("Aborting verification because of error ", x)
-      	logException(x)
+      case x: Error =>
+        problemCounter += 1
+        l.warn("Aborting verification because of error ", x)
+        logException(x)
     }
     problemCounter.current
   }

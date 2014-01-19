@@ -11,23 +11,29 @@ import ch.descabato.OldIndexVisitor
 import scala.collection.mutable
 import java.io.RandomAccessFile
 import ch.descabato.TestUtils
+import java.io.OutputStream
 
-class FileGen(val folder : File) extends TestUtils {
+class FileGen(val folder: File) extends TestUtils {
 
-  var random = new Random(255)
+  var random = new Random()
   var maxSize = Size("200MB")
   var maxFiles = 1000
-  var minFiles = 200
+  var minFiles = 50
   var maxFolders = 50
   val subfolderChance = 20
   var folderList = Buffer[File]()
   var fileList = Buffer[File]()
   val folderLevels = Map[File, Int]()
 
+  def times(n: Int)(f: => Unit) {
+    (1 to n).foreach(_ => f)
+  }
+
   def generateFiles() {
     deleteAll(folder)
     folder.mkdir()
-    newFolder(folder)
+    folderList += folder
+    times(25) { newFolder() }
     var bigFiles = 4
     newFile(maxSize.bytes.toInt / 2)
     val copyFrom1 = fileList.last
@@ -35,6 +41,7 @@ class FileGen(val folder : File) extends TestUtils {
     while (fileList.size < minFiles || fileList.map(_.length).sum < maxSize.bytes) {
       newFile(1000000)
     }
+    times(10)(newFile(0))
     Files.copy(copyFrom1.toPath, new File(folder, "copy1").toPath)
     Files.copy(select(fileList).toPath, new File(folder, "copy2").toPath)
     Files.copy(select(fileList).toPath, new File(folder, "copy3").toPath)
@@ -49,17 +56,17 @@ class FileGen(val folder : File) extends TestUtils {
     fileList.clear
     fileList ++= files
   }
-  
+
   def changeSome() {
-    val folders = random.nextInt(10)+2
-    val int = random.nextInt(100)+5
-    (0 to folders).foreach(_ => newFolder(select(folderList)))
-    (0 to int).foreach(_ => newFile(100000))
-    (0 to random.nextInt(50)).foreach(_ => changeFile)
-    (0 to random.nextInt(20)).foreach(_ => renameFile)
-    (0 to random.nextInt(10)).foreach(_ => deleteFile)
+    val folders = random.nextInt(10) + 2
+    val int = random.nextInt(100) + 25
+    times(folders)(newFolder())
+    times(int) (newFile(100000))
+    times(25) (changeFile)
+    times(20) (renameFile)
+    times(10) (deleteFile)
   }
-  
+
   implicit class MoreRandom(r: Random) {
     def nextBytes(x: Long) = {
       val buf = Array.ofDim[Byte](random.nextInt(x.toInt))
@@ -67,31 +74,41 @@ class FileGen(val folder : File) extends TestUtils {
       buf
     }
   }
-  
+
   def renameFile() {
     var done = false
-	while (!done) {
-	  val file = select(fileList++folderList)
-	  val fileNew = new File(file.getParentFile(), generateName())
-	  done = file.renameTo(fileNew)
-	}
+    while (!done) {
+      val file = select(fileList ++ folderList)
+      val fileNew = new File(file.getParentFile(), generateName())
+      done = file.renameTo(fileNew)
+    }
     rescan
   }
 
   def deleteFile() {
-	while (!select(fileList++folderList).delete()) {}
-	rescan
+    while (!select(fileList ++ folderList).delete()) {}
+    rescan
   }
-  
+
   def changeFile() {
     val file = select(fileList)
     val raf = new RandomAccessFile(file, "rw")
-    raf.seek(random.nextInt(raf.length().toInt/2))
-    raf.write(random.nextBytes(raf.length()-raf.getFilePointer()))
-    raf.close()
+    try {
+      if (raf.length() < 100) {
+        raf.write(random.nextBytes(100000))
+      } else {
+        raf.seek(random.nextInt(raf.length().toInt / 2))
+        raf.write(random.nextBytes(raf.length() - raf.getFilePointer()))
+      }
+    } finally {
+      raf.close()
+    }
   }
-  
-  def select[T](x: Seq[T]) = x(random.nextInt(x.size - 1))
+
+  def select[T](x: Seq[T]) = x.size match {
+    case 0 => throw new IllegalArgumentException("Not possible")
+    case i if i >= 1 => x(random.nextInt(i))
+  }
 
   def generateName() = random.alphanumeric.take(15).mkString ++ random.nextString(3)
 
@@ -100,40 +117,43 @@ class FileGen(val folder : File) extends TestUtils {
     while (!done) {
       val name = new File(select(folderList), generateName)
       if (name.exists()) {
-        fileList += name
+        if (!fileList.contains(name))
+          fileList += name
         return
       }
+      var fos: OutputStream = null
       try {
-        val fos = new FileOutputStream(name)
-        val buf = Array.ofDim[Byte](random.nextInt(maxSize) + maxSize / 10)
-        var chance = 1.0
-        while (random.nextFloat < chance) {
-          random.nextBytes(buf)
-          fos.write(buf)
-          chance = chance / 1.5
+        fos = new FileOutputStream(name)
+        if (maxSize > 0) {
+          val buf = Array.ofDim[Byte](random.nextInt(maxSize) + maxSize / 10)
+          var chance = 1.0
+          while (random.nextFloat < chance) {
+            random.nextBytes(buf)
+            fos.write(buf)
+            chance = chance / 1.5
+          }
         }
         fos.close()
         fileList += name
         done = true
         Thread.sleep(random.nextInt(100))
       } catch {
-        case io: IOException => println(io.getMessage)
+        case io: IOException => // ignore, doesnt matter
+      } finally {
+        if (fos != null)
+          fos.close()
       }
     }
   }
 
-  def newFolder(base: File) {
-    val name = new File(base, generateName)
-    name.mkdir()
-    if (name.exists)
-      folderList += name
-    if (folderList.size < maxFolders) {
-      if (random.nextInt(100) > subfolderChance) {
-        newFolder(base)
-      } else {
-        newFolder(select(folderList))
-      }
-    }
+  def newFolder(baseIn: Option[File] = None) {
+    val base = select(folderList)
+    var name: File = null
+    do {
+      name = new File(base, generateName)
+      name.mkdir()
+    } while (!name.exists())
+    folderList += name
   }
 
 }

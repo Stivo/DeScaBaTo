@@ -54,14 +54,14 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     testWith(" --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
   }
 
-  "backup with crashes" should "work" in {
-    testWith(" --volume-size 10Mb", "", 5, true)
-  }
+//  "backup with crashes" should "work" in {
+//    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, true)
+//  }
 
   "backup with multiple threads" should "work" in {
     testWith(" --threads 4 --volume-size 20Mb", "", 5, false)
   }
-  
+
   def testWith(config: String, configRestore: String, iterations: Int, crash: Boolean = false) {
     println(baseFolder.getAbsolutePath())
     baseFolder.mkdirs()
@@ -75,16 +75,23 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     for (i <- 1 to iterations) {
       println("Iteration " + i)
       if (crash) {
-        // crash process sometimes
-        val t = new Thread() {
-          override def run() {
-            CLI.main(s"backup$config $backup1 $input".split(" "))
+        var crashes = 0
+        while (crashes < 5) {
+          // crash process sometimes
+          val t = new Thread() {
+            override def run() {
+              CLI.main(s"backup$config $backup1 $input".split(" "))
+            }
           }
+          t.setDaemon(true)
+          t.start()
+          Thread.sleep(Random.nextInt(2000) + 2000)
+          if (!t.isAlive()) {
+            crashes = 5
+          }
+          t.stop()
+          Streams.closeAll
         }
-        t.start()
-        Thread.sleep(Random.nextInt(7000) + 3000)
-        t.stop()
-        Streams.closeAll
       }
       // let backup finish
       CLI.main(s"backup$config $backup1 $input".split(" "))
@@ -99,9 +106,9 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
       compareBackups(input, restore1)
       // delete some files
       if (i != iterations) {
-        println("Changing files")
+        l.info("Changing files")
         fg.changeSome
-        println("Changing files done")
+        l.info("Changing files done")
       }
     }
     // delete restored parts
@@ -127,8 +134,8 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
         c2 should be('directory)
         compareBackups(c1, c2)
       } else {
-    	assert(c1.getName === c2.getName, "name should be same for " + c1)
-     	assert(c1.length === c2.length, "length should be same for " + c1)
+        assert(c1.getName === c2.getName, "name should be same for " + c1)
+        assert(c1.length === c2.length, "length should be same for " + c1)
         assert(c1.lastModified === c2.lastModified +- 1000, "Last modified should be within a second")
         assert(hash(c1) === hash(c2), "content should be same for " + c1)
       }

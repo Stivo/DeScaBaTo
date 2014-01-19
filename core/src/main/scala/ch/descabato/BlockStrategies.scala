@@ -24,7 +24,7 @@ trait BlockStrategy {
   def getBlockSize(hash: Array[Byte]): Long
   def calculateOverhead(map: Iterable[Array[Byte]]): Long
   def finishWriting() {}
-  def free() {}
+  def finishReading() {}
   def verify(problemCounter: Counter) {}
 }
 
@@ -184,8 +184,11 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       currentZip.close()
       currentIndex.close()
       def rename(f: Function2[Int, Boolean, String]) {
-        new File(config.folder, f(curNum, true))
-          .renameTo(new File(config.folder, f(curNum, false)))
+        val from = new File(config.folder, f(curNum, true))
+        val to   = new File(config.folder, f(curNum, false))
+        val success = from.renameTo(to)
+        if (!success)
+          l.warn("Could nto rename file from "+from+" to "+to)
       }
 
       rename(volumeName)
@@ -296,7 +299,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
   var lastZip: Option[(Int, ZipFileReader)] = None
 
-  override def free() {
+  override def finishReading() {
     lastZip.foreach { case (_, zip) => zip.close() }
     lastZip = None
   }
