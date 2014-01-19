@@ -11,6 +11,8 @@ scalaVersion := Common.scalaVersion
 
 mainClass := Some("ch.descabato.browser.Main")
 
+packageArchetype.java_application
+
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
     base / "src/main/resources"
@@ -48,3 +50,7 @@ libraryDependencies ++= Seq(
 packSettings
 
 packMain := Map("descabato" -> "ch.descabato.browser.Main")
+
+packPreserveOriginalJarName := true
+
+packResourceDir := "../releases/0.1.0"

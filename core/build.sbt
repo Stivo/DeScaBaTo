@@ -54,3 +54,5 @@ libraryDependencies += "org.rogach" %% "scallop" % "0.9.4"
 packSettings
 
 packMain := Map("descabato" -> "ch.descabato.CLI")
+
+packPreserveOriginalJarName := true

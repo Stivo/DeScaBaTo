@@ -1,0 +1,10 @@
+Version 0.1.0 (18.01.2014): First release.
+
+The release includes the following commands:
+- backup
+- restore
+- verify
+- browse
+
+Features are: Deduplication, optional encryption, compression (without compression of already compressed files), visual browsing of backups, saving of metadata (last modified time, creation time).
+The archive format is open and not tied to Java.
