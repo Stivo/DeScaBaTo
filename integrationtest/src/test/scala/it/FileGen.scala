@@ -84,7 +84,7 @@ class FileGen(val folder: File) extends TestUtils {
     }
     rescan
     if (fileList.size < 10) {
-      times(10) newFile(10000)
+      times(10) (newFile(10000))
     }
   }
 

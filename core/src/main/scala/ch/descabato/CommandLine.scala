@@ -219,9 +219,9 @@ class BackupCommand extends BackupRelatedCommand with Utils {
       writeBat(t, conf)
     }
     bdh.backup(t.folderToBackup() :: Nil)
-    l.info("Running redundancy creation")
-    new RedundancyHandler(conf).createFiles
-    l.info("Redundancy creation finished")
+//    l.info("Running redundancy creation")
+//    new RedundancyHandler(conf).createFiles
+//    l.info("Redundancy creation finished")
   }
 
   override def needsExistingBackup = false
