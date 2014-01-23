@@ -25,6 +25,7 @@ import ch.descabato._
 import java.security.MessageDigest
 import ch.descabato.Streams.HashingOutputStream
 import java.io.FileInputStream
+import java.io.RandomAccessFile
 
 class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
@@ -43,26 +44,30 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   val restore1 = folder("restore1")
 
   "plain backup" should "work" in {
-    testWith("", "", 5)
+    testWith(" --redundancyEnabled false", "", 5)
   }
 
   "encrypted backup" should "work" in {
-    testWith(" --passphrase mypassword", " --passphrase mypassword", 3)
+    testWith(" --redundancyEnabled false --passphrase mypassword", " --passphrase mypassword", 3)
   }
 
   "low volumesize backup with prefix" should "work" in {
-    testWith(" --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
+    testWith(" --redundancyEnabled false --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
   }
-
-//  "backup with crashes" should "work" in {
-//    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, true)
-//  }
 
   "backup with multiple threads" should "work" in {
-    testWith(" --threads 4 --volume-size 20Mb", "", 5, false)
+    testWith(" --redundancyEnabled false --threads 4 --volume-size 20Mb", "", 5, false)
   }
 
-  def testWith(config: String, configRestore: String, iterations: Int, crash: Boolean = false) {
+  "backup with redundancy" should "recover" in {
+    testWith(" --volume-size 5mb", "", 1, false, true)
+  }
+
+  //  "backup with crashes" should "work" in {
+  //    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, true)
+  //  }
+
+  def testWith(config: String, configRestore: String, iterations: Int, crash: Boolean = false, redundancy: Boolean = false) {
     println(baseFolder.getAbsolutePath())
     baseFolder.mkdirs()
     assume(baseFolder.getAbsoluteFile().exists())
@@ -99,7 +104,13 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
       input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
       // verify backup
       CLI.main(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" "))
-      CLI.lastErrors should be (0)
+      CLI.lastErrors should be(0)
+
+      if (redundancy) {
+        // Testing what happens when messing with the files
+        messupBackupFiles()
+      }
+
       // restore backup to folder, folder already contains old restored files.
       CLI.main(s"restore$configRestore --restore-to-folder $restore1 --relative-to-folder $input $backup1".split(" "))
       // compare files
@@ -115,6 +126,21 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     // check files of backup are same in restore
     // mess up backup
     // check that restore fails
+  }
+
+  def messupBackupFiles() {
+    val files = backup1.listFiles()
+    files.filter(_.getName().endsWith("obj")).foreach { f =>
+      val raf = new RandomAccessFile(f, "rw")
+      raf.setLength(raf.length() - 5)
+      raf.close()
+    }
+    files.filter(_.getName.startsWith("volume")).foreach { f =>
+      val raf = new RandomAccessFile(f, "rw")
+      raf.seek(raf.length() / 2);
+      raf.write(("\0" * 400).getBytes)
+      raf.close()
+    }
   }
 
   after {

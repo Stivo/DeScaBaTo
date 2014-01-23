@@ -19,8 +19,10 @@ object CommandLineToolSearcher {
   private def find(name: String): String = {
     try {
       val proc = Runtime.getRuntime().exec(name)
-      if (proc.waitFor() == 0) {
-        return name
+      println(name)
+      proc.waitFor() match {
+        case 3 | 0 => return name
+        case _ =>
       }
     } catch {
       case _: Exception => // ignore
@@ -124,11 +126,12 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     cmd += par2Executable
     cmd += "create"
     cmd += s"-r$redundancy"
-    cmd += s"-t-"
+    //cmd += s"-t-"
     cmd += s"-n$numberOfFiles"
     cmd += s"-s${size}"
     cmd += par2File.getName()
-    cmd += "--"
+    if (Utils.isWindows)
+    	cmd += "--"
     cmd ++= files.map(_.getName())
     if (!startProcess(cmd)) {
       l.info("par2 creation failed for "+files)
