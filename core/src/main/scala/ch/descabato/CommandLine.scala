@@ -158,7 +158,7 @@ trait BackupRelatedCommand extends Command {
 trait RedundancyOptions extends BackupFolderOption {
   val metadataRedundancy = opt[Int](default = Some(20))
   val volumeRedundancy = opt[Int](default = Some(5))
-  val redundancyEnabled = opt[Boolean](default = Some(true))
+  val noRedundancy = opt[Boolean](default = Some(false))
 }
 
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {

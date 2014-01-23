@@ -44,19 +44,19 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   val restore1 = folder("restore1")
 
   "plain backup" should "work" in {
-    testWith(" --redundancyEnabled false", "", 5)
+    testWith(" --no-redundancy", "", 5)
   }
 
   "encrypted backup" should "work" in {
-    testWith(" --redundancyEnabled false --passphrase mypassword", " --passphrase mypassword", 3)
+    testWith(" --no-redundancy --passphrase mypassword", " --passphrase mypassword", 3)
   }
 
   "low volumesize backup with prefix" should "work" in {
-    testWith(" --redundancyEnabled false --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
+    testWith(" --no-redundancy --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
   }
 
   "backup with multiple threads" should "work" in {
-    testWith(" --redundancyEnabled false --threads 4 --volume-size 20Mb", "", 5, false)
+    testWith(" --no-redundancy --threads 4 --volume-size 20Mb", "", 5, false)
   }
 
   "backup with redundancy" should "recover" in {

@@ -65,7 +65,7 @@ object InitBackupFolderConfiguration {
         o.threads.foreach(out.threads = _)
         o.checkpointEvery.foreach(out.checkPointEvery = _)
         o.renameDetection.foreach(out.renameDetection = _)
-        o.redundancyEnabled.foreach(out.redundancyEnabled = _)
+        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
         o.volumeRedundancy.foreach(out.volumeRedundancy = _)
         o.metadataRedundancy.foreach(out.metadataRedundancy = _)
       case _ =>
