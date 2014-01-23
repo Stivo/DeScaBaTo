@@ -3,9 +3,7 @@ package ch.descabato
 import org.rogach.scallop._
 import scala.reflect.runtime.universe.TypeTag
 import java.util.regex.Pattern
-import java.math.{ BigDecimal => JBigDecimal }
 import javax.xml.bind.DatatypeConverter
-import java.text.DecimalFormat
 import com.typesafe.scalalogging.slf4j.Logging
 import java.io.PrintStream
 import scala.collection.mutable.Buffer
@@ -52,11 +50,11 @@ object CLI extends Utils {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
       } else {
-        //      parseCommandLine("backup --serializer-type json --compression none backups ..\\testdata".split(" "))
-        parseCommandLine("verify e:\\backups\\pics".split(" "))
-        //      parseCommandLine("restore --help".split(" "))
-        //      parseCommandLine("browse -p asdf backups".split(" "))
-        //      parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+        //              parseCommandLine("backup --serializer-type json --compression none --volume-size 5mb backups ..\\testdata".split(" "))
+        //        parseCommandLine("verify e:\\backups\\pics".split(" "))
+        //              parseCommandLine("restore --help".split(" "))
+        //              parseCommandLine("browse -p asdf backups".split(" "))
+//        parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
       }
     } catch {
       case e @ PasswordWrongException(m, cause) =>
@@ -157,7 +155,13 @@ trait BackupRelatedCommand extends Command {
 
 // Parsing classes
 
-trait ChangeableBackupOptions extends BackupFolderOption {
+trait RedundancyOptions extends BackupFolderOption {
+  val metadataRedundancy = opt[Int](default = Some(20))
+  val volumeRedundancy = opt[Int](default = Some(5))
+  val redundancyEnabled = opt[Boolean](default = Some(true))
+}
+
+trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {
   val keylength = opt[Int](default = Some(128))
   val volumeSize = opt[Size](default = Some(Size("100Mb")))
   val threads = opt[Int](default = Some(1))
@@ -219,12 +223,33 @@ class BackupCommand extends BackupRelatedCommand with Utils {
       writeBat(t, conf)
     }
     bdh.backup(t.folderToBackup() :: Nil)
-//    l.info("Running redundancy creation")
-//    new RedundancyHandler(conf).createFiles
-//    l.info("Redundancy creation finished")
+    if (conf.redundancyEnabled) {
+      l.info("Running redundancy creation")
+      new RedundancyHandler(conf).createFiles
+      l.info("Redundancy creation finished")
+    }
   }
 
   override def needsExistingBackup = false
+}
+
+object RestoreRunners extends Utils {
+
+  def run(conf: BackupFolderConfiguration)(f: Unit => Unit) {
+    while (true) {
+      try {
+        f()
+        return
+      } catch {
+        case BackupCorruptedException(f) =>
+          l.info("Backup corrupted on " + f + ", trying to repair")
+          if (!new RedundancyHandler(conf).repair(f)) {
+            l.error("Repair failed for file " + f + ", aborting")
+            throw new BackupCorruptedException(f)
+          }
+      }
+    }
+  }
 }
 
 class RestoreCommand extends BackupRelatedCommand {
@@ -233,14 +258,16 @@ class RestoreCommand extends BackupRelatedCommand {
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
     val rh = new RestoreHandler(conf) with ZipBlockStrategy
-    if (t.chooseDate()) {
-      val fm = new FileManager(conf)
-      val options = fm.getBackupDates.zipWithIndex
-      options.foreach { case (date, num) => println(s"[$num]: $date") }
-      val option = askUser("Which backup would you like to restore from?").toInt
-      rh.restoreFromDate(t, options.find(_._2 == option).get._1)
-    } else {
-      rh.restore(t)
+    RestoreRunners.run(conf) { _ =>
+      if (t.chooseDate()) {
+        val fm = new FileManager(conf)
+        val options = fm.getBackupDates.zipWithIndex
+        options.foreach { case (date, num) => println(s"[$num]: $date") }
+        val option = askUser("Which backup would you like to restore from?").toInt
+        rh.restoreFromDate(t, options.find(_._2 == option).get._1)
+      } else {
+        rh.restore(t)
+      }
     }
   }
 }
@@ -300,71 +327,3 @@ For general usage guide go to https://github.com/Stivo/DeScaBaTo""")
   }
 }
 
-// Domain classes
-case class Size(bytes: Long) {
-  override def toString = Utils.readableFileSize(bytes)
-}
-
-object Size {
-  val knownTypes: Set[Class[_]] = Set(classOf[Size])
-  val patt = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE);
-
-  def apply(size: String): Size = {
-    var out: Long = -1;
-    val matcher = patt.matcher(size);
-    val map = List(("GB", 3), ("MB", 2), ("KB", 1), ("B", 0)).toMap
-    if (matcher.find()) {
-      val number = matcher.group(1);
-      val pow = map.get(matcher.group(2).toUpperCase()).get;
-      var bytes = new BigDecimal(new JBigDecimal(number));
-      bytes = bytes.*(BigDecimal.valueOf(1024).pow(pow));
-      out = bytes.longValue();
-    }
-    new Size(out);
-  }
-}
-
-object Utils {
-
-  private val units = Array[String]("B", "KB", "MB", "GB", "TB");
-  def isWindows = System.getProperty("os.name").contains("indows")
-  def readableFileSize(size: Long, afterDot: Int = 1): String = {
-    if (size <= 0) return "0";
-    val digitGroups = (Math.log10(size) / Math.log10(1024)).toInt;
-    val afterDotPart = if (afterDot == 0) "#" else "0" * afterDot
-    return new DecimalFormat("#,##0." + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups);
-  }
-
-  def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes);
-  def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s);
-
-  def encodeBase64Url(bytes: Array[Byte]) = encodeBase64(bytes).replace('+', '-').replace('/', '_')
-  def decodeBase64Url(s: String) = decodeBase64(s.replace('-', '+').replace('_', '/'));
-
-  def normalizePath(x: String) = x.replace('\\', '/')
-
-}
-
-trait Utils extends Logging {
-  lazy val l = logger
-  import Utils._
-
-  def readableFileSize(size: Long): String = Utils.readableFileSize(size)
-
-  def logException(t: Throwable) {
-    ObjectPools.baosPool.withObject(Unit, { baos =>
-      val ps = new PrintStream(baos)
-      def print(t: Throwable) {
-        t.printStackTrace(ps)
-        if (t.getCause() != null) {
-          ps.println()
-          ps.println("Caused by: ")
-          print(t.getCause())
-        }
-      }
-      print(t)
-      l.debug(new String(baos.toByteArray))
-    })
-  }
-
-}

@@ -49,9 +49,10 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   val useDeltas = false
   var hasPassword = passphrase.isDefined
   var renameDetection = true
-  
+  var redundancyEnabled = false
+  var metadataRedundancy: Int = 20
+  var volumeRedundancy: Int = 5
   @JsonIgnore lazy val fileManager = new FileManager(this)
-  
 }
 
 object InitBackupFolderConfiguration {
@@ -64,6 +65,9 @@ object InitBackupFolderConfiguration {
         o.threads.foreach(out.threads = _)
         o.checkpointEvery.foreach(out.checkPointEvery = _)
         o.renameDetection.foreach(out.renameDetection = _)
+        o.redundancyEnabled.foreach(out.redundancyEnabled = _)
+        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
+        o.metadataRedundancy.foreach(out.metadataRedundancy = _)
       case _ =>
     }
     option match {
@@ -76,7 +80,7 @@ object InitBackupFolderConfiguration {
     }
     out
   }
-  
+
   def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption, passphrase: Option[String]) = {
     old.passphrase = passphrase
     var changed = false
@@ -86,7 +90,10 @@ object InitBackupFolderConfiguration {
         o.volumeSize.foreach { changed = true; old.volumeSize = _ }
         o.threads.foreach { changed = true; old.threads = _ }
         o.checkpointEvery.foreach { changed = true; old.checkPointEvery = _ }
-        o.renameDetection.foreach {changed = true; old.renameDetection = _}
+        o.renameDetection.foreach { changed = true; old.renameDetection = _ }
+        o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
+        o.metadataRedundancy.foreach { changed = true; old.metadataRedundancy = _ }
+        o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
       // TODO other properties that can be set again
       case _ =>
     }
@@ -94,7 +101,6 @@ object InitBackupFolderConfiguration {
     (old, changed)
   }
 
-  
 }
 
 object BackupVerification {
@@ -198,16 +204,16 @@ trait BackupProgressReporting extends Utils {
 
 abstract class BackupIndexHandler extends Utils {
   val config: BackupFolderConfiguration
-  
+
   lazy val fileManager = config.fileManager
-  
+
   def loadOldIndex(temp: Boolean = false, date: Option[Date] = None): Buffer[BackupPart] = {
     val (filesToLoad, hasDeltas) = if (date.isDefined) {
       (fileManager.getBackupForDate(date.get).toArray, false)
     } else {
       fileManager.getBackupAndUpdates(temp)
     }
-    val updates = filesToLoad.par.flatMap(fileManager.filesDelta.read).fold(Buffer[UpdatePart]())(_ ++ _).seq
+    val updates = filesToLoad.par.flatMap(x => fileManager.filesDelta.read(x)).fold(Buffer[UpdatePart]())(_ ++ _).seq
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
       updates.foreach {
@@ -423,15 +429,14 @@ class BackupHandler(val config: BackupFolderConfiguration)
           throw new IllegalStateException()
         }
         val out = candidates.filter(fil._2)
-//        l.info(s"${fil._1}: ${out.size}")
+        //        l.info(s"${fil._1}: ${out.size}")
         out
       }
       val filters = List(
         ("Same size", { fd: FileDescription => fd.size == fileDesc.size }),
         ("same modification date", { fd: FileDescription => !fd.attrs.hasBeenModified(file) }),
         ("same name", { fd: FileDescription => println(fd.pathParts.mkString(" / ")); fd.pathParts.last == file.getName() }),
-        ("same first block", { fd: FileDescription => Arrays.equals(getHashChain(fd).head, firstBlockHash) })
-        )
+        ("same first block", { fd: FileDescription => Arrays.equals(getHashChain(fd).head, firstBlockHash) }))
       filters.foldLeft(deletedCopy.toSeq)((x, y) => checkFilter(x, y)).headOption
     } catch {
       case i: IllegalStateException => None
@@ -448,8 +453,8 @@ class BackupHandler(val config: BackupFolderConfiguration)
       fis = new FileInputStream(file)
       if (config.renameDetection) {
         val oldOne = checkForRename(file, fileDesc, fis)
-        for(old <- oldOne) {
-          l.info("Detected rename from "+old.path+" to "+fileDesc.path)
+        for (old <- oldOne) {
+          l.info("Detected rename from " + old.path + " to " + fileDesc.path)
           deletedCopy -= old
           val out = old.copy(path = fileDesc.path)
           out.hash = old.hash
@@ -526,7 +531,7 @@ abstract class ReadingHandler(option: Option[Date] = None) extends BackupDataHan
     val enumeration = new Enumeration[InputStream]() {
       val hashIterator = hashes.iterator
       def hasMoreElements = hashIterator.hasNext
-      def nextElement = readBlock(hashIterator.next)
+      def nextElement = readBlock(hashIterator.next, true)
     }
     new SequenceInputStream(enumeration)
   }
@@ -600,6 +605,10 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       }
       fd.applyAttrsTo(restoredFile)
     } catch {
+      case e @ BackupCorruptedException(f) if (config.redundancyEnabled) => {
+        finishReading
+        throw e
+      }
       case e: Exception =>
         l.warn("Exception while restoring " + fd.path + " (" + e.getMessage() + ")")
         logException(e)

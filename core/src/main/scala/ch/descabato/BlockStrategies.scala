@@ -20,7 +20,7 @@ trait BlockStrategy {
    */
   def blockExists(hash: Array[Byte]): Boolean
   def writeBlock(hash: Array[Byte], buf: Array[Byte], disableCompression: Boolean = false)
-  def readBlock(hash: Array[Byte]): InputStream
+  def readBlock(hash: Array[Byte], verifyHash: Boolean = false): InputStream
   def getBlockSize(hash: Array[Byte]): Long
   def calculateOverhead(map: Iterable[Array[Byte]]): Long
   def finishWriting() {}
@@ -47,7 +47,7 @@ class FolderBlockStrategy(val config: BackupFolderConfiguration) extends BlockSt
     out.close()
   }
 
-  def readBlock(x: Array[Byte]) = {
+  def readBlock(x: Array[Byte], verifyHash: Boolean = false) = {
     val out = new ByteArrayOutputStream()
     StreamHeaders.newFileInputStream(new File(blocksFolder, encodeBase64Url(x)), config)
   }
@@ -97,8 +97,8 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       files.foreach(deleteFile)
       nums
     }
-    val set1 = deleteFiles(config.prefix+"temp.index_", fileManager.index)
-    val set2 = deleteFiles(config.prefix+"temp.volume_", fileManager.volumes)
+    val set1 = deleteFiles(config.prefix + "temp.index_", fileManager.index)
+    val set2 = deleteFiles(config.prefix + "temp.volume_", fileManager.volumes)
     val set = set1 union set2
     fileManager.index.getFiles().filter(x => set contains (fileManager.index.getNum(x))).foreach(deleteFile)
     fileManager.volumes.getFiles().filter(x => set contains (fileManager.volumes.getNum(x))).foreach(deleteFile)
@@ -185,10 +185,10 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       currentIndex.close()
       def rename(f: Function2[Int, Boolean, String]) {
         val from = new File(config.folder, f(curNum, true))
-        val to   = new File(config.folder, f(curNum, false))
+        val to = new File(config.folder, f(curNum, false))
         val success = from.renameTo(to)
         if (!success)
-          l.warn("Could nto rename file from "+from+" to "+to)
+          l.warn("Could nto rename file from " + from + " to " + to)
       }
 
       rename(volumeName)
@@ -271,7 +271,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     zipFile.getEntrySize(hashS)
   }
 
-  def readBlock(hash: Array[Byte]) = {
+  def readBlock(hash: Array[Byte], verifyHash: Boolean = false) = {
     setup()
     val hashS = encodeBase64Url(hash)
     l.trace(s"Getting block for hash $hashS")
@@ -281,7 +281,17 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     //      Actors.downloadFile(zipFile.file)
     //    }
     val input = zipFile.getStream(hashS)
-    StreamHeaders.readStream(input, config.passphrase)
+    val stream = StreamHeaders.readStream(input, config.passphrase)
+    if (verifyHash) {
+      new HashingInputStream(stream, config.getMessageDigest, {
+        hash2: Array[Byte] =>
+          if (!Arrays.equals(hash, hash2)) {
+            throw new BackupCorruptedException(zipFile.file)
+          }
+      })
+    } else {
+      stream
+    }
   }
 
   def calculateOverhead(hashchains: Iterable[Array[Byte]]) = {

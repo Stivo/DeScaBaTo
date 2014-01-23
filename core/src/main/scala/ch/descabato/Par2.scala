@@ -11,25 +11,26 @@ import java.io.RandomAccessFile
 import java.nio.channels.FileChannel
 import java.nio.ByteOrder
 import scala.collection.mutable.Buffer
+import java.util.regex.Pattern
 
 object CommandLineToolSearcher {
   private var cache = Map[String, String]()
-  
+
   private def find(name: String): String = {
-   try {
+    try {
       val proc = Runtime.getRuntime().exec(name)
       if (proc.waitFor() == 0) {
         return name
       }
     } catch {
-      case _ : Exception => // ignore
+      case _: Exception => // ignore
     }
-    val candidates = List(s"tools/$name", name, s"../tools/$name", s"../../tools/$name") 
+    val candidates = List(s"tools/$name", name, s"../tools/$name", s"../../tools/$name")
     candidates.map(new File(_)).find(_.exists).map(_.toString()).get
   }
-  
+
   def lookUpName(name: String): String = {
-    val exeName = if (Utils.isWindows) name+".exe" else name
+    val exeName = if (Utils.isWindows) name + ".exe" else name
     if (cache contains exeName) {
       return cache(exeName)
     } else {
@@ -37,7 +38,7 @@ object CommandLineToolSearcher {
       cache += exeName -> out
       out
     }
-   }
+  }
 }
 
 /**
@@ -48,10 +49,14 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
 
   lazy val fileManager = config.fileManager
 
-  def readCoveredFiles: Set[File] = {
-    val list = config.folder.listFiles
-      .filter(_.isFile).filter(_.getName().endsWith(".par2"))
-    list.map(f => new Par2Parser(f).parse()).fold(List())(_ ++ _).toSet
+  val regex = """.*?vol\d+\+\d+\.par2""".r
+
+  def readCoveredFiles: Map[File, File] = {
+    val list = fileManager.par2File.getFiles()
+    		.filterNot(f => regex.pattern.matcher(f.getName).matches())
+    val tuples = list.flatMap { par2File => 
+    	new Par2Parser(par2File).parse().map(coveredFile => (coveredFile, par2File)) }
+    tuples.toMap
   }
 
   def createFiles {
@@ -114,7 +119,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     }
     val par2Executable = CommandLineToolSearcher.lookUpName("par2")
     l.info(s"Starting par2 creation for ${files.size} files ${new Size(files.map(_.length()).sum)})")
-    l.info("This may take a while")
+    //    l.info("This may take a while")
     val cmd = Buffer[String]()
     cmd += par2Executable
     cmd += "create"
@@ -125,16 +130,43 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     cmd += par2File.getName()
     cmd += "--"
     cmd ++= files.map(_.getName())
-    l.info("Starting command "+cmd.mkString(" "))
-    val proc = new ProcessBuilder().command(cmd: _*)
-      //.redirectError(new File(par2File.getParentFile(), "par2log.txt"))
+    if (!startProcess(cmd)) {
+      l.info("par2 creation failed for "+files)
+    }
+  }
+
+  def startProcess(cmd: Iterable[String]) = {
+    l.info("Starting command " + cmd.mkString(" "))
+    val proc = new ProcessBuilder().command(cmd.toList: _*)
+      .redirectError(new File(config.folder, "par2log.txt"))
       .directory(config.folder)
       .start
     val exit = proc.waitFor()
-    if (exit == 0) {
-      l.info("par2 creation ended successfully")
-    } else {
-      l.info("par2 creation failed")
+    exit == 0
+  }
+
+  def startRepair(par2File: File) = {
+    val par2Executable = CommandLineToolSearcher.lookUpName("par2")
+    val cmd = Buffer[String]()
+    cmd += par2Executable
+    cmd += "repair"
+    cmd += par2File.getName()
+    startProcess(cmd)
+  }
+
+  def repair(file: File): Boolean = {
+    readCoveredFiles.get(file) match {
+      case Some(f) =>
+        val out = startRepair(f)
+        if (out) {
+          val all = file.getParentFile.listFiles().filter(_.getName().startsWith(file.getName()))
+          all.sortBy(_.getName().length()).drop(1).foreach { f =>
+            l.debug("Going to delete " + f)
+            f.delete
+          }
+        }
+        out
+      case None => false
     }
   }
 

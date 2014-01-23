@@ -8,6 +8,8 @@ import java.nio.file.attribute.FileTime
 import java.util.Arrays
 import java.nio.file.attribute.BasicFileAttributes
 import com.fasterxml.jackson.annotation.JsonIgnore
+import java.util.regex.Pattern
+import java.math.{BigDecimal => JBigDecimal}
 
 class FileAttributes extends HashMap[String, Any] {
 
@@ -173,3 +175,26 @@ object BAWrapper2 {
   implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
 }
 
+// Domain classes
+case class Size(bytes: Long) {
+  override def toString = Utils.readableFileSize(bytes)
+}
+
+object Size {
+  val knownTypes: Set[Class[_]] = Set(classOf[Size])
+  val patt = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE);
+
+  def apply(size: String): Size = {
+    var out: Long = -1;
+    val matcher = patt.matcher(size);
+    val map = List(("GB", 3), ("MB", 2), ("KB", 1), ("B", 0)).toMap
+    if (matcher.find()) {
+      val number = matcher.group(1);
+      val pow = map.get(matcher.group(2).toUpperCase()).get;
+      var bytes = new BigDecimal(new JBigDecimal(number));
+      bytes = bytes.*(BigDecimal.valueOf(1024).pow(pow));
+      out = bytes.longValue();
+    }
+    new Size(out);
+  }
+}

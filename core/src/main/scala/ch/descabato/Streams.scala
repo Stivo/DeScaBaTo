@@ -148,11 +148,40 @@ object Streams extends Utils {
     override def close() = in.close()
   }
 
+  class DelegatingInputStream(in: InputStream) extends InputStream {
+    def read() = in.read()
+    override def read(b: Array[Byte], start: Int, len: Int) = in.read(b, start, len)
+    override def close() = in.close()
+    override def mark(limit: Int) = in.mark(limit)
+    override def reset() = in.reset()
+    override def markSupported() = in.markSupported()
+  }
+
   class DelegatingOutputStream(out: OutputStream) extends OutputStream {
     def write(b: Int) = out.write(b)
     override def write(b: Array[Byte], start: Int, len: Int) = out.write(b, start, len)
     override def close() = out.close()
     override def flush() = out.flush()
+  }
+
+  class HashingInputStream(in: InputStream, messageDigest: MessageDigest, f: (Array[Byte] => _)) extends DelegatingInputStream(in) {
+    override def read() = {
+      val out = in.read()
+      if (out >= 0)
+        messageDigest.update(out.toByte)
+      out
+    }
+    override def read(b: Array[Byte], start: Int, len: Int) = {
+      val out = super.read(b, start, len)
+      if (out > 0)
+        messageDigest.update(b, start, out)
+      out
+    }
+    override def close() = {
+      super.close
+      f(messageDigest.digest())
+    }
+    override def markSupported() = false
   }
 
   class HashingOutputStream(val algorithm: String) extends OutputStream {
