@@ -22,13 +22,13 @@ class SerializationSpec extends FlatSpec with TestUtils {
 	  type ChainMap = ArrayBuffer[(BAWrapper2, Array[Byte])]
 	  var chainMap : ChainMap = new ChainMap()
 	  chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
-      val f = new File("README.md")
-      val fid = new FileDescription("test.txt", 0L, FileAttributes.apply(f, new MetadataOptions()))
+	  val f = List("README.md", "../README.md").map(new File(_)).filter(_.exists).head
+      val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()))
       fid.hash = "adsfasdfasdf".getBytes()
-      val fod = new FolderDescription("test.txt", FileAttributes.apply(f, new MetadataOptions()))
-      fid.hash = "asdf".getBytes()
+      val fod = new FolderDescription("test.txt", new FileAttributes())
       val fd = new FileDeleted("asdf")
-      val list : Seq[UpdatePart] = List(fid, fod, fd)
+	  val symLink = new SymbolicLink("test", "asdf", new FileAttributes())
+      val list : Seq[UpdatePart] = List(fid, fod, fd, symLink)
       val baout = new ByteArrayOutputStream()
     }
   
@@ -37,7 +37,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     import f._
     
     s.writeObject(t, baout)
-    println("Serialization size of "+t+" with "+s.getClass().getSimpleName()+" is "+baout.size())
+    //println("Serialization size of "+t+" with "+s.getClass().getSimpleName()+" is "+baout.size())
     val in = replay(baout)
     val t2 = s.readObject[T](in).left.get
     t2
@@ -48,12 +48,12 @@ class SerializationSpec extends FlatSpec with TestUtils {
     import f._
     val fidAfter = writeAndRead(ser, fid)
     assert(fid === fidAfter)
-    println(fid.hash+ " "+ fidAfter.hash)
     assert(Arrays.equals(fid.hash, fidAfter.hash))
     assert(fid.attrs.keys === fidAfter.attrs.keys)
     fidAfter.attrs.keys should contain ("lastModifiedTime")
     chainMap.map(_._1) should equal (writeAndRead(ser, chainMap).map(_._1))
     assert(fod === writeAndRead(ser, fod))
+    assert(symLink === writeAndRead(ser, symLink))
     val listAfter = writeAndRead(ser, list)
     assert(list === writeAndRead(ser, list))
     (list.head, listAfter.head) match {

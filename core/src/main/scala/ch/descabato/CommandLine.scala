@@ -51,6 +51,7 @@ object CLI extends Utils {
         parseCommandLine(args)
       } else {
 //    	  parseCommandLine("backup --serializer-type json --compression none --volume-size 5mb backups ..\\testdata".split(" "))
+        // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))
         //              parseCommandLine("browse -p asdf backups".split(" "))

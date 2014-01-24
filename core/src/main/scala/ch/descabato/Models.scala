@@ -9,8 +9,15 @@ import java.util.Arrays
 import java.nio.file.attribute.BasicFileAttributes
 import com.fasterxml.jackson.annotation.JsonIgnore
 import java.util.regex.Pattern
-import java.math.{BigDecimal => JBigDecimal}
+import java.math.{ BigDecimal => JBigDecimal }
 import java.nio.file.LinkOption
+import java.nio.file.Path
+import java.nio.file.attribute.PosixFileAttributes
+import java.nio.file.attribute.FileAttributeView
+import java.nio.file.attribute.PosixFilePermissions
+import java.security.Principal
+import java.nio.file.attribute.PosixFileAttributeView
+import java.io.IOException
 
 class FileAttributes extends HashMap[String, Any] with Utils {
 
@@ -19,7 +26,7 @@ class FileAttributes extends HashMap[String, Any] with Utils {
     val lastMod = {
       Files.getAttribute(file.toPath(), "lastModifiedTime", LinkOption.NOFOLLOW_LINKS) match {
         case x: FileTime => x.toMillis()
-        case _ => l.warn("Did not find filetime for "+file); 0L
+        case _ => l.warn("Did not find filetime for " + file); 0L
       }
     }
 
@@ -47,53 +54,84 @@ case class MetadataOptions {
   val saveMetadata: Boolean = false
 }
 
-object FileAttributes {
+object FileAttributes extends Utils {
 
-  def convert(attrs: BasicFileAttributes) = {
-    var fa = new FileAttributes()
+  val posixGroup = "posix:group"
+  val posixPermissions = "posix:permissions"
+  val owner = "owner"
+  val lastModified = "lastModifiedTime"
+  val creationTime = "creationTime"
 
-    val keys = List("lastModifiedTime", "creationTime")
+  def apply(path: Path) = {
+	val out = new FileAttributes()
+    def add(attr: String, o: Object) = o match {
+      case ft: FileTime => out.put(attr, ft.toMillis())
+      case x: String => out.put(attr, x)
+      case p: Principal => out.put(attr, p.getName())
+    }
+
+    def readAttributes[T <: BasicFileAttributes](implicit m: Manifest[T]) =
+      Files.readAttributes[T](path, m.runtimeClass.asInstanceOf[Class[T]], LinkOption.NOFOLLOW_LINKS)
+
+    val attrs = readAttributes[BasicFileAttributes]
+
+    val keys = List(lastModified, creationTime)
     keys.foreach { k =>
       val m = attrs.getClass().getMethod(k)
       m.setAccessible(true)
       add(k, m.invoke(attrs))
     }
 
-    def add(attr: String, o: Object) = o match {
-      case ft: FileTime => fa.put(attr, ft.toMillis())
+    try {
+      val posix = readAttributes[PosixFileAttributes]
+      if (posix != null) {
+        add(owner, posix.owner())
+        add(posixGroup, posix.group())
+        add(posixPermissions, PosixFilePermissions.toString(posix.permissions()))
+      }
+    } catch {
+      case e: UnsupportedOperationException => // ignore, not a posix system
     }
 
-    fa
+    out
   }
 
-  def apply(file: File, options: MetadataOptions) = {
-    val attrs = if (options.saveMetadata) {
-      Files.readAttributes(file.toPath(), "dos:hidden,readonly,archive,creationTime,lastModifiedTime,lastAccessTime");
-    } else {
-      val hm = new HashMap[String, Object]()
-      hm.put("lastModifiedTime", file.lastModified().asInstanceOf[java.lang.Long]);
-      hm
+  def restore(attrs: FileAttributes, file: File) {
+	val path = file.toPath()
+    def lookupService = file.toPath().getFileSystem().getUserPrincipalLookupService()
+    lazy val posix = Files.getFileAttributeView(path, classOf[PosixFileAttributeView])
+    val dosOnes = "hidden,archive,readonly".split(",").toSet
+    for ((k, o) <- attrs.asScala) {
+      try {
+        val name = if (dosOnes.contains(k)) "dos:" + k else k
+        val toSet: Option[Any] = (k, o) match {
+          case (k, time) if k.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
+          case (s, group) if (s == posixGroup)=>
+            val g = lookupService.lookupPrincipalByGroupName(group.toString)
+            posix.setGroup(g)
+            None
+          case (s, group) if (s == owner)=>
+            val g = lookupService.lookupPrincipalByName(group.toString)
+            posix.setOwner(g)
+            None
+          case (s, perms) if (s == posixPermissions) =>
+            val p = PosixFilePermissions.fromString(perms.toString)
+            posix.setPermissions(p)
+            None
+        }
+        toSet.foreach { s =>
+          Files.setAttribute(file.toPath(), name, s)
+        }
+      } catch {
+        case e: IOException => l.warn("Failed to restore attribute " + k + " for file " + file)
+      }
     }
-    val map = attrs.asScala.map {
-      // Lose some precision, millis is enough
-      case (k, ft: FileTime) => (k, ft.toMillis())
-      case (k, ft: java.lang.Long) => (k, ft)
-      case (k, ft) if (k.endsWith("Time")) =>
-        (k, ft.toString.toLong)
-      case x => x
-    }
-    //	    for ((k,v) <- map) {
-    //	      println(s"$k $v")
-    //	    }
-    var fa = new FileAttributes()
-    map.foreach { case (k, v) => fa.put(k, v) }
-    fa
   }
 
 }
 
 trait UpdatePart {
-  def size : Long
+  def size: Long
 }
 
 case class FileDeleted(val path: String) extends UpdatePart {
@@ -151,15 +189,7 @@ trait BackupPart extends UpdatePart {
   }
 
   def applyAttrsTo(f: File) {
-    val dosOnes = "hidden,archive,readonly".split(",").toSet
-    for ((k, o) <- attrs.asScala) {
-      val name = if (dosOnes.contains(k)) "dos:" + k else k
-      val toSet = if (k.endsWith("Time")) {
-        FileTime.fromMillis(o.toString.toLong)
-      } else
-        o
-      Files.setAttribute(f.toPath(), name, toSet)
-    }
+    FileAttributes.restore(attrs, f)
   }
 
 }

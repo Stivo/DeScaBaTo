@@ -72,7 +72,7 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
   }
 
   override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = {
-    handleFile(new FolderDescription(dir.toAbsolutePath().toString(), FileAttributes.convert(attrs)),
+    handleFile(new FolderDescription(dir.toAbsolutePath().toString(), FileAttributes(dir)),
       dir, attrs)
     super.preVisitDirectory(dir, attrs)
   }
@@ -81,10 +81,10 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
     handleFile({
       if (Files.isSymbolicLink(file)) {
         new SymbolicLink(file.toAbsolutePath().toString(),
-          Files.readSymbolicLink(file).toAbsolutePath().toString(), FileAttributes.convert(attrs))
+          Files.readSymbolicLink(file).toAbsolutePath().toString(), FileAttributes(file))
       } else {
         val out = new FileDescription(file.toAbsolutePath().toString(), file.toFile().length(),
-          FileAttributes.convert(attrs))
+          FileAttributes(file))
         out
       }
     },
