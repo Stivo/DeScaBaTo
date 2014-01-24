@@ -259,18 +259,22 @@ class RestoreCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new RestoreConf(args)
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
-    val rh = new RestoreHandler(conf) with ZipBlockStrategy
-    RestoreRunners.run(conf) { _ =>
-      if (t.chooseDate()) {
-        val fm = new FileManager(conf)
-        val options = fm.getBackupDates.zipWithIndex
-        options.foreach { case (date, num) => println(s"[$num]: $date") }
-        val option = askUser("Which backup would you like to restore from?").toInt
+    if (t.chooseDate()) {
+      val fm = new FileManager(conf)
+      val options = fm.getBackupDates.zipWithIndex
+      options.foreach { case (date, num) => println(s"[$num]: $date") }
+      val option = askUser("Which backup would you like to restore from?").toInt
+      RestoreRunners.run(conf) { _ =>
+        val rh = new RestoreHandler(conf) with ZipBlockStrategy
         rh.restoreFromDate(t, options.find(_._2 == option).get._1)
-      } else {
+      }
+    } else {
+      RestoreRunners.run(conf) { _ =>
+        val rh = new RestoreHandler(conf) with ZipBlockStrategy
         rh.restore(t)
       }
     }
+
   }
 }
 

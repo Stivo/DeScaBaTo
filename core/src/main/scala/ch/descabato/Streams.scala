@@ -164,7 +164,7 @@ object Streams extends Utils {
     override def flush() = out.flush()
   }
 
-  class HashingInputStream(in: InputStream, messageDigest: MessageDigest, f: (Array[Byte] => _)) extends DelegatingInputStream(in) {
+  abstract class HashingInputStream(in: InputStream, messageDigest: MessageDigest) extends DelegatingInputStream(in) {
     override def read() = {
       val out = in.read()
       if (out >= 0)
@@ -179,9 +179,24 @@ object Streams extends Utils {
     }
     override def close() = {
       super.close
-      f(messageDigest.digest())
+      hashComputed(messageDigest.digest())
     }
+
+    def hashComputed(hash2: Array[Byte]): Unit
+
     override def markSupported() = false
+  }
+
+  class VerifyInputStream(in: InputStream, messageDigest: MessageDigest, hash: Array[Byte], file: File)
+    extends HashingInputStream(in, messageDigest) {
+    final def hashComputed(hash2: Array[Byte]) {
+      if (!Arrays.equals(hash, hash2)) {
+        verificationFailed()
+      }
+    }
+    def verificationFailed() {
+      throw new BackupCorruptedException(file)
+    }
   }
 
   class HashingOutputStream(val algorithm: String) extends OutputStream {

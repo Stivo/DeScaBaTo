@@ -123,11 +123,13 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     try {
       val fis = new FileInputStream(f)
       val bis = new BufferedInputStream(fis)
-      val stream = StreamHeaders.readStream(bis, options.passphrase)
-      options.serialization.readObject[T](stream) match {
+      val verified = Par2Handler.wrapVerifyStreamIfCovered(f, bis)
+      val stream = StreamHeaders.readStream(verified, options.passphrase)
+      val either = options.serialization.readObject[T](stream)
+      either match {
         case Left(read) => Some(read)
         // TODO this should not catch directly this exception. It's unclean
-        case Right(e: JsonProcessingException) if (options.redundancyEnabled) && first => {
+        case Right(e : JsonProcessingException) if (options.redundancyEnabled) && first => {
           stream.close()
           l.info("Trying to repair broken file "+f)
           if (new RedundancyHandler(options).repair(f)) {
@@ -143,7 +145,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       case e: Exception if ((e.getMessage + e.getStackTraceString).contains("CipherInputStream")) => {
         throw new PasswordWrongException("Exception while loading " + f + ", most likely the supplied passphrase is wrong.", e)
       }
-
+      case e: BackupCorruptedException => throw e
       case e: Exception =>
         l.warn("Exception while loading " + f + ", file may be corrupt")
         logException(e)

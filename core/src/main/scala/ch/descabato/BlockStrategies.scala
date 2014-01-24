@@ -8,6 +8,7 @@ import java.io.File
 import java.io.IOException
 import scala.concurrent.Future
 import java.io.InputStream
+import java.nio.file.Files
 
 /**
  * A block strategy saves and retrieves blocks.
@@ -186,9 +187,10 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       def rename(f: Function2[Int, Boolean, String]) {
         val from = new File(config.folder, f(curNum, true))
         val to = new File(config.folder, f(curNum, false))
-        val success = from.renameTo(to)
+        Files.move(from.toPath(), to.toPath())
+        val success = to.exists()
         if (!success)
-          l.warn("Could nto rename file from " + from + " to " + to)
+          l.warn("Could not rename file from " + from + " to " + to)
       }
 
       rename(volumeName)
@@ -283,12 +285,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     val input = zipFile.getStream(hashS)
     val stream = StreamHeaders.readStream(input, config.passphrase)
     if (verifyHash) {
-      new HashingInputStream(stream, config.getMessageDigest, {
-        hash2: Array[Byte] =>
-          if (!Arrays.equals(hash, hash2)) {
-            throw new BackupCorruptedException(zipFile.file)
-          }
-      })
+      new VerifyInputStream(stream, config.getMessageDigest, hash, zipFile.file)
     } else {
       stream
     }

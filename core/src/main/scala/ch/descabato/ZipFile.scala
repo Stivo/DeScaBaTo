@@ -10,6 +10,8 @@ import java.util.zip.ZipOutputStream
 import java.io.FileInputStream
 import java.io.OutputStream
 import ch.descabato.Streams.CountingOutputStream
+import java.io.InputStream
+import ch.descabato.Streams.DelegatingInputStream
 
 abstract class ZipFileHandler(zip: File)
 
@@ -17,7 +19,17 @@ abstract class ZipFileHandler(zip: File)
  * A thin wrapper around a java zip file reader.
  * Needs to be closed in the end.
  */
-class ZipFileReader(val file: File) extends ZipFileHandler(file) {
+class ZipFileReader(val file: File) extends ZipFileHandler(file) with Utils {
+
+  class RegisteredInputStream(in: InputStream, val name: String) extends DelegatingInputStream(in) {
+    streams += this
+    override def close() = {
+      super.close
+      streams -= this
+    }
+  }
+
+  private val streams = Buffer[RegisteredInputStream]()
 
   lazy val zf = new JZipFile(file);
 
@@ -27,11 +39,18 @@ class ZipFileReader(val file: File) extends ZipFileHandler(file) {
 
   lazy val names = _zipEntries.map(_.getName())
 
-  def getStream(name: String) = zf.getInputStream(zf.getEntry(name))
+  def getStream(name: String) = {
+    val out = zf.getInputStream(zf.getEntry(name))
+    val out2 = new RegisteredInputStream(out, name) 
+    out2
+  }
 
   def getEntrySize(name: String) = zf.getEntry(name).getSize()
 
   def close() {
+    for (s <- streams) {
+      s.close()
+    }
     zf.close()
   }
 

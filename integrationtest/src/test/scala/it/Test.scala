@@ -43,6 +43,12 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   val backup1 = folder("backup1")
   val restore1 = folder("restore1")
 
+  before {
+    deleteAll(input)
+    deleteAll(backup1)
+    deleteAll(restore1)
+  }
+  
   "plain backup" should "work" in {
     testWith(" --no-redundancy", "", 5)
   }
@@ -60,7 +66,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   }
 
   "backup with redundancy" should "recover" in {
-    testWith(" --volume-size 5mb", "", 1, false, true)
+    testWith(" --volume-size 10mb", "", 1, false, true)
   }
 
   //  "backup with crashes" should "work" in {
@@ -131,14 +137,17 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   def messupBackupFiles() {
     val files = backup1.listFiles()
     files.filter(_.getName().endsWith("obj")).foreach { f =>
+      l.info("Messing up "+f+" length "+f.length())
       val raf = new RandomAccessFile(f, "rw")
-      raf.setLength(raf.length() - 5)
+      raf.seek(raf.length() / 2);
+      raf.write(("\0").getBytes)
       raf.close()
     }
     files.filter(_.getName.startsWith("volume")).foreach { f =>
+      l.info("Messing up "+f)
       val raf = new RandomAccessFile(f, "rw")
       raf.seek(raf.length() / 2);
-      raf.write(("\0" * 400).getBytes)
+      raf.write(("\0" * 100).getBytes)
       raf.close()
     }
   }

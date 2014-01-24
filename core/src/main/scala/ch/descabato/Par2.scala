@@ -12,6 +12,8 @@ import java.nio.channels.FileChannel
 import java.nio.ByteOrder
 import scala.collection.mutable.Buffer
 import java.util.regex.Pattern
+import scala.collection.mutable.WeakHashMap
+import java.security.MessageDigest
 
 object CommandLineToolSearcher {
   private var cache = Map[String, String]()
@@ -49,33 +51,25 @@ object CommandLineToolSearcher {
  */
 class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
 
+  import Par2Handler._
+
   lazy val fileManager = config.fileManager
 
-  val regex = """.*?vol\d+\+\d+\.par2""".r
-
-  def readCoveredFiles: Map[File, File] = {
-    val list = fileManager.par2File.getFiles()
-    		.filterNot(f => regex.pattern.matcher(f.getName).matches())
-    val tuples = list.flatMap { par2File => 
-    	new Par2Parser(par2File).parse().map(coveredFile => (coveredFile, par2File)) }
-    tuples.toMap
-  }
-
-  def createFiles {
-    forHashChainsAndIndex
-    forVolumes
+  def createFiles() {
+    forHashChainsAndIndex()
+    forVolumes()
   }
 
   var numberOfFiles = 1
 
   def notCovered[T](ft: FileType[T]) = {
-    val covered = readCoveredFiles
+    val covered = readCoveredFiles(config.folder)
     val out = ft.getFiles()
       .filter(x => !(covered contains x))
     out
   }
 
-  def forVolumes {
+  def forVolumes() {
     val p2volume = config.fileManager.par2ForVolumes
     var volumes = filesMatchingPrefix(fileManager.volumes)
     while (!volumes.isEmpty) {
@@ -99,16 +93,10 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     start(par2File, filesMatchingPrefix(ft, true), redundancy)
   }
 
-  def forHashChainsAndIndex {
-    //    val backup = redundancy.percentage
-    //    try {
-    //      redundancy.percentage = 50
+  def forHashChainsAndIndex() {
     handleFiles(fileManager.par2ForFiles, fileManager.files, 50)
     handleFiles(fileManager.par2ForHashChains, fileManager.hashchains, 50)
     handleFiles(fileManager.par2ForFilesDelta, fileManager.filesDelta, 50)
-    //    } finally {
-    //      redundancy.percentage = backup
-    //    }
   }
 
   /**
@@ -131,10 +119,10 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     cmd += s"-s${size}"
     cmd += par2File.getName()
     if (Utils.isWindows)
-    	cmd += "--"
+      cmd += "--"
     cmd ++= files.map(_.getName())
     if (!startProcess(cmd)) {
-      l.info("par2 creation failed for "+files)
+      l.info("par2 creation failed for " + files)
     }
   }
 
@@ -145,6 +133,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
       .directory(config.folder)
       .start
     val exit = proc.waitFor()
+    proc.destroy()
     exit == 0
   }
 
@@ -158,7 +147,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
   }
 
   def repair(file: File): Boolean = {
-    readCoveredFiles.get(file) match {
+    parseAllPar2(config.folder).find(_.coveredFiles.map(_._1).contains(file.getName())).map(_.par2File(config.folder)) match {
       case Some(f) =>
         val out = startRepair(f)
         if (out) {
@@ -175,29 +164,67 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
 
 }
 
+object Par2Handler {
+  // This map contains the parsed par2files for a given par2 file
+  private val cache = new mutable.HashMap[File, Par2File]() 
+
+  def get(x: File) = {
+	  if (!cache.contains(x)) {
+	    cache(x) = new Par2Parser(x).parse()
+	  }
+	  cache(x)
+  }
+  
+  val regex = """.*?vol\d+\+\d+\.par2""".r
+
+  def parseAllPar2(folder: File): Seq[Par2File] = {
+    val list = folder.listFiles().filter(_.getName().endsWith(".par2"))
+      .filterNot(f => regex.pattern.matcher(f.getName).matches())
+    list.map(Par2Handler.get(_))
+  }
+
+  // This map contains for each covered file in which par2 file it is covered
+  def readCoveredFiles(folder: File): Map[File, Par2File] = {
+    parseAllPar2(folder).flatMap {
+      case p @ Par2File(name, list) => list.map(f => new File(folder, f._1)).map(x => (x, p))
+    }.toMap
+  }
+
+  def wrapVerifyStreamIfCovered(f: File, is: InputStream) = {
+    val covered = readCoveredFiles(f.getParentFile())
+    covered.get(f) match {
+      case Some(p @ Par2File(name, list)) =>
+        new Streams.VerifyInputStream(is, MessageDigest.getInstance("MD5"), p.getHash(f.getName()).get, f)
+      case None => is
+    }
+  }
+
+}
+
 /**
  * Parses a given par2 file to find out which
  * files it covers.
  */
-class Par2Parser(val f: File) {
-  val raf = new RandomAccessFile(f, "r")
+private class Par2Parser(val f: File) {
+  lazy val raf = new RandomAccessFile(f, "r")
   import Utils._
 
-  var files = mutable.Map[String, String]()
+  private var files = mutable.LinkedHashMap[String, String]()
+  private var hashes = mutable.Map[String, Array[Byte]]()
 
-  val ascii = Charset.forName("ASCII")
-  val utf = Charset.forName("UTF-16LE")
-  val magic = "PAR2\0PKT".getBytes(ascii).toArray
-  val fileDescHeader = "PAR 2.0\0FileDesc".getBytes(ascii)
-  val fileDescHeaderUnicode = "PAR 2.0\0UniFileN".getBytes(ascii)
+  private val ascii = Charset.forName("ASCII")
+  private val utf = Charset.forName("UTF-16LE")
+  private val magic = "PAR2\0PKT".getBytes(ascii).toArray
+  private val fileDescHeader = "PAR 2.0\0FileDesc".getBytes(ascii)
+  private val fileDescHeaderUnicode = "PAR 2.0\0UniFileN".getBytes(ascii)
 
-  def readBytes(bytes: Int) = {
+  private def readBytes(bytes: Int) = {
     val out = Array.ofDim[Byte](bytes)
     raf.readFully(out)
     out
   }
 
-  def readLong() = {
+  private def readLong() = {
     val map = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, raf.getFilePointer(), 8);
     map.order(ByteOrder.LITTLE_ENDIAN);
     map.asLongBuffer().get()
@@ -205,9 +232,9 @@ class Par2Parser(val f: File) {
 
   class ParsingException(m: String) extends IOException(m + " at pos " + raf.getFilePointer())
 
-  def arrayEq(a: Array[Byte], b: Array[Byte]) = Arrays.equals(a, b)
+  private def arrayEq(a: Array[Byte], b: Array[Byte]) = Arrays.equals(a, b)
 
-  def parseOnePacket() {
+  private def parseOnePacket() {
     var start = raf.getFilePointer()
     if (!arrayEq(readBytes(8), magic)) {
       throw new ParsingException("Expected header ")
@@ -217,10 +244,12 @@ class Par2Parser(val f: File) {
     val typ = readBytes(16)
     if (arrayEq(typ, fileDescHeader)) {
       val id = readBytes(16)
-      raf.skipBytes(40)
+      val hash = readBytes(16)
+      raf.skipBytes(24)
       val stringLength = length + start - raf.getFilePointer()
       val name = new String(readBytes(stringLength.toInt), ascii).trim
       files(encodeBase64(id)) = name
+      hashes(encodeBase64(id)) = hash
       if (raf.getFilePointer() != length + start) {
         throw new ParsingException("Not at end of packet somehow")
       }
@@ -237,11 +266,18 @@ class Par2Parser(val f: File) {
     }
   }
 
-  def parse() = {
-    while (raf.length() > raf.getFilePointer())
-      parseOnePacket
-    raf.close()
-    files.values.map(new File(f.getParentFile(), _))
+  def parse(): Par2File = {
+    try {
+      while (raf.length() > raf.getFilePointer())
+        parseOnePacket
+    } finally {
+      raf.close()
+    }
+    Par2File(f.getName(), files.map(_._1).map(x => (files(x), hashes(x))).toSeq)
   }
 }
 
+case class Par2File(name: String, coveredFiles: Seq[(String, Array[Byte])]) {
+  def getHash(filename: String) = coveredFiles.find(_._1 == filename).map(_._2)
+  def par2File(folder: File) = new File(folder, name)
+}

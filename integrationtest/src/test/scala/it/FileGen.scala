@@ -18,7 +18,7 @@ class FileGen(val folder: File) extends TestUtils {
   var random = new Random()
   var maxSize = Size("200MB")
   var maxFiles = 1000
-  var minFiles = 80
+  var minFiles = 50
   var maxFolders = 50
   val subfolderChance = 20
   var folderList = Buffer[File]()
@@ -63,7 +63,7 @@ class FileGen(val folder: File) extends TestUtils {
     times(folders)(newFolder())
     times(int)(newFile(100000))
     times(25)(changeFile)
-    times(5)(renameFile)
+    times(10)(renameFile)
     times(10)(deleteFile)
   }
 
@@ -81,10 +81,9 @@ class FileGen(val folder: File) extends TestUtils {
     }
     val file = select(fileList ++ folderList)
     val fileNew = new File(file.getParentFile(), generateName())
-    val done = Files.move(file.toPath(), fileNew.toPath())
+    Files.move(file.toPath(), fileNew.toPath())
     l.info("File rename old exists "+(!file.exists())+" new exists "+fileNew.exists)
     rescan
-    done
   }
 
   def deleteFile() {

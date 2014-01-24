@@ -201,6 +201,8 @@ trait BackupProgressReporting extends Utils {
   def setMaximums(files: Iterable[BackupPart]) {
     fileCounter.maxValue = files.size
     byteCounter.maxValue = files.map(_.size).sum
+    fileCounter.current = 0
+    byteCounter.current = 0
   }
 
   def updateProgress() {
@@ -219,7 +221,7 @@ abstract class BackupIndexHandler extends Utils {
     } else {
       fileManager.getBackupAndUpdates(temp)
     }
-    val updates = filesToLoad.par.flatMap(x => fileManager.filesDelta.read(x)).fold(Buffer[UpdatePart]())(_ ++ _).seq
+    val updates = filesToLoad.flatMap(x => fileManager.filesDelta.read(x)).fold(Buffer[UpdatePart]())(_ ++ _).seq
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
       updates.foreach {
@@ -262,7 +264,7 @@ abstract class BackupDataHandler extends BackupIndexHandler {
 
   def oldBackupHashChains: mutable.Map[BAWrapper2, Array[Byte]] = {
     def loadFor(x: Iterable[File]) = {
-      x.par.flatMap(x => fileManager.hashchains.read(x)).fold(Buffer())(_ ++ _).toBuffer
+      x.flatMap(x => fileManager.hashchains.read(x)).fold(Buffer())(_ ++ _).toBuffer
     }
     val temps = loadFor(fileManager.hashchains.getTempFiles())
     if (!temps.isEmpty) {
@@ -605,6 +607,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   }
 
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
+    var closeAbles = Buffer[{def close(): Unit}]()
     try {
       val restoredFile = makePath(fd)
       if (restoredFile.exists()) {
@@ -618,8 +621,12 @@ class RestoreHandler(val config: BackupFolderConfiguration)
         l.info("File exists, but has been modified, so overwrite")
       }
       val fos = new UnclosedFileOutputStream(restoredFile)
+      closeAbles += fos
       val dos = new DigestOutputStream(fos, config.getMessageDigest)
-      copy(getInputStream(fd), dos)
+      closeAbles += dos
+      val in = getInputStream(fd)
+      closeAbles += in 
+      copy(in, dos)
       val hash = dos.getMessageDigest().digest()
       if (!Arrays.equals(fd.hash, hash)) {
         l.warn("Error while restoring file, hash is not correct")
@@ -629,13 +636,15 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       }
       fd.applyAttrsTo(restoredFile)
     } catch {
-      case e @ BackupCorruptedException(f) if (config.redundancyEnabled) => {
+      case e @ BackupCorruptedException(f) =>
         finishReading
         throw e
-      }
       case e: Exception =>
+        finishReading
         l.warn("Exception while restoring " + fd.path + " (" + e.getMessage() + ")")
         logException(e)
+    } finally {
+      closeAbles.foreach(_.close)
     }
     fileCounter += 1
     byteCounter += fd.size
