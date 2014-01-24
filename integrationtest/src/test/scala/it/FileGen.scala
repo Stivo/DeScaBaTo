@@ -61,10 +61,10 @@ class FileGen(val folder: File) extends TestUtils {
     val folders = random.nextInt(10) + 2
     val int = random.nextInt(100) + 25
     times(folders)(newFolder())
-    times(int) (newFile(100000))
-    times(25) (changeFile)
-    times(20) (renameFile)
-    times(10) (deleteFile)
+    times(int)(newFile(100000))
+    times(25)(changeFile)
+    times(5)(renameFile)
+    times(10)(deleteFile)
   }
 
   implicit class MoreRandom(r: Random) {
@@ -76,16 +76,15 @@ class FileGen(val folder: File) extends TestUtils {
   }
 
   def renameFile() {
-    var done = false
-    while (!done) {
-      val file = select(fileList ++ folderList)
-      val fileNew = new File(file.getParentFile(), generateName())
-      done = file.renameTo(fileNew)
-    }
-    rescan
     if (fileList.size < 10) {
-      times(10) (newFile(10000))
+      times(10)(newFile(10000))
     }
+    val file = select(fileList ++ folderList)
+    val fileNew = new File(file.getParentFile(), generateName())
+    val done = Files.move(file.toPath(), fileNew.toPath())
+    l.info("File rename old exists "+(!file.exists())+" new exists "+fileNew.exists)
+    rescan
+    done
   }
 
   def deleteFile() {
