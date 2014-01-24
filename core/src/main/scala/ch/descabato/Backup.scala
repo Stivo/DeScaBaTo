@@ -24,6 +24,9 @@ import java.security.DigestOutputStream
 import scala.io.Source
 import scala.util.Random
 import java.io.FileNotFoundException
+import java.nio.file.LinkOption
+import java.nio.file.Path
+import java.nio.file.NoSuchFileException
 
 /**
  * The configuration to use when working with a backup folder.
@@ -52,6 +55,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var redundancyEnabled = false
   var metadataRedundancy: Int = 20
   var volumeRedundancy: Int = 5
+  var saveSymlinks: Boolean = true
   @JsonIgnore lazy val fileManager = new FileManager(this)
 }
 
@@ -68,6 +72,7 @@ object InitBackupFolderConfiguration {
         o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
         o.volumeRedundancy.foreach(out.volumeRedundancy = _)
         o.metadataRedundancy.foreach(out.metadataRedundancy = _)
+        o.dontSaveSymlinks.foreach(b => out.saveSymlinks = !b)
       case _ =>
     }
     option match {
@@ -94,6 +99,7 @@ object InitBackupFolderConfiguration {
         o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
         o.metadataRedundancy.foreach { changed = true; old.metadataRedundancy = _ }
         o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
+        o.dontSaveSymlinks.foreach { x => changed = true; old.saveSymlinks = !x }
       // TODO other properties that can be set again
       case _ =>
     }
@@ -172,7 +178,7 @@ object BackupUtils {
     val out = oldMap.remove(path)
     if (out.isDefined &&
       // file size has not changed, if it is a file
-      (file.isDirectory() || out.get.size == file.length()) &&
+      (!(out.get.isInstanceOf[FileDescription]) || out.get.size == file.length()) &&
       // if the backup part is of the wrong type => return (None, fa)
       manifest.runtimeClass.isAssignableFrom(out.get.getClass()) &&
       // if the file has attributes and the last modified date is different, return (None, fa)
@@ -236,11 +242,13 @@ abstract class BackupIndexHandler extends Utils {
   def partitionFolders(x: Seq[BackupPart]) = {
     val folders = Buffer[FolderDescription]()
     val files = Buffer[FileDescription]()
+    val links = Buffer[SymbolicLink]()
     x.foreach {
       case x: FileDescription => files += x
       case x: FolderDescription => folders += x
+      case x: SymbolicLink => links += x
     }
-    (folders, files)
+    (folders, files, links)
   }
 
 }
@@ -334,7 +342,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
       return
     }
     val fileListOut = Buffer[BackupPart]()
-    val (newFolders, newFiles) = partitionFolders(newParts)
+    val (newFolders, newFiles, links) = partitionFolders(newParts)
     if (config.renameDetection) {
       deletedCopy = partitionFolders(deleted)._2
     }
@@ -381,6 +389,8 @@ class BackupHandler(val config: BackupFolderConfiguration)
       fileListOut ++= unchanged
     }
     fileListOut ++= newFolders
+    if (config.saveSymlinks)
+      fileListOut ++= links
     if (delta) {
       val toWrite = deleted.map { case x: BackupPart => FileDeleted(x.path) }.toBuffer ++ fileListOut
       fileManager.filesDelta.write(toWrite)
@@ -549,8 +559,9 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     val filtered = if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
     l.info("Going to restore " + statistics(filtered))
     setMaximums(filtered)
-    val (folders, files) = partitionFolders(filtered)
+    val (folders, files, links) = partitionFolders(filtered)
     folders.foreach(restoreFolderDesc(_))
+    links.foreach(restoreLink)
     files.foreach(restoreFileDesc)
     folders.foreach(restoreFolderDesc(_, false))
     finishReading()
@@ -569,6 +580,19 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       new File(dest, cleaned(fd.path))
     }
 
+  }
+
+  def restoreLink(link: SymbolicLink)(implicit options: RestoreConf) {
+    try {
+      val path = makePath(link)
+      // TODO if link links into backup, path should be updated
+      Files.createLink(path.toPath(), new File(link.linkTarget).toPath())
+      link.applyAttrsTo(path)
+    } catch {
+      case e @ (_: UnsupportedOperationException | _: NoSuchFileException) =>
+        l.warn("Symbolic link to " + link.linkTarget + " can not be restored")
+        logException(e)
+    }
   }
 
   def restoreFolderDesc(fd: FolderDescription, count: Boolean = true)(implicit options: RestoreConf) {

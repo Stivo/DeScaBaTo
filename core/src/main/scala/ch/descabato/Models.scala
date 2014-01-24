@@ -10,12 +10,18 @@ import java.nio.file.attribute.BasicFileAttributes
 import com.fasterxml.jackson.annotation.JsonIgnore
 import java.util.regex.Pattern
 import java.math.{BigDecimal => JBigDecimal}
+import java.nio.file.LinkOption
 
-class FileAttributes extends HashMap[String, Any] {
+class FileAttributes extends HashMap[String, Any] with Utils {
 
   def hasBeenModified(file: File): Boolean = {
     val fromMap = get("lastModifiedTime")
-    val lastMod = file.lastModified()
+    val lastMod = {
+      Files.getAttribute(file.toPath(), "lastModifiedTime", LinkOption.NOFOLLOW_LINKS) match {
+        case x: FileTime => x.toMillis()
+        case _ => l.warn("Did not find filetime for "+file); 0L
+      }
+    }
 
     val out = Option(fromMap) match {
       case Some(l: Long) => !(lastMod <= l && l <= lastMod)
@@ -158,6 +164,11 @@ trait BackupPart extends UpdatePart {
 
 }
 
+case class SymbolicLink(val path: String, val linkTarget: String, val attrs: FileAttributes) extends BackupPart {
+  def size = 0L
+  def isFolder = false
+}
+
 /**
  * A wrapper for a byte array so it can be used in a map as a key.
  */
@@ -182,7 +193,7 @@ case class Size(bytes: Long) {
 
 object Size {
   val knownTypes: Set[Class[_]] = Set(classOf[Size])
-  val patt = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE);
+  val patt = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE)
 
   def apply(size: String): Size = {
     var out: Long = -1;

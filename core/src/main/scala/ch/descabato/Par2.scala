@@ -207,7 +207,7 @@ class Par2Parser(val f: File) {
 
   def arrayEq(a: Array[Byte], b: Array[Byte]) = Arrays.equals(a, b)
 
-  def parseOnePacket {
+  def parseOnePacket() {
     var start = raf.getFilePointer()
     if (!arrayEq(readBytes(8), magic)) {
       throw new ParsingException("Expected header ")

@@ -38,10 +38,13 @@ abstract class AbstractJacksonSerialization extends Serialization {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper];
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode];
-      if (root.fieldNames().asScala.find(_=="attrs").isEmpty) {
+      val fields = root.fieldNames().asScala.toSet
+      if (fields.find(_=="attrs").isEmpty) {
         mapper.convertValue(root, classOf[FileDeleted])
-      } else if (root.fieldNames().asScala.contains("hash")) {
+      } else if (fields.contains("hash")) {
         mapper.convertValue(root, classOf[FileDescription]);
+      } else if (fields.contains("linkTarget")) {
+        mapper.convertValue(root, classOf[SymbolicLink]);
       } else {
         mapper.convertValue(root, classOf[FolderDescription])
       }

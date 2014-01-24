@@ -9,6 +9,12 @@ import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
 import ch.descabato.ProgressReporters
+import java.nio.file.LinkOption
+import java.util.Collections
+import java.util.HashSet
+import java.util.Arrays
+import java.nio.file.FileVisitOption
+import java.util.EnumSet
 
 class ClosureVisitor(f: (File, BasicFileAttributes) => Unit) extends FileVisitorHelper {
 
@@ -36,11 +42,15 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
   lazy val deleted = oldMap.values.toSeq
   val newFiles = Buffer[BackupPart]()
   val unchangedFiles = Buffer[BackupPart]()
+  val symManifest = manifest[SymbolicLink]
 
   def handleFile[T <: BackupPart](f: => T, dir: Path, attrs: BasicFileAttributes)(implicit m: Manifest[T]) {
     lazy val desc = f
     var wasadded = false
-    val old = BackupUtils.findOld(dir.toFile(), oldMap)(m)
+    val old = if (Files.isSymbolicLink(dir))
+      BackupUtils.findOld[SymbolicLink](dir.toFile(), oldMap)(symManifest)
+    else
+      BackupUtils.findOld(dir.toFile(), oldMap)(m)
     if (old.isDefined) {
       if (recordUnchanged) {
         unchangedFiles += old.get
@@ -55,9 +65,9 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
     if (recordAll && !wasadded) {
       all += desc
     }
-    progress.foreach{x =>
+    progress.foreach { x =>
       x += 1
-  	  ProgressReporters.updateWithCounters(List(x))
+      ProgressReporters.updateWithCounters(List(x))
     }
   }
 
@@ -69,10 +79,14 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
 
   override def visitFile(file: Path, attrs: BasicFileAttributes) = {
     handleFile({
-      val out = new FileDescription(file.toAbsolutePath().toString(), file.toFile().length(),
-        FileAttributes.convert(attrs))
-      out.hash = "asdf".getBytes()
-      out
+      if (Files.isSymbolicLink(file)) {
+        new SymbolicLink(file.toAbsolutePath().toString(),
+          Files.readSymbolicLink(file).toAbsolutePath().toString(), FileAttributes.convert(attrs))
+      } else {
+        val out = new FileDescription(file.toAbsolutePath().toString(), file.toFile().length(),
+          FileAttributes.convert(attrs))
+        out
+      }
     },
       file, attrs)
     super.visitFile(file, attrs)

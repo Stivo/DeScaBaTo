@@ -50,11 +50,11 @@ object CLI extends Utils {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
       } else {
-        //              parseCommandLine("backup --serializer-type json --compression none --volume-size 5mb backups ..\\testdata".split(" "))
+//    	  parseCommandLine("backup --serializer-type json --compression none --volume-size 5mb backups ..\\testdata".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))
         //              parseCommandLine("browse -p asdf backups".split(" "))
-//        parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+        parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
       }
     } catch {
       case e @ PasswordWrongException(m, cause) =>
@@ -168,6 +168,7 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
   val noScriptCreation = opt[Boolean](default = Some(false))
   val checkpointEvery = opt[Size](default = Some(Size("100Mb")))
   val renameDetection = opt[Boolean](default = Some(false))
+  val dontSaveSymlinks = opt[Boolean](default = Some(false))
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
