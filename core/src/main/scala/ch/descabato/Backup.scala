@@ -27,6 +27,9 @@ import java.io.FileNotFoundException
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.NoSuchFileException
+import net.java.truevfs.access.TConfig
+import net.java.truevfs.kernel.spec.spi.FsDriverMapFactory
+import net.java.truevfs.kernel.spec.sl.FsDriverMapLocator
 
 /**
  * The configuration to use when working with a backup folder.
@@ -57,6 +60,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var volumeRedundancy: Int = 5
   var saveSymlinks: Boolean = true
   @JsonIgnore lazy val fileManager = new FileManager(this)
+  @JsonIgnore def raes = if (hasPassword) ".raes" else ""
 }
 
 object InitBackupFolderConfiguration {
@@ -154,6 +158,9 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   }
 
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {
+    for (p <- passphrase) {
+      TConfig.current().setArchiveDetector(TrueVfs.newArchiveDetector1(FsDriverMapLocator.SINGLETON, ".zip.raes", p.toCharArray(), 128))
+    }
     if (hasOld) {
       val oldConfig = loadOld()
       val (out, changed) = InitBackupFolderConfiguration.merge(oldConfig, supplied, passphrase)
@@ -336,9 +343,9 @@ class BackupHandler(val config: BackupFolderConfiguration)
     // Walk tree and compile to do list
     val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
     val (newParts, unchanged, deleted) = (visitor.newFiles, visitor.unchangedFiles, visitor.deleted)
-    println("New Files      : " + statistics(newParts))
-    println("Unchanged files: " + statistics(unchanged))
-    println("Deleted files  : " + statistics(deleted))
+    l.info("New Files      : " + statistics(newParts))
+    l.info("Unchanged files: " + statistics(unchanged))
+    l.info("Deleted files  : " + statistics(deleted))
     if ((newParts ++ deleted).isEmpty) {
       l.info("No files have been changed, aborting backup")
       return

@@ -9,6 +9,11 @@ import java.io.IOException
 import scala.concurrent.Future
 import java.io.InputStream
 import java.nio.file.Files
+import net.java.truevfs.access.TFile
+import net.java.truevfs.access.TFileOutputStream
+import java.io.BufferedOutputStream
+import net.java.truevfs.access.TVFS
+import net.java.truevfs.access.TFileInputStream
 
 /**
  * A block strategy saves and retrieves blocks.
@@ -27,38 +32,6 @@ trait BlockStrategy {
   def finishWriting() {}
   def finishReading() {}
   def verify(problemCounter: Counter) {}
-}
-
-/**
- * Simple block strategy that dumps all blocks into one folder.
- */
-class FolderBlockStrategy(val config: BackupFolderConfiguration) extends BlockStrategy {
-  import Streams._
-  import Utils._
-  val blocksFolder = new File(config.folder, "blocks")
-
-  def blockExists(b: Array[Byte]) = {
-    new File(blocksFolder, encodeBase64Url(b)).exists()
-  }
-  def writeBlock(hash: Array[Byte], buf: Array[Byte], disableCompression: Boolean = false) {
-    val hashS = encodeBase64Url(hash)
-    val f = new File(blocksFolder, hashS)
-    val out = StreamHeaders.newUnclosedFileOutputStream(f, config)
-    out.write(buf)
-    out.close()
-  }
-
-  def readBlock(x: Array[Byte], verifyHash: Boolean = false) = {
-    val out = new ByteArrayOutputStream()
-    StreamHeaders.newFileInputStream(new File(blocksFolder, encodeBase64Url(x)), config)
-  }
-
-  def getBlockSize(hash: Array[Byte]) = new File(blocksFolder, encodeBase64Url(hash)).length()
-  def calculateOverhead(map: Iterable[Array[Byte]]) = {
-    map.map(_.grouped(config.hashLength).foldLeft(0L) { (x, y) =>
-      x + getBlockSize(y)
-    }).sum
-  }
 }
 
 /**
@@ -130,9 +103,11 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
         if (verify) lastSet += encodeBase64Url(hash)
         knownBlocks += ((hash, num))
       });
-      val fis = new FileInputStream(f)
-      val sis = new SplitInputStream(StreamHeaders.readStream(fis, config.passphrase), bos :: Nil)
+      val tfile = new TFile(f, "index")
+      val fis = new TFileInputStream(tfile)
+      val sis = new SplitInputStream(fis, bos :: Nil)
       sis.readComplete
+      Utils.closeTFile(tfile)
       if (verify) {
         val zip = getZipFileReader(num)
         for (name <- zip.names) {
@@ -164,19 +139,29 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
   def volumeName(num: Int, temp: Boolean = false) = {
     val add = if (temp) Constants.tempPrefix else ""
-    s"${config.prefix}${add}volume_$num.zip"
+    s"${config.prefix}${add}volume_$num.zip${config.raes}"
   }
 
   def indexName(num: Int, temp: Boolean = false) = {
     val add = if (temp) Constants.tempPrefix else ""
-    s"${config.prefix}${add}index_$num.zip"
+    s"${config.prefix}${add}index_$num.zip${config.raes}"
   }
 
+  class IndexWriter(x: File) {
+    val file = new TFile(x)
+    val index = new TFile(file, "index")
+    val fos = new TFileOutputStream(index, true)
+    val bos = new BufferedOutputStream(fos)
+    def close() {
+      bos.close()
+      TVFS.umount(file)
+    }
+  }
+  
   def startZip() {
     l.info(s"Starting volume ${volumeName(curNum)}")
     currentZip = new ZipFileWriter(new File(config.folder, volumeName(curNum, true)))
-    currentIndex = StreamHeaders.newUnclosedFileOutputStream(new File(config.folder,
-      indexName(curNum, true)), config)
+    currentIndex = new IndexWriter(new File(config.folder, indexName(curNum, true)))
   }
 
   def endZip() {
@@ -219,7 +204,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       startZip
     }
     currentZip.writeEntry(hashS, { _.write(block) })
-    currentIndex.write(hash)
+    currentIndex.bos.write(hash)
   }
 
   def finishFutures(force: Boolean = false) {
@@ -236,7 +221,8 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
   var currentZip: ZipFileWriter = null
 
-  var currentIndex: OutputStream = null
+  var currentIndex: IndexWriter = null
+  
   private var futures: List[Future[(Array[Byte], Array[Byte])]] = List()
   def writeBlock(hash: Array[Byte], buf: Array[Byte], disableCompression: Boolean = false) {
     setup()
@@ -245,7 +231,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
       knownBlocksTemp += ((hash, curNum))
       val f = () => {
-        val encrypt = StreamHeaders.newByteArrayOut(buf, config, disableCompression)
+        val encrypt = buf //StreamHeaders.newByteArrayOut(buf, config, disableCompression)
         (hash, encrypt)
       }
       if (config.threads > 1) {
@@ -283,11 +269,11 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     //      Actors.downloadFile(zipFile.file)
     //    }
     val input = zipFile.getStream(hashS)
-    val stream = StreamHeaders.readStream(input, config.passphrase)
+    //val stream = StreamHeaders.readStream(input, config.passphrase)
     if (verifyHash) {
-      new VerifyInputStream(stream, config.getMessageDigest, hash, zipFile.file)
+      new VerifyInputStream(input, config.getMessageDigest, hash, zipFile.file)
     } else {
-      stream
+      input
     }
   }
 

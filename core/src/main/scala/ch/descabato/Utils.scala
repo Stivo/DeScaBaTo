@@ -4,8 +4,10 @@ import java.io.PrintStream
 import javax.xml.bind.DatatypeConverter
 import java.text.DecimalFormat
 import com.typesafe.scalalogging.slf4j.Logging
+import net.java.truevfs.access.TFile
+import net.java.truevfs.access.TVFS
 
-object Utils {
+object Utils extends Logging {
 
   private val units = Array[String]("B", "KB", "MB", "GB", "TB");
   def isWindows = System.getProperty("os.name").contains("indows")
@@ -24,14 +26,6 @@ object Utils {
 
   def normalizePath(x: String) = x.replace('\\', '/')
 
-}
-
-trait Utils extends Logging {
-  lazy val l = logger
-  import Utils._
-
-  def readableFileSize(size: Long): String = Utils.readableFileSize(size)
-
   def logException(t: Throwable) {
     ObjectPools.baosPool.withObject(Unit, { baos =>
       val ps = new PrintStream(baos)
@@ -44,8 +38,24 @@ trait Utils extends Logging {
         }
       }
       print(t)
-      l.debug(new String(baos.toByteArray))
+      logger.debug(new String(baos.toByteArray))
     })
   }
+  
+  def closeTFile(x: TFile) {
+    TVFS.umount(x.getEnclArchive())
+  }
 
+}
+
+trait Utils extends Logging {
+  lazy val l = logger
+  import Utils._
+
+  def readableFileSize(size: Long): String = Utils.readableFileSize(size)
+
+  def logException(t: Throwable) {
+    Utils.logException(t)
+  }
+  
 }

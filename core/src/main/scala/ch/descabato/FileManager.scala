@@ -66,7 +66,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def nextName(tempFile: Boolean = false) = {
     val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    s"$globalPrefix$temp$prefix$date${nextNum(tempFile)}$suffix.zip"
+    s"$globalPrefix$temp$prefix$date${nextNum(tempFile)}$suffix.zip${options.raes}"
   }
 
   def nextFile(f: File = options.folder, temp: Boolean = false) = new File(f, nextName(temp))
