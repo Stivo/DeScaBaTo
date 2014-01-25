@@ -1,6 +1,8 @@
 DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
 =========
 
+#### Warning: I will soon release a new version, with an incompatible file format. Please wait for 0.2.0.
+
 The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups.
 
 As of now, it has these features:
@@ -15,8 +17,13 @@ Compared to duplicati:
 - By using md5 there is less space required for metadata
 - The design is simpler (no database to keep synchronized), and should be more robust
 
+Version 0.2.0 will be soon out (a few days). Changes:
+- A new backup format. This will allow for stronger encryption, without severely slowing down reconstruction.
+- Par2 files for redundancy. DeScaBaTo will automatically notice and recover when backup files were slightly damaged.
+- Some linux support (symlinks & posix attributes)
+- Better error handling when modifying the backup folder while backing up
+
 I plan to support these features:
-- Par2 creation for redundancy. Soon.
 - Useable file browser to restore files. Soonish.
 - Upload backup to cloud services. A while out.
 
