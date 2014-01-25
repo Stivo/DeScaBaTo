@@ -12,6 +12,10 @@ import java.io.OutputStream
 import ch.descabato.Streams.CountingOutputStream
 import java.io.InputStream
 import ch.descabato.Streams.DelegatingInputStream
+import net.java.truevfs.access.TFile
+import net.java.truevfs.access.TFileOutputStream
+import net.java.truevfs.access.TVFS
+import net.java.truevfs.access.TFileInputStream
 
 abstract class ZipFileHandler(zip: File)
 
@@ -21,37 +25,21 @@ abstract class ZipFileHandler(zip: File)
  */
 class ZipFileReader(val file: File) extends ZipFileHandler(file) with Utils {
 
-  class RegisteredInputStream(in: InputStream, val name: String) extends DelegatingInputStream(in) {
-    streams += this
-    override def close() = {
-      super.close
-      streams -= this
-    }
-  }
-
-  private val streams = Buffer[RegisteredInputStream]()
-
-  lazy val zf = new JZipFile(file);
-
   def this(s: String) = this(new File(s))
 
-  private lazy val _zipEntries = zf.entries().toArray
+  val tfile = new TFile(file);
 
-  lazy val names = _zipEntries.map(_.getName())
+  lazy val names = tfile.list().toArray
 
   def getStream(name: String) = {
-    val out = zf.getInputStream(zf.getEntry(name))
-    val out2 = new RegisteredInputStream(out, name) 
-    out2
+    val e = new TFile(tfile, name);
+    new TFileInputStream(e)
   }
 
-  def getEntrySize(name: String) = zf.getEntry(name).getSize()
+  def getEntrySize(name: String) = new TFile(tfile, name).length()
 
   def close() {
-    for (s <- streams) {
-      s.close()
-    }
-    zf.close()
+    TVFS.umount(tfile)
   }
 
 }
@@ -62,24 +50,29 @@ class ZipFileReader(val file: File) extends ZipFileHandler(file) with Utils {
  */
 class ZipFileWriter(val file: File) extends ZipFileHandler(file) {
 
-  val fos = new CountingOutputStream(new Streams.UnclosedFileOutputStream(file))
-  val out = new ZipOutputStream(fos)
+  private var counter = 0L
+
+  val tfile = new TFile(file);
 
   // compression is done already before
-  out.setLevel(ZipEntry.STORED)
 
   def writeEntry(name: String, f: (OutputStream => Unit)) {
-    out.putNextEntry(new ZipEntry(name))
-    f(out)
-    out.closeEntry()
+    val out = new TFileOutputStream(new TFile(tfile, name))
+    val o2 = new CountingOutputStream(out)
+    try {
+      f(o2)
+    } finally {
+      o2.close()
+      counter += o2.counter
+    }
   }
 
   def close() {
-    out.close()
+    TVFS.umount(tfile);
   }
 
   def size() = {
-    fos.count
+    counter
   }
 
 }

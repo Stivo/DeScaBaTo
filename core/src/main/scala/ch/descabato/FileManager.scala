@@ -10,6 +10,10 @@ import java.io.FileInputStream
 import java.io.BufferedOutputStream
 import java.io.BufferedInputStream
 import com.fasterxml.jackson.core.JsonProcessingException
+import net.java.truevfs.access.TFile
+import net.java.truevfs.access.TFileOutputStream
+import net.java.truevfs.access.TVFS
+import net.java.truevfs.access.TFileInputStream
 
 class VolumeIndex extends HashMap[String, Int]
 
@@ -62,7 +66,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def nextName(tempFile: Boolean = false) = {
     val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    s"$globalPrefix$temp$prefix$date${nextNum(tempFile)}$suffix"
+    s"$globalPrefix$temp$prefix$date${nextNum(tempFile)}$suffix.zip"
   }
 
   def nextFile(f: File = options.folder, temp: Boolean = false) = new File(f, nextName(temp))
@@ -112,25 +116,29 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def write(x: T, temp: Boolean = false) = {
     val file = nextFile(temp = temp)
-    val fos = new Streams.UnclosedFileOutputStream(file)
+    val t = new TFile(file)
+    val tinside = new TFile(file,"content.obj")
+    val fos = new TFileOutputStream(tinside)
     val bos = new BufferedOutputStream(fos, 20 * 1024)
-    val out = StreamHeaders.wrapStream(bos, options)
-    options.serialization.writeObject(x, out)
+    options.serialization.writeObject(x, bos)
+    bos.close()
+    TVFS.umount(t)
     file
   }
 
   def read(f: File, first: Boolean = true): Option[T] = {
+    val troot = new TFile(f)
+    val t = new TFile(f,"content.obj")
     try {
-      val fis = new FileInputStream(f)
+      val fis = new TFileInputStream(t)
       val bis = new BufferedInputStream(fis)
-      val verified = Par2Handler.wrapVerifyStreamIfCovered(f, bis)
-      val stream = StreamHeaders.readStream(verified, options.passphrase)
-      val either = options.serialization.readObject[T](stream)
+      //val verified = Par2Handler.wrapVerifyStreamIfCovered(f, bis)
+      val either = options.serialization.readObject[T](bis)
       either match {
         case Left(read) => Some(read)
         // TODO this should not catch directly this exception. It's unclean
         case Right(e : JsonProcessingException) if (options.redundancyEnabled) && first => {
-          stream.close()
+          bis.close()
           l.info("Trying to repair broken file "+f)
           if (new RedundancyHandler(options).repair(f)) {
             read(f, false)
@@ -150,6 +158,8 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
         l.warn("Exception while loading " + f + ", file may be corrupt")
         logException(e)
         None
+    } finally {
+      TVFS.umount(troot)
     }
   }
 
