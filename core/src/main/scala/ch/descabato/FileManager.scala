@@ -10,6 +10,11 @@ import java.io.FileInputStream
 import java.io.BufferedOutputStream
 import java.io.BufferedInputStream
 import com.fasterxml.jackson.core.JsonProcessingException
+import net.java.truevfs.access.TFile
+import net.java.truevfs.access.TFileOutputStream
+import net.java.truevfs.access.TVFS
+import net.java.truevfs.access.TFileInputStream
+import net.java.truevfs.access.TFileWriter
 
 class VolumeIndex extends HashMap[String, Int]
 
@@ -19,6 +24,8 @@ class Parity
 
 object Constants {
   val tempPrefix = "temp."
+  val filesEntry = "files.txt"
+  val objectEntry = "content.obj"
 }
 
 /**
@@ -29,11 +36,11 @@ object Constants {
  * read and write objects using serialization.
  */
 case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
-  import Constants.tempPrefix
+  import Constants._
 
-  def globalPrefix = options.prefix
+  def globalPrefix = config.prefix
 
-  var options: BackupFolderConfiguration = null
+  var config: BackupFolderConfiguration = null
   var fileManager: FileManager = null
 
   var local = true
@@ -62,22 +69,23 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def nextName(tempFile: Boolean = false) = {
     val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    s"$globalPrefix$temp$prefix$date${nextNum(tempFile)}$suffix"
+    val add = if (m.runtimeClass == classOf[Parity]) "" else s"${config.raes}"
+    s"$globalPrefix$temp$prefix$date${nextNum(tempFile)}$suffix$add"
   }
 
-  def nextFile(f: File = options.folder, temp: Boolean = false) = new File(f, nextName(temp))
+  def nextFile(f: File = config.folder, temp: Boolean = false) = new File(f, nextName(temp))
 
   def matches(x: File) = x.getName().startsWith(globalPrefix + prefix)
 
-  def getFiles(f: File = options.folder) = f.
+  def getFiles(f: File = config.folder) = f.
     listFiles().filter(_.isFile()).
     filter(_.getName().startsWith(globalPrefix + prefix))
 
-  def getTempFiles(f: File = options.folder) = f.
+  def getTempFiles(f: File = config.folder) = f.
     listFiles().filter(_.isFile()).
     filter(_.getName().startsWith(globalPrefix + tempPrefix + prefix))
 
-  def deleteTempFiles(f: File = options.folder) = getTempFiles(f).foreach(_.delete)
+  def deleteTempFiles(f: File = config.folder) = getTempFiles(f).foreach(_.delete)
 
   /**
    * Removes the global prefix, the temp prefix and the file type prefix.
@@ -112,44 +120,56 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def write(x: T, temp: Boolean = false) = {
     val file = nextFile(temp = temp)
-    val fos = new Streams.UnclosedFileOutputStream(file)
-    val bos = new BufferedOutputStream(fos, 20 * 1024)
-    val out = StreamHeaders.wrapStream(bos, options)
-    options.serialization.writeObject(x, out)
+    val w = new ZipFileWriter(file)
+    val desc = new ZipEntryDescription(objectEntry, config.serializerType, m.toString)
+    w.writeManifest(config)
+    w.writeJson(filesEntry, List(desc))
+    w.writeEntry(objectEntry) { fos =>
+      config.serialization().writeObject(x, fos)
+    }
+    w.close
     file
   }
 
   def read(f: File, first: Boolean = true): Option[T] = {
+    val reader = new ZipFileReader(f)
     try {
-      val fis = new FileInputStream(f)
-      val bis = new BufferedInputStream(fis)
-      val verified = Par2Handler.wrapVerifyStreamIfCovered(f, bis)
-      val stream = StreamHeaders.readStream(verified, options.passphrase)
-      val either = options.serialization.readObject[T](stream)
-      either match {
-        case Left(read) => Some(read)
-        // TODO this should not catch directly this exception. It's unclean
-        case Right(e : JsonProcessingException) if (options.redundancyEnabled) && first => {
-          stream.close()
-          l.info("Trying to repair broken file "+f)
-          if (new RedundancyHandler(options).repair(f)) {
-            read(f, false)
-          } else {
-            throw new BackupCorruptedException(f)
+      Par2Handler.getHashIfCovered(f).foreach { hash => reader.verifyMd5(hash) }
+      val entries = reader.getJson[List[ZipEntryDescription]](filesEntry)
+      entries match {
+        case Left(ZipEntryDescription(name, serType, clas) :: Nil) => {
+          val in = reader.getStream(name)
+          val either = config.serialization(serType).readObject[T](in)
+          in.close
+          either match {
+            case Left(read) => return Some(read)
+            case Right(e) => throw new BackupCorruptedException(f).initCause(e)
           }
         }
-        case Right(e) => throw e
+        case Right(e) => throw new BackupCorruptedException(f).initCause(e)
+        case _ => throw new BackupCorruptedException(f)
       }
     } catch {
       case c: SecurityException => throw c
       case e: Exception if ((e.getMessage + e.getStackTraceString).contains("CipherInputStream")) => {
         throw new PasswordWrongException("Exception while loading " + f + ", most likely the supplied passphrase is wrong.", e)
       }
-      case e: BackupCorruptedException => throw e
+      case e @ BackupCorruptedException(f, false) if first => {
+        logException(e)
+        reader.close
+        Par2Handler.tryRepair(f, config)
+        // tryRepair will throw exception if repair fails, so if we end up here, just try again
+        return read(f, false)
+      }
+      case e: BackupCorruptedException => {
+        throw e
+      }
       case e: Exception =>
         l.warn("Exception while loading " + f + ", file may be corrupt")
         logException(e)
         None
+    } finally {
+      reader.close
     }
   }
 
@@ -158,16 +178,18 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 /**
  * Provides different file types and does some common backup file operations.
  */
-class FileManager(options: BackupFolderConfiguration) {
+class FileManager(config: BackupFolderConfiguration) {
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
   val dateFormatLength = dateFormat.format(new Date()).length()
   val startDate = new Date()
 
+  def getDateFormatted = dateFormat.format(startDate)
+
   val volumes = new FileType[Volume]("volume_", false, ".zip", localC = false)
-  val hashchains = new FileType[Buffer[(BAWrapper2, Array[Byte])]]("hashchains_", false, ".obj")
-  val files = new FileType[Buffer[BackupPart]]("files_", true, ".obj", hasDateC = true)
-  val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".obj", hasDateC = true)
-  val index = new FileType[VolumeIndex]("index_", true, ".obj", redundantC = true)
+  val hashchains = new FileType[Buffer[(BAWrapper2, Array[Byte])]]("hashchains_", false, ".zip")
+  val files = new FileType[Buffer[BackupPart]]("files_", true, ".zip", hasDateC = true)
+  val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".zip", hasDateC = true)
+  val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
   val par2ForVolumes = new FileType[Parity]("par_volume_", true, ".par2", localC = false, redundantC = true)
   val par2ForHashChains = new FileType[Parity]("par_hashchain_", true, ".par2", localC = false, redundantC = true)
@@ -176,12 +198,12 @@ class FileManager(options: BackupFolderConfiguration) {
 
   private val types = List(volumes, hashchains, files, filesDelta, index, par2ForFiles, par2ForVolumes, par2ForHashChains, par2ForFilesDelta, par2File)
 
-  types.foreach { x => x.options = options; x.fileManager = this }
+  types.foreach { x => x.config = config; x.fileManager = this }
 
   def getFileType(x: File) = types.find(_.matches(x)).get
 
   def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {
-    val filesNow = options.folder.listFiles().filter(_.isFile()).filter(files.matches)
+    val filesNow = config.folder.listFiles().filter(_.isFile()).filter(files.matches)
     val sorted = filesNow.sortBy(_.getName())
     val lastDate = if (sorted.isEmpty) new Date(0) else files.getDate(sorted.filterNot(_.getName.startsWith(Constants.tempPrefix)).last)
     val onlyLast = sorted.dropWhile(x => files.getDate(x).before(lastDate))

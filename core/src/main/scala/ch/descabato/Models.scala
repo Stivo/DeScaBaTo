@@ -167,7 +167,7 @@ trait BackupPart extends UpdatePart {
     // Needs to take common parts out of the path.
     // Different semantics on windows. Upper-/lowercase is ignored, ':' may not be part of the output
     def prepare(f: File) = {
-      var path = f.getAbsolutePath
+      var path = f.getCanonicalPath()
       if (Utils.isWindows)
         path = path.replaceAllLiterally("\\", "/")
       path.split("/").toList
@@ -239,3 +239,5 @@ object Size {
     new Size(out);
   }
 }
+
+case class ZipEntryDescription(filename: String, serializerType: String, objectType: String)

@@ -109,15 +109,18 @@ object Streams extends Utils {
   import ObjectPools.baosPool
 
   def readFrom(in: InputStream, f: (Array[Byte], Int) => Unit) {
-    val buf = Array.ofDim[Byte](10240)
-    var lastRead = 1
-    while (lastRead > 0) {
-      lastRead = in.read(buf)
-      if (lastRead > 0) {
-        f(buf, lastRead)
+    try {
+      val buf = Array.ofDim[Byte](10240)
+      var lastRead = 1
+      while (lastRead > 0) {
+        lastRead = in.read(buf)
+        if (lastRead > 0) {
+          f(buf, lastRead)
+        }
       }
+    } finally {
+      in.close()
     }
-    in.close()
   }
 
   def copy(in: InputStream, out: OutputStream) {

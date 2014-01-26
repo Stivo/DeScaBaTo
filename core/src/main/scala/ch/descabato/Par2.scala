@@ -14,6 +14,8 @@ import scala.collection.mutable.Buffer
 import java.util.regex.Pattern
 import scala.collection.mutable.WeakHashMap
 import java.security.MessageDigest
+import scala.io.Source
+import net.java.truevfs.access.TVFS
 
 object CommandLineToolSearcher {
   private var cache = Map[String, String]()
@@ -102,7 +104,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
   /**
    * Starts the command line utility to create the par2 files
    */
-  def start(par2File: File, files: Iterable[File], redundancy: Int, size: Long = 100000) {
+  def start(par2File: File, files: Iterable[File], redundancy: Int, size: Long = 10000) {
     //import redundancy._
     if (files.isEmpty) {
       return
@@ -127,13 +129,19 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
   }
 
   def startProcess(cmd: Iterable[String]) = {
-    l.info("Starting command " + cmd.mkString(" "))
+    l.debug("Starting command " + cmd.mkString(" "))
     val proc = new ProcessBuilder().command(cmd.toList: _*)
       .redirectError(new File(config.folder, "par2log.txt"))
       .directory(config.folder)
       .start
     val exit = proc.waitFor()
     proc.destroy()
+    val s = Source.fromFile(new File(config.folder, "par2log.txt"))
+    if (exit != 0) {
+      l.warn("Exit code was " + exit)
+      l.warn("Par2Log: " + s.getLines.mkString("\n"))
+    }
+    s.close
     exit == 0
   }
 
@@ -164,17 +172,17 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
 
 }
 
-object Par2Handler {
+object Par2Handler extends Utils {
   // This map contains the parsed par2files for a given par2 file
-  private val cache = new mutable.HashMap[File, Par2File]() 
+  private val cache = new mutable.HashMap[File, Par2File]()
 
-  def get(x: File) = {
-	  if (!cache.contains(x)) {
-	    cache(x) = new Par2Parser(x).parse()
-	  }
-	  cache(x)
+  private def get(x: File) = {
+    if (!cache.contains(x)) {
+      cache(x) = new Par2Parser(x).parse()
+    }
+    cache(x)
   }
-  
+
   val regex = """.*?vol\d+\+\d+\.par2""".r
 
   def parseAllPar2(folder: File): Seq[Par2File] = {
@@ -190,14 +198,33 @@ object Par2Handler {
     }.toMap
   }
 
-  def wrapVerifyStreamIfCovered(f: File, is: InputStream) = {
+  def getHashIfCovered(f: File) = {
     val covered = readCoveredFiles(f.getParentFile())
     covered.get(f) match {
-      case Some(p @ Par2File(name, list)) =>
-        new Streams.VerifyInputStream(is, MessageDigest.getInstance("MD5"), p.getHash(f.getName()).get, f)
-      case None => is
+      case Some(p @ Par2File(name, list)) => p.getHash(f.getName())
+      case _ => None
     }
   }
+
+  def wrapVerifyStreamIfCovered(f: File, is: InputStream) = {
+    getHashIfCovered(f).map(hash =>
+      new Streams.VerifyInputStream(is, MessageDigest.getInstance("MD5"), hash, f))
+  }
+
+  def tryRepair(f: File, conf: BackupFolderConfiguration) {
+    if (attemptedFiles.contains(f)) {
+      throw new IllegalStateException("File " + f + " was already repaired")
+    }
+    TVFS.umount()
+    attemptedFiles += f
+    l.info("Backup corrupted on " + f + ", trying to repair")
+    if (!new RedundancyHandler(conf).repair(f)) {
+      l.error("Repair failed for file " + f + ", aborting")
+      throw new BackupCorruptedException(f, true)
+    }
+  }
+
+  private var attemptedFiles = Set[File]()
 
 }
 

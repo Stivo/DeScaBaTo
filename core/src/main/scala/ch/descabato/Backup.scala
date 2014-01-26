@@ -27,6 +27,9 @@ import java.io.FileNotFoundException
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.NoSuchFileException
+import net.java.truevfs.access.TConfig
+import net.java.truevfs.kernel.spec.spi.FsDriverMapFactory
+import net.java.truevfs.kernel.spec.sl.FsDriverMapLocator
 
 /**
  * The configuration to use when working with a backup folder.
@@ -36,7 +39,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var version = 1
   var serializerType = "smile"
   @JsonIgnore
-  def serialization = serializerType match {
+  def serialization(typ: String = serializerType) = typ match {
     case "smile" => new SmileSerialization
     case "json" => new JsonSerialization
   }
@@ -57,6 +60,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var volumeRedundancy: Int = 5
   var saveSymlinks: Boolean = true
   @JsonIgnore lazy val fileManager = new FileManager(this)
+  @JsonIgnore def raes = if (hasPassword) ".raes" else ""
 }
 
 object InitBackupFolderConfiguration {
@@ -154,17 +158,24 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   }
 
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {
+    def initTrueVfs(conf: BackupFolderConfiguration) {
+      for (p <- conf.passphrase) {
+        TConfig.current().setArchiveDetector(TrueVfs.newArchiveDetector1(FsDriverMapLocator.SINGLETON, ".zip.raes", p.toCharArray(), conf.keyLength))
+      }
+    }
     if (hasOld) {
       val oldConfig = loadOld()
       val (out, changed) = InitBackupFolderConfiguration.merge(oldConfig, supplied, passphrase)
       if (changed) {
         write(out)
       }
+      initTrueVfs(out)
       out
     } else {
       folder.mkdirs()
       val out = InitBackupFolderConfiguration(supplied, passphrase)
       write(out)
+      initTrueVfs(out)
       out
     }
   }
@@ -173,7 +184,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
 object BackupUtils {
   def findOld[T <: BackupPart](file: File, oldMap: mutable.Map[String, BackupPart])(implicit manifest: Manifest[T]): (Option[T]) = {
-    val path = file.getAbsolutePath
+    val path = file.getCanonicalPath
     // if the file is in the map, no other file can have the same name. Therefore we remove it.
     val out = oldMap.remove(path)
     if (out.isDefined &&
@@ -336,9 +347,9 @@ class BackupHandler(val config: BackupFolderConfiguration)
     // Walk tree and compile to do list
     val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
     val (newParts, unchanged, deleted) = (visitor.newFiles, visitor.unchangedFiles, visitor.deleted)
-    println("New Files      : " + statistics(newParts))
-    println("Unchanged files: " + statistics(unchanged))
-    println("Deleted files  : " + statistics(deleted))
+    l.info("New Files      : " + statistics(newParts))
+    l.info("Unchanged files: " + statistics(unchanged))
+    l.info("Deleted files  : " + statistics(deleted))
     if ((newParts ++ deleted).isEmpty) {
       l.info("No files have been changed, aborting backup")
       return
@@ -573,7 +584,10 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     restore(t, Some(d))
   }
 
-  def makePath(fd: BackupPart)(implicit options: RestoreConf) = {
+  def makePath(fd: BackupPart)(implicit options: RestoreConf) : File = {
+    if (options.restoreToOriginalPath()) {
+      return new File(fd.path)
+    }
     val dest = new File(options.restoreToFolder())
     def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
     if (options.relativeToFolder.isDefined) {
@@ -607,7 +621,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   }
 
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
-    var closeAbles = Buffer[{def close(): Unit}]()
+    var closeAbles = Buffer[{ def close(): Unit }]()
     try {
       val restoredFile = makePath(fd)
       if (restoredFile.exists()) {
@@ -625,7 +639,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       val dos = new DigestOutputStream(fos, config.getMessageDigest)
       closeAbles += dos
       val in = getInputStream(fd)
-      closeAbles += in 
+      closeAbles += in
       copy(in, dos)
       val hash = dos.getMessageDigest().digest()
       if (!Arrays.equals(fd.hash, hash)) {
@@ -636,7 +650,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       }
       fd.applyAttrsTo(restoredFile)
     } catch {
-      case e @ BackupCorruptedException(f) =>
+      case e @ BackupCorruptedException(f, false) =>
         finishReading
         throw e
       case e: Exception =>

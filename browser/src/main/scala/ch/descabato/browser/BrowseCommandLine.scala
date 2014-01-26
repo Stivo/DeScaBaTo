@@ -17,7 +17,7 @@ class BrowseCommand extends BackupRelatedCommand {
     println(t.summary)
     val bh = new VfsIndex(conf) with ZipBlockStrategy
     bh.registerIndex()
-    val path = conf.folder.getAbsolutePath()
+    val path = conf.folder.getCanonicalPath()
     val url = s"backup:file://$path!"
     TestBrowser.main2(Array(url))
   }

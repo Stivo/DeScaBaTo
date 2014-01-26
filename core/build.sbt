@@ -32,6 +32,11 @@ libraryDependencies ++= Seq(
 		"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.3.1"
 )
 
+// for truevfs
+libraryDependencies += "javax.inject" % "javax.inject" % "1"
+
+libraryDependencies += "com.google.code.findbugs" % "annotations" % "2.0.3"
+
 // Test dependencies
 libraryDependencies ++= Seq(
 		"org.apache.ftpserver" % "ftpserver-core" % "1.0.6" % "test",
@@ -41,13 +46,11 @@ libraryDependencies ++= Seq(
 
 parallelExecution in Test := false
 
-org.scalastyle.sbt.ScalastylePlugin.Settings
-
 libraryDependencies += "org.tukaani" % "xz" % "1.4"
 
 testOptions in Test += Tests.Argument("-oF")
 
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
 libraryDependencies += "org.rogach" %% "scallop" % "0.9.4"
 
@@ -56,3 +59,13 @@ packSettings
 packMain := Map("descabato" -> "ch.descabato.CLI")
 
 packPreserveOriginalJarName := true
+
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
+
+buildInfoPackage := "ch.descabato.version"
+
+EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Managed

@@ -50,12 +50,12 @@ object CLI extends Utils {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
       } else {
-//    	  parseCommandLine("backup --serializer-type json --compression none --volume-size 5mb backups ..\\testdata".split(" "))
+    	  parseCommandLine("backup --passphrase mypasshere --serializer-type json --compression none --volume-size 5mb backups ..\\testdata".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))
         //              parseCommandLine("browse -p asdf backups".split(" "))
-        parseCommandLine("restore --restore-to-folder restore --relative-to-folder . backups".split(" "))
+//        parseCommandLine("restore --passphrase mypasshere --restore-to-folder restore --relative-to-folder . backups".split(" "))
       }
     } catch {
       case e @ PasswordWrongException(m, cause) =>
@@ -191,7 +191,7 @@ trait BackupFolderOption extends ScallopConf {
       }
     }
   }
-  val backupDestination = trailArg[String](required = true).map(new File(_).getAbsoluteFile())
+  val backupDestination = trailArg[String](required = true).map(new File(_).getCanonicalFile())
 }
 
 class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOption
@@ -201,7 +201,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   val suffix = if (Utils.isWindows) ".bat" else ""
 
   def writeBat(t: T, conf: BackupFolderConfiguration) = {
-    val path = new File(s"descabato$suffix").getAbsolutePath()
+    val path = new File(s"descabato$suffix").getCanonicalPath()
     val prefix = if (conf.prefix == "") "" else "--prefix " + conf.prefix
     val line = s"$path backup $prefix ${t.backupDestination()} ${t.folderToBackup()}"
     def writeTo(bat: File) {
@@ -243,12 +243,9 @@ object RestoreRunners extends Utils {
         f()
         return
       } catch {
-        case BackupCorruptedException(f) =>
-          l.info("Backup corrupted on " + f + ", trying to repair")
-          if (!new RedundancyHandler(conf).repair(f)) {
-            l.error("Repair failed for file " + f + ", aborting")
-            throw new BackupCorruptedException(f)
-          }
+        case e @ BackupCorruptedException(f, false) =>
+          logException(e)
+          Par2Handler.tryRepair(f, conf)
       }
     }
   }
@@ -295,7 +292,7 @@ class VerifyCommand extends BackupRelatedCommand {
 class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
 
 class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
-  val folderToBackup = trailArg[File]().map(_.getAbsoluteFile())
+  val folderToBackup = trailArg[File]().map(_.getCanonicalFile())
 }
 
 class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
@@ -306,6 +303,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   //  val overwriteExisting = toggle(default = Some(false))
   val pattern = opt[String]()
   mutuallyExclusive(restoreToOriginalPath, restoreToFolder)
+  mutuallyExclusive(restoreToOriginalPath, relativeToFolder)
 }
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
