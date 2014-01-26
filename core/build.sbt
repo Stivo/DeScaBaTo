@@ -39,14 +39,11 @@ libraryDependencies += "com.google.code.findbugs" % "annotations" % "2.0.3"
 
 // Test dependencies
 libraryDependencies ++= Seq(
-		"org.apache.ftpserver" % "ftpserver-core" % "1.0.6" % "test",
 		"org.scalatest" %% "scalatest" % "2.0" % "test",
 		"org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
 )
 
 parallelExecution in Test := false
-
-libraryDependencies += "org.tukaani" % "xz" % "1.4"
 
 testOptions in Test += Tests.Argument("-oF")
 

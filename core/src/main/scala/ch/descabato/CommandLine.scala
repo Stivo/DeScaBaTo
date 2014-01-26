@@ -79,7 +79,6 @@ object ScallopConverters {
     val tag = tt
     val argType = ArgType.SINGLE
   }
-  implicit val modeConverter = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
   implicit val sizeConverter = singleArgConverter[Size](x => Size(x))
 
 }
@@ -174,7 +173,6 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
   val serializerType = opt[String]()
-  val compression = opt[CompressionMode]()
   val blockSize = opt[Size](default = Some(Size("100Kb")))
   val hashAlgorithm = opt[String](default = Some("md5"))
 }
@@ -299,11 +297,9 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   val restoreToOriginalPath = opt[Boolean]()
   val chooseDate = opt[Boolean]()
   val restoreToFolder = opt[String]()
-  val relativeToFolder = opt[String]()
   //  val overwriteExisting = toggle(default = Some(false))
   val pattern = opt[String]()
   mutuallyExclusive(restoreToOriginalPath, restoreToFolder)
-  mutuallyExclusive(restoreToOriginalPath, relativeToFolder)
 }
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {

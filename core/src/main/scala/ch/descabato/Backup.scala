@@ -36,7 +36,7 @@ import net.java.truevfs.kernel.spec.sl.FsDriverMapLocator
  */
 case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
   def this() = this(null)
-  var version = 1
+  var version = ch.descabato.version.BuildInfo.version
   var serializerType = "smile"
   @JsonIgnore
   def serialization(typ: String = serializerType) = typ match {
@@ -44,7 +44,6 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
     case "json" => new JsonSerialization
   }
   var keyLength = 128
-  var compressor = CompressionMode.gzip
   def hashLength = getMessageDigest().getDigestLength()
   var hashAlgorithm = "MD5"
   @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
@@ -82,7 +81,6 @@ object InitBackupFolderConfiguration {
     option match {
       case o: CreateBackupOptions =>
         o.serializerType.foreach(out.serializerType = _)
-        o.compression.foreach(x => out.compressor = x)
         o.blockSize.foreach(out.blockSize = _)
         o.hashAlgorithm.foreach(out.hashAlgorithm = _)
       case _ => // TODO
@@ -262,6 +260,59 @@ abstract class BackupIndexHandler extends Utils {
       case x: SymbolicLink => links += x
     }
     (folders, files, links)
+  }
+
+  sealed trait Result
+  case object IsSubFolder extends Result
+  case object IsTopFolder extends Result
+  case object IsUnrelated extends Result
+  case object IsSame extends Result
+
+  def isRelated(folder: BackupPart, relatedTo: BackupPart): Result = {
+    var folderParts = folder.pathParts.toList
+    var relatedParts = relatedTo.pathParts.toList
+    while (relatedParts.headOption.isDefined && relatedParts.headOption == folderParts.headOption) {
+      relatedParts = relatedParts.tail
+      folderParts = folderParts.tail
+    }
+    if (folderParts.size == folder.pathParts.size) {
+      IsUnrelated
+    } else {
+      (folderParts, relatedParts) match {
+        case (Nil, x :: _) => IsSubFolder
+        case (x :: _, Nil) => IsTopFolder
+        case (x :: _, y :: _) => IsUnrelated
+        case _ => IsSame
+      }
+    }
+  }
+
+  def detectRoots(folders: Iterable[BackupPart]): Seq[FolderDescription] = {
+    var candidates = Buffer[BackupPart]()
+    folders.view.filter(_.isFolder).foreach { folder =>
+      if (folder.path == "/") return List(folder.asInstanceOf[FolderDescription])
+      // compare with each candidate
+      var foundACandidate = false
+      candidates = candidates.map { candidate =>
+        // case1: This folder is a subfolder of candidate
+        //		=> nothing changes, but search is aborted
+        // case2: this folder is a parent of candidate
+        //		=> this folder should replace that candidate, search is aborted
+        // case3: this folder is not related to any candidate
+        //		=> folder is added to candidates
+        isRelated(candidate, folder) match {
+          case IsUnrelated => candidate
+          case IsTopFolder =>
+            foundACandidate = true; folder
+          case IsSubFolder => foundACandidate = true; candidate
+          case IsSame => throw new IllegalStateException("Duplicate entry found: " + folder + " " + candidate)
+        }
+      }.distinct
+      if (!foundACandidate) {
+        candidates += folder
+      }
+    }
+    candidates.flatMap { case x: FolderDescription => List(x) }.toList
   }
 
 }
@@ -565,6 +616,20 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   extends ReadingHandler() with BackupProgressReporting {
   self: BlockStrategy =>
 
+  var roots: Iterable[FolderDescription] = Buffer.empty
+  var relativeToRoot: Boolean = false
+
+  def getRoot(sub: String) = {
+    // TODO this asks for a refactoring
+    val fd = new FolderDescription(sub, null)
+    roots.find{x => var r = isRelated(x, fd); r == IsSubFolder || r == IsSame}
+  }
+
+  def initRoots(folders: Seq[FolderDescription]) {
+    roots = detectRoots(folders)
+    relativeToRoot = roots.size == 1 || roots.map(_.name).toList.distinct.size == roots.size
+  }
+
   def restore(options: RestoreConf, d: Option[Date] = None) {
     implicit val o = options
     importOldHashChains
@@ -573,9 +638,10 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     l.info("Going to restore " + statistics(filtered))
     setMaximums(filtered)
     val (folders, files, links) = partitionFolders(filtered)
+    initRoots(folders)
     folders.foreach(restoreFolderDesc(_))
-    links.foreach(restoreLink)
     files.foreach(restoreFileDesc)
+    links.foreach(restoreLink)
     folders.foreach(restoreFolderDesc(_, false))
     finishReading()
   }
@@ -584,25 +650,34 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     restore(t, Some(d))
   }
 
-  def makePath(fd: BackupPart)(implicit options: RestoreConf) : File = {
+  def makePath(path: String, maybeOutside: Boolean = false)(implicit options: RestoreConf): File = {
     if (options.restoreToOriginalPath()) {
-      return new File(fd.path)
+      return new File(path)
     }
-    val dest = new File(options.restoreToFolder())
     def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
-    if (options.relativeToFolder.isDefined) {
-      new File(dest, fd.relativeTo(new File(options.relativeToFolder())))
+    val dest = new File(options.restoreToFolder())
+    if (relativeToRoot) {
+      val relativeTo = getRoot(path) match {
+        case Some(x: BackupPart) => x.path
+        // this is outside, so we return the path
+        case None if !maybeOutside => throw new IllegalStateException("This should be inside the roots, some error")
+        case None => return new File(path)
+      }
+      FileUtils.getRelativePath(dest, new File(relativeTo), path)
     } else {
-      new File(dest, cleaned(fd.path))
+      new File(dest, cleaned(path))
     }
-
   }
 
   def restoreLink(link: SymbolicLink)(implicit options: RestoreConf) {
     try {
-      val path = makePath(link)
+      val path = makePath(link.path)
+      if (path.exists())
+        return
+      val linkTarget = makePath(link.linkTarget, true)
+      println("Creating link from " + path + " to " + linkTarget)
       // TODO if link links into backup, path should be updated
-      Files.createLink(path.toPath(), new File(link.linkTarget).toPath())
+      Files.createLink(path.toPath(), linkTarget.toPath())
       link.applyAttrsTo(path)
     } catch {
       case e @ (_: UnsupportedOperationException | _: NoSuchFileException) =>
@@ -612,7 +687,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   }
 
   def restoreFolderDesc(fd: FolderDescription, count: Boolean = true)(implicit options: RestoreConf) {
-    val restoredFile = makePath(fd)
+    val restoredFile = makePath(fd.path)
     restoredFile.mkdirs()
     fd.applyAttrsTo(restoredFile)
     if (count)
@@ -623,7 +698,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
     var closeAbles = Buffer[{ def close(): Unit }]()
     try {
-      val restoredFile = makePath(fd)
+      val restoredFile = makePath(fd.path)
       if (restoredFile.exists()) {
         if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
           fileCounter += 1

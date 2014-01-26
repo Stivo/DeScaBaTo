@@ -63,7 +63,7 @@ object FileAttributes extends Utils {
   val creationTime = "creationTime"
 
   def apply(path: Path) = {
-	val out = new FileAttributes()
+    val out = new FileAttributes()
     def add(attr: String, o: Object) = o match {
       case ft: FileTime => out.put(attr, ft.toMillis())
       case x: String => out.put(attr, x)
@@ -97,7 +97,7 @@ object FileAttributes extends Utils {
   }
 
   def restore(attrs: FileAttributes, file: File) {
-	val path = file.toPath()
+    val path = file.toPath()
     def lookupService = file.toPath().getFileSystem().getUserPrincipalLookupService()
     lazy val posix = Files.getFileAttributeView(path, classOf[PosixFileAttributeView])
     val dosOnes = "hidden,archive,readonly".split(",").toSet
@@ -106,11 +106,11 @@ object FileAttributes extends Utils {
         val name = if (dosOnes.contains(k)) "dos:" + k else k
         val toSet: Option[Any] = (k, o) match {
           case (k, time) if k.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
-          case (s, group) if (s == posixGroup)=>
+          case (s, group) if (s == posixGroup) =>
             val g = lookupService.lookupPrincipalByGroupName(group.toString)
             posix.setGroup(g)
             None
-          case (s, group) if (s == owner)=>
+          case (s, group) if (s == owner) =>
             val g = lookupService.lookupPrincipalByName(group.toString)
             posix.setOwner(g)
             None
@@ -132,6 +132,9 @@ object FileAttributes extends Utils {
 
 trait UpdatePart {
   def size: Long
+  def path: String
+  @JsonIgnore def name = pathParts.last
+  @JsonIgnore def pathParts = path.split("[\\\\/]")
 }
 
 case class FileDeleted(val path: String) extends UpdatePart {
@@ -147,7 +150,6 @@ object FileDeleted {
 
 case class FileDescription(path: String, size: Long, attrs: FileAttributes) extends BackupPart {
   var hash: Array[Byte] = null
-  def name = pathParts.last
   @JsonIgnore def isFolder = false
 }
 
@@ -158,35 +160,9 @@ case class FolderDescription(path: String, attrs: FileAttributes) extends Backup
 
 trait BackupPart extends UpdatePart {
   @JsonIgnore def isFolder: Boolean
-  @JsonIgnore def pathParts = path.split("[\\\\/]")
-  def path: String
+  
   def attrs: FileAttributes
   def size: Long
-
-  def relativeTo(to: File) = {
-    // Needs to take common parts out of the path.
-    // Different semantics on windows. Upper-/lowercase is ignored, ':' may not be part of the output
-    def prepare(f: File) = {
-      var path = f.getCanonicalPath()
-      if (Utils.isWindows)
-        path = path.replaceAllLiterally("\\", "/")
-      path.split("/").toList
-    }
-    val files = (prepare(to), prepare(new File(path)))
-
-    def compare(s1: String, s2: String) = if (Utils.isWindows) s1.equalsIgnoreCase(s2) else s1 == s2
-
-    def cutFirst(files: (List[String], List[String])): String = {
-      files match {
-        case (x :: xTail, y :: yTail) if (compare(x, y)) => cutFirst(xTail, yTail)
-        case (_, x) => x.mkString("/")
-      }
-    }
-    val cut = cutFirst(files)
-    def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
-    val out = new File(cleaned(cut)).toString
-    out
-  }
 
   def applyAttrsTo(f: File) {
     FileAttributes.restore(attrs, f)

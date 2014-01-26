@@ -132,9 +132,14 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
 
   def read(f: File, first: Boolean = true): Option[T] = {
+    var firstCopy = first
     val reader = new ZipFileReader(f)
     try {
-      Par2Handler.getHashIfCovered(f).foreach { hash => reader.verifyMd5(hash) }
+      Par2Handler.getHashIfCovered(f).foreach { hash => 
+        reader.verifyMd5(hash)
+        // Do not try to repair again
+        firstCopy = false
+      }
       val entries = reader.getJson[List[ZipEntryDescription]](filesEntry)
       entries match {
         case Left(ZipEntryDescription(name, serType, clas) :: Nil) => {
@@ -154,7 +159,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       case e: Exception if ((e.getMessage + e.getStackTraceString).contains("CipherInputStream")) => {
         throw new PasswordWrongException("Exception while loading " + f + ", most likely the supplied passphrase is wrong.", e)
       }
-      case e @ BackupCorruptedException(f, false) if first => {
+      case e @ BackupCorruptedException(f, false) if firstCopy => {
         logException(e)
         reader.close
         Par2Handler.tryRepair(f, config)
