@@ -672,12 +672,12 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   def restoreLink(link: SymbolicLink)(implicit options: RestoreConf) {
     try {
       val path = makePath(link.path)
-      if (path.exists())
+      if (Files.exists(path.toPath(), LinkOption.NOFOLLOW_LINKS))
         return
       val linkTarget = makePath(link.linkTarget, true)
       println("Creating link from " + path + " to " + linkTarget)
       // TODO if link links into backup, path should be updated
-      Files.createLink(path.toPath(), linkTarget.toPath())
+      Files.createSymbolicLink(path.toPath(), linkTarget.getCanonicalFile().toPath())
       link.applyAttrsTo(path)
     } catch {
       case e @ (_: UnsupportedOperationException | _: NoSuchFileException) =>

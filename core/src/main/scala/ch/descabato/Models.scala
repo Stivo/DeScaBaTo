@@ -120,7 +120,7 @@ object FileAttributes extends Utils {
             None
         }
         toSet.foreach { s =>
-          Files.setAttribute(file.toPath(), name, s)
+          Files.setAttribute(file.toPath(), name, s, LinkOption.NOFOLLOW_LINKS)
         }
       } catch {
         case e: IOException => l.warn("Failed to restore attribute " + k + " for file " + file)
