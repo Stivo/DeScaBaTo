@@ -158,8 +158,10 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   }
 
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {
-    for (p <- passphrase) {
-      TConfig.current().setArchiveDetector(TrueVfs.newArchiveDetector1(FsDriverMapLocator.SINGLETON, ".zip.raes", p.toCharArray(), 128))
+    def initTrueVfs(conf: BackupFolderConfiguration) {
+      for (p <- conf.passphrase) {
+        TConfig.current().setArchiveDetector(TrueVfs.newArchiveDetector1(FsDriverMapLocator.SINGLETON, ".zip.raes", p.toCharArray(), conf.keyLength))
+      }
     }
     if (hasOld) {
       val oldConfig = loadOld()
@@ -167,11 +169,13 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
       if (changed) {
         write(out)
       }
+      initTrueVfs(out)
       out
     } else {
       folder.mkdirs()
       val out = InitBackupFolderConfiguration(supplied, passphrase)
       write(out)
+      initTrueVfs(out)
       out
     }
   }
@@ -614,7 +618,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   }
 
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
-    var closeAbles = Buffer[{def close(): Unit}]()
+    var closeAbles = Buffer[{ def close(): Unit }]()
     try {
       val restoredFile = makePath(fd)
       if (restoredFile.exists()) {
@@ -632,7 +636,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       val dos = new DigestOutputStream(fos, config.getMessageDigest)
       closeAbles += dos
       val in = getInputStream(fd)
-      closeAbles += in 
+      closeAbles += in
       copy(in, dos)
       val hash = dos.getMessageDigest().digest()
       if (!Arrays.equals(fd.hash, hash)) {

@@ -191,11 +191,10 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   }
 
   override def finishWriting() {
-    finishFutures(true)
     endZip
   }
 
-  private def writeProcessedBlock(hash: Array[Byte], block: Array[Byte]) {
+  private def writeBlock(hash: Array[Byte], block: Array[Byte]) {
     val hashS = encodeBase64Url(hash)
     if (currentZip != null && currentZip.size + block.length + hashS.length > volumeSize.bytes) {
       endZip
@@ -207,44 +206,17 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     currentIndex.bos.write(hash)
   }
 
-  def finishFutures(force: Boolean = false) {
-    while (!futures.isEmpty && (force || futures.head.isCompleted)) {
-      Await.result(futures.head, 10 minutes) match {
-        case (hash, block) => {
-          writeProcessedBlock(hash, block)
-        }
-      }
-      futures = futures.tail
-    }
-
-  }
-
   var currentZip: ZipFileWriter = null
 
   var currentIndex: IndexWriter = null
   
-  private var futures: List[Future[(Array[Byte], Array[Byte])]] = List()
   def writeBlock(hash: Array[Byte], buf: Array[Byte], disableCompression: Boolean = false) {
     setup()
     val hashS = encodeBase64Url(hash)
     if (!knownBlocksTemp.contains(hash)) {
 
       knownBlocksTemp += ((hash, curNum))
-      val f = () => {
-        val encrypt = buf //StreamHeaders.newByteArrayOut(buf, config, disableCompression)
-        (hash, encrypt)
-      }
-      if (config.threads > 1) {
-        futures :+= future { f() }
-      } else {
-        f() match {
-          case (hash, block) => writeProcessedBlock(hash, block)
-        }
-      }
-      if (futures.size >= config.threads) {
-        Await.result(futures.head, 10 minutes)
-      }
-      finishFutures(false)
+      writeBlock(hash, buf)
     } else {
       l.debug(s"File already contains this hash $hashS")
     }
@@ -269,7 +241,6 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     //      Actors.downloadFile(zipFile.file)
     //    }
     val input = zipFile.getStream(hashS)
-    //val stream = StreamHeaders.readStream(input, config.passphrase)
     if (verifyHash) {
       new VerifyInputStream(input, config.getMessageDigest, hash, zipFile.file)
     } else {

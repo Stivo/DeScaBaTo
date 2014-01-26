@@ -8,7 +8,6 @@ import scala.collection.mutable.Buffer
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
-import ch.descabato.ProgressReporters
 import java.nio.file.LinkOption
 import java.util.Collections
 import java.util.HashSet
