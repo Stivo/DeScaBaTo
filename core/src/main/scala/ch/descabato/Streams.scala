@@ -181,8 +181,9 @@ object Streams extends Utils {
       out
     }
     override def close() = {
+      if (read() == -1) // Stream has been read to the end 
+    	hashComputed(messageDigest.digest())
       super.close
-      hashComputed(messageDigest.digest())
     }
 
     def hashComputed(hash2: Array[Byte]): Unit
