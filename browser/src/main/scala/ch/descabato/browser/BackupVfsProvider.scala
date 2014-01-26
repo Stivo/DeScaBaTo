@@ -168,7 +168,7 @@ class VfsIndex(config: BackupFolderConfiguration)
 
   def registerIndex() {
     l.info("Loading information")
-    val path = config.folder.getAbsolutePath()
+    val path = config.folder.getCanonicalPath()
     l.info("Path is loaded as " + path)
     BackupVfsProvider.indexes += Utils.normalizePath(path) -> this
   }

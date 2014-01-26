@@ -26,6 +26,7 @@ import java.security.MessageDigest
 import ch.descabato.Streams.HashingOutputStream
 import java.io.FileInputStream
 import java.io.RandomAccessFile
+import net.java.truevfs.access.TVFS
 
 class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
@@ -33,7 +34,6 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   CLI._overrideRunsInJar = true
   CLI.testMode = true
   //ConsoleManager.testSetup
-  AES.testMode = true
 
   var baseFolder = new File("integrationtest/testdata")
 
@@ -74,9 +74,9 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   //  }
 
   def testWith(config: String, configRestore: String, iterations: Int, crash: Boolean = false, redundancy: Boolean = false) {
-    println(baseFolder.getAbsolutePath())
+    println(baseFolder.getCanonicalPath())
     baseFolder.mkdirs()
-    assume(baseFolder.getAbsoluteFile().exists())
+    assume(baseFolder.getCanonicalFile().exists())
     deleteAll(backup1)
     deleteAll(restore1)
     // create some files
@@ -116,7 +116,6 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
         // Testing what happens when messing with the files
         messupBackupFiles()
       }
-
       // restore backup to folder, folder already contains old restored files.
       CLI.main(s"restore$configRestore --restore-to-folder $restore1 --relative-to-folder $input $backup1".split(" "))
       // compare files
@@ -136,15 +135,16 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
 
   def messupBackupFiles() {
     val files = backup1.listFiles()
-    files.filter(_.getName().endsWith("obj")).foreach { f =>
-      l.info("Messing up "+f+" length "+f.length())
+    val set = Set("hashchains","files")
+    files.filter(x => set.exists(x.getName.toLowerCase().startsWith(_))).foreach { f =>
+      l.info("Messing up " + f + " length " + f.length())
       val raf = new RandomAccessFile(f, "rw")
       raf.seek(raf.length() / 2);
       raf.write(("\0").getBytes)
       raf.close()
     }
-    files.filter(_.getName.startsWith("volume")).foreach { f =>
-      l.info("Messing up "+f)
+    files.filter(_.getName.startsWith("volume")).filter(_.length > 100*1024).foreach { f =>
+      l.info("Messing up " + f)
       val raf = new RandomAccessFile(f, "rw")
       raf.seek(raf.length() / 2);
       raf.write(("\0" * 100).getBytes)
@@ -153,6 +153,13 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   }
 
   after {
+    try {
+      TVFS.umount()
+    } catch {
+      case e: Exception =>
+        l.warn("Exception while unmounting truevfs ")
+        logException(e)
+    }
     deleteAll(input)
     deleteAll(backup1)
     deleteAll(restore1)

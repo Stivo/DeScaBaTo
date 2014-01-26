@@ -5,10 +5,17 @@ import Keys._
 
 object HelloBuild extends Build {
   
-  val core = Project(id = "core", base = file("core"))
+  val core = Project(id = "core", base = file("core"), 
+      settings = Project.defaultSettings ++ commonSettings)
   
-  val browser = Project(id = "browser", base = file("browser")) dependsOn(core)
+  val browser = Project(id = "browser", base = file("browser"),
+      settings = Project.defaultSettings ++ commonSettings) dependsOn(core)
   
-  val it = Project(id = "it", base = file("integrationtest")) dependsOn(core % "test->test")
+  val it = Project(id = "it", base = file("integrationtest"),
+      settings = Project.defaultSettings ++ commonSettings) dependsOn(core % "test->test")
+  
+  val commonSettings = {
+    net.virtualvoid.sbt.graph.Plugin.graphSettings ++ org.scalastyle.sbt.ScalastylePlugin.Settings
+  }
   
 }

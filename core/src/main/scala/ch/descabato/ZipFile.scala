@@ -16,8 +16,25 @@ import net.java.truevfs.access.TFile
 import net.java.truevfs.access.TFileOutputStream
 import net.java.truevfs.access.TVFS
 import net.java.truevfs.access.TFileInputStream
+import java.io.BufferedOutputStream
+import java.security.MessageDigest
 
-abstract class ZipFileHandler(zip: File)
+abstract class ZipFileHandler(zip: File) {
+
+  protected var _mounted = false
+
+  // All operations to files within the archive must access this variable
+  protected lazy val tfile = {
+    _mounted = true
+    new TFile(zip);
+  }
+
+  def close() {
+    if (_mounted)
+      TVFS.umount(tfile)
+  }
+
+}
 
 /**
  * A thin wrapper around a java zip file reader.
@@ -27,21 +44,32 @@ class ZipFileReader(val file: File) extends ZipFileHandler(file) with Utils {
 
   def this(s: String) = this(new File(s))
 
-  val tfile = new TFile(file);
-
   lazy val names = tfile.list().toArray
 
-  def getStream(name: String) = {
+  def getStream(name: String): InputStream = {
     val e = new TFile(tfile, name);
-    new TFileInputStream(e)
+    new BufferedInputStream(new TFileInputStream(e))
   }
 
   def getEntrySize(name: String) = new TFile(tfile, name).length()
 
-  def close() {
-    TVFS.umount(tfile)
+  def getJson[T](name: String)(implicit m: Manifest[T]) = {
+    val in = getStream(name)
+    try {
+      val js = new JsonSerialization()
+      js.readObject(in)
+    } finally {
+      in.close()
+    }
   }
-
+  
+  def verifyMd5(hash: Array[Byte]) = {
+    val in = new BufferedInputStream(new FileInputStream(file))
+    val read = new Streams.VerifyInputStream(in, MessageDigest.getInstance("MD5"), hash, file)
+    Streams.readFrom(read, (_, _) => Unit)
+    // stream is closed in readFrom
+  }
+  
 }
 
 /**
@@ -52,27 +80,42 @@ class ZipFileWriter(val file: File) extends ZipFileHandler(file) {
 
   private var counter = 0L
 
-  val tfile = new TFile(file);
-
-  // compression is done already before
-
-  def writeEntry(name: String, f: (OutputStream => Unit)) {
-    val out = new TFileOutputStream(new TFile(tfile, name))
-    val o2 = new CountingOutputStream(out)
+  def writeEntry(name: String)(f: (OutputStream => Unit)) {
+    val bos = newOutputStream(name)
     try {
-      f(o2)
+      f(bos)
     } finally {
-      o2.close()
-      counter += o2.counter
+      bos.close()
+      bos match {
+        case x: CountingOutputStream => counter += x.counter
+        case _ =>
+      }
     }
   }
 
-  def close() {
-    TVFS.umount(tfile);
+  def newOutputStream(name: String): OutputStream = {
+    val out = new TFileOutputStream(new TFile(tfile, name))
+    val bos = new BufferedOutputStream(out, 20 * 1024)
+    new CountingOutputStream(bos)
   }
 
   def size() = {
     counter
   }
 
+  def writeJson[T](name: String, t: T)(implicit m: Manifest[T]) {
+    writeEntry(name) { o =>
+      val js = new JsonSerialization()
+      js.writeObject(t, o)
+    }
+  }
+
+  def writeManifest(x: BackupFolderConfiguration) {
+    val versionNumber: String = version.BuildInfo.version
+    val m = new MetaInfo(x.fileManager.getDateFormatted, versionNumber)
+    writeJson("manifest.txt", m)
+  }
+
 }
+
+case class MetaInfo(date: String, writingVersion: String)

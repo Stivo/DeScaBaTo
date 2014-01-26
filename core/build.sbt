@@ -46,8 +46,6 @@ libraryDependencies ++= Seq(
 
 parallelExecution in Test := false
 
-org.scalastyle.sbt.ScalastylePlugin.Settings
-
 libraryDependencies += "org.tukaani" % "xz" % "1.4"
 
 testOptions in Test += Tests.Argument("-oF")
@@ -62,4 +60,12 @@ packMain := Map("descabato" -> "ch.descabato.CLI")
 
 packPreserveOriginalJarName := true
 
-net.virtualvoid.sbt.graph.Plugin.graphSettings
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
+
+buildInfoPackage := "ch.descabato.version"
+
+EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Managed

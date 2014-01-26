@@ -110,7 +110,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       Utils.closeTFile(tfile)
       if (verify) {
         val zip = getZipFileReader(num)
-        for (name <- zip.names) {
+        for (name <- zip.names.view.filter(_!="manifest.txt")) {
           if (!(lastSet contains (name))) {
             if (counter != null) {
               counter += 1
@@ -148,13 +148,11 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   }
 
   class IndexWriter(x: File) {
-    val file = new TFile(x)
-    val index = new TFile(file, "index")
-    val fos = new TFileOutputStream(index, true)
-    val bos = new BufferedOutputStream(fos)
+    lazy val zipWriter = new ZipFileWriter(x)
+    lazy val bos = zipWriter.newOutputStream("index")
     def close() {
       bos.close()
-      TVFS.umount(file)
+      zipWriter.close
     }
   }
   
@@ -167,6 +165,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   def endZip() {
     if (currentZip != null) {
       l.info(s"Ending zip file $curNum")
+      currentZip.writeManifest(config)
       currentZip.close()
       currentIndex.close()
       def rename(f: Function2[Int, Boolean, String]) {
@@ -202,7 +201,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     if (currentZip == null) {
       startZip
     }
-    currentZip.writeEntry(hashS, { _.write(block) })
+    currentZip.writeEntry(hashS) { _.write(block) }
     currentIndex.bos.write(hash)
   }
 

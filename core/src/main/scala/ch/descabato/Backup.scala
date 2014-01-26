@@ -39,7 +39,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var version = 1
   var serializerType = "smile"
   @JsonIgnore
-  def serialization = serializerType match {
+  def serialization(typ: String = serializerType) = typ match {
     case "smile" => new SmileSerialization
     case "json" => new JsonSerialization
   }
@@ -184,7 +184,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
 object BackupUtils {
   def findOld[T <: BackupPart](file: File, oldMap: mutable.Map[String, BackupPart])(implicit manifest: Manifest[T]): (Option[T]) = {
-    val path = file.getAbsolutePath
+    val path = file.getCanonicalPath
     // if the file is in the map, no other file can have the same name. Therefore we remove it.
     val out = oldMap.remove(path)
     if (out.isDefined &&
@@ -584,7 +584,10 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     restore(t, Some(d))
   }
 
-  def makePath(fd: BackupPart)(implicit options: RestoreConf) = {
+  def makePath(fd: BackupPart)(implicit options: RestoreConf) : File = {
+    if (options.restoreToOriginalPath()) {
+      return new File(fd.path)
+    }
     val dest = new File(options.restoreToFolder())
     def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
     if (options.relativeToFolder.isDefined) {
@@ -647,7 +650,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       }
       fd.applyAttrsTo(restoredFile)
     } catch {
-      case e @ BackupCorruptedException(f) =>
+      case e @ BackupCorruptedException(f, false) =>
         finishReading
         throw e
       case e: Exception =>

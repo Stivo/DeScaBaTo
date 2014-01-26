@@ -245,7 +245,7 @@ class ConsoleAppenderWithDeleteSupport extends ConsoleAppender[ILoggingEvent] {
       }
       canDeleteLast match {
         case true => sendAnsiLine(message)
-        case false => writeSafe("\n"+message)
+        case false => writeSafe(message)
       }
       canDeleteLast = true
     }
