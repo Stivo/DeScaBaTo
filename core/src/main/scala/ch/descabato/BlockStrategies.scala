@@ -57,6 +57,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   var setupRan = false
   var knownBlocks: Map[BAWrapper2, Int] = Map()
   var knownBlocksTemp: Map[BAWrapper2, Int] = Map()
+  var knownBlocksWritten: Map[BAWrapper2, Int] = Map()
   var curNum = 0
 
   def deleteTempFiles() {
@@ -183,8 +184,9 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       rename(indexName)
       //      Actors.remoteManager ! UploadFile(new File(option.folder, indexName(curNum)), false)
       //      Actors.remoteManager ! UploadFile(new File(option.folder, volumeName(curNum)), true)
-      knownBlocks ++= knownBlocksTemp
-      knownBlocksTemp = Map()
+      knownBlocks ++= knownBlocksWritten
+      knownBlocksTemp --= knownBlocksWritten.keys
+      knownBlocksWritten = Map()
       curNum += 1
       currentZip = null
       currentIndex = null
@@ -211,6 +213,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
           out.write(block)
         }
         currentIndex.bos.write(hash)
+        knownBlocksWritten += ((hash, curNum))
     }
   }
 

@@ -104,8 +104,8 @@ object InitBackupFolderConfiguration {
         o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
         o.metadataRedundancy.foreach { changed = true; old.metadataRedundancy = _ }
         o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
-        o.noRedundancy.foreach { x=> changed = true; old.redundancyEnabled = !x }
-        o.compression.foreach { x=> changed = true; old.compressor = x}
+        o.noRedundancy.foreach { x => changed = true; old.redundancyEnabled = !x }
+        o.compression.foreach { x => changed = true; old.compressor = x }
         o.dontSaveSymlinks.foreach { x => changed = true; old.saveSymlinks = !x }
       // TODO other properties that can be set again
       case _ =>
@@ -173,7 +173,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     }
     initTrueVfs(conf)
   }
-  
+
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {
     if (hasOld) {
       val oldConfig = loadOld()
@@ -318,7 +318,8 @@ abstract class BackupIndexHandler extends Utils {
           case IsUnrelated => candidate
           case IsTopFolder =>
             foundACandidate = true; folder
-          case IsSubFolder => foundACandidate = true; candidate
+          case IsSubFolder =>
+            foundACandidate = true; candidate
           case IsSame => throw new IllegalStateException("Duplicate entry found: " + folder + " " + candidate)
         }
       }.distinct
@@ -392,10 +393,12 @@ class BackupHandler(val config: BackupFolderConfiguration)
 
   def checkpoint(seq: Seq[FileDescription]) = {
     val (toSave, toKeep) = seq.partition(x => getHashChain(x).forall(blockExists))
-    fileManager.files.write(toSave.toBuffer, true)
+    if (!toSave.isEmpty)
+      fileManager.files.write(toSave.toBuffer, true)
     if (!hashChainMapCheckpoint.isEmpty) {
       val (toSave, toKeep) = hashChainMapCheckpoint.toBuffer.partition(x => hashChainSeq(x._2).forall(blockExists))
-      fileManager.hashchains.write(toSave.toBuffer, true)
+      if (!toSave.isEmpty)
+        fileManager.hashchains.write(toSave.toBuffer, true)
       hashChainMapCheckpoint.clear
       hashChainMapCheckpoint ++= toKeep
     }
@@ -432,6 +435,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
     var toSave: Seq[FileDescription] = Buffer.empty
     while (!list.isEmpty) {
       var sum = config.checkPointEvery.bytes
+      // This ensures that at least one element is taken.
       val cur = list.takeWhile { x => val out = sum > 0; sum -= x.size; out }
       val temp = cur.flatMap(backupFileDesc(_))
       fileListOut ++= temp
@@ -636,10 +640,10 @@ class RestoreHandler(val config: BackupFolderConfiguration)
   def getRoot(sub: String) = {
     // TODO this asks for a refactoring
     val fd = new FolderDescription(sub, null)
-    roots.find{x => var r = isRelated(x, fd); r == IsSubFolder || r == IsSame}
+    roots.find { x => var r = isRelated(x, fd); r == IsSubFolder || r == IsSame }
   }
 
-  def initRoots(folders: Seq[FolderDescription]) {
+  def initRoots(folders: Seq[BackupPart]) {
     roots = detectRoots(folders)
     relativeToRoot = roots.size == 1 || roots.map(_.name).toList.distinct.size == roots.size
   }
@@ -648,11 +652,11 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     implicit val o = options
     importOldHashChains
     val filesInBackup = loadOldIndex(date = d)
+    initRoots(filesInBackup)
     val filtered = if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
     l.info("Going to restore " + statistics(filtered))
     setMaximums(filtered)
     val (folders, files, links) = partitionFolders(filtered)
-    initRoots(folders)
     folders.foreach(restoreFolderDesc(_))
     files.foreach(restoreFileDesc)
     links.foreach(restoreLink)
@@ -723,6 +727,8 @@ class RestoreHandler(val config: BackupFolderConfiguration)
         // TODO add option
         l.info("File exists, but has been modified, so overwrite")
       }
+      if (!restoredFile.getParentFile().exists())
+        restoredFile.getParentFile().mkdirs()
       val fos = new UnclosedFileOutputStream(restoredFile)
       closeAbles += fos
       val dos = new DigestOutputStream(fos, config.getMessageDigest)
