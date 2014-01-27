@@ -96,18 +96,48 @@ object InitBackupFolderConfiguration {
     var changed = false
     supplied match {
       case o: ChangeableBackupOptions =>
-        o.keylength.foreach { changed = true; old.keyLength = _ }
-        o.volumeSize.foreach { changed = true; old.volumeSize = _ }
-        o.threads.foreach { changed = true; old.threads = _ }
-        o.checkpointEvery.foreach { changed = true; old.checkPointEvery = _ }
-        o.renameDetection.foreach { changed = true; old.renameDetection = _ }
-        o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
-        o.metadataRedundancy.foreach { changed = true; old.metadataRedundancy = _ }
-        o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
-        o.noRedundancy.foreach { x => changed = true; old.redundancyEnabled = !x }
-        o.compression.foreach { x => changed = true; old.compressor = x }
-        o.dontSaveSymlinks.foreach { x => changed = true; old.saveSymlinks = !x }
+        if (o.keylength.isSupplied) {
+          o.keylength.foreach(old.keyLength = _)
+          changed = true
+        }
+        if (o.volumeSize.isSupplied) {
+          o.volumeSize.foreach(old.volumeSize = _)
+          changed = true
+        }
+        if (o.threads.isSupplied) {
+          o.threads.foreach(old.threads = _)
+          changed = true
+        }
+        if (o.checkpointEvery.isSupplied) {
+          o.checkpointEvery.foreach(old.checkPointEvery = _)
+          changed = true
+        }
+        if (o.renameDetection.isSupplied) {
+          o.renameDetection.foreach(old.renameDetection = _)
+          changed = true
+        }
+        if (o.noRedundancy.isSupplied) {
+          o.noRedundancy.foreach(b => old.redundancyEnabled = !b)
+          changed = true
+        }
+        if (o.volumeRedundancy.isSupplied) {
+          o.volumeRedundancy.foreach(old.volumeRedundancy = _)
+          changed = true
+        }
+        if (o.metadataRedundancy.isSupplied) {
+          o.metadataRedundancy.foreach(old.metadataRedundancy = _)
+          changed = true
+        }
+        if (o.dontSaveSymlinks.isSupplied) {
+          o.dontSaveSymlinks.foreach(b => old.saveSymlinks = !b)
+          changed = true
+        }
+        if (o.compression.isSupplied) {
+          o.compression.foreach(x => old.compressor = x)
+          changed = true
+        }
       // TODO other properties that can be set again
+      // TODO generate this code omg
       case _ =>
     }
     l.debug("Configuration after merge " + old)
