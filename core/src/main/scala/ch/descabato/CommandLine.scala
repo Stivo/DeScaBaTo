@@ -79,6 +79,7 @@ object ScallopConverters {
     val tag = tt
     val argType = ArgType.SINGLE
   }
+  implicit val modeConverter = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
   implicit val sizeConverter = singleArgConverter[Size](x => Size(x))
 
 }
@@ -175,6 +176,7 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
   val checkpointEvery = opt[Size](default = Some(Size("100Mb")))
   val renameDetection = opt[Boolean](default = Some(false))
   val dontSaveSymlinks = opt[Boolean](default = Some(false))
+  val compression = opt[CompressionMode]()
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {

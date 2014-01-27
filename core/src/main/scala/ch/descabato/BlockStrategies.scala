@@ -110,7 +110,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       Utils.closeTFile(tfile)
       if (verify) {
         val zip = getZipFileReader(num)
-        for (name <- zip.names.view.filter(_!="manifest.txt")) {
+        for (name <- zip.names.view.filter(_ != "manifest.txt")) {
           if (!(lastSet contains (name))) {
             if (counter != null) {
               counter += 1
@@ -155,7 +155,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       zipWriter.close
     }
   }
-  
+
   def startZip() {
     l.info(s"Starting volume ${volumeName(curNum)}")
     currentZip = new ZipFileWriter(new File(config.folder, volumeName(curNum, true)))
@@ -167,6 +167,8 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       l.info(s"Ending zip file $curNum")
       currentZip.writeManifest(config)
       currentZip.close()
+      currentIndex.bos.close()
+      currentIndex.zipWriter.writeManifest(config)
       currentIndex.close()
       def rename(f: Function2[Int, Boolean, String]) {
         val from = new File(config.folder, f(curNum, true))
@@ -190,32 +192,68 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   }
 
   override def finishWriting() {
+    finishFutures(true)
     endZip
   }
 
-  private def writeBlock(hash: Array[Byte], block: Array[Byte]) {
-    val hashS = encodeBase64Url(hash)
-    if (currentZip != null && currentZip.size + block.length + hashS.length > volumeSize.bytes) {
-      endZip
+  private def writeProcessedBlock(compress: CompressResult) {
+    compress match {
+      case (hash, header, block) =>
+        val hashS = encodeBase64Url(hash)
+        if (currentZip != null && currentZip.size + block.length + hashS.length > volumeSize.bytes) {
+          endZip
+        }
+        if (currentZip == null) {
+          startZip
+        }
+        currentZip.writeEntry(hashS) { out =>
+          out.write(header)
+          out.write(block)
+        }
+        currentIndex.bos.write(hash)
     }
-    if (currentZip == null) {
-      startZip
+  }
+
+  def finishFutures(force: Boolean = false) {
+    while (!futures.isEmpty && (force || futures.head.isCompleted)) {
+      Await.result(futures.head, 10 minutes) match {
+        case (hash, header, block) => {
+          writeProcessedBlock(hash, header, block)
+        }
+      }
+      futures = futures.tail
     }
-    currentZip.writeEntry(hashS) { _.write(block) }
-    currentIndex.bos.write(hash)
+
   }
 
   var currentZip: ZipFileWriter = null
-
   var currentIndex: IndexWriter = null
-  
+
+  type CompressResult = (Array[Byte], Byte, Array[Byte])
+
+  private var futures: List[Future[CompressResult]] = List()
+
   def writeBlock(hash: Array[Byte], buf: Array[Byte], disableCompression: Boolean = false) {
     setup()
     val hashS = encodeBase64Url(hash)
     if (!knownBlocksTemp.contains(hash)) {
 
       knownBlocksTemp += ((hash, curNum))
-      writeBlock(hash, buf)
+      val f = () => {
+        val (header, compressed) = CompressedStream.compress(buf, config, disableCompression)
+        (hash, header, compressed)
+      }
+      if (config.threads > 1 && !disableCompression) {
+        futures :+= future { f() }
+      } else {
+        f() match {
+          case result => writeProcessedBlock(result)
+        }
+      }
+      if (futures.size >= config.threads) {
+        Await.result(futures.head, 10 minutes)
+      }
+      finishFutures(false)
     } else {
       l.debug(s"File already contains this hash $hashS")
     }
@@ -240,10 +278,11 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     //      Actors.downloadFile(zipFile.file)
     //    }
     val input = zipFile.getStream(hashS)
+    val stream = CompressedStream.readStream(input)
     if (verifyHash) {
-      new VerifyInputStream(input, config.getMessageDigest, hash, zipFile.file)
+      new VerifyInputStream(stream, config.getMessageDigest, hash, zipFile.file)
     } else {
-      input
+      stream
     }
   }
 

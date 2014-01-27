@@ -30,6 +30,7 @@ import java.nio.file.NoSuchFileException
 import net.java.truevfs.access.TConfig
 import net.java.truevfs.kernel.spec.spi.FsDriverMapFactory
 import net.java.truevfs.kernel.spec.sl.FsDriverMapLocator
+import net.java.truevfs.kernel.spec.FsAccessOption
 
 /**
  * The configuration to use when working with a backup folder.
@@ -44,6 +45,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
     case "json" => new JsonSerialization
   }
   var keyLength = 128
+  var compressor = CompressionMode.gzip
   def hashLength = getMessageDigest().getDigestLength()
   var hashAlgorithm = "MD5"
   @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
@@ -76,6 +78,7 @@ object InitBackupFolderConfiguration {
         o.volumeRedundancy.foreach(out.volumeRedundancy = _)
         o.metadataRedundancy.foreach(out.metadataRedundancy = _)
         o.dontSaveSymlinks.foreach(b => out.saveSymlinks = !b)
+        o.compression.foreach(x => out.compressor = x)
       case _ =>
     }
     option match {
@@ -101,6 +104,8 @@ object InitBackupFolderConfiguration {
         o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
         o.metadataRedundancy.foreach { changed = true; old.metadataRedundancy = _ }
         o.volumeRedundancy.foreach { changed = true; old.volumeRedundancy = _ }
+        o.noRedundancy.foreach { x=> changed = true; old.redundancyEnabled = !x }
+        o.compression.foreach { x=> changed = true; old.compressor = x}
         o.dontSaveSymlinks.foreach { x => changed = true; old.saveSymlinks = !x }
       // TODO other properties that can be set again
       case _ =>
@@ -163,6 +168,8 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
       for (p <- conf.passphrase) {
         TConfig.current().setArchiveDetector(TrueVfs.newArchiveDetector1(FsDriverMapLocator.SINGLETON, ".zip.raes", p.toCharArray(), conf.keyLength))
       }
+      TConfig.current().setAccessPreference(FsAccessOption.STORE, true)
+      TConfig.current().setAccessPreference(FsAccessOption.GROW, true)
     }
     initTrueVfs(conf)
   }
@@ -384,10 +391,10 @@ class BackupHandler(val config: BackupFolderConfiguration)
   var hashChainMapCheckpoint: HashChainMap = new HashChainMap()
 
   def checkpoint(seq: Seq[FileDescription]) = {
-    val (toSave, toKeep) = seq.partition(x => blockExists(getHashChain(x).last))
+    val (toSave, toKeep) = seq.partition(x => getHashChain(x).forall(blockExists))
     fileManager.files.write(toSave.toBuffer, true)
     if (!hashChainMapCheckpoint.isEmpty) {
-      val (toSave, toKeep) = hashChainMapCheckpoint.toBuffer.partition(x => blockExists(hashChainSeq(x._2).last))
+      val (toSave, toKeep) = hashChainMapCheckpoint.toBuffer.partition(x => hashChainSeq(x._2).forall(blockExists))
       fileManager.hashchains.write(toSave.toBuffer, true)
       hashChainMapCheckpoint.clear
       hashChainMapCheckpoint ++= toKeep

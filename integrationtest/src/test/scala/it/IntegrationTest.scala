@@ -49,21 +49,21 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     deleteAll(restore1)
   }
   
-//  "plain backup" should "work" in {
-//    testWith(" --no-redundancy", "", 5)
-//  }
-//
-//  "encrypted backup" should "work" in {
-//    testWith(" --no-redundancy --passphrase mypassword", " --passphrase mypassword", 3)
-//  }
-//
-//  "low volumesize backup with prefix" should "work" in {
-//    testWith(" --no-redundancy --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
-//  }
-//
-//  "backup with multiple threads" should "work" in {
-//    testWith(" --no-redundancy --threads 4 --volume-size 20Mb", "", 5, false)
-//  }
+  "plain backup" should "work" in {
+    testWith(" --no-redundancy", "", 5)
+  }
+
+  "encrypted backup" should "work" in {
+    testWith(" --compression gzip --no-redundancy --passphrase mypassword", " --passphrase mypassword", 3)
+  }
+
+  "low volumesize backup with prefix" should "work" in {
+    testWith(" --compression bzip2 --no-redundancy --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
+  }
+
+  "backup with multiple threads" should "work" in {
+    testWith(" --no-redundancy --threads 4 --volume-size 20Mb", "", 5, false)
+  }
 
   "backup with redundancy" should "recover" in {
     testWith(" --volume-size 20mb", "", 1, false, true)

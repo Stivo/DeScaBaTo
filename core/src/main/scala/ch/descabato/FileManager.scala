@@ -121,13 +121,17 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def write(x: T, temp: Boolean = false) = {
     val file = nextFile(temp = temp)
     val w = new ZipFileWriter(file)
-    val desc = new ZipEntryDescription(objectEntry, config.serializerType, m.toString)
-    w.writeManifest(config)
-    w.writeJson(filesEntry, List(desc))
-    w.writeEntry(objectEntry) { fos =>
-      config.serialization().writeObject(x, fos)
+    try {
+      w.enableCompression
+      val desc = new ZipEntryDescription(objectEntry, config.serializerType, m.toString)
+      w.writeManifest(config)
+      w.writeJson(filesEntry, List(desc))
+      w.writeEntry(objectEntry) { fos =>
+        config.serialization().writeObject(x, fos)
+      }
+    } finally {
+      w.close
     }
-    w.close
     file
   }
 
@@ -135,7 +139,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     var firstCopy = first
     val reader = new ZipFileReader(f)
     try {
-      Par2Handler.getHashIfCovered(f).foreach { hash => 
+      Par2Handler.getHashIfCovered(f).foreach { hash =>
         reader.verifyMd5(hash)
         // Do not try to repair again
         firstCopy = false

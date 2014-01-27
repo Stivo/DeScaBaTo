@@ -18,10 +18,13 @@ import net.java.truevfs.access.TVFS
 import net.java.truevfs.access.TFileInputStream
 import java.io.BufferedOutputStream
 import java.security.MessageDigest
+import net.java.truevfs.access.TConfig
+import net.java.truevfs.kernel.spec.FsAccessOption
 
 abstract class ZipFileHandler(zip: File) {
 
   protected var _mounted = false
+  protected var _configSet = false
 
   // All operations to files within the archive must access this variable
   protected lazy val tfile = {
@@ -30,8 +33,20 @@ abstract class ZipFileHandler(zip: File) {
   }
 
   def close() {
+    if (_configSet) 
+      config.close()
     if (_mounted)
       TVFS.umount(tfile)
+  }
+
+  lazy val config = {
+    _configSet = true
+    TConfig.open()
+  }
+  
+  def enableCompression() {
+    config.setAccessPreference(FsAccessOption.STORE, false)
+    config.setAccessPreference(FsAccessOption.COMPRESS, true)
   }
 
 }
@@ -62,14 +77,14 @@ class ZipFileReader(val file: File) extends ZipFileHandler(file) with Utils {
       in.close()
     }
   }
-  
+
   def verifyMd5(hash: Array[Byte]) = {
     val in = new BufferedInputStream(new FileInputStream(file))
     val read = new Streams.VerifyInputStream(in, MessageDigest.getInstance("MD5"), hash, file)
     Streams.readFrom(read, (_, _) => Unit)
     // stream is closed in readFrom
   }
-  
+
 }
 
 /**

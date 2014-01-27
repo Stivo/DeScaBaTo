@@ -82,7 +82,7 @@ class FileGen(val folder: File) extends TestUtils {
     val file = select(fileList ++ folderList)
     val fileNew = new File(file.getParentFile(), generateName())
     Files.move(file.toPath(), fileNew.toPath())
-    l.info("File rename old exists "+(!file.exists())+" new exists "+fileNew.exists)
+    l.info("File rename old exists "+(file.exists())+" new exists "+fileNew.exists)
     rescan
   }
 
