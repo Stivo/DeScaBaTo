@@ -44,43 +44,47 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   val restore1 = folder("restore1")
 
   before {
+    Par2Handler.TESTONLY_reset()
     deleteAll(input)
     deleteAll(backup1)
     deleteAll(restore1)
   }
   
   "plain backup" should "work" in {
-    testWith(" --no-redundancy", "", 5)
+    testWith(" --no-redundancy", "", 5, "300Mb")
   }
 
   "encrypted backup" should "work" in {
-    testWith(" --compression gzip --no-redundancy --passphrase mypassword", " --passphrase mypassword", 3)
+    testWith(" --compression gzip --volume-size 20Mb --no-redundancy --passphrase mypassword", " --passphrase mypassword", 3, "50Mb")
   }
 
   "low volumesize backup with prefix" should "work" in {
-    testWith(" --compression bzip2 --no-redundancy --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 3)
+    testWith(" --compression bzip2 --no-redundancy --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 2, "20Mb")
   }
 
   "backup with multiple threads" should "work" in {
-    testWith(" --no-redundancy --threads 4 --volume-size 20Mb", "", 5, false)
+    testWith(" --no-redundancy --threads 4 --volume-size 20Mb", "", 5, "50Mb", false)
   }
 
   "backup with redundancy" should "recover" in {
-    testWith(" --volume-size 20mb", "", 1, false, true)
+    testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
   }
-
+  
   //  "backup with crashes" should "work" in {
   //    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, true)
   //  }
 
-  def testWith(config: String, configRestore: String, iterations: Int, crash: Boolean = false, redundancy: Boolean = false) {
-    println(baseFolder.getCanonicalPath())
+  def testWith(config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false) {
+	l.info("")
+	l.info("")
+	l.info("")
+	l.info(s"Testing with $config and $configRestore, $iterations iterations with $maxSize, crashes: $crash, redundancy: $redundancy")
     baseFolder.mkdirs()
     assume(baseFolder.getCanonicalFile().exists())
     deleteAll(backup1)
     deleteAll(restore1)
     // create some files
-    val fg = new FileGen(input)
+    val fg = new FileGen(input, maxSize)
     fg.generateFiles
     fg.rescan()
     for (i <- 1 to iterations) {

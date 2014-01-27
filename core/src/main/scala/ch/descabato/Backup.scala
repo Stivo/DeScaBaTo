@@ -774,6 +774,7 @@ class VerifyHandler(val config: BackupFolderConfiguration)
       importOldHashChains
       verifyHashes()
       verifySomeFiles(t.percentOfFilesToCheck())
+      finishReading
     } catch {
       case x: Error =>
         problemCounter += 1

@@ -145,9 +145,12 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     val exit = proc.waitFor()
     proc.destroy()
     val s = Source.fromFile(new File(config.folder, "par2log.txt"))
+    val log = s.getLines.mkString("\n")
+    if (log.trim != "") {
+      l.warn("Par2Log: " + log)
+    }
     if (exit != 0) {
       l.warn("Exit code was " + exit)
-      l.warn("Par2Log: " + s.getLines.mkString("\n"))
     }
     s.close
     exit == 0
@@ -234,6 +237,11 @@ object Par2Handler extends Utils {
 
   private var attemptedFiles = Set[File]()
 
+  def TESTONLY_reset() {
+    attemptedFiles = Set.empty
+    cache.clear
+  }
+  
 }
 
 /**

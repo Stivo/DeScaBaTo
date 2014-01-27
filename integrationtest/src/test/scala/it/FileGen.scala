@@ -13,12 +13,11 @@ import java.io.RandomAccessFile
 import ch.descabato.TestUtils
 import java.io.OutputStream
 
-class FileGen(val folder: File) extends TestUtils {
+class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) extends TestUtils {
 
   var random = new Random()
-  var maxSize = Size("200MB")
+  val maxSizeIn = Size(maxSize).bytes.toInt
   var maxFiles = 1000
-  var minFiles = 50
   var maxFolders = 50
   val subfolderChance = 20
   var folderList = Buffer[File]()
@@ -35,10 +34,10 @@ class FileGen(val folder: File) extends TestUtils {
     folderList += folder
     times(25) { newFolder() }
     var bigFiles = 4
-    newFile(maxSize.bytes.toInt / 2)
+    newFile(maxSizeIn.toInt / 2)
     val copyFrom1 = fileList.last
-    newFile(maxSize.bytes.toInt / 10)
-    while (fileList.size < minFiles || fileList.map(_.length).sum < maxSize.bytes) {
+    newFile(maxSizeIn.toInt / 10)
+    while (fileList.size < minFiles || fileList.map(_.length).sum < maxSizeIn) {
       newFile(1000000)
     }
     times(10)(newFile(0))
@@ -82,7 +81,6 @@ class FileGen(val folder: File) extends TestUtils {
     val file = select(fileList ++ folderList)
     val fileNew = new File(file.getParentFile(), generateName())
     Files.move(file.toPath(), fileNew.toPath())
-    l.info("File rename old exists "+(file.exists())+" new exists "+fileNew.exists)
     rescan
   }
 

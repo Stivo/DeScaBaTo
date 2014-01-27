@@ -278,7 +278,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     //      Actors.downloadFile(zipFile.file)
     //    }
     val input = zipFile.getStream(hashS)
-    val stream = CompressedStream.readStream(input)
+    val stream = new ExceptionCatchingInputStream(CompressedStream.readStream(input), zipFile.file)
     if (verifyHash) {
       new VerifyInputStream(stream, config.getMessageDigest, hash, zipFile.file)
     } else {

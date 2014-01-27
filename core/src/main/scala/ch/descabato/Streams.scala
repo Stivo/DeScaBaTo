@@ -21,6 +21,10 @@ import org.tukaani.xz.LZMA2Options
 import scala.collection.mutable.SynchronizedSet
 import scala.collection.mutable.HashSet
 import java.io.FileOutputStream
+import java.util.zip.ZipException
+import org.tukaani.xz.XZIOException
+import org.apache.commons.compress.compressors.CompressorException
+import java.io.IOException
 
 object ObjectPools {
 
@@ -152,7 +156,14 @@ object Streams extends Utils {
   }
 
   class DelegatingInputStream(in: InputStream) extends InputStream {
-    def read() = in.read()
+    private val _buf = Array[Byte](1);
+    def read() = {
+      val out = read(_buf);
+      if (out < 0)
+        -1
+      else
+        _buf(0)
+    }
     override def read(b: Array[Byte], start: Int, len: Int) = in.read(b, start, len)
     override def close() = in.close()
     override def mark(limit: Int) = in.mark(limit)
@@ -168,22 +179,28 @@ object Streams extends Utils {
   }
 
   abstract class HashingInputStream(in: InputStream, messageDigest: MessageDigest) extends DelegatingInputStream(in) {
+    var finished = false
     override def read() = {
       val out = in.read()
       if (out >= 0)
         messageDigest.update(out.toByte)
+      else
+        finished = true
       out
     }
     override def read(b: Array[Byte], start: Int, len: Int) = {
       val out = super.read(b, start, len)
       if (out > 0)
         messageDigest.update(b, start, out)
+      if (out < 0)
+        finished = true
       out
     }
-    override def close() = {
-      if (read() == -1) // Stream has been read to the end 
-    	hashComputed(messageDigest.digest())
+    override def close() {
       super.close
+      if (finished)
+        // Stream has been read to the end, so the verification should run 
+        hashComputed(messageDigest.digest())
     }
 
     def hashComputed(hash2: Array[Byte]): Unit
@@ -200,6 +217,18 @@ object Streams extends Utils {
     }
     def verificationFailed() {
       throw new BackupCorruptedException(file)
+    }
+  }
+
+  class ExceptionCatchingInputStream(in: InputStream, file: File) extends DelegatingInputStream(in) {
+    override def read(buf: Array[Byte], start: Int, len: Int) = {
+      try {
+        super.read(buf, start, len)
+      } catch {
+        case z @ (_: ZipException | _: XZIOException | _: CompressorException) => 
+        	throw new BackupCorruptedException(file, false).initCause(z)
+        case z: IOException if (z.getStackTrace().head.getClassName().contains("bzip")) => throw new BackupCorruptedException(file, false).initCause(z)
+      }
     }
   }
 
