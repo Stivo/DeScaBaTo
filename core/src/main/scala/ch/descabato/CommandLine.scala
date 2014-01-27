@@ -124,7 +124,7 @@ class ReflectionCommand(override val name: String, clas: String) extends Command
 
 }
 
-trait BackupRelatedCommand extends Command {
+trait BackupRelatedCommand extends Command with Utils {
   type T <: BackupFolderOption
 
   def newT(args: Seq[String]): T
@@ -132,7 +132,13 @@ trait BackupRelatedCommand extends Command {
   def needsExistingBackup = true
 
   final override def execute(args: Seq[String]) {
-    start(newT(args))
+    try {
+      start(newT(args))
+    } catch {
+      case e @ MisconfigurationException(message) =>
+        l.info(message)
+        logException(e)
+    }
   }
 
   def start(t: T) {

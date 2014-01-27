@@ -155,25 +155,32 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     OK
   }
 
-  def configure(passphrase: Option[String]): BackupFolderConfiguration = {
+  def verifyAndInitializeSetup(conf: BackupFolderConfiguration) {
+    if (conf.redundancyEnabled && CommandLineToolSearcher.lookUpName("par2").isEmpty) {
+      throw ExceptionFactory.newPar2Missing
+    }
     def initTrueVfs(conf: BackupFolderConfiguration) {
       for (p <- conf.passphrase) {
         TConfig.current().setArchiveDetector(TrueVfs.newArchiveDetector1(FsDriverMapLocator.SINGLETON, ".zip.raes", p.toCharArray(), conf.keyLength))
       }
     }
+    initTrueVfs(conf)
+  }
+  
+  def configure(passphrase: Option[String]): BackupFolderConfiguration = {
     if (hasOld) {
       val oldConfig = loadOld()
       val (out, changed) = InitBackupFolderConfiguration.merge(oldConfig, supplied, passphrase)
       if (changed) {
         write(out)
       }
-      initTrueVfs(out)
+      verifyAndInitializeSetup(out)
       out
     } else {
       folder.mkdirs()
       val out = InitBackupFolderConfiguration(supplied, passphrase)
       write(out)
-      initTrueVfs(out)
+      verifyAndInitializeSetup(out)
       out
     }
   }

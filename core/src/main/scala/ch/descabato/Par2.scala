@@ -20,28 +20,30 @@ import net.java.truevfs.access.TVFS
 object CommandLineToolSearcher {
   private var cache = Map[String, String]()
 
-  private def find(name: String): String = {
+  private def find(name: String): Option[String] = {
     try {
       val proc = Runtime.getRuntime().exec(name)
       println(name)
       proc.waitFor() match {
-        case 3 | 0 => return name
+        case 3 | 0 => return Some(name)
         case _ =>
       }
     } catch {
       case _: Exception => // ignore
     }
-    val candidates = List(s"tools/$name", name, s"../tools/$name", s"../../tools/$name")
-    candidates.map(new File(_)).find(_.exists).map(_.toString()).get
+    val candidates = List(s"$name", s"tools/$name", s"../$name", s"../tools/$name", s"../../tools/$name")
+    candidates.map(new File(_)).find(_.exists).map(_.toString())
   }
 
-  def lookUpName(name: String): String = {
+  def lookUpName(name: String): Option[String] = {
     val exeName = if (Utils.isWindows) name + ".exe" else name
     if (cache contains exeName) {
-      return cache(exeName)
+      return cache.get(exeName)
     } else {
       val out = find(exeName)
-      cache += exeName -> out
+      for (o <- out) {
+        cache += exeName -> o
+      }
       out
     }
   }
@@ -101,6 +103,12 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     handleFiles(fileManager.par2ForFilesDelta, fileManager.filesDelta, 50)
   }
 
+  def getPar2(): String = {
+    CommandLineToolSearcher.lookUpName("par2").getOrElse(
+      throw ExceptionFactory.newPar2Missing()
+    )
+  }
+
   /**
    * Starts the command line utility to create the par2 files
    */
@@ -109,11 +117,11 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     if (files.isEmpty) {
       return
     }
-    val par2Executable = CommandLineToolSearcher.lookUpName("par2")
+
     l.info(s"Starting par2 creation for ${files.size} files ${new Size(files.map(_.length()).sum)})")
     //    l.info("This may take a while")
     val cmd = Buffer[String]()
-    cmd += par2Executable
+    cmd += getPar2()
     cmd += "create"
     cmd += s"-r$redundancy"
     //cmd += s"-t-"
@@ -148,7 +156,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
   def startRepair(par2File: File) = {
     val par2Executable = CommandLineToolSearcher.lookUpName("par2")
     val cmd = Buffer[String]()
-    cmd += par2Executable
+    cmd += getPar2()
     cmd += "repair"
     cmd += par2File.getName()
     startProcess(cmd)
