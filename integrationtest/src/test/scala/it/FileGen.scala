@@ -42,8 +42,8 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     }
     times(10)(newFile(0))
     Files.copy(copyFrom1.toPath, new File(folder, "copy1").toPath)
-    Files.copy(select(fileList).toPath, new File(folder, "copy2").toPath)
-    Files.copy(select(fileList).toPath, new File(folder, "copy3").toPath)
+    Files.copy(selectFile.toPath, new File(folder, "copy2").toPath)
+    Files.copy(selectFile.toPath, new File(folder, "copy3").toPath)
   }
 
   def rescan() {
@@ -78,19 +78,19 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     if (fileList.size < 10) {
       times(10)(newFile(10000))
     }
-    val file = select(fileList ++ folderList)
+    val file = selectFolderOrFile
     val fileNew = new File(file.getParentFile(), generateName())
     Files.move(file.toPath(), fileNew.toPath())
     rescan
   }
 
   def deleteFile() {
-    while (!select(fileList ++ folderList).delete()) {}
+    while (!selectFolderOrFile().delete()) {}
     rescan
   }
 
   def changeFile() {
-    val file = select(fileList)
+    val file = selectFile()
     val raf = new RandomAccessFile(file, "rw")
     try {
       if (raf.length() < 100) {
@@ -108,13 +108,40 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     case 0 => throw new IllegalArgumentException("Not possible")
     case i if i >= 1 => x(random.nextInt(i))
   }
+  
+  def selectFile() = {
+    if (fileList.isEmpty) {
+      rescan
+    }
+    while(fileList.isEmpty) {
+      newFile()
+    }
+    select(fileList)
+  }
+  
+  def selectFolder() = {
+    if (folderList.isEmpty) {
+      rescan
+    }
+    while (folderList.isEmpty) {
+      val f = new File(folder, generateName)
+      f.mkdir()
+      if (f.exists() && f.isDirectory())
+    	folderList += f
+    }
+    select(folderList)
+  }
+  
+  def selectFolderOrFile() = {
+    select(List(selectFile, selectFolder)) 
+  }
 
   def generateName() = random.alphanumeric.take(15).mkString ++ random.nextString(3)
 
   def newFile(maxSize: Int = 100000) {
     var done = false
     while (!done) {
-      val name = new File(select(folderList), generateName)
+      val name = new File(selectFolder, generateName)
       if (name.exists()) {
         if (!fileList.contains(name))
           fileList += name
@@ -146,7 +173,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
   }
 
   def newFolder(baseIn: Option[File] = None) {
-    val base = select(folderList)
+    val base = selectFolder
     var name: File = null
     do {
       name = new File(base, generateName)
