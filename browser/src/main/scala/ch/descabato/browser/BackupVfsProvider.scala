@@ -177,7 +177,7 @@ class VfsIndex(config: BackupFolderConfiguration)
   
   override def getInputStream(fd: FileDescription) = {
     if (!setup) {
-      importOldHashChains
+      importOldHashLists
       setup = true
     }
     super.getInputStream(fd)

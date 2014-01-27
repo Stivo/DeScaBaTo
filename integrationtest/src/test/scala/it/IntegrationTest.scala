@@ -139,7 +139,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
 
   def messupBackupFiles() {
     val files = backup1.listFiles()
-    val set = Set("hashchains","files")
+    val set = Set("hashlists","files")
     files.filter(x => set.exists(x.getName.toLowerCase().startsWith(_))).foreach { f =>
       l.info("Messing up " + f + " length " + f.length())
       val raf = new RandomAccessFile(f, "rw")

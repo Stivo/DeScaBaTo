@@ -60,7 +60,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
   lazy val fileManager = config.fileManager
 
   def createFiles() {
-    forHashChainsAndIndex()
+    forHashListsAndIndex()
     forVolumes()
   }
 
@@ -97,9 +97,9 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     start(par2File, filesMatchingPrefix(ft, true), redundancy)
   }
 
-  def forHashChainsAndIndex() {
+  def forHashListsAndIndex() {
     handleFiles(fileManager.par2ForFiles, fileManager.files, 50)
-    handleFiles(fileManager.par2ForHashChains, fileManager.hashchains, 50)
+    handleFiles(fileManager.par2ForHashLists, fileManager.hashlists, 50)
     handleFiles(fileManager.par2ForFilesDelta, fileManager.filesDelta, 50)
   }
 

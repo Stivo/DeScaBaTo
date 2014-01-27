@@ -195,17 +195,17 @@ class FileManager(config: BackupFolderConfiguration) {
   def getDateFormatted = dateFormat.format(startDate)
 
   val volumes = new FileType[Volume]("volume_", false, ".zip", localC = false)
-  val hashchains = new FileType[Buffer[(BAWrapper2, Array[Byte])]]("hashchains_", false, ".zip")
+  val hashlists = new FileType[Buffer[(BAWrapper2, Array[Byte])]]("hashlists_", false, ".zip")
   val files = new FileType[Buffer[BackupPart]]("files_", true, ".zip", hasDateC = true)
   val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".zip", hasDateC = true)
   val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
   val par2ForVolumes = new FileType[Parity]("par_volume_", true, ".par2", localC = false, redundantC = true)
-  val par2ForHashChains = new FileType[Parity]("par_hashchain_", true, ".par2", localC = false, redundantC = true)
+  val par2ForHashLists = new FileType[Parity]("par_hashlist_", true, ".par2", localC = false, redundantC = true)
   val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
   val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
 
-  private val types = List(volumes, hashchains, files, filesDelta, index, par2ForFiles, par2ForVolumes, par2ForHashChains, par2ForFilesDelta, par2File)
+  private val types = List(volumes, hashlists, files, filesDelta, index, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
   types.foreach { x => x.config = config; x.fileManager = this }
 

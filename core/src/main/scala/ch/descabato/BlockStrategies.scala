@@ -289,10 +289,10 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     }
   }
 
-  def calculateOverhead(hashchains: Iterable[Array[Byte]]) = {
+  def calculateOverhead(hashlists: Iterable[Array[Byte]]) = {
     var remain = Map[BAWrapper2, Int]()
     remain ++= knownBlocks
-    hashchains.foreach(_.grouped(config.hashLength).foreach(x => remain -= BAWrapper2.byteArrayToWrapper(x)))
+    hashlists.foreach(_.grouped(config.hashLength).foreach(x => remain -= BAWrapper2.byteArrayToWrapper(x)))
     val livingVolumes = remain.values.toSet
     println(livingVolumes.toList.sorted)
     val files = fileManager.index.getFiles()

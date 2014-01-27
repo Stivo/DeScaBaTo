@@ -335,39 +335,39 @@ abstract class BackupIndexHandler extends Utils {
 abstract class BackupDataHandler extends BackupIndexHandler {
   self: BlockStrategy =>
   import BAWrapper2.byteArrayToWrapper
-  type HashChainMap = mutable.HashMap[BAWrapper2, Array[Byte]]
+  type HashListMap = mutable.HashMap[BAWrapper2, Array[Byte]]
 
   lazy val delta = config.useDeltas && !loadOldIndex().isEmpty
 
-  def oldBackupHashChains: mutable.Map[BAWrapper2, Array[Byte]] = {
+  def oldBackupHashLists: mutable.Map[BAWrapper2, Array[Byte]] = {
     def loadFor(x: Iterable[File]) = {
-      x.flatMap(x => fileManager.hashchains.read(x)).fold(Buffer())(_ ++ _).toBuffer
+      x.flatMap(x => fileManager.hashlists.read(x)).fold(Buffer())(_ ++ _).toBuffer
     }
-    val temps = loadFor(fileManager.hashchains.getTempFiles())
+    val temps = loadFor(fileManager.hashlists.getTempFiles())
     if (!temps.isEmpty) {
-      fileManager.hashchains.write(temps)
-      fileManager.hashchains.deleteTempFiles()
+      fileManager.hashlists.write(temps)
+      fileManager.hashlists.deleteTempFiles()
     }
-    val list = loadFor(fileManager.hashchains.getFiles())
-    val map = new HashChainMap
+    val list = loadFor(fileManager.hashlists.getFiles())
+    val map = new HashListMap
     map ++= list
     map
   }
 
   // TODO this is not needed for backups. Only for restores. For backups, only the keys are needed.
-  var hashChainMap: HashChainMap = new HashChainMap()
+  var hashListMap: HashListMap = new HashListMap()
 
-  def importOldHashChains() {
-    hashChainMap ++= oldBackupHashChains
+  def importOldHashLists() {
+    hashListMap ++= oldBackupHashLists
   }
 
-  def hashChainSeq(a: Array[Byte]) = a.grouped(config.getMessageDigest.getDigestLength()).toSeq
+  def hashListSeq(a: Array[Byte]) = a.grouped(config.getMessageDigest.getDigestLength()).toSeq
 
-  def getHashChain(fd: FileDescription): Seq[Array[Byte]] = {
+  def getHashList(fd: FileDescription): Seq[Array[Byte]] = {
     if (fd.size <= config.blockSize.bytes) {
       List(fd.hash)
     } else {
-      hashChainSeq(hashChainMap.get(fd.hash).get)
+      hashListSeq(hashListMap.get(fd.hash).get)
     }
   }
 
@@ -388,19 +388,19 @@ class BackupHandler(val config: BackupFolderConfiguration)
   self: BlockStrategy =>
 
   // Needed for backing up
-  var hashChainMapNew: HashChainMap = new HashChainMap()
-  var hashChainMapCheckpoint: HashChainMap = new HashChainMap()
+  var hashListMapNew: HashListMap = new HashListMap()
+  var hashListMapCheckpoint: HashListMap = new HashListMap()
 
   def checkpoint(seq: Seq[FileDescription]) = {
-    val (toSave, toKeep) = seq.partition(x => getHashChain(x).forall(blockExists))
+    val (toSave, toKeep) = seq.partition(x => getHashList(x).forall(blockExists))
     if (!toSave.isEmpty)
       fileManager.files.write(toSave.toBuffer, true)
-    if (!hashChainMapCheckpoint.isEmpty) {
-      val (toSave, toKeep) = hashChainMapCheckpoint.toBuffer.partition(x => hashChainSeq(x._2).forall(blockExists))
+    if (!hashListMapCheckpoint.isEmpty) {
+      val (toSave, toKeep) = hashListMapCheckpoint.toBuffer.partition(x => hashListSeq(x._2).forall(blockExists))
       if (!toSave.isEmpty)
-        fileManager.hashchains.write(toSave.toBuffer, true)
-      hashChainMapCheckpoint.clear
-      hashChainMapCheckpoint ++= toKeep
+        fileManager.hashlists.write(toSave.toBuffer, true)
+      hashListMapCheckpoint.clear
+      hashListMapCheckpoint ++= toKeep
     }
     toKeep
   }
@@ -430,7 +430,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
     // Backup files 
 
     setMaximums(newFiles)
-    importOldHashChains
+    importOldHashLists
     var list = newFiles.toList
     var toSave: Seq[FileDescription] = Buffer.empty
     while (!list.isEmpty) {
@@ -463,9 +463,9 @@ class BackupHandler(val config: BackupFolderConfiguration)
     // finish writing, complete the backup
 
     finishWriting
-    if (!hashChainMapNew.isEmpty) {
-      fileManager.hashchains.write(hashChainMapNew.toBuffer)
-      fileManager.hashchains.deleteTempFiles()
+    if (!hashListMapNew.isEmpty) {
+      fileManager.hashlists.write(hashListMapNew.toBuffer)
+      fileManager.hashlists.deleteTempFiles()
     }
     if (!delta) {
       fileListOut ++= unchanged
@@ -528,7 +528,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
         ("Same size", { fd: FileDescription => fd.size == fileDesc.size }),
         ("same modification date", { fd: FileDescription => !fd.attrs.hasBeenModified(file) }),
         ("same name", { fd: FileDescription => println(fd.pathParts.mkString(" / ")); fd.pathParts.last == file.getName() }),
-        ("same first block", { fd: FileDescription => Arrays.equals(getHashChain(fd).head, firstBlockHash) }))
+        ("same first block", { fd: FileDescription => Arrays.equals(getHashList(fd).head, firstBlockHash) }))
       filters.foldLeft(deletedCopy.toSeq)((x, y) => checkFilter(x, y)).headOption
     } catch {
       case i: IllegalStateException => None
@@ -583,10 +583,10 @@ class BackupHandler(val config: BackupFolderConfiguration)
       } else {
         // use same instance for the keys
         val key: BAWrapper2 = fileHash
-        if (!hashChainMap.contains(key)) {
-          hashChainMap += ((key, hashList))
-          hashChainMapNew += ((key, hashList))
-          hashChainMapCheckpoint += ((key, hashList))
+        if (!hashListMap.contains(key)) {
+          hashListMap += ((key, hashList))
+          hashListMapNew += ((key, hashList))
+          hashListMapCheckpoint += ((key, hashList))
         }
       }
       fileDesc.hash = fileHash
@@ -619,7 +619,7 @@ abstract class ReadingHandler(option: Option[Date] = None) extends BackupDataHan
   self: BlockStrategy =>
 
   def getInputStream(fd: FileDescription): InputStream = {
-    val hashes = getHashChain(fd)
+    val hashes = getHashList(fd)
     val enumeration = new Enumeration[InputStream]() {
       val hashIterator = hashes.iterator
       def hasMoreElements = hashIterator.hasNext
@@ -650,7 +650,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
 
   def restore(options: RestoreConf, d: Option[Date] = None) {
     implicit val o = options
-    importOldHashChains
+    importOldHashLists
     val filesInBackup = loadOldIndex(date = d)
     initRoots(filesInBackup)
     val filtered = if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
@@ -777,7 +777,7 @@ class VerifyHandler(val config: BackupFolderConfiguration)
     problemCounter = new ProblemCounter()
     try {
       block.verify(problemCounter)
-      importOldHashChains
+      importOldHashLists
       verifyHashes()
       verifySomeFiles(t.percentOfFilesToCheck())
       finishReading
@@ -797,7 +797,7 @@ class VerifyHandler(val config: BackupFolderConfiguration)
     while (it.hasNext) {
       it.next match {
         case f: FileDescription =>
-          val chain = getHashChain(f)
+          val chain = getHashList(f)
           val missing = chain.filterNot { blockExists }
           if (!missing.isEmpty) {
             problemCounter += missing.size
