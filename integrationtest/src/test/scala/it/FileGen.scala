@@ -63,7 +63,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     times(int)(newFile(100000))
     times(25)(changeFile)
     times(10)(renameFile)
-    times(10)(deleteFile)
+    times(5)(deleteFile)
   }
 
   implicit class MoreRandom(r: Random) {
@@ -81,11 +81,19 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     val file = selectFolderOrFile
     val fileNew = new File(file.getParentFile(), generateName())
     Files.move(file.toPath(), fileNew.toPath())
+    l.info("File was moved from "+file+" to "+fileNew)
     rescan
   }
 
   def deleteFile() {
-    while (!selectFolderOrFile().delete()) {}
+    var i = 0
+    var lastfile: File = selectFolderOrFile
+    while (i < 5 && lastfile.exists()) {
+      lastfile = selectFolderOrFile()
+      lastfile.delete()
+      i += 1
+    }
+    l.info("DeleteFile ran "+i+" times and deleted "+lastfile.exists+" the file "+lastfile)
     rescan
   }
 
@@ -102,6 +110,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     } finally {
       raf.close()
     }
+    l.info("File was changed "+file)
   }
 
   def select[T](x: Seq[T]) = x.size match {
@@ -125,7 +134,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     }
     while (folderList.isEmpty) {
       val f = new File(folder, generateName)
-      f.mkdir()
+      f.mkdirs()
       if (f.exists() && f.isDirectory())
     	folderList += f
     }
@@ -160,6 +169,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
           }
         }
         fos.close()
+        l.info("New file created "+name)
         fileList += name
         done = true
         Thread.sleep(random.nextInt(100))
@@ -174,11 +184,14 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
 
   def newFolder(baseIn: Option[File] = None) {
     val base = selectFolder
+    
     var name: File = null
     do {
       name = new File(base, generateName)
       name.mkdir()
+      
     } while (!name.exists())
+    l.info("folder was created "+name)
     folderList += name
   }
 
