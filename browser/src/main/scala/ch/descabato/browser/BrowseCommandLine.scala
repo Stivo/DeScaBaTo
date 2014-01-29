@@ -19,7 +19,7 @@ class BrowseCommand extends BackupRelatedCommand {
     bh.registerIndex()
     val path = conf.folder.getCanonicalPath()
     val url = s"backup:file://$path!"
-    TestBrowser.main2(Array(url))
+    BackupBrowser.main2(Array(url))
   }
 }
 

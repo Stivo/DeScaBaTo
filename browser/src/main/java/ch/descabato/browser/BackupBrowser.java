@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package pl.otros.vfs.browser.demo;
+package ch.descabato.browser;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.DataConfiguration;
@@ -37,14 +37,14 @@ import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 
-public class TestBrowser {
+public class BackupBrowser {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TestBrowser.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(BackupBrowser.class);
 
   public static void main2(final String[] args) throws InterruptedException, InvocationTargetException, SecurityException, IOException {
     if (args.length > 1)
       throw new IllegalArgumentException("SYNTAX:  java... "
-          + TestBrowser.class.getName() + " [initialPath]");
+          + BackupBrowser.class.getName() + " [initialPath]");
 
     SwingUtilities.invokeAndWait(new Runnable() {
 
