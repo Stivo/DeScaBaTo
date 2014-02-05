@@ -27,31 +27,46 @@ import ch.descabato.Streams.HashingOutputStream
 import java.io.FileInputStream
 import java.io.RandomAccessFile
 import net.java.truevfs.access.TVFS
+import scala.io.Source
+import java.lang.ProcessBuilder.Redirect
 
 class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
 
   CLI._overrideRunsInJar = true
   CLI.testMode = true
-  //ConsoleManager.testSetup
 
+  val batchfile = new File("core/target/pack/bin/descabato").getAbsoluteFile()
+  
   var baseFolder = new File("integrationtest/testdata")
 
-  var input = new File(baseFolder, "input")
 
-  def folder(s: String) = new File(baseFolder, s)
+  def folder(s: String) = new File(baseFolder, s).getAbsoluteFile()
+  var input = folder("input")
   val backup1 = folder("backup1")
   val restore1 = folder("restore1")
-
+  
+  def startProg(args: Seq[String]) = {
+     val proc = new ProcessBuilder().command((List(batchfile.getAbsolutePath()) ++ args): _*)
+     .redirectOutput(Redirect.INHERIT)
+     .redirectError(Redirect.INHERIT)
+      .start
+      proc
+  }
+  
+  def startAndWait(args: Seq[String]) = {
+    val proc = startProg(args)
+    proc.waitFor()
+  }
+  
   before {
-    Par2Handler.TESTONLY_reset()
     deleteAll(input)
     deleteAll(backup1)
     deleteAll(restore1)
   }
   
   "plain backup" should "work" in {
-    testWith(" --no-redundancy", "", 5, "300Mb")
+	 testWith(" --no-redundancy", "", 5, "500Mb")
   }
 
   "encrypted backup" should "work" in {
@@ -63,17 +78,29 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   }
 
   "backup with multiple threads" should "work" in {
-    testWith(" --no-redundancy --threads 4 --volume-size 20Mb", "", 5, "50Mb", false)
+    testWith(" --no-redundancy --compression bzip2 --threads 4 --volume-size 20Mb", "", 5, "50Mb", false)
   }
 
   "backup with redundancy" should "recover" in {
     testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
   }
   
-  //  "backup with crashes" should "work" in {
-  //    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, true)
-  //  }
+  "backup with crashes" should "work" in {
+	testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "500Mb", true)
+  }
 
+  "backup with crashes and encryption" should "work" in {
+	testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "200Mb", true)
+  }
+
+  def numberOfCheckpoints() = {
+    if (backup1.exists) {
+      backup1.listFiles().filter(_.getName().contains("temp.hash"))
+    } else {
+      0
+    }
+  }
+  
   def testWith(config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false) {
 	l.info("")
 	l.info("")
@@ -91,37 +118,48 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
       println("Iteration " + i)
       if (crash) {
         var crashes = 0
-        while (crashes < 5) {
+        while (crashes < 10) {
           // crash process sometimes
+          val proc = startProg(s"backup$config $backup1 $input".split(" "))
+          @volatile var finished = false
           val t = new Thread() {
             override def run() {
-              CLI.main(s"backup$config $backup1 $input".split(" "))
+              proc.waitFor()
+              finished = true
             }
           }
           t.setDaemon(true)
           t.start()
-          Thread.sleep(Random.nextInt(2000) + 2000)
-          if (!t.isAlive()) {
-            crashes = 5
+          if (Random.nextBoolean) {
+            val secs = Random.nextInt(10) + 2
+             l.info(s"Waiting for $secs seconds before destroying process")
+            Thread.sleep(secs*1000)
+          } else {
+             l.info("Waiting for new hashlist before destroying process")
+            val checkpoints = numberOfCheckpoints
+            while (numberOfCheckpoints == checkpoints || finished) {
+              Thread.sleep(100)
+            }
           }
-          t.stop()
-          Streams.closeAll
+          crashes += 1
+          proc.destroy()
         }
+        l.info("Crashes done, letting process finish now")
       }
       // let backup finish
-      CLI.main(s"backup$config $backup1 $input".split(" "))
+      startAndWait(s"backup$config $backup1 $input".split(" ")) should be (0)
       // no temp files in backup
       input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
       // verify backup
-      CLI.main(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" "))
-      CLI.lastErrors should be(0)
+      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be (0)
+      
 
       if (redundancy) {
         // Testing what happens when messing with the files
         messupBackupFiles()
       }
       // restore backup to folder, folder already contains old restored files.
-      CLI.main(s"restore$configRestore --restore-to-folder $restore1 $backup1".split(" "))
+      startAndWait(s"restore$configRestore --restore-to-folder $restore1 $backup1".split(" ")) should be (0)
       // compare files
       compareBackups(input, restore1)
       // delete some files
@@ -131,10 +169,6 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
         l.info("Changing files done")
       }
     }
-    // delete restored parts
-    // check files of backup are same in restore
-    // mess up backup
-    // check that restore fails
   }
 
   def messupBackupFiles() {

@@ -81,7 +81,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     val file = selectFolderOrFile
     val fileNew = new File(file.getParentFile(), generateName())
     Files.move(file.toPath(), fileNew.toPath())
-    l.info("File was moved from "+file+" to "+fileNew)
+    l.debug("File was moved from "+file+" to "+fileNew)
     rescan
   }
 
@@ -93,7 +93,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
       lastfile.delete()
       i += 1
     }
-    l.info("DeleteFile ran "+i+" times and deleted "+lastfile.exists+" the file "+lastfile)
+    l.debug("DeleteFile ran "+i+" times and deleted "+lastfile.exists+" the file "+lastfile)
     rescan
   }
 
@@ -110,7 +110,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     } finally {
       raf.close()
     }
-    l.info("File was changed "+file)
+    l.debug("File was changed "+file)
   }
 
   def select[T](x: Seq[T]) = x.size match {
@@ -169,7 +169,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
           }
         }
         fos.close()
-        l.info("New file created "+name)
+        l.debug("New file created "+name)
         fileList += name
         done = true
         Thread.sleep(random.nextInt(100))
@@ -191,7 +191,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
       name.mkdir()
       
     } while (!name.exists())
-    l.info("folder was created "+name)
+    l.debug("folder was created "+name)
     folderList += name
   }
 

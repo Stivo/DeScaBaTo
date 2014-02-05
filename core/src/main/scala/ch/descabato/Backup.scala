@@ -199,7 +199,8 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
         TConfig.current().setArchiveDetector(TrueVfs.newArchiveDetector1(FsDriverMapLocator.SINGLETON, ".zip.raes", p.toCharArray(), conf.keyLength))
       }
       TConfig.current().setAccessPreference(FsAccessOption.STORE, true)
-      TConfig.current().setAccessPreference(FsAccessOption.GROW, true)
+      // Disabled to distinguish files being changed and completed files
+      //TConfig.current().setAccessPreference(FsAccessOption.GROW, true)
     }
     initTrueVfs(conf)
   }
@@ -422,29 +423,37 @@ class BackupHandler(val config: BackupFolderConfiguration)
   var hashListMapCheckpoint: HashListMap = new HashListMap()
 
   def checkpoint(seq: Seq[FileDescription]) = {
-    val (toSave, toKeep) = seq.partition(x => getHashList(x).forall(blockExists))
+    val (saveHashlists, keepHashlists) = hashListMapCheckpoint.toBuffer.partition(x => hashListSeq(x._2).forall(blockExists))
+    // checkpoint the hashlists
+    if (!hashListMapCheckpoint.isEmpty) {
+      if (!saveHashlists.isEmpty)
+        fileManager.hashlists.write(saveHashlists.toBuffer, true)
+      hashListMapCheckpoint.clear
+      hashListMapCheckpoint ++= keepHashlists
+    }
+    // checkpoint the files, after the corresponding hash lists have been saved
+    val (toSave, toKeep) = seq.partition{
+      x => 
+        val list = getHashList(x)
+        if (list.size == 1) blockExists(list.head)
+        else saveHashlists.map(_._1).contains(x.hash: BAWrapper2)
+    }
     if (!toSave.isEmpty)
       fileManager.files.write(toSave.toBuffer, true)
-    if (!hashListMapCheckpoint.isEmpty) {
-      val (toSave, toKeep) = hashListMapCheckpoint.toBuffer.partition(x => hashListSeq(x._2).forall(blockExists))
-      if (!toSave.isEmpty)
-        fileManager.hashlists.write(toSave.toBuffer, true)
-      hashListMapCheckpoint.clear
-      hashListMapCheckpoint ++= toKeep
-    }
     toKeep
   }
 
   var failed = Buffer[FileDescription]()
 
   var deletedCopy: Buffer[FileDescription] = Buffer()
-
+  
   def backup(files: Seq[File]) {
     config.folder.mkdirs()
     l.info("Starting backup")
     // Walk tree and compile to do list
     val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
     val (newParts, unchanged, deleted) = (visitor.newFiles, visitor.unchangedFiles, visitor.deleted)
+    importOldHashLists
     l.info("New Files      : " + statistics(newParts))
     l.info("Unchanged files: " + statistics(unchanged))
     l.info("Deleted files  : " + statistics(deleted))
@@ -460,7 +469,6 @@ class BackupHandler(val config: BackupFolderConfiguration)
     // Backup files 
 
     setMaximums(newFiles)
-    importOldHashLists
     var list = newFiles.toList
     var toSave: Seq[FileDescription] = Buffer.empty
     while (!list.isEmpty) {
