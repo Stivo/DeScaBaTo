@@ -29,8 +29,64 @@ import java.io.RandomAccessFile
 import net.java.truevfs.access.TVFS
 import scala.io.Source
 import java.lang.ProcessBuilder.Redirect
+import org.apache.commons.exec.CommandLine
+import org.apache.commons.exec.DefaultExecutor
+import org.apache.commons.exec.ExecuteWatchdog
+import org.apache.commons.exec.ExecuteResultHandler
+import org.apache.commons.exec.ExecuteException
+import ch.descabato.RichFlatSpec
+import org.apache.commons.exec.PumpStreamHandler
+import java.io.FileOutputStream
+import ch.descabato.Streams.DelegatingOutputStream
 
-class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenPropertyChecks with TestUtils {
+class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String, val secs: Int = 600) extends ExecuteWatchdog(secs * 1000) with ExecuteResultHandler with Utils {
+  private val executor = new DefaultExecutor()
+  executor.setWatchdog(this)
+  executor.setWorkingDirectory(logfolder)
+  val out = new FileOutputStream(new File(logfolder, name + "_out.log"), true)
+  val error = new FileOutputStream(new File(logfolder, name + "_error.log"), true)
+  val streamHandler = new PumpStreamHandler(new DelegatingOutputStream(out, System.out),
+    new DelegatingOutputStream(error, System.err))
+  executor.setStreamHandler(streamHandler)
+  @volatile var finished = false
+  var exit = Int.MinValue
+
+  def onProcessComplete(exitValue: Int) {
+    finished = true
+    exit = exitValue
+    close()
+  }
+
+  override def destroyProcess() {
+    super.destroyProcess()
+    close()
+  }
+
+  def onProcessFailed(e: ExecuteException) {
+    logException(e)
+    finished = true
+    exit = -1
+    close()
+  }
+
+  def startAndWait() = {
+    val out = executor.execute(args)
+    close()
+    out
+  }
+
+  def start() {
+    executor.execute(args, this)
+  }
+
+  def close() {
+    out.close()
+    error.close()
+  }
+
+}
+
+class IntegrationTest extends RichFlatSpec with BeforeAndAfter with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
 
   CLI._overrideRunsInJar = true
@@ -38,23 +94,37 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   val batchfile = new File("core/target/pack/bin/descabato").getAbsoluteFile()
 
   var baseFolder = new File("/mnt/ramdisk/integrationtest/testdata")
+  var logFolder = new File("integrationtest/logs")
 
   def folder(s: String) = new File(baseFolder, s).getAbsoluteFile()
   var input = folder("input")
   val backup1 = folder("backup1")
   val restore1 = folder("restore1")
 
-  def startProg(args: Seq[String], redirect: Boolean = true) = {
-    var procBuilder = new ProcessBuilder().command((List(batchfile.getAbsolutePath()) ++ args): _*)
-    if (redirect) {
-      procBuilder.redirectOutput(Redirect.INHERIT).redirectError(Redirect.INHERIT)
+  def createHandler(args: Seq[String], redirect: Boolean = true, maxSeconds: Int = 600) = {
+    val cmdLine = new CommandLine(batchfile);
+    cmdLine.addArgument(args.head)
+    cmdLine.addArgument("--logfile")
+    cmdLine.addArgument(currentTestName + ".log")
+    args.tail.foreach { arg =>
+      cmdLine.addArgument(arg)
     }
-    procBuilder.start
+    val handler = new BackupExecutionHandler(cmdLine, logFolder, currentTestName, maxSeconds)
+    handler
   }
 
   def startAndWait(args: Seq[String], redirect: Boolean = true) = {
-    val proc = startProg(args)
-    proc.waitFor()
+    try {
+      createHandler(args, redirect).startAndWait
+    } catch {
+      case e: ExecuteException => e.getExitValue()
+    }
+  }
+
+  override def beforeAll {
+    System.setProperty("logname", "integrationtest.log")
+    deleteAll(logFolder)
+    logFolder.mkdirs()
   }
 
   before {
@@ -84,16 +154,16 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   }
 
   "backup with crashes" should "work" in {
-    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, false)
+    testWith(" --no-redundancy --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, false)
   }
 
   "backup with crashes and encryption" should "work" in {
-    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, false)
+    testWith(" --no-redundancy --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, false)
   }
 
-  def numberOfCheckpoints() = {
+  def numberOfCheckpoints(): Int = {
     if (backup1.exists) {
-      backup1.listFiles().filter(_.getName().contains("temp.hash"))
+      backup1.listFiles().filter(_.getName().contains("temp.hash")).size
     } else {
       0
     }
@@ -117,38 +187,31 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
       l.info(s"Iteration $i of $iterations")
       if (crash) {
         var crashes = 0
-        val procIterations: Array[Boolean] = Array.fill(maxCrashes+2)(false)
         while (crashes < maxCrashes) {
           val checkpoints = numberOfCheckpoints()
-   		  // crash process sometimes
-          val proc = startProg(s"backup$config $backup1 $input".split(" "))
-          val t = new Thread() {
-            override def run() {
-              Thread.sleep(1000)
-              proc.waitFor()
-              l.info(s"Process of iteration $crashes has finished")
-              procIterations(crashes) = true
-            }
-          }
-          t.setDaemon(true)
-          t.start()
+          // crash process sometimes
+          val proc = createHandler(s"backup$config $backup1 $input".split(" "))
+          proc.start()
           if (Random.nextBoolean) {
             val secs = Random.nextInt(10) + 2
             l.info(s"Waiting for $secs seconds before destroying process")
             var waited = 0
-            while (waited < secs && !procIterations(crashes)) {
+            while (waited < secs && !proc.finished) {
               Thread.sleep(1000)
               waited += 1
             }
           } else {
             l.info("Waiting for new hashlist before destroying process")
             Thread.sleep(1000)
-            while ((numberOfCheckpoints() == checkpoints) && !procIterations(crashes)) {
+            while ((numberOfCheckpoints() == checkpoints) && !proc.finished) {
               Thread.sleep(100)
             }
           }
           crashes += 1
-          proc.destroy()
+          if (proc.finished) {
+            crashes = 10
+          }
+          proc.destroyProcess()
         }
         l.info("Crashes done, letting process finish now")
       }
@@ -185,14 +248,15 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   def messupBackupFiles() {
     val files = backup1.listFiles()
     val set = Set("hashlists", "files")
-    files.filter(x => set.exists(x.getName.toLowerCase().startsWith(_))).foreach { f =>
+    val prefix = if (currentTestName contains "prefix") "testprefix_" else ""
+    files.filter(x => set.exists(s => x.getName.toLowerCase().startsWith(prefix + s))).foreach { f =>
       l.info("Messing up " + f + " length " + f.length())
       val raf = new RandomAccessFile(f, "rw")
       raf.seek(raf.length() / 2);
       raf.write(("\0").getBytes)
       raf.close()
     }
-    files.filter(_.getName.startsWith("volume")).filter(_.length > 100 * 1024).foreach { f =>
+    files.filter(_.getName.startsWith(prefix + "volume")).filter(_.length > 100 * 1024).foreach { f =>
       l.info("Messing up " + f)
       val raf = new RandomAccessFile(f, "rw")
       raf.seek(raf.length() / 2);

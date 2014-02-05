@@ -71,7 +71,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     val covered = readCoveredFiles(config.folder)
     val out = ft.getFiles()
       .filter(x => !(covered contains x))
-    out
+    out.toList
   }
 
   def forVolumes() {

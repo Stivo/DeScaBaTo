@@ -274,12 +274,24 @@ abstract class BackupIndexHandler extends Utils {
   lazy val fileManager = config.fileManager
 
   def loadOldIndex(temp: Boolean = false, date: Option[Date] = None): Buffer[BackupPart] = {
+    // TODO this should be rewritten in a sensitive way
     val (filesToLoad, hasDeltas) = if (date.isDefined) {
       (fileManager.getBackupForDate(date.get).toArray, false)
     } else {
-      fileManager.getBackupAndUpdates(temp)
+      fileManager.getBackupAndUpdates(false)
     }
-    val updates = filesToLoad.flatMap(x => fileManager.filesDelta.read(x)).fold(Buffer[UpdatePart]())(_ ++ _).seq
+    val tempFiles = if (temp) {
+      (fileManager.getBackupAndUpdates(true)._1.toBuffer -- filesToLoad).toSeq
+    } else {
+      Nil
+    }
+    val updates = filesToLoad.flatMap(x => fileManager.filesDelta.read(x, OnFailureTryRepair)).fold(Buffer[UpdatePart]())(_ ++ _).seq
+    val withTemp = if (temp) {
+      (fileManager.getBackupAndUpdates(true)._1.toBuffer -- filesToLoad).toSeq
+      updates ++ filesToLoad.flatMap(x => fileManager.filesDelta.read(x, OnFailureDelete)).fold(Buffer[UpdatePart]())(_ ++ _).seq
+    } else {
+      updates
+    }
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
       updates.foreach {
@@ -375,15 +387,15 @@ abstract class BackupDataHandler extends BackupIndexHandler {
   lazy val delta = config.useDeltas && !loadOldIndex().isEmpty
 
   def oldBackupHashLists: mutable.Map[BAWrapper2, Array[Byte]] = {
-    def loadFor(x: Iterable[File]) = {
-      x.flatMap(x => fileManager.hashlists.read(x)).fold(Buffer())(_ ++ _).toBuffer
+    def loadFor(x: Iterable[File], failureOption: ReadFailureOption) = {
+      x.flatMap(x => fileManager.hashlists.read(x, failureOption)).fold(Buffer())(_ ++ _).toBuffer
     }
-    val temps = loadFor(fileManager.hashlists.getTempFiles())
+    val temps = loadFor(fileManager.hashlists.getTempFiles(), OnFailureDelete)
     if (!temps.isEmpty) {
       fileManager.hashlists.write(temps)
       fileManager.hashlists.deleteTempFiles()
     }
-    val list = loadFor(fileManager.hashlists.getFiles())
+    val list = loadFor(fileManager.hashlists.getFiles(), OnFailureTryRepair)
     val map = new HashListMap
     map ++= list
     map

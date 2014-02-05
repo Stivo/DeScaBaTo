@@ -78,8 +78,11 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     if (fileList.size < 10) {
       times(10)(newFile(10000))
     }
-    val file = selectFolderOrFile
-    val fileNew = new File(file.getParentFile(), generateName())
+    var file = folder
+    while (file == folder) {
+      file = selectFolderOrFile
+    }
+    val fileNew = new File(file.getParentFile, generateName())
     Files.move(file.toPath(), fileNew.toPath())
     l.debug("File was moved from "+file+" to "+fileNew)
     rescan

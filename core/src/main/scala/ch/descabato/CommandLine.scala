@@ -43,6 +43,7 @@ object CLI extends Utils {
   }
 
   def main(args: Array[String]) {
+    System.setProperty("logname", "backup.log")  
     try {
       if (runsInJar) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
@@ -144,7 +145,11 @@ trait BackupRelatedCommand extends Command with Utils {
 
   final override def execute(args: Seq[String]) {
     try {
-      start(newT(args))
+      val t = newT(args)
+      if (t.logfile.isSupplied) {
+        System.setProperty("logname", t.logfile())
+      }
+      start(t)
     } catch {
       case e @ MisconfigurationException(message) =>
         l.info(message)
@@ -207,6 +212,7 @@ trait BackupFolderOption extends ScallopConf {
       }
     }
   }
+  val logfile = opt[String]()
   val backupDestination = trailArg[String](required = true).map(new File(_).getCanonicalFile())
 }
 

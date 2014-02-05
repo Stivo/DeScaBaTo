@@ -3,7 +3,6 @@ import JacocoPlugin._
 
 // Test dependencies
 libraryDependencies ++= Seq(
-    "org.apache.ftpserver" % "ftpserver-core" % "1.0.6" % "test",
     "org.scalatest" %% "scalatest" % "2.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
 )
@@ -15,3 +14,5 @@ parallelExecution in jacoco.Config := false
 jacoco.settings
 
 testOptions in Test += Tests.Argument("-oF")
+
+libraryDependencies += "org.apache.commons" % "commons-exec" % "1.2" % "test"

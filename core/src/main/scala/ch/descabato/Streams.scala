@@ -171,11 +171,11 @@ object Streams extends Utils {
     override def markSupported() = in.markSupported()
   }
 
-  class DelegatingOutputStream(out: OutputStream) extends OutputStream {
-    def write(b: Int) = out.write(b)
-    override def write(b: Array[Byte], start: Int, len: Int) = out.write(b, start, len)
-    override def close() = out.close()
-    override def flush() = out.flush()
+  class DelegatingOutputStream(out: OutputStream*) extends OutputStream {
+    def write(b: Int) = out foreach(_.write(b))
+    override def write(b: Array[Byte], start: Int, len: Int) = out foreach(_.write(b, start, len))
+    override def close() = out foreach(_.close())
+    override def flush() = out foreach(_.flush())
   }
 
   abstract class HashingInputStream(in: InputStream, messageDigest: MessageDigest) extends DelegatingInputStream(in) {

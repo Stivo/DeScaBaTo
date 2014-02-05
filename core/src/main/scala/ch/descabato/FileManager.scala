@@ -28,6 +28,12 @@ object Constants {
   val objectEntry = "content.obj"
 }
 
+trait ReadFailureOption
+
+case object OnFailureTryRepair extends ReadFailureOption
+case object OnFailureDelete extends ReadFailureOption
+case object OnFailureAbort extends ReadFailureOption
+
 /**
  * Describes the file patterns for a certain kind of file.
  * Supports a global prefix from the BackupFolderConfiguration,
@@ -137,7 +143,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     file
   }
 
-  def read(f: File, first: Boolean = true): Option[T] = {
+  def read(f: File, failureOption: ReadFailureOption, first: Boolean = true): Option[T] = {
     var firstCopy = first
     val reader = new ZipFileReader(f)
     try {
@@ -166,12 +172,18 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       case e: Exception if ((e.getMessage + e.getStackTraceString).contains("CipherInputStream")) => {
         throw new PasswordWrongException("Exception while loading " + f + ", most likely the supplied passphrase is wrong.", e)
       }
-      case e @ BackupCorruptedException(f, false) if firstCopy => {
+      case e @ BackupCorruptedException(f, false) if failureOption == OnFailureDelete => {
+        reader.close
+        f.delete()
+        l.info(s"Deleted file $f because it was broken")
+        None
+      }
+      case e @ BackupCorruptedException(f, false) if firstCopy && failureOption == OnFailureTryRepair => {
         logException(e)
         reader.close
         Par2Handler.tryRepair(f, config)
         // tryRepair will throw exception if repair fails, so if we end up here, just try again
-        return read(f, false)
+        return read(f, failureOption, false)
       }
       case e: BackupCorruptedException => {
         throw e

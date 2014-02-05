@@ -1,7 +1,7 @@
 <configuration>
 
 	<appender name="FILE" class="ch.qos.logback.core.FileAppender">
-		<file>backup.log</file>
+		<file>${logname}</file>
 
 		<encoder>
 			<pattern>%date %-5level [%thread] [%file:%line] %msg%n
