@@ -44,15 +44,15 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   val backup1 = folder("backup1")
   val restore1 = folder("restore1")
 
-  def startProg(args: Seq[String]) = {
-    val proc = new ProcessBuilder().command((List(batchfile.getAbsolutePath()) ++ args): _*)
-      .redirectOutput(Redirect.INHERIT)
-      .redirectError(Redirect.INHERIT)
-      .start
-    proc
+  def startProg(args: Seq[String], redirect: Boolean = true) = {
+    var procBuilder = new ProcessBuilder().command((List(batchfile.getAbsolutePath()) ++ args): _*)
+    if (redirect) {
+      procBuilder.redirectOutput(Redirect.INHERIT).redirectError(Redirect.INHERIT)
+    }
+    procBuilder.start
   }
 
-  def startAndWait(args: Seq[String]) = {
+  def startAndWait(args: Seq[String], redirect: Boolean = true) = {
     val proc = startProg(args)
     proc.waitFor()
   }
@@ -64,15 +64,15 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   }
 
   "plain backup" should "work" in {
-    testWith(" --no-redundancy", "", 5, "400Mb")
+    testWith(" --no-redundancy", "", 3, "200Mb")
   }
 
   "encrypted backup" should "work" in {
-    testWith(" --compression gzip --volume-size 20Mb --no-redundancy --passphrase mypassword", " --passphrase mypassword", 3, "50Mb")
+    testWith(" --compression gzip --volume-size 20Mb --no-redundancy --passphrase mypassword", " --passphrase mypassword", 2, "50Mb")
   }
 
   "low volumesize backup with prefix" should "work" in {
-    testWith(" --compression bzip2 --no-redundancy --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 2, "20Mb")
+    testWith(" --no-redundancy --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
   }
 
   "backup with multiple threads" should "work" in {
@@ -84,11 +84,11 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   }
 
   "backup with crashes" should "work" in {
-    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 4, "300Mb", true)
+    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, true)
   }
 
   "backup with crashes and encryption" should "work" in {
-    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "200Mb", true)
+    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, true)
   }
 
   def numberOfCheckpoints() = {
@@ -108,22 +108,23 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     assume(baseFolder.getCanonicalFile().exists())
     deleteAll(backup1)
     deleteAll(restore1)
+    val procIterations: Array[Boolean] = Array.fill(iterations)(false)
     // create some files
     val fg = new FileGen(input, maxSize)
     fg.generateFiles
     fg.rescan()
     for (i <- 1 to iterations) {
-      println("Iteration " + i)
+      l.info(s"Iteration $i of $iterations")
       if (crash) {
         var crashes = 0
         while (crashes < 10) {
           // crash process sometimes
           val proc = startProg(s"backup$config $backup1 $input".split(" "))
-          @volatile var finished = false
           val t = new Thread() {
             override def run() {
               proc.waitFor()
-              finished = true
+              l.info(s"Process of iteration $i has finished")
+              procIterations(i) = true
             }
           }
           t.setDaemon(true)
@@ -133,9 +134,10 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
             l.info(s"Waiting for $secs seconds before destroying process")
             Thread.sleep(secs * 1000)
           } else {
+            Thread.sleep(1000)
             l.info("Waiting for new hashlist before destroying process")
-            val checkpoints = numberOfCheckpoints
-            while (numberOfCheckpoints == checkpoints || finished) {
+            val checkpoints = numberOfCheckpoints()
+            while ((numberOfCheckpoints() == checkpoints) && !procIterations(i)) {
               Thread.sleep(100)
             }
           }
@@ -169,7 +171,8 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     if (!redundancy) {
       messupBackupFiles
       l.info("Verification should fail after files have been messed up")
-      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be > (0)
+      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" "), false) should be > (0)
+      l.info("Verification failed as expected")
     }
   }
 

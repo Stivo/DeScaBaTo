@@ -118,7 +118,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
       return
     }
 
-    l.info(s"Starting par2 creation for ${files.size} files ${new Size(files.map(_.length()).sum)})")
+    l.info(s"Starting par2 creation for ${files.size} files ${new Size(files.map(_.length()).sum)}")
     //    l.info("This may take a while")
     val cmd = Buffer[String]()
     cmd += getPar2()
