@@ -37,7 +37,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
 
   val batchfile = new File("core/target/pack/bin/descabato").getAbsoluteFile()
 
-  var baseFolder = new File("integrationtest/testdata")
+  var baseFolder = new File("/mnt/ramdisk/integrationtest/testdata")
 
   def folder(s: String) = new File(baseFolder, s).getAbsoluteFile()
   var input = folder("input")
@@ -68,7 +68,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   }
 
   "encrypted backup" should "work" in {
-    testWith(" --compression gzip --volume-size 20Mb --no-redundancy --passphrase mypassword", " --passphrase mypassword", 2, "50Mb")
+    testWith(" --compression gzip --volume-size 20Mb --no-redundancy --passphrase mypassword", " --passphrase mypassword", 1, "50Mb")
   }
 
   "low volumesize backup with prefix" should "work" in {
@@ -84,11 +84,11 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
   }
 
   "backup with crashes" should "work" in {
-    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, true)
+    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, false)
   }
 
   "backup with crashes and encryption" should "work" in {
-    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, true)
+    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, false)
   }
 
   def numberOfCheckpoints() = {
@@ -108,23 +108,26 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     assume(baseFolder.getCanonicalFile().exists())
     deleteAll(backup1)
     deleteAll(restore1)
-    val procIterations: Array[Boolean] = Array.fill(iterations)(false)
     // create some files
     val fg = new FileGen(input, maxSize)
     fg.generateFiles
     fg.rescan()
+    val maxCrashes = 10
     for (i <- 1 to iterations) {
       l.info(s"Iteration $i of $iterations")
       if (crash) {
         var crashes = 0
-        while (crashes < 10) {
-          // crash process sometimes
+        val procIterations: Array[Boolean] = Array.fill(maxCrashes+2)(false)
+        while (crashes < maxCrashes) {
+          val checkpoints = numberOfCheckpoints()
+   		  // crash process sometimes
           val proc = startProg(s"backup$config $backup1 $input".split(" "))
           val t = new Thread() {
             override def run() {
+              Thread.sleep(1000)
               proc.waitFor()
-              l.info(s"Process of iteration $i has finished")
-              procIterations(i) = true
+              l.info(s"Process of iteration $crashes has finished")
+              procIterations(crashes) = true
             }
           }
           t.setDaemon(true)
@@ -132,12 +135,15 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
           if (Random.nextBoolean) {
             val secs = Random.nextInt(10) + 2
             l.info(s"Waiting for $secs seconds before destroying process")
-            Thread.sleep(secs * 1000)
+            var waited = 0
+            while (waited < secs && !procIterations(crashes)) {
+              Thread.sleep(1000)
+              waited += 1
+            }
           } else {
-            Thread.sleep(1000)
             l.info("Waiting for new hashlist before destroying process")
-            val checkpoints = numberOfCheckpoints()
-            while ((numberOfCheckpoints() == checkpoints) && !procIterations(i)) {
+            Thread.sleep(1000)
+            while ((numberOfCheckpoints() == checkpoints) && !procIterations(crashes)) {
               Thread.sleep(100)
             }
           }
@@ -171,7 +177,7 @@ class IntegrationTest extends FlatSpec with BeforeAndAfter with GeneratorDrivenP
     if (!redundancy) {
       messupBackupFiles
       l.info("Verification should fail after files have been messed up")
-      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" "), false) should be > (0)
+      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" "), false) should not be (0)
       l.info("Verification failed as expected")
     }
   }

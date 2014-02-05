@@ -78,12 +78,14 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def matches(x: File) = x.getName().startsWith(globalPrefix + prefix)
 
   def getFiles(f: File = config.folder) = f.
-    listFiles().filter(_.isFile()).
-    filter(_.getName().startsWith(globalPrefix + prefix))
+    listFiles().view.filter(_.isFile()).
+    filter(_.getName().startsWith(globalPrefix + prefix)).
+    filterNot(_.getName.endsWith(".tmp"))
 
   def getTempFiles(f: File = config.folder) = f.
-    listFiles().filter(_.isFile()).
-    filter(_.getName().startsWith(globalPrefix + tempPrefix + prefix))
+    listFiles().view.filter(_.isFile()).
+    filter(_.getName().startsWith(globalPrefix + tempPrefix + prefix)).
+    filterNot(_.getName.endsWith(".tmp"))
 
   def deleteTempFiles(f: File = config.folder) = getTempFiles(f).foreach(_.delete)
 
@@ -155,6 +157,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
             case Right(e) => throw new BackupCorruptedException(f).initCause(e)
           }
         }
+        case Right(e: BackupCorruptedException) => throw e
         case Right(e) => throw new BackupCorruptedException(f).initCause(e)
         case _ => throw new BackupCorruptedException(f)
       }

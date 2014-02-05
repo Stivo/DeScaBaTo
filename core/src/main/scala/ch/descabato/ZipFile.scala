@@ -20,6 +20,7 @@ import java.io.BufferedOutputStream
 import java.security.MessageDigest
 import net.java.truevfs.access.TConfig
 import net.java.truevfs.kernel.spec.FsAccessOption
+import java.io.IOException
 
 abstract class ZipFileHandler(zip: File) {
 
@@ -33,7 +34,7 @@ abstract class ZipFileHandler(zip: File) {
   }
 
   def close() {
-    if (_configSet) 
+    if (_configSet)
       config.close()
     if (_mounted)
       TVFS.umount(tfile)
@@ -43,7 +44,7 @@ abstract class ZipFileHandler(zip: File) {
     _configSet = true
     TConfig.open()
   }
-  
+
   def enableCompression() {
     config.setAccessPreference(FsAccessOption.STORE, false)
     config.setAccessPreference(FsAccessOption.COMPRESS, true)
@@ -68,13 +69,17 @@ class ZipFileReader(val file: File) extends ZipFileHandler(file) with Utils {
 
   def getEntrySize(name: String) = new TFile(tfile, name).length()
 
-  def getJson[T](name: String)(implicit m: Manifest[T]) = {
-    val in = getStream(name)
+  def getJson[T](name: String)(implicit m: Manifest[T]): Either[T, Exception] = {
     try {
-      val js = new JsonSerialization()
-      js.readObject(in)
-    } finally {
-      in.close()
+      val in = getStream(name)
+      try {
+        val js = new JsonSerialization()
+        js.readObject(in)
+      } finally {
+        in.close()
+      }
+    } catch {
+      case e: Exception => Right(e)
     }
   }
 

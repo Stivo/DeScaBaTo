@@ -16,6 +16,7 @@ import scala.collection.mutable.WeakHashMap
 import java.security.MessageDigest
 import scala.io.Source
 import net.java.truevfs.access.TVFS
+import java.lang.ProcessBuilder.Redirect
 
 object CommandLineToolSearcher {
   private var cache = Map[String, String]()
@@ -78,7 +79,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     var volumes = filesMatchingPrefix(fileManager.volumes)
     while (!volumes.isEmpty) {
       val f = p2volume.nextFile()
-      start(f, volumes.take(1), 5, config.blockSize.bytes)
+      start(f, volumes.take(1), 5, Some(config.blockSize.bytes))
       volumes = volumes.drop(1)
     }
   }
@@ -112,7 +113,7 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
   /**
    * Starts the command line utility to create the par2 files
    */
-  def start(par2File: File, files: Iterable[File], redundancy: Int, size: Long = 10000) {
+  def start(par2File: File, files: Iterable[File], redundancy: Int, size: Option[Long] = None) {
     //import redundancy._
     if (files.isEmpty) {
       return
@@ -126,7 +127,8 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
     cmd += s"-r$redundancy"
     //cmd += s"-t-"
     cmd += s"-n$numberOfFiles"
-    cmd += s"-s${size}"
+    for (si <- size)
+      cmd += s"-s${si}"
     cmd += par2File.getName()
     if (Utils.isWindows)
       cmd += "--"
@@ -139,12 +141,14 @@ class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
   def startProcess(cmd: Iterable[String]) = {
     l.debug("Starting command " + cmd.mkString(" "))
     val proc = new ProcessBuilder().command(cmd.toList: _*)
-      .redirectError(new File(config.folder, "par2log.txt"))
+//      .redirectOutput(Redirect.INHERIT)
+      .redirectOutput(new File(config.folder, "par2out.txt"))
+      .redirectError(new File(config.folder, "par2error.txt"))
       .directory(config.folder)
       .start
     val exit = proc.waitFor()
     proc.destroy()
-    val s = Source.fromFile(new File(config.folder, "par2log.txt"))
+    val s = Source.fromFile(new File(config.folder, "par2error.txt"))
     val log = s.getLines.mkString("\n")
     if (log.trim != "") {
       l.warn("Par2Log: " + log)

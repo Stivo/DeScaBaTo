@@ -58,7 +58,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
 
   def changeSome() {
     val folders = random.nextInt(10) + 2
-    val int = random.nextInt(100) + 25
+    val int = random.nextInt(20) + 10
     times(folders)(newFolder())
     times(int)(newFile(100000))
     times(25)(changeFile)

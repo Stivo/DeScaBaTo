@@ -164,10 +164,14 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
   val mainFile = supplied.prefix() + "backup.json"
   val folder: File = supplied.backupDestination()
-  def hasOld = new File(folder, mainFile).exists()
-  def loadOld(): BackupFolderConfiguration = {
+  def hasOld = new File(folder, mainFile).exists() && loadOld().isDefined
+  def loadOld(): Option[BackupFolderConfiguration] = {
     val json = new JsonSerialization()
-    json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))).left.get
+    // TODO a backup.json that is invalid is a serious problem. Should throw exception
+    json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))) match {
+      case Left(x) => Some(x)
+      case _ => None
+    }
   }
 
   def write(out: BackupFolderConfiguration) {
@@ -183,7 +187,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
       return BackupDoesntExist
     }
     if (hasOld) {
-      if (loadOld().hasPassword && supplied.passphrase.isEmpty) {
+      if (loadOld().get.hasPassword && supplied.passphrase.isEmpty) {
         return PasswordNeeded
       }
     }
@@ -207,7 +211,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {
     if (hasOld) {
-      val oldConfig = loadOld()
+      val oldConfig = loadOld().get
       val (out, changed) = InitBackupFolderConfiguration.merge(oldConfig, supplied, passphrase)
       if (changed) {
         write(out)
@@ -454,6 +458,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
     val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
     val (newParts, unchanged, deleted) = (visitor.newFiles, visitor.unchangedFiles, visitor.deleted)
     importOldHashLists
+    l.info("Counting of files done")
     l.info("New Files      : " + statistics(newParts))
     l.info("Unchanged files: " + statistics(unchanged))
     l.info("Deleted files  : " + statistics(deleted))
