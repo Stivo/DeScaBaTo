@@ -13,3 +13,5 @@ parallelExecution in Test := false
 parallelExecution in jacoco.Config := false
 
 jacoco.settings
+
+testOptions in Test += Tests.Argument("-oF")

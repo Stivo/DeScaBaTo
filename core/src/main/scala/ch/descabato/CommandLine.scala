@@ -15,8 +15,6 @@ import java.lang.reflect.InvocationTargetException
 
 object CLI extends Utils {
 
-  var testMode: Boolean = false
-
   var lastErrors: Long = 0L
 
   var _overrideRunsInJar = false
@@ -49,6 +47,7 @@ object CLI extends Utils {
       if (runsInJar) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
+        exit(0)
       } else {
     	  parseCommandLine("backup --passphrase mypasshere --serializer-type json --compression none --volume-size 5mb backups ..\\testdata".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
@@ -59,9 +58,20 @@ object CLI extends Utils {
       }
     } catch {
       case e @ PasswordWrongException(m, cause) =>
-        println(m); logException(e)
-      case e @ BackupVerification.BackupDoesntExist => println(e.getMessage); logException(e)
+        l.warn(m); logException(e)
+        exit(-1)
+      case e @ BackupVerification.BackupDoesntExist => 
+        l.warn(e.getMessage); logException(e)
+        exit(-2)
+      case e : Error =>
+        l.warn(e.getMessage)
+        logException(e)
+        exit(-3)
     }
+  }
+  
+  def exit(exitCode: Int) {
+    System.exit(exitCode)
   }
 
 }
@@ -289,9 +299,7 @@ class VerifyCommand extends BackupRelatedCommand {
     val rh = new VerifyHandler(conf) with ZipBlockStrategy
     val count = rh.verify(t)
     CLI.lastErrors = count
-    if (!CLI.testMode) {
-      System.exit(count.toInt)
-    }
+    CLI.exit(count.toInt)
   }
 }
 

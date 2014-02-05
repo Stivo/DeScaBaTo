@@ -856,15 +856,20 @@ class VerifyHandler(val config: BackupFolderConfiguration)
     }
     val end = Math.min(x, array.length - 2) + 1
     (0 to end).foreach { i =>
-      swap(i, random.nextInt(array.length - 1 - i) + i)
+      val chooseFrom = array.length - 1 - i
+      if (chooseFrom > 0)
+    	swap(i, random.nextInt(chooseFrom) + i)
     }
     array.take(end)
   }
 
   def verifySomeFiles(percent: Int) {
-
     var files = partitionFolders(index)._2.toArray
-    val probes = ((percent * 1.0 / 100.0) * files.size).toInt + 1
+    var probes = ((percent * 1.0 / 100.0) * files.size).toInt + 1
+    if (probes > files.size) 
+      probes = files.size
+    if (probes <= 0)
+      return
     val tests = getRandomXElements(probes, files)
     setMaximums(tests)
     tests.foreach { file =>

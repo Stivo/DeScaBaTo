@@ -47,7 +47,7 @@ trait MaxValueCounter extends Counter {
 
   def format = s"$current/$maxValue"
 
-  def percent = (100 * current / maxValue).toInt
+  def percent = if (maxValue == 0) 0 else (100 * current / maxValue).toInt
 
   override def update = s"$name: $format"  
 }
