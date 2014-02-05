@@ -280,27 +280,22 @@ abstract class BackupIndexHandler extends Utils {
     } else {
       fileManager.getBackupAndUpdates(false)
     }
-    val tempFiles = if (temp) {
-      (fileManager.getBackupAndUpdates(true)._1.toBuffer -- filesToLoad).toSeq
-    } else {
-      Nil
-    }
     val updates = filesToLoad.flatMap(x => fileManager.filesDelta.read(x, OnFailureTryRepair)).fold(Buffer[UpdatePart]())(_ ++ _).seq
     val withTemp = if (temp) {
-      (fileManager.getBackupAndUpdates(true)._1.toBuffer -- filesToLoad).toSeq
-      updates ++ filesToLoad.flatMap(x => fileManager.filesDelta.read(x, OnFailureDelete)).fold(Buffer[UpdatePart]())(_ ++ _).seq
+      val tempFiles = (fileManager.getBackupAndUpdates(true)._1.toBuffer -- filesToLoad).toSeq
+      updates ++ tempFiles.flatMap(x => fileManager.filesDelta.read(x, OnFailureDelete)).fold(Buffer[UpdatePart]())(_ ++ _).seq
     } else {
       updates
     }
     if (hasDeltas) {
       val map = mutable.LinkedHashMap[String, BackupPart]()
-      updates.foreach {
+      withTemp.foreach {
         case FileDeleted(path) => map -= path
         case x: BackupPart => map(x.path) = x
       }
       map.values.toBuffer
     } else {
-      updates.asInstanceOf[Buffer[BackupPart]]
+      withTemp.asInstanceOf[Buffer[BackupPart]]
     }
   }
 

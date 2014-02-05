@@ -32,6 +32,7 @@ class FileAttributes extends HashMap[String, Any] with Utils {
 
     val out = Option(fromMap) match {
       case Some(l: Long) => !(lastMod <= l && l <= lastMod)
+      case Some(l: Int) => !(lastMod <= l && l <= lastMod)
       case Some(ft: String) =>
         val l = ft.toLong; !(lastMod <= l && l <= lastMod)
       case None => true
