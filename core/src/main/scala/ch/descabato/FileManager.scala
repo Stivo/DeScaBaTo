@@ -10,11 +10,6 @@ import java.io.FileInputStream
 import java.io.BufferedOutputStream
 import java.io.BufferedInputStream
 import com.fasterxml.jackson.core.JsonProcessingException
-import net.java.truevfs.access.TFile
-import net.java.truevfs.access.TFileOutputStream
-import net.java.truevfs.access.TVFS
-import net.java.truevfs.access.TFileInputStream
-import net.java.truevfs.access.TFileWriter
 
 class VolumeIndex extends HashMap[String, Int]
 
@@ -128,7 +123,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def write(x: T, temp: Boolean = false) = {
     val file = nextFile(temp = temp)
-    val w = new ZipFileWriter(file)
+    val w = ZipFileHandlerFactory.writer(file, config)
     try {
       w.enableCompression
       val desc = new ZipEntryDescription(objectEntry, config.serializerType, m.toString)
@@ -145,7 +140,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def read(f: File, failureOption: ReadFailureOption, first: Boolean = true): Option[T] = {
     var firstCopy = first
-    val reader = new ZipFileReader(f)
+    val reader = ZipFileHandlerFactory.reader(f, config)
     try {
       Par2Handler.getHashIfCovered(f).foreach { hash =>
         reader.verifyMd5(hash)

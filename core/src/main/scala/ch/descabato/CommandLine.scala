@@ -149,6 +149,9 @@ trait BackupRelatedCommand extends Command with Utils {
       if (t.logfile.isSupplied) {
         System.setProperty("logname", t.logfile())
       }
+      if (t.noansi.isSupplied) {
+        AnsiUtil.ansiDisabled = t.noansi()
+      }
       start(t)
     } catch {
       case e @ MisconfigurationException(message) =>
@@ -213,6 +216,7 @@ trait BackupFolderOption extends ScallopConf {
     }
   }
   val logfile = opt[String]()
+  val noansi = opt[Boolean]()
   val backupDestination = trailArg[String](required = true).map(new File(_).getCanonicalFile())
 }
 

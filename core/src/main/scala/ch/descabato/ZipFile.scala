@@ -21,6 +21,93 @@ import java.security.MessageDigest
 import net.java.truevfs.access.TConfig
 import net.java.truevfs.kernel.spec.FsAccessOption
 import java.io.IOException
+import java.io.FileOutputStream
+import ch.descabato.Streams.DelegatingOutputStream
+
+case class MetaInfo(date: String, writingVersion: String)
+
+object ZipFileHandlerFactory {
+  
+  def writer(file: File, config: BackupFolderConfiguration): ZipFileWriter = {
+    if (config.hasPassword) 
+      new ZipFileWriterTFile(file)
+    else
+      new ZipFileWriterJdk(file)
+  }
+  
+  def reader(file: File, config: BackupFolderConfiguration): ZipFileReader = {
+    new ZipFileReaderTFile(file)
+  }
+}
+
+trait ZipFileHandlerCommon {
+  def close()
+  val file: File
+}
+
+trait ZipFileReader extends ZipFileHandlerCommon {
+
+  def names: Seq[String]
+
+  def getStream(name: String): InputStream
+
+  def getEntrySize(name: String): Long
+
+  def getJson[T](name: String)(implicit m: Manifest[T]): Either[T, Exception] = {
+    try {
+      val in = getStream(name)
+      try {
+        val js = new JsonSerialization()
+        js.readObject(in)
+      } finally {
+        in.close()
+      }
+    } catch {
+      case e: Exception => Right(e)
+    }
+  }
+
+  def verifyMd5(hash: Array[Byte]) = {
+    val in = new FileInputStream(file)
+    val read = new Streams.VerifyInputStream(in, MessageDigest.getInstance("MD5"), hash, file)
+    Streams.readFrom(read, (_, _) => Unit)
+    // stream is closed in readFrom
+  }
+
+}
+
+trait ZipFileWriter extends ZipFileHandlerCommon {
+
+  def writeEntry(name: String)(f: (OutputStream => Unit)) {
+    val bos = newOutputStream(name)
+    try {
+      f(bos)
+    } finally {
+      bos.close()
+    }
+  }
+
+  def newOutputStream(name: String): OutputStream
+
+  def size(): Long
+
+  def writeJson[T](name: String, t: T)(implicit m: Manifest[T]) {
+    writeEntry(name) { o =>
+      val js = new JsonSerialization()
+      js.writeObject(t, o)
+    }
+  }
+
+  def writeManifest(x: BackupFolderConfiguration) {
+    val versionNumber: String = version.BuildInfo.version
+    val m = new MetaInfo(x.fileManager.getDateFormatted, versionNumber)
+    writeJson("manifest.txt", m)
+  }
+
+  def enableCompression()
+  
+  def close()
+}
 
 abstract class ZipFileHandler(zip: File) {
 
@@ -45,22 +132,17 @@ abstract class ZipFileHandler(zip: File) {
     TConfig.open()
   }
 
-  def enableCompression() {
-    config.setAccessPreference(FsAccessOption.STORE, false)
-    config.setAccessPreference(FsAccessOption.COMPRESS, true)
-  }
-
 }
 
 /**
  * A thin wrapper around a java zip file reader.
  * Needs to be closed in the end.
  */
-class ZipFileReader(val file: File) extends ZipFileHandler(file) with Utils {
+private[this] class ZipFileReaderTFile(val file: File) extends ZipFileHandler(file) with ZipFileReader with Utils {
 
   def this(s: String) = this(new File(s))
 
-  lazy val names = tfile.list().toArray
+  def names = tfile.list().toArray.toSeq
 
   def getStream(name: String): InputStream = {
     val e = new TFile(tfile, name);
@@ -69,39 +151,19 @@ class ZipFileReader(val file: File) extends ZipFileHandler(file) with Utils {
 
   def getEntrySize(name: String) = new TFile(tfile, name).length()
 
-  def getJson[T](name: String)(implicit m: Manifest[T]): Either[T, Exception] = {
-    try {
-      val in = getStream(name)
-      try {
-        val js = new JsonSerialization()
-        js.readObject(in)
-      } finally {
-        in.close()
-      }
-    } catch {
-      case e: Exception => Right(e)
-    }
-  }
-
-  def verifyMd5(hash: Array[Byte]) = {
-    val in = new BufferedInputStream(new FileInputStream(file))
-    val read = new Streams.VerifyInputStream(in, MessageDigest.getInstance("MD5"), hash, file)
-    Streams.readFrom(read, (_, _) => Unit)
-    // stream is closed in readFrom
-  }
-
 }
 
 /**
- * A thin wrapper around a zip file writer.
- * Has the current file size.
+ * A Zip File Writer using TrueVFS.
+ * The size is a lower bound
  */
-class ZipFileWriter(val file: File) extends ZipFileHandler(file) {
+private[this] class ZipFileWriterTFile(val file: File) extends ZipFileHandler(file) with ZipFileWriter {
 
   private var counter = 0L
 
-  def writeEntry(name: String)(f: (OutputStream => Unit)) {
+  override def writeEntry(name: String)(f: (OutputStream => Unit)) {
     val bos = newOutputStream(name)
+    counter += name.length() * 2
     try {
       f(bos)
     } finally {
@@ -122,20 +184,45 @@ class ZipFileWriter(val file: File) extends ZipFileHandler(file) {
   def size() = {
     counter
   }
-
-  def writeJson[T](name: String, t: T)(implicit m: Manifest[T]) {
-    writeEntry(name) { o =>
-      val js = new JsonSerialization()
-      js.writeObject(t, o)
-    }
-  }
-
-  def writeManifest(x: BackupFolderConfiguration) {
-    val versionNumber: String = version.BuildInfo.version
-    val m = new MetaInfo(x.fileManager.getDateFormatted, versionNumber)
-    writeJson("manifest.txt", m)
+  
+  def enableCompression() {
+    config.setAccessPreference(FsAccessOption.STORE, false)
+    config.setAccessPreference(FsAccessOption.COMPRESS, true)
   }
 
 }
 
-case class MetaInfo(date: String, writingVersion: String)
+/**
+ * A Zip File writer using the standard JDK classes.
+ */
+private[this] class ZipFileWriterJdk(val file: File) extends ZipFileHandler(file) with ZipFileWriter {
+
+  val fos = new CountingOutputStream(new FileOutputStream(file))
+  val out = new ZipOutputStream(fos)
+
+  // compression is done already before
+  out.setLevel(ZipEntry.STORED)
+
+  override def close() {
+    out.finish()
+    out.close()
+  }
+  
+  def newOutputStream(name: String): OutputStream = {
+    out.putNextEntry(new ZipEntry(name))
+    new DelegatingOutputStream(out) {
+       override def close() = {
+         out.closeEntry()
+       }
+    }
+  }
+  
+  def enableCompression() {
+    out.setLevel(ZipEntry.DEFLATED);
+  }
+
+  def size() = {
+    fos.count
+  }
+
+}

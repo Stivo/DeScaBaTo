@@ -112,7 +112,8 @@ class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxVal
 }
 
 object AnsiUtil {
-  lazy val initAnsi = if (CLI.runsInJar && System.getProperty("user.name").toLowerCase() != "travis") {
+  var ansiDisabled = false
+  lazy val initAnsi = if (!ansiDisabled && CLI.runsInJar && System.getProperty("user.name").toLowerCase() != "travis") {
     AnsiConsole.systemInstall();
   } else {
     deleteLinesEnabled = false

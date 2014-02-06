@@ -148,7 +148,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   }
 
   class IndexWriter(x: File) {
-    lazy val zipWriter = new ZipFileWriter(x)
+    lazy val zipWriter = ZipFileHandlerFactory.writer(x, config)
     lazy val bos = zipWriter.newOutputStream("index")
     def close() {
       bos.close()
@@ -158,7 +158,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
 
   def startZip() {
     l.info(s"Starting volume ${volumeName(curNum)}")
-    currentZip = new ZipFileWriter(new File(config.folder, volumeName(curNum, true)))
+    currentZip = ZipFileHandlerFactory.writer(new File(config.folder, volumeName(curNum, true)), config)
     currentIndex = new IndexWriter(new File(config.folder, indexName(curNum, true)))
   }
 
@@ -314,7 +314,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
       case Some((n, zip)) if (n == num) => zip
       case _ => {
         lastZip.foreach { case (_, zip) => zip.close() }
-        val out = new ZipFileReader(new File(config.folder, volumeName(num)))
+        val out = ZipFileHandlerFactory.reader(new File(config.folder, volumeName(num)), config) 
         lastZip = Some((num, out))
         out
       }
