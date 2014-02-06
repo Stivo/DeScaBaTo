@@ -5,7 +5,6 @@ import java.io.OutputStream
 import java.security.MessageDigest
 import scala.collection.mutable.Buffer
 import java.util.Arrays
-import java.io.ByteArrayOutputStream
 import java.io.ByteArrayInputStream
 import java.io.FileInputStream
 import java.util.zip.GZIPOutputStream
@@ -26,29 +25,21 @@ import org.tukaani.xz.XZIOException
 import org.apache.commons.compress.compressors.CompressorException
 import java.io.IOException
 
-object ObjectPools {
+object ObjectPools extends Utils {
 
-  trait Arg[T <: AnyRef, A] {
-    def isValidForArg(x: T, arg: A): Boolean
+  var foundExactCounter = 0
+  var foundExactRequests = 0
+  var foundMinimumCounter = 0
+  var foundMinimumRequests = 0
+
+  def printStatistics(size: Int) {
+    l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
+    l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
+    l.info("Current Weak References "+size)
   }
-
-  trait NoneArg[T <: AnyRef] extends Arg[T, Unit] {
-    self: ObjectPool[T, Unit] =>
-
-    def isValidForArg(x: T, arg: Unit) = true
-    def get(): T = get(())
-    def makeNew(): T = get(())
-  }
-
-  trait ArrayArg[A] extends Arg[Array[A], Int] {
-    self: ObjectPool[Array[A], Int] =>
-    def classTag: ClassTag[A]
-    def isValidForArg(x: Array[A], arg: Int) = x.length >= arg
-    def makeNew(arg: Int) = Array.ofDim[A](arg)(classTag)
-  }
-
-  abstract class ObjectPool[T <: AnyRef, A] {
-    self: Arg[T, A] =>
+  
+  class ByteArrayObjectPool {
+    type T = Array[Byte]
     val local = new ThreadLocal[Buffer[WeakReference[T]]]
     def getStack() = {
       val out = local.get()
@@ -60,61 +51,76 @@ object ObjectPools {
         out
       }
     }
-    final def get(arg: A): T = {
+    final def getMinimum(arg: Int): T = {
+      def isValidForArg(x: T) = x.length >= arg
+      if (arg < 1024) {
+        return makeNew(arg)
+      }
+      val found = get(isValidForArg)
+//      l.info(s"Found byte array with minimum $arg ${found.isDefined}")
+      if (found.isDefined) {
+        foundMinimumCounter += 1
+      }
+      foundMinimumRequests += 1
+      if (foundMinimumRequests % 1000 == 0) {
+        printStatistics(getStack.size)
+      }
+      found getOrElse (makeNew(arg))
+    }
+
+    final def getExactly(arg: Int): T = {
+      def isValidForArg(x: T) = x.length == arg
+      if (arg < 1024) {
+        return makeNew(arg)
+      }
+      val found = get(isValidForArg)
+//      l.info(s"Found byte array with exactly $arg ${found.isDefined}")
+      if (found.isDefined) {
+        foundExactCounter += 1
+      }
+      foundExactRequests += 1
+      found getOrElse (makeNew(arg))
+    }
+
+    private def get(f: T => Boolean): Option[T] = {
       val stack = getStack()
+      var strongRef: Option[T] = None
       while (!stack.isEmpty) {
         val toRemove = Buffer[WeakReference[T]]()
         val result = stack.find(_ match {
-          case wr @ WeakReference(x) if (isValidForArg(x, arg)) =>
+          case wr @ WeakReference(x) if (f(x)) =>
+            // before x is garbage collected, save it to a strong reference
+            strongRef = Some(x)
             toRemove += wr; true
           case WeakReference(x) => false // continue searching  
           case wr => // This is an empty reference now, we might as well delete it 
             toRemove += wr; false
         })
         stack --= toRemove
-        result match {
-          case Some(WeakReference(x)) => return x
-          case _ =>
-        }
+        return strongRef
       }
-      makeNew(arg)
+      None
     }
+
+    
     final def recycle(t: T) {
       val stack = getStack
-      reset(t)
       stack += (WeakReference(t))
     }
-    protected def reset(t: T) {}
-    protected def makeNew(arg: A): T
-
-    def withObject[R](arg: A, f: T => R): R = {
-      val tObj = get(arg)
-      try {
-        f(tObj)
-      } finally {
-        recycle(tObj)
-      }
+    protected def makeNew(arg: Int): T = {
+      Array.ofDim[Byte](arg)
     }
-
   }
 
-  val baosPool = new ObjectPool[ByteArrayOutputStream, Unit] with NoneArg[ByteArrayOutputStream] {
-    override def reset(t: ByteArrayOutputStream) = t.reset()
-    def makeNew(arg: Unit) = new ByteArrayOutputStream(1024 * 1024 + 10)
-  }
-
-  val byteArrayPool = new ObjectPool[Array[Byte], Int] with ArrayArg[Byte] {
-    def classTag = ClassTag.Byte
-  }
+  val byteArrayPool = new ByteArrayObjectPool
 
 }
 
 object Streams extends Utils {
-  import ObjectPools.baosPool
 
   def readFrom(in: InputStream, f: (Array[Byte], Int) => Unit) {
+    val buf = ObjectPools.byteArrayPool.getMinimum(100*1024)
     try {
-      val buf = Array.ofDim[Byte](10240)
       var lastRead = 1
       while (lastRead > 0) {
         lastRead = in.read(buf)
@@ -124,6 +130,7 @@ object Streams extends Utils {
       }
     } finally {
       in.close()
+      ObjectPools.byteArrayPool.recycle(buf)
     }
   }
 
@@ -212,10 +219,11 @@ object Streams extends Utils {
     extends HashingInputStream(in, messageDigest) {
     final def hashComputed(hash2: Array[Byte]) {
       if (!Arrays.equals(hash, hash2)) {
-        verificationFailed()
+        verificationFailed(hash2)
       }
     }
-    def verificationFailed() {
+    def verificationFailed(hash2: Array[Byte]) {
+      l.warn("Hash should be "+Utils.encodeBase64Url(hash)+" but is "+Utils.encodeBase64Url(hash2))
       throw new BackupCorruptedException(file)
     }
   }
@@ -270,7 +278,7 @@ object Streams extends Utils {
 
   class BlockOutputStream(val blockSize: Int, func: (Array[Byte] => _)) extends OutputStream {
 
-    var out = baosPool.get
+    var out = new ByteArrayOutputStream(blockSize)
 
     var funcWasCalledOnce = false
 
@@ -304,7 +312,7 @@ object Streams extends Utils {
       if (out.size() > 0 || !funcWasCalledOnce)
         func(out.toByteArray())
       super.close()
-      baosPool.recycle(out)
+      out.recycle()
       // out was returned to the pool, so remove instance pointer
       out = null
     }

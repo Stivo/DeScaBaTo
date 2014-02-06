@@ -1,6 +1,5 @@
 package ch.descabato
 
-import java.io.ByteArrayOutputStream
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.file.Files

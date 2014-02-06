@@ -23,12 +23,12 @@ object CompressedStream extends Utils {
     if (write == 0) {
       return (0, content)
     }
-    var baos = ObjectPools.baosPool.get
+    var baos = new ByteArrayOutputStream(content.length+16)
     val wrapped = getCompressor(write, baos)
     wrapped.write(content)
     wrapped.close()
-    val out = baos.toByteArray
-    ObjectPools.baosPool.recycle(baos)
+    ObjectPools.byteArrayPool.recycle(content)
+    val out = baos.toByteArray(true)
     (write.toByte, out)
   }
 

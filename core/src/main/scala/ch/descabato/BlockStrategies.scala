@@ -1,7 +1,6 @@
 package ch.descabato
 
 import java.io.FileInputStream
-import java.io.ByteArrayOutputStream
 import java.util.Arrays
 import java.io.OutputStream
 import java.io.File
@@ -212,6 +211,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
           out.write(header)
           out.write(block)
         }
+        ObjectPools.byteArrayPool.recycle(block)
         currentIndex.bos.write(hash)
         knownBlocksWritten += ((hash, curNum))
     }

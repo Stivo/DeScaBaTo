@@ -11,7 +11,6 @@ import Streams._
 import java.io.FileInputStream
 import java.security.MessageDigest
 import java.util.Arrays
-import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.io.SequenceInputStream
@@ -605,8 +604,8 @@ class BackupHandler(val config: BackupFolderConfiguration)
         fis.getChannel.position(0)
       }
       lazy val compressionDisabled = compressionFor(fileDesc)
-      val (fileHash, hashList) = ObjectPools.baosPool.withObject((), {
-        out: ByteArrayOutputStream =>
+      val (fileHash, hashList) = {
+    	  val out = new ByteArrayOutputStream()
           val md = config.getMessageDigest
           def hashAndWriteBlock(buf: Array[Byte]) {
             val hash = md.digest(buf)
@@ -625,8 +624,8 @@ class BackupHandler(val config: BackupFolderConfiguration)
             sis.close()
             hos.out.get
           }
-          (hash, out.toByteArray())
-      })
+          (hash, out.toByteArray(true))
+      }
       assert(hashList.length != 0)
       if (hashList.length == fileHash.length) {
         null
@@ -797,6 +796,8 @@ class RestoreHandler(val config: BackupFolderConfiguration)
     } catch {
       case e @ BackupCorruptedException(f, false) =>
         finishReading
+        throw e
+      case e: IOException if e.getMessage.toLowerCase.contains ("no space left") =>
         throw e
       case e: Exception =>
         finishReading

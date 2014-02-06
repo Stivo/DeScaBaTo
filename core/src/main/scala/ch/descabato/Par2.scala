@@ -24,7 +24,6 @@ object CommandLineToolSearcher {
   private def find(name: String): Option[String] = {
     try {
       val proc = Runtime.getRuntime().exec(name)
-      println(name)
       proc.waitFor() match {
         case 3 | 0 => return Some(name)
         case _ =>

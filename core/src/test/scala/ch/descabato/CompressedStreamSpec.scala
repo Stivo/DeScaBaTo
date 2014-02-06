@@ -7,7 +7,6 @@ import java.util.Arrays
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.Set
-import java.io.ByteArrayOutputStream
 import scala.collection.mutable.ArrayBuffer
 import java.util.{ List => JList }
 import java.util.ArrayList
@@ -70,13 +69,21 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll with Generato
     wrapped.close()
     val (header, compressed) = CompressedStream.compress(toEncode, fho, disable)
     
-    val encoded = baosOriginal.toByteArray()
+    val encoded = baosOriginal.toByteArray(true)
     encoded(0) should be (header)
     assert(Arrays.equals(encoded.tail,compressed))
     val in = new ByteArrayInputStream(encoded)
     val read = CompressedStream.readStream(in).readFully
     assert(Arrays.equals(read, toEncode))
     }
+  }
+  
+  override val invokeBeforeAllAndAfterAllEvenIfNoTestsAreExpected = true
+  
+  override def afterAll() {
+    import ObjectPools.{foundExactCounter, foundExactRequests, foundMinimumCounter, foundMinimumRequests}
+    l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
+    l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
   }
 
 }

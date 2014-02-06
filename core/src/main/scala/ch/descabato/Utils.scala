@@ -29,19 +29,19 @@ object Utils extends Logging {
   def normalizePath(x: String) = x.replace('\\', '/')
 
   def logException(t: Throwable) {
-    ObjectPools.baosPool.withObject(Unit, { baos =>
-      val ps = new PrintStream(baos)
-      def print(t: Throwable) {
-        t.printStackTrace(ps)
-        if (t.getCause() != null) {
-          ps.println()
-          ps.println("Caused by: ")
-          print(t.getCause())
-        }
+    val baos = new ByteArrayOutputStream()
+    val ps = new PrintStream(baos)
+    def print(t: Throwable) {
+      t.printStackTrace(ps)
+      if (t.getCause() != null) {
+        ps.println()
+        ps.println("Caused by: ")
+        print(t.getCause())
       }
-      print(t)
-      logger.debug(new String(baos.toByteArray))
-    })
+    }
+    print(t)
+    logger.debug(baos.toString())
+    baos.recycle()
   }
 
   def closeTFile(x: TFile) {

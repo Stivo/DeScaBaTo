@@ -30,7 +30,7 @@ object CLI extends Utils {
 
   def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
     case Some(x) => x
-    case None => println("No command named " + name + " exists."); new HelpCommand()
+    case None => l.warn("No command named " + name + " exists."); new HelpCommand()
   }
 
   def parseCommandLine(args: Seq[String]) {
@@ -231,7 +231,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
         val ps = new PrintStream(new Streams.UnclosedFileOutputStream(bat))
         ps.print(line)
         ps.close()
-        println("A file " + bat + " has been written to execute this backup again")
+        l.info("A file " + bat + " has been written to execute this backup again")
       }
     }
     writeTo(new File(".", conf.folder.getName() + suffix))

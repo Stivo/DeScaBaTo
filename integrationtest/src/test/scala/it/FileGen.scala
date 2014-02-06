@@ -11,6 +11,7 @@ import ch.descabato.OldIndexVisitor
 import scala.collection.mutable
 import java.io.RandomAccessFile
 import ch.descabato.TestUtils
+import ch.descabato.Utils
 import java.io.OutputStream
 
 class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) extends TestUtils {
@@ -42,8 +43,15 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     }
     times(10)(newFile(0))
     Files.copy(copyFrom1.toPath, new File(folder, "copy1").toPath)
-    Files.copy(selectFile.toPath, new File(folder, "copy2").toPath)
-    Files.copy(selectFile.toPath, new File(folder, "copy3").toPath)
+    def selectSmallFile() = {
+      var file = selectFile
+      while (file.length > 10*1024*1024) {
+        file = selectFile
+      }
+      file
+    }
+    Files.copy(selectSmallFile.toPath, new File(folder, "copy2").toPath)
+    Files.copy(selectSmallFile.toPath, new File(folder, "copy3").toPath)
   }
 
   def rescan() {
@@ -120,7 +128,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     case 0 => throw new IllegalArgumentException("Not possible")
     case i if i >= 1 => x(random.nextInt(i))
   }
-  
+
   def selectFile() = {
     if (fileList.isEmpty) {
       rescan
@@ -130,7 +138,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     }
     select(fileList)
   }
-  
+
   def selectFolder() = {
     if (folderList.isEmpty) {
       rescan
@@ -143,9 +151,9 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     }
     select(folderList)
   }
-  
+
   def selectFolderOrFile() = {
-    select(List(selectFile, selectFolder)) 
+    select(List(selectFile, selectFolder))
   }
 
   def generateName() = random.alphanumeric.take(15).mkString ++ random.nextString(3)
@@ -172,7 +180,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
           }
         }
         fos.close()
-        l.debug("New file created "+name)
+        l.debug("New file created "+name+" "+Utils.readableFileSize(name.length))
         fileList += name
         done = true
         Thread.sleep(random.nextInt(100))
@@ -187,12 +195,12 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
 
   def newFolder(baseIn: Option[File] = None) {
     val base = selectFolder
-    
+
     var name: File = null
     do {
       name = new File(base, generateName)
       name.mkdir()
-      
+
     } while (!name.exists())
     l.debug("folder was created "+name)
     folderList += name

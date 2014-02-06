@@ -7,7 +7,6 @@ import java.util.Arrays
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.Set
-import java.io.ByteArrayOutputStream
 import scala.collection.mutable.ArrayBuffer
 import java.util.{ List => JList }
 import java.util.ArrayList
