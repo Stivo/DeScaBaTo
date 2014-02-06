@@ -15,4 +15,6 @@ jacoco.settings
 
 testOptions in Test += Tests.Argument("-oF")
 
+test in Test <<= (test in Test).dependsOn(pack in core)
+
 libraryDependencies += "org.apache.commons" % "commons-exec" % "1.2" % "test"

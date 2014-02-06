@@ -91,7 +91,9 @@ class IntegrationTest extends RichFlatSpec with BeforeAndAfter with BeforeAndAft
 
   CLI._overrideRunsInJar = true
 
-  val batchfile = new File("core/target/pack/bin/descabato").getAbsoluteFile()
+  val suffix = if (Utils.isWindows) ".bat" else ""
+  
+  val batchfile = new File(s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
 
   var baseFolder = new File("integrationtest/testdata")
   var logFolder = new File("integrationtest/logs")
@@ -106,6 +108,7 @@ class IntegrationTest extends RichFlatSpec with BeforeAndAfter with BeforeAndAft
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(currentTestName + ".log")
+    cmdLine.addArgument("--noansi")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
