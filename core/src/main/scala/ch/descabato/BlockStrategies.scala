@@ -13,6 +13,7 @@ import net.java.truevfs.access.TFileOutputStream
 import java.io.BufferedOutputStream
 import net.java.truevfs.access.TVFS
 import net.java.truevfs.access.TFileInputStream
+import java.nio.ByteBuffer
 
 /**
  * A block strategy saves and retrieves blocks.
@@ -203,7 +204,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
     compress match {
       case (hash, header, block) =>
         val hashS = encodeBase64Url(hash)
-        if (currentZip != null && currentZip.size + block.length + hashS.length > volumeSize.bytes) {
+        if (currentZip != null && currentZip.size + block.remaining() + hashS.length > volumeSize.bytes) {
           endZip
         }
         if (currentZip == null) {
@@ -211,9 +212,9 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
         }
         currentZip.writeEntry(hashS) { out =>
           out.write(header)
-          out.write(block)
+          block.writeTo(out)
         }
-        ObjectPools.byteArrayPool.recycle(block)
+        block.recycle()
         currentIndex.bos.write(hash)
         knownBlocksWritten += ((hash, curNum))
     }
@@ -234,7 +235,7 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   var currentZip: ZipFileWriter = null
   var currentIndex: IndexWriter = null
 
-  type CompressResult = (Array[Byte], Byte, Array[Byte])
+  type CompressResult = (Array[Byte], Byte, ByteBuffer)
 
   private var futures: List[Future[CompressResult]] = List()
 

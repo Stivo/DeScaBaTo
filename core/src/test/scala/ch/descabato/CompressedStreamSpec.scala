@@ -20,6 +20,7 @@ import scala.util.Random
 import org.scalacheck.Arbitrary
 import org.scalacheck._
 import Arbitrary.arbitrary
+import Utils.ByteBufferUtils
 
 class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
@@ -61,8 +62,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll with Generato
     override def toString = s"Compression mode is $compressor, keylength is $keyLength, passphrase is $passphrase"
   }
   
-  forAll(minSize(0), maxSize(1000000), minSuccessful(30)) { (fho: FHO, toEncode: Array[Byte], disable: Boolean) =>
-    whenever (fho.passphrase.isEmpty || fho.passphrase.get.length >= 6) {
+  forAll(minSize(0), maxSize(1000000), minSuccessful(50)) { (fho: FHO, toEncode: Array[Byte], disable: Boolean) => {
     val baosOriginal = new ByteArrayOutputStream()
     val wrapped = CompressedStream.wrapStream(baosOriginal, fho, disable)
     wrapped.write(toEncode)
@@ -71,7 +71,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll with Generato
     
     val encoded = baosOriginal.toByteArray(true)
     encoded(0) should be (header)
-    assert(Arrays.equals(encoded.tail,compressed))
+    assert(Arrays.equals(encoded.tail,compressed.toArray()))
     val in = new ByteArrayInputStream(encoded)
     val read = CompressedStream.readStream(in).readFully
     assert(Arrays.equals(read, toEncode))

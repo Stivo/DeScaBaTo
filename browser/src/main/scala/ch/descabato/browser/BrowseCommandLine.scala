@@ -13,7 +13,6 @@ class BrowseCommand extends BackupRelatedCommand {
   type T = SimpleBackupFolderOption
   def newT(args: Seq[String]) = new SimpleBackupFolderOption(args)
   def start(t: T, conf: BackupFolderConfiguration) {
-    t.afterInit
     println(t.summary)
     val bh = new VfsIndex(conf) with ZipBlockStrategy
     bh.registerIndex()

@@ -8,6 +8,11 @@ import net.java.truevfs.access.TFile
 import net.java.truevfs.access.TVFS
 import java.io.File
 import java.nio.file.Files
+import java.io.InputStream
+import java.nio.ByteBuffer
+import java.io.OutputStream
+import sun.nio.ch.DirectBuffer
+import java.nio.HeapByteBuffer
 
 object Utils extends Logging {
 
@@ -46,6 +51,34 @@ object Utils extends Logging {
 
   def closeTFile(x: TFile) {
     TVFS.umount(x.getMountPoint())
+  }
+
+  implicit class ByteBufferUtils(buf: ByteBuffer) {
+    def writeTo(out: OutputStream) {
+      if (buf.hasArray()) {
+        out.write(buf.array(), buf.position(), buf.limit() - buf.position())
+      }
+      else {
+        throw new UnsupportedOperationException("Not yet implemented, but easy to do")
+      }
+    }
+
+    def recycle() {
+      buf match {
+        case x: DirectBuffer => x.cleaner().clean()
+        case x if x.hasArray() => ObjectPools.byteArrayPool.recycle(x.array())
+      }
+    }
+    
+    def toArray() = {
+      if (buf.hasArray()) {
+        val out = new Array[Byte](buf.limit())
+        System.arraycopy(buf.array(), buf.arrayOffset(), out, 0, buf.remaining())
+        out
+      } else {
+        throw new UnsupportedOperationException("Not yet implemented, but easy to do")
+      }
+    }
   }
 
 }

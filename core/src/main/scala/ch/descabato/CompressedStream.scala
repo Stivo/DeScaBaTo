@@ -12,23 +12,24 @@ import java.io.File
 import java.io.FileInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
+import java.nio.ByteBuffer
 
 /**
  * Adds compressors and decompressors
  */
 object CompressedStream extends Utils {
   
-  def compress(content: Array[Byte], config: BackupFolderConfiguration, disableCompression: Boolean = false) : (Byte, Array[Byte]) = {
+  def compress(content: Array[Byte], config: BackupFolderConfiguration, disableCompression: Boolean = false) : (Byte, ByteBuffer) = {
     val write = if (disableCompression) 0 else config.compressor.ordinal()
     if (write == 0) {
-      return (0, content)
+      return (0, ByteBuffer.wrap(content))
     }
     var baos = new ByteArrayOutputStream(content.length+16)
     val wrapped = getCompressor(write, baos)
     wrapped.write(content)
     wrapped.close()
     ObjectPools.byteArrayPool.recycle(content)
-    val out = baos.toByteArray(true)
+    val out = baos.toByteBuffer()
     (write.toByte, out)
   }
 

@@ -3,6 +3,7 @@ package ch.descabato;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import org.slf4j.Logger;
@@ -176,6 +177,10 @@ public class ByteArrayOutputStream extends OutputStream {
     		recycle();
     	}
         return exactly;
+    }
+    
+    public ByteBuffer toByteBuffer() {
+		return ByteBuffer.wrap(buf, 0, count);
     }
 
     /**
