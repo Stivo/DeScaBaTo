@@ -62,7 +62,9 @@ trait ZipBlockStrategy extends BlockStrategy with Utils {
   def deleteTempFiles() {
     def deleteFile(x: File) = {
       l.debug("Deleting temporary file " + x)
-      x.delete
+      if (!x.delete) {
+        l.warn("Could not delete temporary file "+x)
+      }
     }
 
     def deleteFiles(prefix: String, ft: FileType[_]) = {

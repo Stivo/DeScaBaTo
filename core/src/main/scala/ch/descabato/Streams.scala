@@ -273,7 +273,6 @@ object Streams extends Utils {
     }
 
     def count() = counter
-
   }
 
   class BlockOutputStream(val blockSize: Int, func: (Array[Byte] => _)) extends OutputStream {

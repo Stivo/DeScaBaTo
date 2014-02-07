@@ -30,12 +30,17 @@ import net.java.truevfs.access.TConfig
 import net.java.truevfs.kernel.spec.spi.FsDriverMapFactory
 import net.java.truevfs.kernel.spec.sl.FsDriverMapLocator
 import net.java.truevfs.kernel.spec.FsAccessOption
+import java.nio.channels.FileLock
+import java.nio.channels.FileChannel
+import java.io.RandomAccessFile
 
 /**
  * The configuration to use when working with a backup folder.
  */
 case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
   def this() = this(null)
+  @JsonIgnore
+  var configFileName = prefix + "backup.json"
   var version = ch.descabato.version.BuildInfo.version
   var serializerType = "smile"
   @JsonIgnore
@@ -270,6 +275,27 @@ trait BackupProgressReporting extends Utils {
 abstract class BackupIndexHandler extends Utils {
   val config: BackupFolderConfiguration
 
+  var _lock: Option[(RandomAccessFile, FileLock)] = None
+
+  def takeLock() {
+    val file = new File(config.folder, config.configFileName)
+    try {
+      val fis = new RandomAccessFile(file, "rw")
+      val lock = fis.getChannel().tryLock()
+      _lock = Some((fis, lock))
+    } catch {
+      case e: IOException => throw new BackupInUseException().initCause(e)
+    }
+  }
+
+  def releaseLock() {
+    _lock match {
+      case Some((file, lock)) =>
+        lock.close(); file.close()
+      case None =>
+    }
+  }
+
   lazy val fileManager = config.fileManager
 
   def loadOldIndex(temp: Boolean = false, date: Option[Date] = None): Buffer[BackupPart] = {
@@ -442,8 +468,8 @@ class BackupHandler(val config: BackupFolderConfiguration)
       hashListMapCheckpoint ++= keepHashlists
     }
     // checkpoint the files, after the corresponding hash lists have been saved
-    val (toSave, toKeep) = seq.partition{
-      x => 
+    val (toSave, toKeep) = seq.partition {
+      x =>
         val list = getHashList(x)
         if (list.size == 1) blockExists(list.head)
         else saveHashlists.map(_._1).contains(x.hash: BAWrapper2)
@@ -456,9 +482,10 @@ class BackupHandler(val config: BackupFolderConfiguration)
   var failed = Buffer[FileDescription]()
 
   var deletedCopy: Buffer[FileDescription] = Buffer()
-  
+
   def backup(files: Seq[File]) {
     config.folder.mkdirs()
+    takeLock()
     l.info("Starting backup")
     // Walk tree and compile to do list
     val visitor = new OldIndexVisitor(loadOldIndexAsMap(true), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
@@ -530,6 +557,7 @@ class BackupHandler(val config: BackupFolderConfiguration)
       fileManager.files.deleteTempFiles()
     }
     l.info("Backup completed")
+    releaseLock()
   }
 
   val useNoCompressionList = true
@@ -605,26 +633,26 @@ class BackupHandler(val config: BackupFolderConfiguration)
       }
       lazy val compressionDisabled = compressionFor(fileDesc)
       val (fileHash, hashList) = {
-    	  val out = new ByteArrayOutputStream()
-          val md = config.getMessageDigest
-          def hashAndWriteBlock(buf: Array[Byte]) {
-            val hash = md.digest(buf)
-            out.write(hash)
-            if (!blockExists(hash)) {
-              writeBlock(hash, buf, compressionDisabled)
-            }
-            byteCounter += buf.size
-            updateProgress
+        val out = new ByteArrayOutputStream()
+        val md = config.getMessageDigest
+        def hashAndWriteBlock(buf: Array[Byte]) {
+          val hash = md.digest(buf)
+          out.write(hash)
+          if (!blockExists(hash)) {
+            writeBlock(hash, buf, compressionDisabled)
           }
-          val hash = {
-            val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, hashAndWriteBlock _)
-            val hos = new HashingOutputStream(config.hashAlgorithm)
-            val sis = new SplitInputStream(fis, blockHasher :: hos :: Nil)
-            sis.readComplete
-            sis.close()
-            hos.out.get
-          }
-          (hash, out.toByteArray(true))
+          byteCounter += buf.size
+          updateProgress
+        }
+        val hash = {
+          val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, hashAndWriteBlock _)
+          val hos = new HashingOutputStream(config.hashAlgorithm)
+          val sis = new SplitInputStream(fis, blockHasher :: hos :: Nil)
+          sis.readComplete
+          sis.close()
+          hos.out.get
+        }
+        (hash, out.toByteArray(true))
       }
       assert(hashList.length != 0)
       if (hashList.length == fileHash.length) {
@@ -797,7 +825,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
       case e @ BackupCorruptedException(f, false) =>
         finishReading
         throw e
-      case e: IOException if e.getMessage.toLowerCase.contains ("no space left") =>
+      case e: IOException if e.getMessage.toLowerCase.contains("no space left") =>
         throw e
       case e: Exception =>
         finishReading
@@ -871,7 +899,7 @@ class VerifyHandler(val config: BackupFolderConfiguration)
     (0 to end).foreach { i =>
       val chooseFrom = array.length - 1 - i
       if (chooseFrom > 0)
-    	swap(i, random.nextInt(chooseFrom) + i)
+        swap(i, random.nextInt(chooseFrom) + i)
     }
     array.take(end)
   }
@@ -879,7 +907,7 @@ class VerifyHandler(val config: BackupFolderConfiguration)
   def verifySomeFiles(percent: Int) {
     var files = partitionFolders(index)._2.toArray
     var probes = ((percent * 1.0 / 100.0) * files.size).toInt + 1
-    if (probes > files.size) 
+    if (probes > files.size)
       probes = files.size
     if (probes <= 0)
       return
