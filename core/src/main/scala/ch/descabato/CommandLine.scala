@@ -146,6 +146,7 @@ trait BackupRelatedCommand extends Command with Utils {
   final override def execute(args: Seq[String]) {
     try {
       val t = newT(args)
+      t.afterInit()
       if (t.logfile.isSupplied) {
         System.setProperty("logname", t.logfile())
       }
@@ -162,7 +163,6 @@ trait BackupRelatedCommand extends Command with Utils {
 
   def start(t: T) {
     import BackupVerification._
-    t.afterInit
     val confHandler = new BackupConfigurationHandler(t)
     var passphrase = t.passphrase.get
     confHandler.verify(needsExistingBackup) match {

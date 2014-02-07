@@ -33,14 +33,38 @@ import javax.swing.*;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowListener;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 
 public class BackupBrowser {
-
+  
   private static final Logger LOGGER = LoggerFactory.getLogger(BackupBrowser.class);
-
+  
+  static Thread main = Thread.currentThread();
+  
+  private static volatile boolean finished = false; 
+  
+  static WindowListener finishedListener = new WindowAdapter() {
+	  public void windowClosed(java.awt.event.WindowEvent e) {
+		  finished = true;
+		  // Failsafe kill switch
+		  new Thread() {
+			  public void run() {
+				  try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				  System.exit(1);
+			  }
+		  }.start();
+	  };
+  };
+  
   public static void main2(final String[] args) throws InterruptedException, InvocationTargetException, SecurityException, IOException {
     if (args.length > 1)
       throw new IllegalArgumentException("SYNTAX:  java... "
@@ -52,6 +76,7 @@ public class BackupBrowser {
       public void run() {
         tryLoadSubstanceLookAndFeel();
         final JFrame f = new JFrame("OtrosVfsBrowser demo");
+        f.addWindowListener(finishedListener);
         Container contentPane = f.getContentPane();
         contentPane.setLayout(new BorderLayout());
         DataConfiguration dc = null;
@@ -118,6 +143,8 @@ public class BackupBrowser {
 
       }
     });
+    while (!finished)
+    	Thread.sleep(100);
   }
 
   private static void tryLoadSubstanceLookAndFeel() {

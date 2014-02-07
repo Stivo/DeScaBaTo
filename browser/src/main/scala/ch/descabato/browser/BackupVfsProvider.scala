@@ -75,7 +75,8 @@ class BackupFileSystem(name: AbstractFileName, fo: FileObject, options: FileSyst
   }
 
   protected def createFile(name: AbstractFileName): FileObject = {
-    val path = Utils.normalizePath(name.toString().drop("backup:file://".length()).takeWhile(_ != '!'))
+    val dropMore = if (Utils.isWindows) 1 else 0
+    val path = Utils.normalizePath(name.toString().drop("backup:file://".length()).drop(dropMore).takeWhile(_ != '!'))
     val index = BackupVfsProvider.indexes(path)
     new BackupFileObject(name, index, this);
   }
@@ -87,7 +88,8 @@ case class FakeBackupFolder(val path: String) extends BackupPart {
   val size = 0L
 }
 
-class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFileSystem) extends AbstractFileObject(name, fs) with FileObject {
+class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFileSystem) 
+	extends AbstractFileObject(name, fs) with FileObject with Utils {
 
   // On windows, the url starts with !/c:/, and the paths in the backup start with c:
   // On linux, only the ! needs to be taken out
@@ -109,12 +111,16 @@ class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFile
     }
   }
 
+  def isPathChar(x: Char) = x == '/' || x == '\\'
+  
+  def nextPathPart(x: String) = x.drop(nameInBackup.length()).dropWhile(isPathChar).takeWhile(!isPathChar(_))
+    
   lazy val childrenOfPath = {
     val out = if (nameInBackup == "") {
       index.files.map(_.path.take(3)).toSet.toSeq.sorted
     } else {
       val candidates = index.files.filter(x => Utils.normalizePath(x.path).startsWith(nameInBackup))
-      candidates.map(_.path.drop(nameInBackup.length()).dropWhile(_=='/').takeWhile(x => x != '\\' && x != '/')).toSet.toSeq.sorted
+      candidates.map(x => nextPathPart(x.path)).toSet.toSeq.sorted
     }
     out.filter(_ != "")
   }

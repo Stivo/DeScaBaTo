@@ -832,7 +832,7 @@ class RestoreHandler(val config: BackupFolderConfiguration)
         l.warn("Exception while restoring " + fd.path + " (" + e.getMessage() + ")")
         logException(e)
     } finally {
-      closeAbles.foreach(_.close)
+      closeAbles.reverse.foreach(_.close)
     }
     fileCounter += 1
     byteCounter += fd.size
