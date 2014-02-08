@@ -1,4 +1,4 @@
-package ch.descabato
+package ch.descabato.core
 
 import java.io.File
 import java.util.HashMap
@@ -18,6 +18,44 @@ import java.nio.file.attribute.PosixFilePermissions
 import java.security.Principal
 import java.nio.file.attribute.PosixFileAttributeView
 import java.io.IOException
+import ch.descabato.utils.SmileSerialization
+import java.security.MessageDigest
+import ch.descabato.utils.JsonSerialization
+import ch.descabato.CompressionMode
+import ch.descabato.utils.Utils
+import scala.collection.mutable.Buffer
+import scala.collection.mutable
+
+case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
+  def this() = this(null)
+  @JsonIgnore
+  var configFileName = prefix + "backup.json"
+  var version = ch.descabato.version.BuildInfo.version
+  var serializerType = "smile"
+  @JsonIgnore
+  def serialization(typ: String = serializerType) = typ match {
+    case "smile" => new SmileSerialization
+    case "json" => new JsonSerialization
+  }
+  var keyLength = 128
+  var compressor = CompressionMode.gzip
+  def hashLength = getMessageDigest().getDigestLength()
+  var hashAlgorithm = "MD5"
+  @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
+  var blockSize: Size = Size("16Kb")
+  var volumeSize: Size = Size("100Mb")
+  var threads: Int = 1
+  var checkPointEvery: Size = volumeSize
+  val useDeltas = false
+  var hasPassword = passphrase.isDefined
+  var renameDetection = true
+  var redundancyEnabled = false
+  var metadataRedundancy: Int = 20
+  var volumeRedundancy: Int = 5
+  var saveSymlinks: Boolean = true
+  @JsonIgnore def raes = if (hasPassword) ".raes" else ""
+}
+
 
 class FileAttributes extends HashMap[String, Any] with Utils {
 
@@ -174,6 +212,36 @@ trait BackupPart extends UpdatePart {
 case class SymbolicLink(val path: String, val linkTarget: String, val attrs: FileAttributes) extends BackupPart {
   def size = 0L
   def isFolder = false
+}
+
+class BackupDescription(val files: Buffer[FileDescription], val folders: Buffer[FolderDescription],
+  val symlinks: Buffer[SymbolicLink], val deleted: Buffer[FileDeleted]) {
+  def this() = this(Buffer.empty, Buffer.empty, Buffer.empty, Buffer.empty)
+  def merge(later: BackupDescription) = {
+    val set = later.deleted.map(_.path)
+    def remove[T <: BackupPart](x: Buffer[T]) = {
+      x.filterNot(bp => set contains bp.path)
+    }
+    new BackupDescription(remove(files) ++ later.files, remove(folders) ++ later.folders,
+      remove(symlinks) ++ later.symlinks, later.deleted)
+  }
+  
+  def asMap(): mutable.Map[String, BackupPart] = {
+    val map = new mutable.HashMap[String, BackupPart]
+    (files ++ folders ++ symlinks).foreach {x => map += ((x.path, x))}
+    map
+  }
+  
+  def += (x: UpdatePart) = x match {
+    case x: FileDescription => files += x
+    case x: FolderDescription => folders += x
+    case x: SymbolicLink => symlinks += x
+  }
+  
+  def size = files.size + folders.size + symlinks.size
+  
+  def isEmpty() = size == 0
+  
 }
 
 /**

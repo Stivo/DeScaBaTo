@@ -1,4 +1,4 @@
-package ch.descabato
+package ch.descabato.core
 
 import scala.reflect.ClassTag
 import scala.collection.mutable.Buffer
@@ -10,6 +10,8 @@ import java.io.FileInputStream
 import java.io.BufferedOutputStream
 import java.io.BufferedInputStream
 import com.fasterxml.jackson.core.JsonProcessingException
+import ch.descabato.utils.Utils
+import ch.descabato.utils.ZipFileHandlerFactory
 
 class VolumeIndex extends HashMap[String, Int]
 
@@ -127,7 +129,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     try {
       w.enableCompression
       val desc = new ZipEntryDescription(objectEntry, config.serializerType, m.toString)
-      w.writeManifest(config)
+      w.writeManifest(fileManager)
       w.writeJson(filesEntry, List(desc))
       w.writeEntry(objectEntry) { fos =>
         config.serialization().writeObject(x, fos)
@@ -142,11 +144,12 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     var firstCopy = first
     val reader = ZipFileHandlerFactory.reader(f, config)
     try {
-      Par2Handler.getHashIfCovered(f).foreach { hash =>
-        reader.verifyMd5(hash)
-        // Do not try to repair again
-        firstCopy = false
-      }
+      // TODO
+//      Par2Handler.getHashIfCovered(f).foreach { hash =>
+//        reader.verifyMd5(hash)
+//        // Do not try to repair again
+//        firstCopy = false
+//      }
       val entries = reader.getJson[List[ZipEntryDescription]](filesEntry)
       entries match {
         case Left(ZipEntryDescription(name, serType, clas) :: Nil) => {
@@ -176,7 +179,8 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       case e @ BackupCorruptedException(f, false) if firstCopy && failureOption == OnFailureTryRepair => {
         logException(e)
         reader.close
-        Par2Handler.tryRepair(f, config)
+        // TODO
+//        Par2Handler.tryRepair(f, config)
         // tryRepair will throw exception if repair fails, so if we end up here, just try again
         return read(f, failureOption, false)
       }
@@ -207,6 +211,7 @@ class FileManager(config: BackupFolderConfiguration) {
   val volumes = new FileType[Volume]("volume_", false, ".zip", localC = false)
   val hashlists = new FileType[Buffer[(BAWrapper2, Array[Byte])]]("hashlists_", false, ".zip")
   val files = new FileType[Buffer[BackupPart]]("files_", true, ".zip", hasDateC = true)
+  val backup = new FileType[BackupDescription]("backup_", true, ".zip", hasDateC = true)
   val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".zip", hasDateC = true)
   val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
@@ -215,7 +220,7 @@ class FileManager(config: BackupFolderConfiguration) {
   val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
   val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
 
-  private val types = List(volumes, hashlists, files, filesDelta, index, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
+  private val types = List(volumes, hashlists, files, filesDelta, backup, index, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
   types.foreach { x => x.config = config; x.fileManager = this }
 

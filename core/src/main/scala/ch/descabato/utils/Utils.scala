@@ -1,4 +1,4 @@
-package ch.descabato
+package ch.descabato.utils
 
 import java.io.PrintStream
 import javax.xml.bind.DatatypeConverter
@@ -13,6 +13,7 @@ import java.nio.ByteBuffer
 import java.io.OutputStream
 import sun.nio.ch.DirectBuffer
 import java.nio.HeapByteBuffer
+import ch.descabato.ByteArrayOutputStream
 
 object Utils extends Logging {
 

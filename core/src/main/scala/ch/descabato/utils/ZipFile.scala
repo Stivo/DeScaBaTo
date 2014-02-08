@@ -1,4 +1,4 @@
-package ch.descabato
+package ch.descabato.utils
 
 import java.io.File
 import scala.collection.JavaConversions._
@@ -9,9 +9,9 @@ import java.io.BufferedInputStream
 import java.util.zip.ZipOutputStream
 import java.io.FileInputStream
 import java.io.OutputStream
-import ch.descabato.Streams.CountingOutputStream
+import Streams.CountingOutputStream
 import java.io.InputStream
-import ch.descabato.Streams.DelegatingInputStream
+import Streams.DelegatingInputStream
 import net.java.truevfs.access.TFile
 import net.java.truevfs.access.TFileOutputStream
 import net.java.truevfs.access.TVFS
@@ -22,7 +22,10 @@ import net.java.truevfs.access.TConfig
 import net.java.truevfs.kernel.spec.FsAccessOption
 import java.io.IOException
 import java.io.FileOutputStream
-import ch.descabato.Streams.DelegatingOutputStream
+import Streams.DelegatingOutputStream
+import ch.descabato.core.BackupFolderConfiguration
+import ch.descabato.version.BuildInfo
+import ch.descabato.core.FileManager
 
 case class MetaInfo(date: String, writingVersion: String)
 
@@ -98,9 +101,9 @@ trait ZipFileWriter extends ZipFileHandlerCommon {
     }
   }
 
-  def writeManifest(x: BackupFolderConfiguration) {
-    val versionNumber: String = version.BuildInfo.version
-    val m = new MetaInfo(x.fileManager.getDateFormatted, versionNumber)
+  def writeManifest(fm: FileManager) {
+    val versionNumber: String = BuildInfo.version
+    val m = new MetaInfo(fm.getDateFormatted, versionNumber)
     writeJson("manifest.txt", m)
   }
 

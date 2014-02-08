@@ -5,6 +5,8 @@ import java.io.File
 import java.nio.file.Files
 import org.scalatest.FreeSpec
 import org.scalatest.FlatSpec
+import ch.descabato.utils.Utils
+import org.scalatest.FlatSpecLike
 
 trait TestUtils extends Utils {
 
@@ -42,11 +44,11 @@ trait TestUtils extends Utils {
 }
 
 /**
- * Adds a field `currentTestName` that you can use inside a FreeSpec test,
+ * Adds a field `currentTestName` that you can use inside a FlatSpecLike test,
  * if you for example have many tests that take rather long, and you wonder
  * which one is currently running.
  */
-class RichFlatSpec extends FlatSpec {
+trait RichFlatSpecLike extends FlatSpecLike {
 
   private var _currentTestName: Option[String] = None
   def currentTestName = _currentTestName getOrElse "DwE90RXP2"

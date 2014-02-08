@@ -1,4 +1,4 @@
-package ch.descabato
+package ch.descabato.utils
 
 import java.io.OutputStream
 import java.io.InputStream
@@ -13,14 +13,17 @@ import java.io.FileInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import java.nio.ByteBuffer
+import ch.descabato.core.BackupFolderConfiguration
+import ch.descabato.ByteArrayOutputStream
+import ch.descabato.CompressionMode
 
 /**
  * Adds compressors and decompressors
  */
 object CompressedStream extends Utils {
   
-  def compress(content: Array[Byte], config: BackupFolderConfiguration, disableCompression: Boolean = false) : (Byte, ByteBuffer) = {
-    val write = if (disableCompression) 0 else config.compressor.ordinal()
+  def compress(content: Array[Byte], compressor: CompressionMode, disableCompression: Boolean = false) : (Byte, ByteBuffer) = {
+    val write = if (disableCompression) 0 else compressor.getByte()
     if (write == 0) {
       return (0, ByteBuffer.wrap(content))
     }
@@ -35,7 +38,7 @@ object CompressedStream extends Utils {
 
   def getCompressor(byte: Int, out: OutputStream) = {
     CompressionMode.getByByte(byte) match {
-      case CompressionMode.gzip => new GZIPOutputStream(out)
+      case CompressionMode.gzip => new GZIPOutputStream(out, 65536)
       case CompressionMode.lzma => new XZOutputStream(out, new LZMA2Options())
       case CompressionMode.bzip2 => new BZip2CompressorOutputStream(out)
       case CompressionMode.none => out
@@ -45,15 +48,15 @@ object CompressedStream extends Utils {
   def readStream(in: InputStream): InputStream = {
     val byte = in.read()
     CompressionMode.getByByte(byte) match {
-      case CompressionMode.gzip => new GZIPInputStream(in)
+      case CompressionMode.gzip => new GZIPInputStream(in, 65536)
       case CompressionMode.lzma => new XZInputStream(in)
       case CompressionMode.bzip2 => new BZip2CompressorInputStream(in)
       case _ => in
     }
   }
   
-  def wrapStream(out: OutputStream, config: BackupFolderConfiguration, disableCompression: Boolean = false) = {
-    val write = if (disableCompression) 0 else config.compressor.getByte()
+  def wrapStream(out: OutputStream, compressor: CompressionMode, disableCompression: Boolean = false) = {
+    val write = if (disableCompression) 0 else compressor.getByte()
     out.write(write)
     getCompressor(write, out)
   }

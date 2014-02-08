@@ -7,13 +7,22 @@ import java.util.Arrays
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.Set
-import java.io.ByteArrayOutputStream
 import scala.collection.mutable.ArrayBuffer
 import java.util.{List => JList}
 import java.util.ArrayList
 import scala.collection.convert.DecorateAsScala
 import scala.collection.JavaConversions._
 import java.io.ByteArrayInputStream
+import ch.descabato.core.FileDeleted
+import ch.descabato.core.FileDescription
+import ch.descabato.utils.SmileSerialization
+import ch.descabato.core.UpdatePart
+import ch.descabato.utils.JsonSerialization
+import ch.descabato.core.BAWrapper2
+import ch.descabato.core.SymbolicLink
+import ch.descabato.core.FolderDescription
+import ch.descabato.utils.Serialization
+import ch.descabato.core.FileAttributes
 
 class SerializationSpec extends FlatSpec with TestUtils {
  

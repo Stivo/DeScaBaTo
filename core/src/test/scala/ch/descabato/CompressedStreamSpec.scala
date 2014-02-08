@@ -20,16 +20,21 @@ import scala.util.Random
 import org.scalacheck.Arbitrary
 import org.scalacheck._
 import Arbitrary.arbitrary
-import Utils.ByteBufferUtils
+import utils.Utils.ByteBufferUtils
+import ch.descabato.core.BackupFolderConfiguration
+import ch.descabato.utils.CompressedStream
+import ch.descabato.utils.ObjectPools
+import ch.descabato.utils.Streams
+import ch.descabato.utils.Utils
 
-class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
+class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll 
+	with GeneratorDrivenPropertyChecks with TestUtils {
   import org.scalacheck.Gen._
   
   //ConsoleManager.testSetup
 //  AES.testMode = true
   
   var folder = new File("testdata/temp")
-  
   
   implicit class InputStreamBetter(in: InputStream) {
     def readFully = {
@@ -39,35 +44,19 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll with Generato
     }
   }
 
-  def randomElement[T](ar: Seq[T]) = {
-    val r = new Random()
-    val int = r.nextInt(ar.length - 1)
-    ar(int)
-  }
-  
-  implicit val genNode = Arbitrary {
-    for {
-      v <- oneOf(CompressionMode.values)
-//      keyLength <- oneOf(128, 192, 256)
-//      passphrase <- arbitrary[Option[String]]
-    } yield {
-      val out = new FHO(None);
-      out.compressor = v;
-//      out.keyLength = keyLength;
-      out
-    }
-  }
-  
+  implicit val x = Arbitrary {oneOf(CompressionMode.values)}
+      
   class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, "", passphrase) {
     override def toString = s"Compression mode is $compressor, keylength is $keyLength, passphrase is $passphrase"
   }
   
-  forAll(minSize(0), maxSize(1000000), minSuccessful(50)) { (fho: FHO, toEncode: Array[Byte], disable: Boolean) => {
+  forAll(minSize(0), maxSize(1000000), minSuccessful(50)) 
+  		{ (compressor: CompressionMode, toEncode: Array[Byte], disable: Boolean) => {
     val baosOriginal = new ByteArrayOutputStream()
-    val wrapped = CompressedStream.wrapStream(baosOriginal, fho, disable)
+    val wrapped = CompressedStream.wrapStream(baosOriginal, compressor, disable)
     wrapped.write(toEncode)
     wrapped.close()
-    val (header, compressed) = CompressedStream.compress(toEncode, fho, disable)
+    val (header, compressed) = CompressedStream.compress(toEncode, compressor, disable)
     
     val encoded = baosOriginal.toByteArray(true)
     encoded(0) should be (header)

@@ -1,4 +1,4 @@
-package ch.descabato;
+package ch.descabato.utils
 
 import java.io.InputStream
 import java.io.OutputStream
@@ -24,6 +24,9 @@ import java.util.zip.ZipException
 import org.tukaani.xz.XZIOException
 import org.apache.commons.compress.compressors.CompressorException
 import java.io.IOException
+import ch.descabato.core.BackupCorruptedException
+import ch.descabato.ByteArrayOutputStream
+import ch.descabato.frontend.ProgressReporters
 
 object ObjectPools extends Utils {
 

@@ -9,6 +9,8 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ch.descabato.utils.ObjectPools;
+
 /**
  * This is a modified version of the JDK's ByteArrayOutputStream
  * It is not synchronized and uses the ByteArrayPool.

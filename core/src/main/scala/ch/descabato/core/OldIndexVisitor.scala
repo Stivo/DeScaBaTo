@@ -1,4 +1,4 @@
-package ch.descabato
+package ch.descabato.core
 
 import java.io.File
 import java.nio.file.attribute.BasicFileAttributes
@@ -14,33 +14,23 @@ import java.util.HashSet
 import java.util.Arrays
 import java.nio.file.FileVisitOption
 import java.util.EnumSet
-
-class ClosureVisitor(f: (File, BasicFileAttributes) => Unit) extends FileVisitorHelper {
-
-  override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = {
-    f(dir.toFile(), attrs)
-    super.preVisitDirectory(dir, attrs)
-  }
-
-  override def visitFile(file: Path, attrs: BasicFileAttributes) = {
-    f(file.toFile(), attrs)
-    super.visitFile(file, attrs)
-  }
-
-  override def visitFileFailed(file: Path, exc: IOException) = {
-    FileVisitResult.CONTINUE
-  }
-
-}
+import ch.descabato.FileVisitorHelper
+import ch.descabato.frontend.ProgressReporters
+import ch.descabato.frontend.Counter
 
 class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
   recordNew: Boolean = false, recordAll: Boolean = false, recordUnchanged: Boolean = false,
   progress: Option[Counter] = None) extends FileVisitorHelper {
 
-  val all = Buffer[BackupPart]()
-  lazy val deleted = oldMap.values.toSeq
-  val newFiles = Buffer[BackupPart]()
-  val unchangedFiles = Buffer[BackupPart]()
+  val allDesc = new BackupDescription()
+  val newDesc = new BackupDescription()
+  val unchangedDesc = new BackupDescription()
+  lazy val deletedDesc = {
+    val out = new BackupDescription()
+    oldMap.values.foreach(out += _)
+    out
+  }
+  
   val symManifest = manifest[SymbolicLink]
 
   def handleFile[T <: BackupPart](f: => T, dir: Path, attrs: BasicFileAttributes)(implicit m: Manifest[T]) {
@@ -52,17 +42,17 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
       BackupUtils.findOld(dir.toFile(), oldMap)(m)
     if (old.isDefined) {
       if (recordUnchanged) {
-        unchangedFiles += old.get
+        unchangedDesc += old.get
       }
       if (recordAll) {
         wasadded = true
-        all += old.get
+        allDesc += old.get
       }
     } else if (recordNew) {
-      newFiles += desc
+      newDesc += desc
     }
     if (recordAll && !wasadded) {
-      all += desc
+      allDesc += desc
     }
     progress.foreach { x =>
       x += 1

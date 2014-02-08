@@ -18,7 +18,7 @@ import net.java.truevfs.kernel.spec.FsDriver;
 import net.java.truevfs.kernel.spec.FsModel;
 import net.java.truevfs.kernel.spec.FsScheme;
 
-class TrueVfs {
+public class TrueVfs {
 
 	static Logger log = LoggerFactory.getLogger(TrueVfs.class);
 	

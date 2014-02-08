@@ -1,4 +1,4 @@
-package ch.descabato
+package ch.descabato.utils
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
@@ -26,6 +26,13 @@ import java.io.OutputStream
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector
 import java.io.InputStream
 import java.io.BufferedOutputStream
+import ch.descabato.core.FileDeleted
+import ch.descabato.core.FileDescription
+import ch.descabato.core.BackupPart
+import ch.descabato.core.UpdatePart
+import ch.descabato.core.BAWrapper2
+import ch.descabato.core.SymbolicLink
+import ch.descabato.core.FolderDescription
 
 trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit

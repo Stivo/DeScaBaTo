@@ -1,4 +1,4 @@
-package ch.descabato
+package ch.descabato.frontend
 
 import org.fusesource.jansi.AnsiConsole
 import org.fusesource.jansi.Ansi._
@@ -15,6 +15,7 @@ import org.ocpsoft.prettytime.units.Millisecond
 import scala.collection.JavaConverters._
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow
+import ch.descabato.utils.Utils
 
 object ProgressReporters {
 

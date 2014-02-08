@@ -43,6 +43,8 @@ libraryDependencies ++= Seq(
 		"org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
 )
 
+libraryDependencies += "com.typesafe.akka" % "akka-actor_2.10" % "2.2.3"
+
 parallelExecution in Test := false
 
 testOptions in Test += Tests.Argument("-oF")
