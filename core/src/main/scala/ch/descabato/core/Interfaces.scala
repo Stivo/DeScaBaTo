@@ -4,6 +4,7 @@ import ch.descabato.CompressionMode
 import java.io.InputStream
 import java.util.Date
 import java.nio.ByteBuffer
+import java.util.zip.ZipEntry
 
 trait Universe {
   def config(): BackupFolderConfiguration
@@ -11,6 +12,8 @@ trait Universe {
   def cpuTaskHandler(): CpuTaskHandler
   def hashListHandler(): HashListHandler
   def blockHandler(): BlockHandler
+  def hashHandler(): HashHandler
+  def finish(): Boolean 
   
   lazy val _fileManager = new FileManager(config)
   def fileManager() = _fileManager
@@ -56,7 +59,8 @@ trait BlockHandler extends BackupActor {
   // or multiple blocks
   def blockIsPersisted(hash: Array[Byte]): Boolean
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
-  def writeCompressedBlock(hash: Array[Byte], header: Byte, content: ByteBuffer)
+  def writeCompressedBlock(hash: Array[Byte], zipEntry: ZipEntry, header: Byte, block: ByteBuffer)
+  def remaining: Int
 }
 
 trait CpuTaskHandler {
@@ -65,4 +69,11 @@ trait CpuTaskHandler {
   def computeHash(x: Array[Byte], hashMethod: String, blockId: BlockId)
   // Calls then blockhandler#writeBlockIfNotExists
   def compress(hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean)
+}
+
+trait HashHandler {
+    // Hash this block of this file
+  def hash(blockId: BlockId, block: Array[Byte])
+  // Finish this file, call backupparthandler 
+  def finish(fd: FileDescription)
 }

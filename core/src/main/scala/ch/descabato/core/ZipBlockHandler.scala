@@ -24,7 +24,7 @@ import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Utils.ByteBufferUtils
 import scala.collection.immutable.HashSet
 import ch.descabato.CompressionMode
-
+import java.util.zip.ZipEntry
 /**
  * A block handler that creates zip files with parts of blocks in it.
  * Additionally for each volume an index is written, which stores the hashes
@@ -32,19 +32,16 @@ import ch.descabato.CompressionMode
  * only for restores.
  * File patterns:
  * volume_num.zip => A zip file containing blocks with their hash used as filenames.
- * index_num.zip => A zip file containing a file index with all hashes of the volume 
+ * index_num.zip => A zip file containing a file index with all hashes of the volume
  * with the same number.
  * Only one instance can be used, it is currently not thread safe.
  * To make it thread safe:
  * - Maps would have to be thread safe
  * - Different writers could use same file, but only with the TFile api
  */
-class ZipBlockHandler extends BlockHandler with Utils {
+class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
   import Utils.encodeBase64Url
-  
-  protected var universe: Universe = null
-  protected def config = universe.config
-  protected def fileManager = universe.fileManager
+
   protected def volumeSize = config.volumeSize
   // All persisted blocks
   protected var knownBlocks: Map[BAWrapper2, Int] = Map()
@@ -54,23 +51,19 @@ class ZipBlockHandler extends BlockHandler with Utils {
   // These blocks are not yet persisted, but will be when the zip
   // file is ending
   protected var knownBlocksWritten: Map[BAWrapper2, Int] = Map()
-  protected var _initRan = false 
+  protected var _initRan = false
   protected var curNum = 0
   protected var currentZip: ZipFileWriter = null
   protected var currentIndex: IndexWriter = null
   protected var lastZip: Option[(Int, ZipFileReader)] = None
-  @volatile 
+  @volatile
   protected var outstandingRequests: HashSet[BAWrapper2] = HashSet()
 
   // TODO add in interface?
   def verify(problemCounter: Counter) {
     _init(true, Some(problemCounter))
   }
-  
-  def setup(universe: Universe) {
-    this.universe = universe
-  }
-  
+
   private def _init(verify: Boolean = false, problems: Option[Counter] = None) {
     require(universe != null)
     if (_initRan)
@@ -98,13 +91,13 @@ class ZipBlockHandler extends BlockHandler with Utils {
         val zip = getZipFileReader(num)
         for (name <- zip.names.view.filter(_ != "manifest.txt")) {
           if (!(lastSet contains (name))) {
-            problems.foreach (_ += 1)
+            problems.foreach(_ += 1)
             l.warn("Index file is broken, does not contain " + name)
           }
           lastSet -= name
         }
         for (hash <- lastSet) {
-          problems.foreach (_ += 1)
+          problems.foreach(_ += 1)
           l.warn("Hash " + hash + " is in index, but not in volume")
         }
         lastSet = Set.empty
@@ -113,12 +106,12 @@ class ZipBlockHandler extends BlockHandler with Utils {
     curNum = index.nextNum()
     _initRan = true
   }
-  
+
   def deleteTempFiles() {
     def deleteFile(x: File) = {
       l.debug("Deleting temporary file " + x)
       if (!x.delete) {
-        l.warn("Could not delete temporary file "+x)
+        l.warn("Could not delete temporary file " + x)
       }
     }
 
@@ -134,47 +127,44 @@ class ZipBlockHandler extends BlockHandler with Utils {
     fileManager.index.getFiles().filter(x => set contains (fileManager.index.getNum(x))).foreach(deleteFile)
     fileManager.volumes.getFiles().filter(x => set contains (fileManager.volumes.getNum(x))).foreach(deleteFile)
   }
-  
+
   private def asKey(hash: Array[Byte]): BAWrapper2 = hash
-  
+
   def writeBlockIfNotExists(hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean) {
     val k = asKey(hash)
     if ((knownBlocks contains k) || (knownBlocksTemp contains k))
       return
     knownBlocksTemp += ((hash, curNum))
-    if (compressDisabled || config.compressor == CompressionMode.none) {
-      writeCompressedBlock(hash, 0, ByteBuffer.wrap(block)) 
-    } else {
-      outstandingRequests += hash
-      universe.cpuTaskHandler.compress(hash, block, config.compressor, compressDisabled)
-    }
+    // TODO
+    //    if (compressDisabled || config.compressor == CompressionMode.none) {
+    //      val content = ByteBuffer.wrap(block)
+    //      writeCompressedBlock(hash, ZipFileHandlerFactory.createZipEntry(.0, ByteBuffer.wrap(block))
+    //    } else {
+    outstandingRequests += hash
+    universe.cpuTaskHandler.compress(hash, block, config.compressor, compressDisabled)
+    //    }
   }
 
-  def writeCompressedBlock(hash: Array[Byte], header: Byte, block: ByteBuffer) {
-    val hashS = encodeBase64Url(hash)
-    if (currentZip != null && currentZip.size + block.remaining() + hashS.length > volumeSize.bytes) {
+  def writeCompressedBlock(hash: Array[Byte], zipEntry: ZipEntry, header: Byte, block: ByteBuffer) {
+    if (currentZip != null && currentZip.size + block.remaining() + zipEntry.getName().length > volumeSize.bytes) {
       endZip
     }
     if (currentZip == null) {
       startZip
     }
-    currentZip.writeEntry(hashS) { out =>
-      out.write(header)
-      block.writeTo(out)
-    }
+    currentZip.writeUncompressedEntry(zipEntry, header, block)
     block.recycle()
     currentIndex.bos.write(hash)
     outstandingRequests -= hash
     knownBlocksWritten += ((hash, curNum))
   }
 
-  
   // or multiple blocks
   def blockIsPersisted(hash: Array[Byte]): Boolean = {
     _init()
     knownBlocks contains hash
   }
-  
+
   def readBlock(hash: Array[Byte], verifyHash: Boolean): InputStream = {
     _init()
     val hashS = encodeBase64Url(hash)
@@ -191,14 +181,10 @@ class ZipBlockHandler extends BlockHandler with Utils {
     }
   }
 
-  def cleanup(): Boolean = {
-    finishReading()
-    while (!outstandingRequests.isEmpty) {
-      Thread.sleep(100)
-    }
-    true
+  def remaining(): Int = {
+    outstandingRequests.size
   }
-  
+
   def volumeName(num: Int, temp: Boolean = false) = {
     val add = if (temp) Constants.tempPrefix else ""
     s"${config.prefix}${add}volume_$num.zip${config.raes}"
@@ -251,13 +237,17 @@ class ZipBlockHandler extends BlockHandler with Utils {
       currentIndex = null
     }
   }
-  
+
   def finish() = {
-    endZip
-    finishReading
-    true
+    if (remaining > 0)
+      false
+    else {
+      endZip
+      finishReading
+      true
+    }
   }
-  
+
   def finishReading() {
     lastZip.foreach { case (_, zip) => zip.close() }
     lastZip = None
@@ -268,11 +258,11 @@ class ZipBlockHandler extends BlockHandler with Utils {
       case Some((n, zip)) if (n == num) => zip
       case _ => {
         lastZip.foreach { case (_, zip) => zip.close() }
-        val out = ZipFileHandlerFactory.reader(new File(config.folder, volumeName(num)), config) 
+        val out = ZipFileHandlerFactory.reader(new File(config.folder, volumeName(num)), config)
         lastZip = Some((num, out))
         out
       }
     }
   }
-  
+
 }

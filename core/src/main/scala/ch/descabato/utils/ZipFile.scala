@@ -26,6 +26,8 @@ import Streams.DelegatingOutputStream
 import ch.descabato.core.BackupFolderConfiguration
 import ch.descabato.version.BuildInfo
 import ch.descabato.core.FileManager
+import java.nio.ByteBuffer
+import java.util.zip.CRC32
 
 case class MetaInfo(date: String, writingVersion: String)
 
@@ -41,6 +43,19 @@ object ZipFileHandlerFactory {
   def reader(file: File, config: BackupFolderConfiguration): ZipFileReader = {
     new ZipFileReaderTFile(file)
   }
+  
+  def createZipEntry(name: String, header: Byte, content: ByteBuffer) = {
+    val ze = new ZipEntry(name)
+    ze.setMethod(ZipEntry.STORED)
+    ze.setSize(content.remaining()+1)
+    ze.setCompressedSize(content.remaining()+1)
+    val crc = new CRC32()
+    crc.update(header)
+    crc.update(content.array(), content.position(), content.remaining())
+    ze.setCrc(crc.getValue())
+    ze
+  }
+  
 }
 
 trait ZipFileHandlerCommon {
@@ -90,6 +105,8 @@ trait ZipFileWriter extends ZipFileHandlerCommon {
     }
   }
 
+  def writeUncompressedEntry(zipEntry: ZipEntry, byte: Byte, content: ByteBuffer)
+  
   def newOutputStream(name: String): OutputStream
 
   def size(): Long
@@ -178,6 +195,10 @@ private[this] class ZipFileWriterTFile(val file: File) extends ZipFileHandler(fi
     }
   }
 
+  def writeUncompressedEntry(zipEntry: ZipEntry, byte: Byte, content: ByteBuffer) {
+    ???
+  }
+  
   def newOutputStream(name: String): OutputStream = {
     val out = new TFileOutputStream(new TFile(tfile, name))
     val bos = new BufferedOutputStream(out, 20 * 1024)
@@ -203,21 +224,26 @@ private[this] class ZipFileWriterJdk(val file: File) extends ZipFileHandler(file
   val fos = new CountingOutputStream(new FileOutputStream(file))
   val out = new ZipOutputStream(fos)
 
-  // compression is done already before
-  out.setLevel(ZipEntry.STORED)
-
   override def close() {
     out.finish()
     out.close()
   }
   
   def newOutputStream(name: String): OutputStream = {
-    out.putNextEntry(new ZipEntry(name))
+    val ze = new ZipEntry(name)
+    out.putNextEntry(ze)
     new DelegatingOutputStream(out) {
        override def close() = {
          out.closeEntry()
        }
     }
+  }
+  
+  def writeUncompressedEntry(zipEntry: ZipEntry, byte: Byte, content: ByteBuffer) {
+    out.putNextEntry(zipEntry)
+    out.write(byte)
+    out.write(content.array(), content.position(), content.remaining())
+    out.closeEntry()
   }
   
   def enableCompression() {

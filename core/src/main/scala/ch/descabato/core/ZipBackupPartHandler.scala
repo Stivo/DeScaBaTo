@@ -73,6 +73,9 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
   // filedescription ready to be checkpointed
   def hashComputed(blockId: BlockId, hash: Array[Byte], content: Array[Byte]) {
     // TODO compressDisabled!
+    while (universe.blockHandler.remaining > 100) {
+      Thread.sleep(10)
+    }
     universe.blockHandler.writeBlockIfNotExists(hash, content, false)
     val w = getUnfinished(blockId.file)
     w.blocks.clear(blockId.part)

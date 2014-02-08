@@ -78,16 +78,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       backupFileDesc(_)
     }
     println("Successfully backed up "+success.size+", failed "+failed.size)
-    // finish
-    l.info(backupPartHandler.remaining+" remaining")
-    while (backupPartHandler.remaining > 0) {
-      l.info(s"Waiting for backup to finish, ${backupPartHandler.remaining} left")
-      Thread.sleep(1000)
-    }
-    cpuTaskHandler.finish
-    blockHandler.finish
-    hashListHandler.finish
-    backupPartHandler.finish
+    universe.finish()
     // Clean up, handle failed entries
     l.info("Backup completed")
     releaseLock()
@@ -115,14 +106,13 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       //lazy val compressionDisabled = compressionFor(fileDesc)
       var i = 0
       val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, { block: Array[Byte] =>
-        universe.cpuTaskHandler.computeHash(block, config.hashAlgorithm, new BlockId(fileDesc, i))
+        val bid = new BlockId(fileDesc, i)
+        universe.cpuTaskHandler.computeHash(block, config.hashAlgorithm, bid)
+        universe.hashHandler.hash(bid, block)
         i += 1
       })
-      val hos = new HashingOutputStream(config.hashAlgorithm)
-      val sis = new SplitInputStream(fis, blockHasher :: hos :: Nil)
-      sis.readComplete
-      sis.close()
-      universe.backupPartHandler.hashForFile(fileDesc, hos.out.get)
+      copy(fis, blockHasher)
+      universe.hashHandler.finish(fileDesc)
       fileCounter += 1
       updateProgress()
       true

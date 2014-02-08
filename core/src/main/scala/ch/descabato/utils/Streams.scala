@@ -36,9 +36,9 @@ object ObjectPools extends Utils {
   var foundMinimumRequests = 0
 
   def printStatistics(size: Int) {
-    l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
-    l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
-    l.info("Current Weak References "+size)
+//    l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
+//    l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
+//    l.info("Current Weak References "+size)
   }
   
   class ByteArrayObjectPool {
@@ -107,8 +107,8 @@ object ObjectPools extends Utils {
 
     
     final def recycle(t: T) {
-      val stack = getStack
-      stack += (WeakReference(t))
+//      val stack = getStack
+//      stack += (WeakReference(t))
     }
     protected def makeNew(arg: Int): T = {
       Array.ofDim[Byte](arg)

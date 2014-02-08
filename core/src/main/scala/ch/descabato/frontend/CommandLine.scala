@@ -64,14 +64,15 @@ object CLI extends Utils {
         parseCommandLine(args)
         exit(0)
       } else {
-        Thread.sleep(10000)
+        //Thread.sleep(10000)
         try {
           new File("F:/temp/desca8").listFiles().foreach(_.delete)
         } catch {
           case x : Exception => 
         }
     	 // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
-        parseCommandLine("backup --serializer-type json --compression none --volume-size 100mb F:/temp/desca8 f:/SD".split(" "))
+        //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
+        parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb F:/temp/desca8 f:/SD".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))
@@ -268,6 +269,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
     val universe = new AkkaUniverse(conf)
+//    val universe = new SingleThreadUniverse(conf)
     val bdh = new BackupHandler(universe)
     if (!t.noScriptCreation()) {
       writeBat(t, conf)
