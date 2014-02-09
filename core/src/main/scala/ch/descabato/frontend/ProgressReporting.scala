@@ -16,13 +16,32 @@ import scala.collection.JavaConverters._
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow
 import ch.descabato.utils.Utils
+import javax.swing.SwingUtilities
 
 object ProgressReporters {
+
+  var gui: Option[ProgressGui] = None
+
+  def openGui() {
+    gui.synchronized {
+      SwingUtilities.invokeAndWait(new Runnable() {
+        def run() {
+          if (gui.isEmpty) {
+            gui = Some(CreateProgressGui())
+          }
+        }
+      })
+    }
+  }
 
   val reporter = ConsoleManager
 
   def addCounter(c: Counter) {
+    if (counters.get(c.name).isDefined)
+      return
     counters += c.name -> c
+    for (g <- gui)
+      g.add(c)
   }
 
   def getCounter(name: String) = counters(name)
@@ -30,9 +49,23 @@ object ProgressReporters {
   private var counters = Map[String, Counter]()
 
   def updateWithCounters(counters: Seq[Counter]) {
-    reporter.ephemeralMessage{
-      counters.map(_.update).mkString(" ")
+    counters.foreach{ addCounter }
+    reporter.ephemeralMessage {
+      counters.map(_.nameAndValue).mkString(" ")
     }
+  }
+
+  def newPrettyTime() = {
+    val out = new PrettyTime()
+    val justNow = out.getUnits.asScala.find {
+      case u: JustNow => true
+      case _ => false
+    }.get
+    out.removeUnit(justNow)
+    out.getUnits.asScala.map(x => (x, out.getFormat(x))).foreach {
+      case (_, x: SimpleTimeFormat) => x.setFutureSuffix("")
+    }
+    out
   }
 
 }
@@ -46,39 +79,50 @@ trait ProgressReporting {
 trait MaxValueCounter extends Counter {
   var maxValue = 0L
 
-  def format = s"$current/$maxValue"
+  override def formatted = s"$current/$maxValue"
 
   def percent = if (maxValue == 0) 0 else (100 * current / maxValue).toInt
+}
 
-  override def update = s"$name: $format"  
+trait UpdatingCounter extends Counter {
+  def update()
+  abstract override def allowed() = {
+    val out = super.allowed()
+    if (out)
+      update
+    out
+  }
 }
 
 trait Counter {
+  private var nextTime = 0L
+  var lastCurrent = -1L
+  def allowed() = {
+    if (System.currentTimeMillis() > nextTime) {
+      nextTime = System.currentTimeMillis() + 5
+      lastCurrent = current
+      true
+    } else {
+      false
+    }
+  }
+
   def name: String
   var current = 0L
 
   def +=(l: Long) { current += l }
-  
-  def update = s"$name $current"
+
+  def formatted = s"$current"
+
+  def nameAndValue = s"$name $formatted"
 }
 
-class StandardCounter(val name: String) extends Counter 
+class StandardCounter(val name: String) extends Counter
 
 trait ETACounter extends MaxValueCounter with Utils {
   def window = 60
   case class Snapshot(time: Long, l: Double)
-  val p = {
-    val out = new PrettyTime()
-    val justNow = out.getUnits.asScala.find{
-      case u: JustNow => true
-      case _ => false
-    }.get
-    out.removeUnit(justNow)
-    out.getUnits.asScala.map(x => (x, out.getFormat(x))).foreach{
-      case (_, x: SimpleTimeFormat) => x.setFutureSuffix("")
-    }
-    out
-  }
+  val p = ProgressReporters.newPrettyTime()
   var snapshots = List[Snapshot]()
   var newSnapshotAt = 0L
   override def +=(l: Long) {
@@ -105,7 +149,7 @@ trait ETACounter extends MaxValueCounter with Utils {
       p.format(new Date(System.currentTimeMillis() + ms.toLong))
   }
 
-  override def update = super.update + " " + calcEta
+  override def formatted = super.formatted + " " + calcEta
 }
 
 class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxValueCounter {

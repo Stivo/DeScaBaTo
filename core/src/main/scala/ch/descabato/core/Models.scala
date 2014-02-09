@@ -226,7 +226,7 @@ class BackupDescription(val files: Buffer[FileDescription], val folders: Buffer[
       remove(symlinks) ++ later.symlinks, later.deleted)
   }
   
-  def asMap(): mutable.Map[String, BackupPart] = {
+  @JsonIgnore def asMap(): mutable.Map[String, BackupPart] = {
     val map = new mutable.HashMap[String, BackupPart]
     (files ++ folders ++ symlinks).foreach {x => map += ((x.path, x))}
     map
@@ -238,9 +238,9 @@ class BackupDescription(val files: Buffer[FileDescription], val folders: Buffer[
     case x: SymbolicLink => symlinks += x
   }
   
-  def size = files.size + folders.size + symlinks.size
+  @JsonIgnore def size = files.size + folders.size + symlinks.size
   
-  def isEmpty() = size == 0
+  @JsonIgnore def isEmpty() = size == 0
   
 }
 

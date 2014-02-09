@@ -53,6 +53,10 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
 libraryDependencies += "org.rogach" %% "scallop" % "0.9.4"
 
+libraryDependencies += "com.nativelibs4java" % "bridj" % "0.6.2"
+
+libraryDependencies += "com.miglayout" % "miglayout-swing" % "4.2"
+
 packSettings
 
 packMain := Map("descabato" -> "ch.descabato.CLI")

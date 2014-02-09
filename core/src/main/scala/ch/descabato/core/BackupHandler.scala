@@ -10,9 +10,15 @@ import java.io.FileInputStream
 import java.io.FileNotFoundException
 import ch.descabato.ByteArrayOutputStream
 import ch.descabato.utils.Streams._
+import ch.descabato.frontend.CLI
+import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.frontend.ProgressReporters
+import org.ocpsoft.prettytime.Duration
+import java.util.Date
 
 trait BackupRelatedHandler {
   def config: BackupFolderConfiguration
+
   var _lock: Option[(RandomAccessFile, FileLock)] = None
 
   def takeLock() {
@@ -49,10 +55,18 @@ trait BackupRelatedHandler {
 class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHandler with BackupProgressReporting {
 
   def config = universe.config
-  
+
+  var curFileCounter = new MaxValueCounter() {
+    val name = "Current file"
+    var filename = ""
+
+    override def formatted = filename
+  }
+
   import universe._
 
   def backup(files: Seq[File]) {
+    val started = System.currentTimeMillis()
     config.folder.mkdirs()
     takeLock()
 
@@ -77,16 +91,26 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     val (success, failed) = newDesc.files.partition {
       backupFileDesc(_)
     }
-    println("Successfully backed up "+success.size+", failed "+failed.size)
+    println("Successfully backed up " + success.size + ", failed " + failed.size)
     universe.finish()
     // Clean up, handle failed entries
-    l.info("Backup completed")
+    val time = System.currentTimeMillis()
+    l.info("Backup completed in " + format(time - started))
     releaseLock()
+  }
+
+  def format(millis: Long) = {
+    val seconds = millis / 1000
+    val minutes = seconds / 60
+    val hours = minutes / 60
+    f"${hours}%02d:${minutes%60}%02d:${seconds%60}%02d"
   }
 
   def backupFileDesc(fileDesc: FileDescription): Boolean = {
     val byteCounterbackup = byteCounter.current
-
+    curFileCounter.maxValue = fileDesc.size
+    curFileCounter.current = 0
+    curFileCounter.filename = fileDesc.name
     var fis: FileInputStream = null
     try {
       // This is a new file, so we start hashing its contents, fill those in and return the same instance
@@ -105,11 +129,19 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       //      }
       //lazy val compressionDisabled = compressionFor(fileDesc)
       var i = 0
-      val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, { block: Array[Byte] =>
-        val bid = new BlockId(fileDesc, i)
-        universe.cpuTaskHandler.computeHash(block, config.hashAlgorithm, bid)
-        universe.hashHandler.hash(bid, block)
-        i += 1
+      val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, {
+        block: Array[Byte] =>
+          val bid = new BlockId(fileDesc, i)
+          universe.cpuTaskHandler.computeHash(block, config.hashAlgorithm, bid)
+          universe.hashHandler.hash(bid, block)
+          byteCounter += block.length
+          curFileCounter += block.length
+          updateProgress()
+          waitForQueues()
+          while (CLI.paused) {
+            Thread.sleep(100)
+          }
+          i += 1
       })
       copy(fis, blockHasher)
       universe.hashHandler.finish(fileDesc)
@@ -132,6 +164,10 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       if (fis != null)
         fis.close()
     }
+  }
+
+  override def updateProgress() {
+    ProgressReporters.updateWithCounters(fileCounter :: byteCounter :: curFileCounter :: Nil)
   }
 
 }

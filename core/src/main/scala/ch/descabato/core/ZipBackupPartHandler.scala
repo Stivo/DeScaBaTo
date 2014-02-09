@@ -8,10 +8,13 @@ import scala.collection.mutable.HashMap
 import ch.descabato.utils.Utils
 import java.util.BitSet
 
-class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Utils {
+class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Utils with BackupProgressReporting {
   protected var current: BackupDescription = null
   protected var unfinished: Map[String, FileDescriptionWrapper] = Map.empty
 
+  override val filecountername = "Files hashed"
+  override val bytecountername = "Data hashed"
+  
   def blocksFor(fd: FileDescription) = {
     if (fd.size == 0) 1
     else (1.0 * fd.size / config.blockSize.bytes).ceil.toInt
@@ -42,6 +45,8 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
       if (file.hash == null)
         getUnfinished(file)
     }
+    setMaximums(bd)
+    universe.blockHandler.setTotalSize(byteCounter.maxValue)
     l.info("After setCurrent "+remaining+" remaining")
   }
 
@@ -58,9 +63,10 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     val w = getUnfinished(fd) 
     if (w.blocks.isEmpty && w.fd.hash != null) {
         unfinished -= fd.path
-        current.files += w.fd
         if (w.hashList.length > fd.hash.length)
           universe.hashListHandler.addHashlist(fd.hash, w.hashList)
+        fileCounter += 1
+        updateProgress
     }
   }
   
@@ -73,10 +79,9 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
   // filedescription ready to be checkpointed
   def hashComputed(blockId: BlockId, hash: Array[Byte], content: Array[Byte]) {
     // TODO compressDisabled!
-    while (universe.blockHandler.remaining > 100) {
-      Thread.sleep(10)
-    }
     universe.blockHandler.writeBlockIfNotExists(hash, content, false)
+    byteCounter += content.length
+    updateProgress
     val w = getUnfinished(blockId.file)
     w.blocks.clear(blockId.part)
     System.arraycopy(hash, 0, w.hashList, blockId.part * config.hashLength, config.hashLength)

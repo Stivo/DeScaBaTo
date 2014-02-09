@@ -5,6 +5,7 @@ import java.io.InputStream
 import java.util.Date
 import java.nio.ByteBuffer
 import java.util.zip.ZipEntry
+import scala.reflect.ClassTag
 
 trait Universe {
   def config(): BackupFolderConfiguration
@@ -13,10 +14,13 @@ trait Universe {
   def hashListHandler(): HashListHandler
   def blockHandler(): BlockHandler
   def hashHandler(): HashHandler
-  def finish(): Boolean 
-  
+
   lazy val _fileManager = new FileManager(config)
   def fileManager() = _fileManager
+
+  def waitForQueues() {}
+  def finish() {}
+  def shutdown() {}
 }
 
 case class BlockId(file: FileDescription, part: Int)
@@ -61,6 +65,7 @@ trait BlockHandler extends BackupActor {
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
   def writeCompressedBlock(hash: Array[Byte], zipEntry: ZipEntry, header: Byte, block: ByteBuffer)
   def remaining: Int
+  def setTotalSize(size: Long)
 }
 
 trait CpuTaskHandler {

@@ -13,22 +13,19 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.lang.reflect.InvocationTargetException
 import ch.descabato.utils.Utils
-import ch.descabato.core.MisconfigurationException
-import ch.descabato.core.BackupCorruptedException
-import ch.descabato.core.PasswordWrongException
-import ch.descabato.core.BackupFolderConfiguration
-import ch.descabato.core.BackupException
-import ch.descabato.core.BackupConfigurationHandler
-import ch.descabato.core.BackupVerification
+import ch.descabato.core._
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Streams
-import ch.descabato.core.Size
-import ch.descabato.core.BackupHandler
-import ch.descabato.core.SingleThreadUniverse
-import ch.descabato.core.AkkaUniverse
+import scala.Some
+import ch.descabato.core.PasswordWrongException
+import ch.descabato.core.MisconfigurationException
+import ch.descabato.core.BackupCorruptedException
+import ch.descabato.core.BackupFolderConfiguration
 
 object CLI extends Utils {
 
+  var paused: Boolean = false
+  
   var lastErrors: Long = 0L
 
   var _overrideRunsInJar = false
@@ -268,14 +265,14 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def newT(args: Seq[String]) = new BackupConf(args)
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
-    val universe = new AkkaUniverse(conf)
+    val universe = Universes.makeUniverse(conf)
 //    val universe = new SingleThreadUniverse(conf)
     val bdh = new BackupHandler(universe)
     if (!t.noScriptCreation()) {
       writeBat(t, conf)
     }
     bdh.backup(t.folderToBackup() :: Nil)
-    universe.system.shutdown
+    universe.shutdown
 //    if (conf.redundancyEnabled) {
 //      l.info("Running redundancy creation")
 //      new RedundancyHandler(conf).createFiles

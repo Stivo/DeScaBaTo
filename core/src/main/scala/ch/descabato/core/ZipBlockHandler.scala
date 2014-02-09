@@ -25,6 +25,9 @@ import ch.descabato.utils.Utils.ByteBufferUtils
 import scala.collection.immutable.HashSet
 import ch.descabato.CompressionMode
 import java.util.zip.ZipEntry
+import scala.collection.mutable.HashMap
+import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.frontend.ProgressReporters
 /**
  * A block handler that creates zip files with parts of blocks in it.
  * Additionally for each volume an index is written, which stores the hashes
@@ -41,7 +44,21 @@ import java.util.zip.ZipEntry
  */
 class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
   import Utils.encodeBase64Url
+  private val byteCounter = new MaxValueCounter() {
+    var compressedBytes = 0
+    def name: String = "Blocks written"
+    def r(x: Long) = Utils.readableFileSize(x)
+    override def formatted = s"${r(current)}/${r(maxValue)} (compressed ${r(compressedBytes)})"
+  }
 
+  def setTotalSize(size: Long) {
+    byteCounter.maxValue = size
+  }
+  
+  def updateProgress() {
+    ProgressReporters.updateWithCounters(byteCounter::Nil)
+  }
+  
   protected def volumeSize = config.volumeSize
   // All persisted blocks
   protected var knownBlocks: Map[BAWrapper2, Int] = Map()
@@ -57,7 +74,7 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
   protected var currentIndex: IndexWriter = null
   protected var lastZip: Option[(Int, ZipFileReader)] = None
   @volatile
-  protected var outstandingRequests: HashSet[BAWrapper2] = HashSet()
+  protected var outstandingRequests: HashMap[BAWrapper2, Int] = HashMap()
 
   // TODO add in interface?
   def verify(problemCounter: Counter) {
@@ -132,15 +149,18 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
 
   def writeBlockIfNotExists(hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean) {
     val k = asKey(hash)
-    if ((knownBlocks contains k) || (knownBlocksTemp contains k))
+    if ((knownBlocks contains k) || (knownBlocksTemp contains k)) {
+      byteCounter.maxValue -= block.length
+      updateProgress
       return
+    }
     knownBlocksTemp += ((hash, curNum))
     // TODO
     //    if (compressDisabled || config.compressor == CompressionMode.none) {
     //      val content = ByteBuffer.wrap(block)
     //      writeCompressedBlock(hash, ZipFileHandlerFactory.createZipEntry(.0, ByteBuffer.wrap(block))
     //    } else {
-    outstandingRequests += hash
+    outstandingRequests += ((hash, block.length))
     universe.cpuTaskHandler.compress(hash, block, config.compressor, compressDisabled)
     //    }
   }
@@ -152,9 +172,12 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
     if (currentZip == null) {
       startZip
     }
+    byteCounter.compressedBytes += block.remaining()
     currentZip.writeUncompressedEntry(zipEntry, header, block)
     block.recycle()
     currentIndex.bos.write(hash)
+    byteCounter += outstandingRequests(hash)
+    updateProgress
     outstandingRequests -= hash
     knownBlocksWritten += ((hash, curNum))
   }
