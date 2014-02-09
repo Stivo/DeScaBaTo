@@ -5,18 +5,9 @@ import java.io.OutputStream
 import java.security.MessageDigest
 import scala.collection.mutable.Buffer
 import java.util.Arrays
-import java.io.ByteArrayInputStream
-import java.io.FileInputStream
-import java.util.zip.GZIPOutputStream
-import java.util.zip.GZIPInputStream
 import java.io.File
-import scala.collection.mutable.Stack
 import scala.ref.WeakReference
-import scala.reflect.ClassTag
 import scala.concurrent.duration._
-import org.tukaani.xz.XZOutputStream
-import org.tukaani.xz.XZInputStream
-import org.tukaani.xz.LZMA2Options
 import scala.collection.mutable.SynchronizedSet
 import scala.collection.mutable.HashSet
 import java.io.FileOutputStream
@@ -90,15 +81,16 @@ object ObjectPools extends Utils {
       var strongRef: Option[T] = None
       while (!stack.isEmpty) {
         val toRemove = Buffer[WeakReference[T]]()
-        val result = stack.find(_ match {
-          case wr @ WeakReference(x) if (f(x)) =>
+        val result = stack.find {
+          case wr@WeakReference(x) if (f(x)) =>
             // before x is garbage collected, save it to a strong reference
             strongRef = Some(x)
-            toRemove += wr; true
-          case WeakReference(x) => false // continue searching  
-          case wr => // This is an empty reference now, we might as well delete it 
+            toRemove += wr;
+            true
+          case WeakReference(x) => false // continue searching
+          case wr => // This is an empty reference now, we might as well delete it
             toRemove += wr; false
-        })
+        }
         stack --= toRemove
         return strongRef
       }
@@ -107,8 +99,8 @@ object ObjectPools extends Utils {
 
     
     final def recycle(t: T) {
-      val stack = getStack
-      stack += (WeakReference(t))
+//      val stack = getStack
+//      stack += (WeakReference(t))
     }
     protected def makeNew(arg: Int): T = {
       Array.ofDim[Byte](arg)
@@ -322,7 +314,7 @@ object Streams extends Utils {
   }
 
   class ReportingOutputStream(val out: OutputStream, val message: String,
-    val interval: FiniteDuration = 5 seconds, var size: Long = -1) extends CountingOutputStream(out) {
+    val interval: FiniteDuration = 5.seconds, var size: Long = -1) extends CountingOutputStream(out) {
     override def write(buf: Array[Byte], start: Int, len: Int) {
       val append = if (size > 1) {
         s"/${Utils.readableFileSize(size, 2)} ${(100 * count / size).toInt}%"

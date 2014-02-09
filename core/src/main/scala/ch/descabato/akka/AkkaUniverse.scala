@@ -159,15 +159,15 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 class AkkaCpuTaskHandler(universe: AkkaUniverse) extends SingleThreadCpuTaskHandler(universe) {
 
   override def computeHash(content: Array[Byte], hashMethod: String, blockId: BlockId) {
-    universe.computer1 ! ((() => {
+    universe.computer1 ! (() => {
       super.computeHash(content, hashMethod, blockId)
-    }): Function0[Unit])
+    })
   }
 
   override def compress(hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean) {
-    universe.computer2 ! ((() => {
+    universe.computer2 ! (() => {
       super.compress(hash, content, method, disable)
-    }))
+    })
   }
 
   override def finish() = {
@@ -201,12 +201,11 @@ class MyActor extends Actor {
   val log = Logging(context.system, this)
   var idleSince = System.currentTimeMillis()
   def receive = {
-    case (x: Function0[_]) => {
+    case (x: Function0[_]) =>
       ActorStats.remaining.incrementAndGet()
       x()
       idleSince = System.currentTimeMillis()
       ActorStats.remaining.decrementAndGet()
-    }
     case "idleSince" => sender ! idleSince
     case "test" => log.info("received test")
     case _ => log.info("received unknown message")
@@ -233,7 +232,6 @@ class Resizer(name: String) extends DefaultResizer(messagesPerResize = 100) with
 
 }
 
-
 class MyExecutorServiceConfigurator(config: Config, prerequisites: DispatcherPrerequisites) extends ExecutorServiceConfigurator(config, prerequisites) {
   def createExecutorServiceFactory(id: String, threadFactory: ThreadFactory) = new MyExecutorServiceFactory
 }
@@ -243,4 +241,3 @@ class MyExecutorServiceFactory extends ExecutorServiceFactory {
     ActorStats.tpe
   }
 }
-

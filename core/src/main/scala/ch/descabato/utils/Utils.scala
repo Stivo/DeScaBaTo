@@ -8,11 +8,9 @@ import net.java.truevfs.access.TFile
 import net.java.truevfs.access.TVFS
 import java.io.File
 import java.nio.file.Files
-import java.io.InputStream
 import java.nio.ByteBuffer
 import java.io.OutputStream
 import sun.nio.ch.DirectBuffer
-import java.nio.HeapByteBuffer
 import ch.descabato.ByteArrayOutputStream
 
 object Utils extends Logging {
@@ -100,7 +98,7 @@ object FileUtils {
 
     def cutFirst(files: (List[String], List[String])): String = {
       files match {
-        case (x :: xTail, y :: yTail) if (compare(x, y)) => cutFirst(xTail, yTail)
+        case (x :: xTail, y :: yTail) if compare(x, y) => cutFirst(xTail, yTail)
         case (_, x) => x.mkString("/")
       }
     }
@@ -112,7 +110,6 @@ object FileUtils {
 
 trait Utils extends Logging {
   lazy val l = logger
-  import Utils._
 
   def readableFileSize(size: Long): String = Utils.readableFileSize(size)
 

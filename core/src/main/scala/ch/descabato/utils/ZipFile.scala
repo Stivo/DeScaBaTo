@@ -1,17 +1,14 @@
 package ch.descabato.utils
 
 import java.io.File
-import scala.collection.JavaConversions._
 import java.util.zip.{ ZipFile => JZipFile }
 import java.util.zip.ZipEntry
-import scala.collection.mutable.Buffer
 import java.io.BufferedInputStream
 import java.util.zip.ZipOutputStream
 import java.io.FileInputStream
 import java.io.OutputStream
 import Streams.CountingOutputStream
 import java.io.InputStream
-import Streams.DelegatingInputStream
 import net.java.truevfs.access.TFile
 import net.java.truevfs.access.TFileOutputStream
 import net.java.truevfs.access.TVFS
@@ -20,7 +17,6 @@ import java.io.BufferedOutputStream
 import java.security.MessageDigest
 import net.java.truevfs.access.TConfig
 import net.java.truevfs.kernel.spec.FsAccessOption
-import java.io.IOException
 import java.io.FileOutputStream
 import Streams.DelegatingOutputStream
 import ch.descabato.core.BackupFolderConfiguration

@@ -1,12 +1,5 @@
 package ch.descabato;
 
-import java.util.Map;
-
-import javax.inject.Provider;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import net.java.truecommons.key.spec.common.AesKeyStrength;
 import net.java.truevfs.access.TArchiveDetector;
 import net.java.truevfs.driver.zip.raes.SafeZipRaesDriver;
@@ -17,10 +10,15 @@ import net.java.truevfs.kernel.spec.FsController;
 import net.java.truevfs.kernel.spec.FsDriver;
 import net.java.truevfs.kernel.spec.FsModel;
 import net.java.truevfs.kernel.spec.FsScheme;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.inject.Provider;
+import java.util.Map;
 
 public class TrueVfs {
 
-	static Logger log = LoggerFactory.getLogger(TrueVfs.class);
+	private static final Logger log = LoggerFactory.getLogger(TrueVfs.class);
 	
 	public static TArchiveDetector newArchiveDetector1(
 			Provider<Map<FsScheme, FsDriver>> provider, String extensions,
@@ -32,10 +30,8 @@ public class TrueVfs {
 	private static final class CustomZipRaesDriver1 extends SafeZipRaesDriver {
 
 		final RaesParameters param;
-		private int keylength;
 
 		CustomZipRaesDriver1(char[] password, int keylength) {
-			this.keylength = keylength;
 			param = new CustomRaesParameters(password, keylength);
 		}
 

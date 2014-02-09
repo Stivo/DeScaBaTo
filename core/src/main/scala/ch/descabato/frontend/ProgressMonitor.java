@@ -1,41 +1,25 @@
 package ch.descabato.frontend;
 
-import java.awt.BorderLayout;
-import java.awt.EventQueue;
-
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.border.EmptyBorder;
-
-import java.awt.FlowLayout;
-
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JSlider;
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.ImageIcon;
-
 import ch.descabato.akka.ActorStats;
-import ch.descabato.core.BackupHandler;
 
-import java.awt.Font;
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
-
-import javax.swing.event.ChangeListener;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class ProgressMonitor extends JFrame {
 
-	private JPanel contentPane;
-	private JPanel slices;
+	private final JPanel contentPane;
+	private final JPanel slices;
 
 	/**
 	 * Create the frame.
 	 */
 	public ProgressMonitor(final ProgressGui gui) {
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 331);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -61,7 +45,7 @@ public class ProgressMonitor extends JFrame {
 		final JButton btnPause = new JButton("Pause");
 		btnPause.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (btnPause.getText() == "Pause") {
+				if (btnPause.getText().equals("Pause")) {
 					btnPause.setText("Resume");
 					gui.pause(true);
 				} else {

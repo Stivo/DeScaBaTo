@@ -4,16 +4,9 @@ import java.io.File
 import java.nio.file.attribute.BasicFileAttributes
 import scala.collection.mutable
 import java.io.IOException
-import scala.collection.mutable.Buffer
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.LinkOption
-import java.util.Collections
-import java.util.HashSet
-import java.util.Arrays
-import java.nio.file.FileVisitOption
-import java.util.EnumSet
 import ch.descabato.FileVisitorHelper
 import ch.descabato.frontend.ProgressReporters
 import ch.descabato.frontend.Counter

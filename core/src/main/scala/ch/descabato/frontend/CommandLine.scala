@@ -2,16 +2,9 @@ package ch.descabato.frontend
 
 import org.rogach.scallop._
 import scala.reflect.runtime.universe.TypeTag
-import java.util.regex.Pattern
-import javax.xml.bind.DatatypeConverter
-import com.typesafe.scalalogging.slf4j.Logging
 import java.io.PrintStream
-import scala.collection.mutable.Buffer
 import java.io.File
 import ScallopConverters._
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.lang.reflect.InvocationTargetException
 import ch.descabato.utils.Utils
 import ch.descabato.core._
 import ch.descabato.CompressionMode
@@ -69,7 +62,7 @@ object CLI extends Utils {
         }
     	 // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
         //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
-        parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb F:/temp/desca8 f:/SD".split(" "))
+        parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression none --volume-size 100mb F:/temp/desca8 f:/SD".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))

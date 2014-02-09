@@ -1,10 +1,7 @@
 package ch.descabato.core
 
 import java.util.Date
-import scala.collection.mutable.Buffer
-import scala.collection.mutable
 import ch.descabato.utils.ObjectPools
-import scala.collection.mutable.HashMap
 import ch.descabato.utils.Utils
 import java.util.BitSet
 

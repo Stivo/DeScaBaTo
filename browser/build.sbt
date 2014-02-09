@@ -51,6 +51,8 @@ packSettings
 
 packMain := Map("descabato" -> "ch.descabato.browser.Main")
 
+packJvmOpts := Map("descabato" -> Seq("-Xms100m -XX:NewRatio=1 -XX:+UseParNewGC"))
+
 packPreserveOriginalJarName := true
 
 packResourceDir := "../releases/0.1.0"

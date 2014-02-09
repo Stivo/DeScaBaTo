@@ -7,30 +7,18 @@ import ch.descabato.utils.Utils
 import akka.actor._
 import scala.concurrent.future
 import scala.concurrent.Future
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.reflect.ClassTag
 import scala.concurrent.ExecutionContext
-import akka.routing.RoundRobinRouter
 import akka.event.Logging
-import akka.routing.DefaultResizer
-import akka.routing.RouteeProvider
-import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.TypedActor.PostRestart
 import ch.descabato.utils.ZipFileHandlerFactory
-import akka.dispatch.ExecutorServiceConfigurator
 import com.typesafe.config.Config
 import akka.dispatch.DispatcherPrerequisites
-import java.util.concurrent.ExecutorService
-import akka.dispatch.ExecutorServiceFactory
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.Executors
-import ch.descabato.akka.{AkkaUniverse, Queues}
+import ch.descabato.akka.AkkaUniverse
 import scala.collection.mutable
-import ch.descabato.frontend.{UpdatingCounter, ProgressReporters, MaxValueCounter}
+import ch.descabato.frontend.MaxValueCounter
 
 object Universes {
   def makeUniverse(config: BackupFolderConfiguration) = {

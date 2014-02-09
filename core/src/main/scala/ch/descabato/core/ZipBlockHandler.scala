@@ -1,17 +1,9 @@
 package ch.descabato.core
 
-import java.io.FileInputStream
-import java.util.Arrays
-import java.io.OutputStream
 import java.io.File
-import java.io.IOException
-import scala.concurrent.Future
 import java.io.InputStream
 import java.nio.file.Files
 import net.java.truevfs.access.TFile
-import net.java.truevfs.access.TFileOutputStream
-import java.io.BufferedOutputStream
-import net.java.truevfs.access.TVFS
 import net.java.truevfs.access.TFileInputStream
 import java.nio.ByteBuffer
 import ch.descabato.utils.Utils
@@ -22,8 +14,6 @@ import ch.descabato.utils.ZipFileHandlerFactory
 import ch.descabato.utils.ZipFileReader
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Utils.ByteBufferUtils
-import scala.collection.immutable.HashSet
-import ch.descabato.CompressionMode
 import java.util.zip.ZipEntry
 import scala.collection.mutable.HashMap
 import ch.descabato.frontend.MaxValueCounter
@@ -241,7 +231,7 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
       currentIndex.bos.close()
       currentIndex.zipWriter.writeManifest(fileManager)
       currentIndex.close()
-      def rename(f: Function2[Int, Boolean, String]) {
+      def rename(f: (Int, Boolean) => String) {
         val from = new File(config.folder, f(curNum, true))
         val to = new File(config.folder, f(curNum, false))
         Files.move(from.toPath(), to.toPath())
@@ -278,13 +268,12 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
 
   private def getZipFileReader(num: Int) = {
     lastZip match {
-      case Some((n, zip)) if (n == num) => zip
-      case _ => {
+      case Some((n, zip)) if n == num => zip
+      case _ =>
         lastZip.foreach { case (_, zip) => zip.close() }
         val out = ZipFileHandlerFactory.reader(new File(config.folder, volumeName(num)), config)
         lastZip = Some((num, out))
         out
-      }
     }
   }
 

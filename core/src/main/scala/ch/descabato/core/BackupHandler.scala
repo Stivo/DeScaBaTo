@@ -1,6 +1,5 @@
 package ch.descabato.core
 
-import scala.collection.mutable.Buffer
 import java.io.File
 import ch.descabato.utils.Utils
 import java.io.IOException
@@ -8,13 +7,10 @@ import java.nio.channels.FileLock
 import java.io.RandomAccessFile
 import java.io.FileInputStream
 import java.io.FileNotFoundException
-import ch.descabato.ByteArrayOutputStream
 import ch.descabato.utils.Streams._
 import ch.descabato.frontend.CLI
 import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.frontend.ProgressReporters
-import org.ocpsoft.prettytime.Duration
-import java.util.Date
 
 trait BackupRelatedHandler {
   def config: BackupFolderConfiguration
@@ -88,9 +84,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     // Backup files 
     setMaximums(newDesc)
 
-    val (success, failed) = newDesc.files.partition {
-      backupFileDesc(_)
-    }
+    val (success, failed) = newDesc.files.partition(backupFileDesc)
+
     println("Successfully backed up " + success.size + ", failed " + failed.size)
     universe.finish()
     // Clean up, handle failed entries
@@ -103,7 +98,9 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     val seconds = millis / 1000
     val minutes = seconds / 60
     val hours = minutes / 60
-    f"${hours}%02d:${minutes%60}%02d:${seconds%60}%02d"
+    val days = hours / 24
+    val add = if (days == 0) "" else days+" days "
+    f"$add${hours%24}%02d:${minutes%60}%02d:${seconds%60}%02d"
   }
 
   def backupFileDesc(fileDesc: FileDescription): Boolean = {
@@ -149,14 +146,14 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       updateProgress()
       true
     } catch {
-      case io: IOException if (io.getMessage().contains("The process cannot access the file")) =>
+      case io: IOException if io.getMessage().contains("The process cannot access the file") =>
         l.warn("Could not backup file " + fileDesc.path + " because it is locked.")
         false
       // TODO linux add case for symlinks
-      case io: IOException if (io.getMessage().contains("The system cannot find the")) =>
+      case io: IOException if io.getMessage().contains("The system cannot find the") =>
         l.info(s"File ${fileDesc.path} has been deleted since starting the backup")
         false
-      case io: FileNotFoundException if (io.getMessage().contains("Access is denied")) =>
+      case io: FileNotFoundException if io.getMessage().contains("Access is denied") =>
         l.info(s"File ${fileDesc.path} can not be accessed")
         false
       case e: IOException => throw e

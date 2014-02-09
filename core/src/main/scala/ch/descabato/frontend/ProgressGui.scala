@@ -1,6 +1,6 @@
 package ch.descabato.frontend
 
-import javax.swing.{Timer, JFrame, SwingUtilities, UIManager}
+import javax.swing.{Timer, UIManager}
 import scala.collection.mutable.Buffer
 import org.bridj.cpp.com.shell.ITaskbarList3
 import org.bridj.cpp.com.COMRuntime
@@ -8,7 +8,6 @@ import org.bridj.Pointer
 import org.bridj.jawt.JAWTUtils
 import ch.descabato.utils.Utils
 import java.awt.event.{ActionEvent, ActionListener}
-import ch.descabato.core.BackupFolderConfiguration
 
 object CreateProgressGui {
   def apply() = {
@@ -30,7 +29,7 @@ class ProgressGui extends ActionListener {
     var name = ""
     for (info <- UIManager.getInstalledLookAndFeels()) {
       if ("Nimbus".equals(info.getName())) {
-        name = (info.getClassName());
+        name = info.getClassName();
       }
     }
     if (name != "")
@@ -49,9 +48,9 @@ class ProgressGui extends ActionListener {
       x =>
         x match {
           case x: UpdatingCounter => x.update
-          case max: MaxValueCounter if (max.name contains "Blocks") =>
+          case max: MaxValueCounter if max.name contains "Blocks" =>
             setValue(max.percent, 100)
-          case max: ETACounter if (max.name contains "Data Read") =>
+          case max: ETACounter if max.name contains "Data Read" =>
             mon.setTitle(s"Backing up ${max.percent}%, ${max.calcEta}")
           case _ =>
         }

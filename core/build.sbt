@@ -59,7 +59,9 @@ libraryDependencies += "com.miglayout" % "miglayout-swing" % "4.2"
 
 packSettings
 
-packMain := Map("descabato" -> "ch.descabato.CLI")
+packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
+
+packJvmOpts := Map("descabato" -> Seq("-Xms100m -XX:NewRatio=1 -XX:+UseParNewGC"))
 
 packPreserveOriginalJarName := true
 

@@ -1,21 +1,17 @@
 package ch.descabato.core
 
-import scala.reflect.ClassTag
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.HashMap
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.io.FileInputStream
-import java.io.BufferedOutputStream
-import java.io.BufferedInputStream
-import com.fasterxml.jackson.core.JsonProcessingException
 import ch.descabato.utils.Utils
 import ch.descabato.utils.ZipFileHandlerFactory
+import scala.collection.mutable
 
-class VolumeIndex extends HashMap[String, Int]
+class VolumeIndex extends mutable.HashMap[String, Int]
 
-class Volume extends HashMap[String, Array[Byte]]
+class Volume extends mutable.HashMap[String, Array[Byte]]
 
 class Parity
 
@@ -140,9 +136,9 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     file
   }
 
-  def read(f: File, failureOption: ReadFailureOption, first: Boolean = true): Option[T] = {
+  def read(file: File, failureOption: ReadFailureOption, first: Boolean = true): Option[T] = {
     var firstCopy = first
-    val reader = ZipFileHandlerFactory.reader(f, config)
+    val reader = ZipFileHandlerFactory.reader(file, config)
     try {
       // TODO
 //      Par2Handler.getHashIfCovered(f).foreach { hash =>
@@ -152,43 +148,38 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 //      }
       val entries = reader.getJson[List[ZipEntryDescription]](filesEntry)
       entries match {
-        case Left(ZipEntryDescription(name, serType, clas) :: Nil) => {
+        case Left(ZipEntryDescription(name, serType, clas) :: Nil) =>
           val in = reader.getStream(name)
           val either = config.serialization(serType).readObject[T](in)
           in.close
           either match {
             case Left(read) => return Some(read)
-            case Right(e) => throw new BackupCorruptedException(f).initCause(e)
+            case Right(e) => throw new BackupCorruptedException(file).initCause(e)
           }
-        }
         case Right(e: BackupCorruptedException) => throw e
-        case Right(e) => throw new BackupCorruptedException(f).initCause(e)
-        case _ => throw new BackupCorruptedException(f)
+        case Right(e) => throw new BackupCorruptedException(file).initCause(e)
+        case _ => throw new BackupCorruptedException(file)
       }
     } catch {
       case c: SecurityException => throw c
-      case e: Exception if ((e.getMessage + e.getStackTraceString).contains("CipherInputStream")) => {
-        throw new PasswordWrongException("Exception while loading " + f + ", most likely the supplied passphrase is wrong.", e)
-      }
-      case e @ BackupCorruptedException(f, false) if failureOption == OnFailureDelete => {
+      case e: Exception if (e.getMessage + e.getStackTraceString).contains("CipherInputStream") =>
+        throw new PasswordWrongException("Exception while loading " + file + ", most likely the supplied passphrase is wrong.", e)
+      case e @ BackupCorruptedException(f, false) if failureOption == OnFailureDelete =>
         reader.close
         f.delete()
         l.info(s"Deleted file $f because it was broken")
         None
-      }
-      case e @ BackupCorruptedException(f, false) if firstCopy && failureOption == OnFailureTryRepair => {
+      case e @ BackupCorruptedException(f, false) if firstCopy && failureOption == OnFailureTryRepair =>
         logException(e)
         reader.close
         // TODO
-//        Par2Handler.tryRepair(f, config)
+        //        Par2Handler.tryRepair(f, config)
         // tryRepair will throw exception if repair fails, so if we end up here, just try again
         return read(f, failureOption, false)
-      }
-      case e: BackupCorruptedException => {
+      case e: BackupCorruptedException =>
         throw e
-      }
       case e: Exception =>
-        l.warn("Exception while loading " + f + ", file may be corrupt")
+        l.warn("Exception while loading " + file + ", file may be corrupt")
         logException(e)
         None
     } finally {

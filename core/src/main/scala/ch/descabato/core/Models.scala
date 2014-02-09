@@ -13,7 +13,6 @@ import java.math.{ BigDecimal => JBigDecimal }
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFileAttributes
-import java.nio.file.attribute.FileAttributeView
 import java.nio.file.attribute.PosixFilePermissions
 import java.security.Principal
 import java.nio.file.attribute.PosixFileAttributeView
@@ -145,15 +144,15 @@ object FileAttributes extends Utils {
         val name = if (dosOnes.contains(k)) "dos:" + k else k
         val toSet: Option[Any] = (k, o) match {
           case (k, time) if k.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
-          case (s, group) if (s == posixGroup) =>
+          case (s, group) if s == posixGroup =>
             val g = lookupService.lookupPrincipalByGroupName(group.toString)
             posix.setGroup(g)
             None
-          case (s, group) if (s == owner) =>
+          case (s, group) if s == owner =>
             val g = lookupService.lookupPrincipalByName(group.toString)
             posix.setOwner(g)
             None
-          case (s, perms) if (s == posixPermissions) =>
+          case (s, perms) if s == posixPermissions =>
             val p = PosixFilePermissions.fromString(perms.toString)
             posix.setPermissions(p)
             None
@@ -176,7 +175,7 @@ trait UpdatePart {
   @JsonIgnore def pathParts = path.split("[\\\\/]")
 }
 
-case class FileDeleted(val path: String) extends UpdatePart {
+case class FileDeleted(path: String) extends UpdatePart {
   def size = 0L
 }
 
@@ -209,7 +208,7 @@ trait BackupPart extends UpdatePart {
 
 }
 
-case class SymbolicLink(val path: String, val linkTarget: String, val attrs: FileAttributes) extends BackupPart {
+case class SymbolicLink(path: String, linkTarget: String, attrs: FileAttributes) extends BackupPart {
   def size = 0L
   def isFolder = false
 }
@@ -251,8 +250,10 @@ class BAWrapper2(ba: Array[Byte]) {
   def data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
   def equals(other: BAWrapper2): Boolean = Arrays.equals(data, other.data)
   override def equals(obj: Any): Boolean =
-    if (obj.isInstanceOf[BAWrapper2]) equals(obj.asInstanceOf[BAWrapper2])
-    else false
+    obj match {
+      case other: BAWrapper2 => equals(other)
+      case _ => false
+    }
 
   override def hashCode: Int = Arrays.hashCode(data)
 }
@@ -271,17 +272,17 @@ object Size {
   val patt = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE)
 
   def apply(size: String): Size = {
-    var out: Long = -1;
-    val matcher = patt.matcher(size);
+    var out: Long = -1
+    val matcher = patt.matcher(size)
     val map = List(("GB", 3), ("MB", 2), ("KB", 1), ("B", 0)).toMap
     if (matcher.find()) {
-      val number = matcher.group(1);
-      val pow = map.get(matcher.group(2).toUpperCase()).get;
-      var bytes = new BigDecimal(new JBigDecimal(number));
-      bytes = bytes.*(BigDecimal.valueOf(1024).pow(pow));
-      out = bytes.longValue();
+      val number = matcher.group(1)
+      val pow = map.get(matcher.group(2).toUpperCase()).get
+      var bytes = new BigDecimal(new JBigDecimal(number))
+      bytes = bytes.*(BigDecimal.valueOf(1024).pow(pow))
+      out = bytes.longValue()
     }
-    new Size(out);
+    new Size(out)
   }
 }
 

@@ -34,7 +34,7 @@ trait BackupProgressReporting extends Utils {
   lazy val scanCounter = new StandardCounter("Files found: ")
   lazy val fileCounter = new StandardMaxValueCounter(filecountername, 0) {}
   lazy val byteCounter = new StandardMaxValueCounter(bytecountername, 0) with ETACounter {
-    override def formatted = s"${readableFileSize(current)}/${readableFileSize(maxValue)} ${percent}%"
+    override def formatted = s"${readableFileSize(current)}/${readableFileSize(maxValue)} $percent%"
   }
 
   def setMaximums(desc: BackupDescription) {

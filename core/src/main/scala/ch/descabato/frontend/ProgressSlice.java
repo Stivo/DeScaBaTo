@@ -1,22 +1,15 @@
 package ch.descabato.frontend;
 
-import javax.swing.JPanel;
-
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-
-import javax.swing.JLabel;
-import javax.swing.JProgressBar;
-import javax.swing.JSplitPane;
-
 import net.miginfocom.swing.MigLayout;
+
+import javax.swing.*;
 
 public class ProgressSlice extends JPanel {
 
-	private JLabel lblRead;
+	private final JLabel lblRead;
 	private JProgressBar progressBar;
 	private JLabel label;
-	private boolean withBar;
+	private final boolean withBar;
 
 	/**
 	 * Create the panel.

@@ -5,7 +5,6 @@ import java.io.InputStream
 import java.util.Date
 import java.nio.ByteBuffer
 import java.util.zip.ZipEntry
-import scala.reflect.ClassTag
 
 trait Universe {
   def config(): BackupFolderConfiguration

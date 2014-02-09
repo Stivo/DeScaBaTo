@@ -2,18 +2,14 @@ package ch.descabato.utils
 
 import java.io.OutputStream
 import java.io.InputStream
-import scala.collection.mutable
 import org.tukaani.xz.XZOutputStream
 import java.util.zip.GZIPOutputStream
 import org.tukaani.xz.LZMA2Options
 import java.util.zip.GZIPInputStream
 import org.tukaani.xz.XZInputStream
-import java.io.File
-import java.io.FileInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import java.nio.ByteBuffer
-import ch.descabato.core.BackupFolderConfiguration
 import ch.descabato.ByteArrayOutputStream
 import ch.descabato.CompressionMode
 

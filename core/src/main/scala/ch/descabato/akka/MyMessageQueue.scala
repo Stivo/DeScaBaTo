@@ -1,7 +1,7 @@
 package ch.descabato.akka
 
 import akka.dispatch._
-import java.util.concurrent.{BlockingQueue, LinkedBlockingQueue, TimeUnit, ConcurrentLinkedQueue}
+import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import akka.actor.ActorRef
@@ -27,7 +27,7 @@ object Queues {
 /**
  * MyBoundedMailbox
  */
-case class MyMailbox(val capacity: Int, val pushTimeOut: FiniteDuration)
+case class MyMailbox(capacity: Int, pushTimeOut: FiniteDuration)
   extends MailboxType with ProducesMessageQueue[UnboundedMailbox.MessageQueue] {
 
   def this(settings: ActorSystem.Settings, config: Config) = this(config.getInt("mailbox-capacity"),

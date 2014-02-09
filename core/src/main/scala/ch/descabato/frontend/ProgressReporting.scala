@@ -8,10 +8,6 @@ import scala.collection.mutable.Buffer
 import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.classic.spi.ILoggingEvent
 import org.ocpsoft.prettytime.PrettyTime
-import org.ocpsoft.prettytime.Duration
-import org.ocpsoft.prettytime.impl.DurationImpl
-import org.ocpsoft.prettytime.TimeUnit
-import org.ocpsoft.prettytime.units.Millisecond
 import scala.collection.JavaConverters._
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow

@@ -2,8 +2,6 @@ package ch.descabato.utils
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
-import java.io.File
-import java.nio.file.attribute.FileTime
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.core.Version
@@ -13,19 +11,15 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.SerializerProvider
-import ch.qos.logback.core.spi.LogbackLock
 import com.fasterxml.jackson.databind.DeserializationFeature
 import scala.collection.JavaConverters._
-import java.util.Date
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.dataformat.smile.SmileGenerator
 import com.fasterxml.jackson.dataformat.smile.SmileParser
 import java.io.OutputStream
-import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector
 import java.io.InputStream
-import java.io.BufferedOutputStream
 import ch.descabato.core.FileDeleted
 import ch.descabato.core.FileDescription
 import ch.descabato.core.BackupPart
