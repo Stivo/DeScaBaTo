@@ -20,24 +20,29 @@ object ProgressReporters {
 
   def openGui() {
     gui.synchronized {
+      counters.synchronized {
       SwingUtilities.invokeAndWait(new Runnable() {
         def run() {
           if (gui.isEmpty) {
             gui = Some(CreateProgressGui())
+            counters.filterNot(_._1.contains("iles found")).values.foreach{gui.get.add}
           }
         }
       })
+      }
     }
   }
 
   val reporter = ConsoleManager
 
   def addCounter(c: Counter) {
+    counters.synchronized {
     if (counters.get(c.name).isDefined)
       return
     counters += c.name -> c
     for (g <- gui)
       g.add(c)
+    }
   }
 
   def getCounter(name: String) = counters(name)
@@ -106,7 +111,11 @@ trait Counter {
   def name: String
   var current = 0L
 
-  def +=(l: Long) { current += l }
+  def +=(l: Long) {
+    this.synchronized {
+      current += l
+    }
+  }
 
   def formatted = s"$current"
 

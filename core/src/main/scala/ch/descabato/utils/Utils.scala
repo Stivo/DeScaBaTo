@@ -55,7 +55,7 @@ object Utils extends Logging {
   implicit class ByteBufferUtils(buf: ByteBuffer) {
     def writeTo(out: OutputStream) {
       if (buf.hasArray()) {
-        out.write(buf.array(), buf.position(), buf.limit() - buf.position())
+        out.write(buf.array(), buf.position(), buf.remaining())
       }
       else {
         throw new UnsupportedOperationException("Not yet implemented, but easy to do")

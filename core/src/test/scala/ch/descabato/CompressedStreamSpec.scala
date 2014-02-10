@@ -60,7 +60,8 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
     
     val encoded = baosOriginal.toByteArray(true)
     encoded(0) should be (header)
-    assert(Arrays.equals(encoded.tail,compressed.toArray()))
+    if (CompressionMode.lzma != compressor) // LZMA can use a small dictionary when it knows the input size in advance.
+      assert(Arrays.equals(encoded.tail,compressed.toArray()))
     val in = new ByteArrayInputStream(encoded)
     val read = CompressedStream.readStream(in).readFully
     assert(Arrays.equals(read, toEncode))

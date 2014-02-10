@@ -24,6 +24,7 @@ import ch.descabato.version.BuildInfo
 import ch.descabato.core.FileManager
 import java.nio.ByteBuffer
 import java.util.zip.CRC32
+import ch.descabato.utils.Utils.ByteBufferUtils
 
 case class MetaInfo(date: String, writingVersion: String)
 
@@ -192,7 +193,10 @@ private[this] class ZipFileWriterTFile(val file: File) extends ZipFileHandler(fi
   }
 
   def writeUncompressedEntry(zipEntry: ZipEntry, byte: Byte, content: ByteBuffer) {
-    ???
+    writeEntry(zipEntry.getName) { out =>
+      out.write(byte)
+      content.writeTo(out)
+    }
   }
   
   def newOutputStream(name: String): OutputStream = {
@@ -238,7 +242,7 @@ private[this] class ZipFileWriterJdk(val file: File) extends ZipFileHandler(file
   def writeUncompressedEntry(zipEntry: ZipEntry, byte: Byte, content: ByteBuffer) {
     out.putNextEntry(zipEntry)
     out.write(byte)
-    out.write(content.array(), content.position(), content.remaining())
+    content.writeTo(out)
     out.closeEntry()
   }
   

@@ -18,24 +18,32 @@ unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   )
 }
 
-libraryDependencies += "org.fusesource.jansi" % "jansi" % "1.11"
+// Core dependencies
+libraryDependencies ++= Seq(
+    "com.typesafe.akka" % "akka-actor_2.10" % "2.2.3",
+    "org.rogach" %% "scallop" % "0.9.4",
+    "org.iq80.snappy" % "snappy" % "0.3",
+    "org.ocpsoft.prettytime" % "prettytime" % "3.1.0.Final",
+    "org.fusesource.jansi" % "jansi" % "1.11"
+)
 
-libraryDependencies += "org.ocpsoft.prettytime" % "prettytime" % "3.1.0.Final"
-
+// Logging
 libraryDependencies ++= Seq(
 		"ch.qos.logback" % "logback-classic" % "1.0.13",
 		"com.typesafe" % "scalalogging-slf4j_2.10" % "1.0.1"
 )
 
+// Jackson / persistence
 libraryDependencies ++= Seq(
 		"com.fasterxml.jackson.module" % "jackson-module-scala_2.10" % "2.3.1",
 		"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.3.1"
 )
 
-// for truevfs
-libraryDependencies += "javax.inject" % "javax.inject" % "1"
-
-libraryDependencies += "com.google.code.findbugs" % "annotations" % "2.0.3"
+// truevfs
+libraryDependencies ++= Seq(
+    "javax.inject" % "javax.inject" % "1",
+    "com.google.code.findbugs" % "annotations" % "2.0.3"
+)
 
 // Test dependencies
 libraryDependencies ++= Seq(
@@ -43,15 +51,18 @@ libraryDependencies ++= Seq(
 		"org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
 )
 
-libraryDependencies += "com.typesafe.akka" % "akka-actor_2.10" % "2.2.3"
+// Database
+libraryDependencies ++= Seq(
+    "com.h2database" % "h2" % "1.3.175",
+    "com.typesafe.slick" %% "slick" % "2.0.0"
+)
+
 
 parallelExecution in Test := false
 
 testOptions in Test += Tests.Argument("-oF")
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
-
-libraryDependencies += "org.rogach" %% "scallop" % "0.9.4"
 
 libraryDependencies += "com.nativelibs4java" % "bridj" % "0.6.2"
 

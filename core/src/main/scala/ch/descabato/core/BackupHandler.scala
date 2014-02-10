@@ -11,6 +11,7 @@ import ch.descabato.utils.Streams._
 import ch.descabato.frontend.CLI
 import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.frontend.ProgressReporters
+import scala.collection.parallel.ThreadPoolTaskSupport
 
 trait BackupRelatedHandler {
   def config: BackupFolderConfiguration
@@ -52,8 +53,19 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
 
   def config = universe.config
 
-  var curFileCounter = new MaxValueCounter() {
-    val name = "Current file"
+  var counters = new ThreadLocal[FileProgress]() {
+    override def initialValue = new FileProgress()
+  }
+
+  var threadNumber = 0
+
+  class FileProgress extends MaxValueCounter() {
+    val name = "Current file " + (config.synchronized {
+      val copy = threadNumber
+      threadNumber += 1
+      copy
+    })
+    ProgressReporters.addCounter(this)
     var filename = ""
 
     override def formatted = filename
@@ -84,7 +96,17 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     // Backup files 
     setMaximums(newDesc)
 
-    val (success, failed) = newDesc.files.partition(backupFileDesc)
+    val coll = if (true) newDesc.files
+    else {
+      val out = newDesc.files.par
+      val tp = new ThreadPoolTaskSupport() {
+        override def parallelismLevel = 2
+      }
+      out.tasksupport = tp
+      out
+    }
+
+    val (success, failed) = coll.partition(backupFileDesc)
 
     println("Successfully backed up " + success.size + ", failed " + failed.size)
     universe.finish()
@@ -99,15 +121,15 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     val minutes = seconds / 60
     val hours = minutes / 60
     val days = hours / 24
-    val add = if (days == 0) "" else days+" days "
-    f"$add${hours%24}%02d:${minutes%60}%02d:${seconds%60}%02d"
+    val add = if (days == 0) "" else days + " days "
+    f"$add${hours % 24}%02d:${minutes % 60}%02d:${seconds % 60}%02d"
   }
 
   def backupFileDesc(fileDesc: FileDescription): Boolean = {
     val byteCounterbackup = byteCounter.current
-    curFileCounter.maxValue = fileDesc.size
-    curFileCounter.current = 0
-    curFileCounter.filename = fileDesc.name
+    counters.get.maxValue = fileDesc.size
+    counters.get.current = 0
+    counters.get.filename = fileDesc.name
     var fis: FileInputStream = null
     try {
       // This is a new file, so we start hashing its contents, fill those in and return the same instance
@@ -132,7 +154,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
           universe.cpuTaskHandler.computeHash(block, config.hashAlgorithm, bid)
           universe.hashHandler.hash(bid, block)
           byteCounter += block.length
-          curFileCounter += block.length
+          counters.get += block.length
           updateProgress()
           waitForQueues()
           while (CLI.paused) {
@@ -164,7 +186,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
   }
 
   override def updateProgress() {
-    ProgressReporters.updateWithCounters(fileCounter :: byteCounter :: curFileCounter :: Nil)
+    ProgressReporters.updateWithCounters(fileCounter :: byteCounter :: Nil)
   }
 
 }

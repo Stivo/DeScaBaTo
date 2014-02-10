@@ -41,12 +41,17 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
     override def formatted = s"${r(current)}/${r(maxValue)} (compressed ${r(compressedBytes)})"
   }
 
+  private val compressionRatioCounter = new MaxValueCounter() {
+    def name: String = "Compression Ratio"
+    override def formatted = percent+"%"
+  }
+
   def setTotalSize(size: Long) {
     byteCounter.maxValue = size
   }
   
   def updateProgress() {
-    ProgressReporters.updateWithCounters(byteCounter::Nil)
+    ProgressReporters.updateWithCounters(byteCounter::compressionRatioCounter::Nil)
   }
   
   protected def volumeSize = config.volumeSize
@@ -163,10 +168,12 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
       startZip
     }
     byteCounter.compressedBytes += block.remaining()
+    compressionRatioCounter += block.remaining()
     currentZip.writeUncompressedEntry(zipEntry, header, block)
     block.recycle()
     currentIndex.bos.write(hash)
     byteCounter += outstandingRequests(hash)
+    compressionRatioCounter.maxValue += outstandingRequests(hash)
     updateProgress
     outstandingRequests -= hash
     knownBlocksWritten += ((hash, curNum))
