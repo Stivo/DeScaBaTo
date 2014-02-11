@@ -59,7 +59,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
   // reads all the backup parts for the given date
   // Does not keep a copy of this data
   def readBackup(date: Option[Date]): BackupDescription = {
-    fileManager.backup.getFiles().reverse.take(1)
+    fileManager.backup.getFiles().sortBy(_.getName).reverse.take(1)
       .flatMap(fileManager.backup.read(_, OnFailureTryRepair))
       .fold(new BackupDescription())((x, y) => x.merge(y))
   }
