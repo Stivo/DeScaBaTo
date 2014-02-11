@@ -27,6 +27,7 @@ import ch.descabato.core.UpdatePart
 import ch.descabato.core.BAWrapper2
 import ch.descabato.core.SymbolicLink
 import ch.descabato.core.FolderDescription
+import ch.descabato.utils.Implicits._
 
 trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit
@@ -42,9 +43,9 @@ abstract class AbstractJacksonSerialization extends Serialization {
       val fields = root.fieldNames().asScala.toSet
       if (fields.find(_=="attrs").isEmpty) {
         mapper.convertValue(root, classOf[FileDeleted])
-      } else if (fields.contains("hash")) {
+      } else if (fields.safeContains("hash")) {
         mapper.convertValue(root, classOf[FileDescription]);
-      } else if (fields.contains("linkTarget")) {
+      } else if (fields.safeContains("linkTarget")) {
         mapper.convertValue(root, classOf[SymbolicLink]);
       } else {
         mapper.convertValue(root, classOf[FolderDescription])
@@ -66,7 +67,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
   class BAWrapper2Deserializer extends StdDeserializer[BAWrapper2](classOf[BAWrapper2]) {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
       val bytes = jp.readValueAs(classOf[Array[Byte]])
-      BAWrapper2.byteArrayToWrapper(bytes)
+      bytes
     }
   }
   class BAWrapper2Serializer extends StdSerializer[BAWrapper2](classOf[BAWrapper2]) {

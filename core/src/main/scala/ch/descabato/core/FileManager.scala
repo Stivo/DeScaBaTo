@@ -132,6 +132,8 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       }
     } finally {
       w.close
+      if (!temp)
+        fileManager.universe.journalHandler.finishedFile(file.getName())
     }
     file
   }
@@ -192,7 +194,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 /**
  * Provides different file types and does some common backup file operations.
  */
-class FileManager(config: BackupFolderConfiguration) {
+class FileManager(override val universe: Universe) extends UniversePart {
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
   val dateFormatLength = dateFormat.format(new Date()).length()
   val startDate = new Date()
@@ -213,6 +215,8 @@ class FileManager(config: BackupFolderConfiguration) {
 
   private val types = List(volumes, hashlists, files, filesDelta, backup, index, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
+  def allFiles(temp: Boolean = true) = types.flatMap(ft => ft.getFiles()++(if(temp) ft.getTempFiles() else Nil))
+  
   types.foreach { x => x.config = config; x.fileManager = this }
 
   def getFileType(x: File) = types.find(_.matches(x)).get

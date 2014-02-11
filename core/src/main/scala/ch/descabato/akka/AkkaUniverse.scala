@@ -86,10 +86,11 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
   lazy val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
+  lazy val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer")
   // TODO compressionStatistics
   //override lazy val compressionStatistics = Some(actorOf[CompressionStatistics, SimpleCompressionStatistics]("Statistics", false))
 
-  override def finish() {
+  override def finish() = {
     while (backupPartHandler.remaining > 0) {
       l.info(s"Waiting for backup to finish, ${backupPartHandler.remaining} files left")
       updateProgress()
@@ -114,6 +115,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     blockHandler.finish
     hashListHandler.finish
     backupPartHandler.finish
+    true
   }
 
   def queueInfo(x: AnyRef): Option[(Int, Int)] = {
@@ -243,9 +245,9 @@ class Resizer(name: String) extends DefaultResizer(messagesPerResize = 100) with
     var endResult = requestedCapacity + currentRoutees.size
     val newThreads = Math.min(requestedCapacity + currentRoutees.size, maxThreads)
     requestedCapacity = newThreads - currentRoutees.size
-    if (requestedCapacity != 0) {
-      l.info(s"Changing number of $name threads to " + (currentRoutees.size + requestedCapacity))
-    }
+//    if (requestedCapacity != 0) {
+//      l.info(s"Changing number of $name threads to " + (currentRoutees.size + requestedCapacity))
+//    }
     counter.current = currentRoutees.size + requestedCapacity
     if (requestedCapacity > 0) routeeProvider.createRoutees(requestedCapacity)
     else if (requestedCapacity < 0) routeeProvider.removeRoutees(-requestedCapacity, stopDelay)

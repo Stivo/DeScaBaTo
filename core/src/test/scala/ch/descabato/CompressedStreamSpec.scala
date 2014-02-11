@@ -20,7 +20,7 @@ import scala.util.Random
 import org.scalacheck.Arbitrary
 import org.scalacheck._
 import Arbitrary.arbitrary
-import utils.Utils.ByteBufferUtils
+import utils.Implicits._
 import ch.descabato.core.BackupFolderConfiguration
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.ObjectPools

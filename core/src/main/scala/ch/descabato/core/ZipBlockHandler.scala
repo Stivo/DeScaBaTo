@@ -13,7 +13,7 @@ import ch.descabato.utils.ZipFileWriter
 import ch.descabato.utils.ZipFileHandlerFactory
 import ch.descabato.utils.ZipFileReader
 import ch.descabato.utils.CompressedStream
-import ch.descabato.utils.Utils.ByteBufferUtils
+import ch.descabato.utils.Implicits._
 import java.util.zip.ZipEntry
 import scala.collection.mutable.HashMap
 import ch.descabato.frontend.MaxValueCounter
@@ -77,6 +77,10 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
     _init(true, Some(problemCounter))
   }
 
+  override def setupInternal() {
+    _init(false)
+  }
+  
   private def _init(verify: Boolean = false, problems: Option[Counter] = None) {
     require(universe != null)
     if (_initRan)
@@ -103,7 +107,7 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
       if (verify) {
         val zip = getZipFileReader(num)
         for (name <- zip.names.view.filter(_ != "manifest.txt")) {
-          if (!(lastSet contains (name))) {
+          if (!(lastSet safeContains (name))) {
             problems.foreach(_ += 1)
             l.warn("Index file is broken, does not contain " + name)
           }
@@ -137,15 +141,15 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
     val set1 = deleteFiles(config.prefix + "temp.index_", fileManager.index)
     val set2 = deleteFiles(config.prefix + "temp.volume_", fileManager.volumes)
     val set = set1 union set2
-    fileManager.index.getFiles().filter(x => set contains (fileManager.index.getNum(x))).foreach(deleteFile)
-    fileManager.volumes.getFiles().filter(x => set contains (fileManager.volumes.getNum(x))).foreach(deleteFile)
+    fileManager.index.getFiles().filter(x => set safeContains (fileManager.index.getNum(x))).foreach(deleteFile)
+    fileManager.volumes.getFiles().filter(x => set safeContains (fileManager.volumes.getNum(x))).foreach(deleteFile)
   }
 
   private def asKey(hash: Array[Byte]): BAWrapper2 = hash
 
   def writeBlockIfNotExists(blockId: BlockId, hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean) {
     val k = asKey(hash)
-    if ((knownBlocks contains k) || (knownBlocksTemp contains k)) {
+    if ((knownBlocks safeContains k) || (knownBlocksTemp safeContains k)) {
       byteCounter.maxValue -= block.length
       updateProgress
       return
@@ -183,7 +187,7 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
   // or multiple blocks
   def blockIsPersisted(hash: Array[Byte]): Boolean = {
     _init()
-    knownBlocks contains hash
+    knownBlocks safeContains hash
   }
 
   def readBlock(hash: Array[Byte], verifyHash: Boolean): InputStream = {
@@ -239,17 +243,21 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
       currentIndex.bos.close()
       currentIndex.zipWriter.writeManifest(fileManager)
       currentIndex.close()
-      def rename(f: (Int, Boolean) => String) {
+      // TODO journal makes this obsolete
+      def rename(f: (Int, Boolean) => String) = {
         val from = new File(config.folder, f(curNum, true))
         val to = new File(config.folder, f(curNum, false))
         Files.move(from.toPath(), to.toPath())
         val success = to.exists()
         if (!success)
           l.warn("Could not rename file from " + from + " to " + to)
+        success
       }
-
-      rename(volumeName)
-      rename(indexName)
+      val bothRenamed = rename(volumeName) && rename(indexName)
+      if (bothRenamed) {
+        universe.journalHandler.finishedFile(volumeName(curNum, false))
+        universe.journalHandler.finishedFile(indexName(curNum, false))
+      }
       knownBlocks ++= knownBlocksWritten
       knownBlocksTemp --= knownBlocksWritten.keys
       knownBlocksWritten = Map()

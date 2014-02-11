@@ -27,14 +27,14 @@ object Universes {
 }
 
 trait UniversePart extends AnyRef with PostRestart {
-  protected var universe: Universe = null
-
+  protected def universe = _universe
+  protected var _universe: Universe = null
   protected def fileManager = universe.fileManager
 
   protected def config = universe.config
 
   def setup(universe: Universe) {
-    this.universe = universe
+    this._universe = universe
     setupInternal()
   }
 
@@ -46,28 +46,13 @@ trait UniversePart extends AnyRef with PostRestart {
 }
 
 class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe {
-  lazy val backupPartHandler = {
-    val out = new ZipBackupPartHandler()
-    out.setup(this)
-    out
-  }
-  lazy val hashListHandler = {
-    val out = new ZipHashListHandler()
-    out.setup(this)
-    out
-  }
+  def make[T <: UniversePart](x: T) = {x.setup(this); x} 
+  lazy val backupPartHandler = make(new ZipBackupPartHandler())
+  lazy val hashListHandler = make(new ZipHashListHandler())
   lazy val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
-  lazy val blockHandler = {
-    val out = new ZipBlockHandler()
-    out.setup(this)
-    out
-  }
-  lazy val hashHandler = {
-    val out = new SingleThreadHasher()
-    out.setup(this)
-    out
-  }
-
+  lazy val blockHandler = make(new ZipBlockHandler())
+  lazy val hashHandler = make(new SingleThreadHasher())
+  lazy val journalHandler = make(new SimpleJournalHandler())
 }
 
 class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {

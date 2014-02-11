@@ -12,6 +12,8 @@ import java.nio.ByteBuffer
 import java.io.OutputStream
 import sun.nio.ch.DirectBuffer
 import ch.descabato.ByteArrayOutputStream
+import ch.descabato.core.BAWrapper2
+import scala.collection.mutable
 
 object Utils extends Logging {
 
@@ -52,12 +54,16 @@ object Utils extends Logging {
     TVFS.umount(x.getMountPoint())
   }
 
+}
+
+object Implicits {
+  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
+  
   implicit class ByteBufferUtils(buf: ByteBuffer) {
     def writeTo(out: OutputStream) {
       if (buf.hasArray()) {
         out.write(buf.array(), buf.position(), buf.remaining())
-      }
-      else {
+      } else {
         throw new UnsupportedOperationException("Not yet implemented, but easy to do")
       }
     }
@@ -68,7 +74,7 @@ object Utils extends Logging {
         case x if x.hasArray() => ObjectPools.byteArrayPool.recycle(x.array())
       }
     }
-    
+
     def toArray() = {
       if (buf.hasArray()) {
         val out = new Array[Byte](buf.limit())
@@ -78,6 +84,18 @@ object Utils extends Logging {
         throw new UnsupportedOperationException("Not yet implemented, but easy to do")
       }
     }
+  }
+  implicit class InvariantContains[T, CC[X] <: Seq[X]](xs: CC[T]) {
+    def safeContains(x: T): Boolean = xs contains x
+  }
+  implicit class InvariantContains2[T, CC[X] <: Set[X]](xs: CC[T]) {
+    def safeContains(x: T): Boolean = xs contains x
+  }
+  implicit class InvariantContains3[T](xs: Map[T, _]) {
+    def safeContains(x: T): Boolean = xs.keySet contains x
+  }
+  implicit class InvariantContains4[T](xs: mutable.Map[T, _]) {
+    def safeContains(x: T): Boolean = xs.keySet contains x
   }
 
 }

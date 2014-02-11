@@ -22,6 +22,7 @@ import java.security.MessageDigest
 import ch.descabato.utils.JsonSerialization
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Utils
+import ch.descabato.utils.Implicits._
 import scala.collection.mutable.Buffer
 import scala.collection.mutable
 
@@ -141,7 +142,7 @@ object FileAttributes extends Utils {
     val dosOnes = "hidden,archive,readonly".split(",").toSet
     for ((k, o) <- attrs.asScala) {
       try {
-        val name = if (dosOnes.contains(k)) "dos:" + k else k
+        val name = if (dosOnes.safeContains(k)) "dos:" + k else k
         val toSet: Option[Any] = (k, o) match {
           case (k, time) if k.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
           case (s, group) if s == posixGroup =>
@@ -219,7 +220,7 @@ class BackupDescription(val files: Buffer[FileDescription], val folders: Buffer[
   def merge(later: BackupDescription) = {
     val set = later.deleted.map(_.path)
     def remove[T <: BackupPart](x: Buffer[T]) = {
-      x.filterNot(bp => set contains bp.path)
+      x.filterNot(bp => set safeContains bp.path)
     }
     new BackupDescription(remove(files) ++ later.files, remove(folders) ++ later.folders,
       remove(symlinks) ++ later.symlinks, later.deleted)
@@ -256,10 +257,6 @@ class BAWrapper2(ba: Array[Byte]) {
     }
 
   override def hashCode: Int = Arrays.hashCode(data)
-}
-
-object BAWrapper2 {
-  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
 }
 
 // Domain classes

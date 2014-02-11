@@ -3,6 +3,7 @@ package ch.descabato.core
 import scala.collection.mutable
 import java.io.File
 import scala.collection.mutable.Buffer
+import ch.descabato.utils.Implicits._
 
 class ZipHashListHandler extends HashListHandler with UniversePart {
   type HashListMap = mutable.HashMap[BAWrapper2, Array[Byte]]
@@ -41,7 +42,8 @@ class ZipHashListHandler extends HashListHandler with UniversePart {
   }
 
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte]) {
-    hashListMapNew += ((fileHash, hashList))
+    if (!(hashListMap safeContains fileHash))
+      hashListMapNew += ((fileHash, hashList))
   }
   
   def checkpoint() = {
@@ -50,7 +52,8 @@ class ZipHashListHandler extends HashListHandler with UniversePart {
   }
   
   def finish() = {
-    fileManager.hashlists.write(hashListMapNew.toBuffer)
+    if (!hashListMapNew.isEmpty)
+      fileManager.hashlists.write(hashListMapNew.toBuffer)
     fileManager.hashlists.deleteTempFiles()
     true
   }

@@ -18,6 +18,7 @@ import ch.descabato.core.FileDescription
 import ch.descabato.utils.SmileSerialization
 import ch.descabato.core.UpdatePart
 import ch.descabato.utils.JsonSerialization
+import ch.descabato.utils.Implicits._
 import ch.descabato.core.BAWrapper2
 import ch.descabato.core.SymbolicLink
 import ch.descabato.core.FolderDescription

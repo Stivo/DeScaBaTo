@@ -99,8 +99,8 @@ object ObjectPools extends Utils {
 
     
     final def recycle(t: T) {
-//      val stack = getStack
-//      stack += (WeakReference(t))
+      val stack = getStack
+      stack += (WeakReference(t))
     }
     protected def makeNew(arg: Int): T = {
       Array.ofDim[Byte](arg)

@@ -24,7 +24,8 @@ import ch.descabato.version.BuildInfo
 import ch.descabato.core.FileManager
 import java.nio.ByteBuffer
 import java.util.zip.CRC32
-import ch.descabato.utils.Utils.ByteBufferUtils
+import ch.descabato.utils.Implicits._
+import java.util.zip.Deflater
 
 case class MetaInfo(date: String, writingVersion: String)
 
@@ -247,7 +248,7 @@ private[this] class ZipFileWriterJdk(val file: File) extends ZipFileHandler(file
   }
   
   def enableCompression() {
-    out.setLevel(ZipEntry.DEFLATED);
+    out.setLevel(Deflater.BEST_COMPRESSION)
   }
 
   def size() = {
