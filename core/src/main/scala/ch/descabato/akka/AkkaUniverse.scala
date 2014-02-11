@@ -82,7 +82,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   counters += new CompressionTasksQueueCounter("CPU Tasks", ActorStats.remaining.get)
 
   lazy val backupPartHandler = actorOf[BackupPartHandler, ZipBackupPartHandler]("Backup Parts")
-  lazy val hashListHandler = actorOf[HashListHandler, ZipHashListHandler]("Hash Lists", false)
+  lazy val hashListHandler = actorOf[HashListHandler, NewZipHashListHandler]("Hash Lists", false)
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
   lazy val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")

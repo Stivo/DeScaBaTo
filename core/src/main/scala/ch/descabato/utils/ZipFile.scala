@@ -26,6 +26,7 @@ import java.nio.ByteBuffer
 import java.util.zip.CRC32
 import ch.descabato.utils.Implicits._
 import java.util.zip.Deflater
+import scala.collection.mutable
 
 case class MetaInfo(date: String, writingVersion: String)
 
@@ -160,7 +161,16 @@ private[this] class ZipFileReaderTFile(val file: File) extends ZipFileHandler(fi
 
   def this(s: String) = this(new File(s))
 
-  def names = tfile.list().toArray.toSeq
+  def names = {
+    var out = mutable.Buffer[String]()
+    def addAll(x: TFile, prefix: String = "") {
+      val (files, folders) = x.listFiles().partition(_.isFile)
+      out ++= files.map(x => prefix + x.getName)
+      folders.foreach(x => addAll(x, prefix+x.getName+"/"))
+    }
+    addAll(tfile)
+    out
+  }
 
   def getStream(name: String): InputStream = {
     val e = new TFile(tfile, name);

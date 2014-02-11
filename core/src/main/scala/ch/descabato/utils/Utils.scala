@@ -14,6 +14,7 @@ import sun.nio.ch.DirectBuffer
 import ch.descabato.ByteArrayOutputStream
 import ch.descabato.core.BAWrapper2
 import scala.collection.mutable
+import java.io.InputStream
 
 object Utils extends Logging {
 
@@ -57,6 +58,7 @@ object Utils extends Logging {
 }
 
 object Implicits {
+  import scala.language.higherKinds
   implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
   
   implicit class ByteBufferUtils(buf: ByteBuffer) {
@@ -96,6 +98,14 @@ object Implicits {
   }
   implicit class InvariantContains4[T](xs: mutable.Map[T, _]) {
     def safeContains(x: T): Boolean = xs.keySet contains x
+  }
+
+  implicit class InputStreamBetter(in: InputStream) {
+    def readFully() = {
+      val baos = new ByteArrayOutputStream()
+      Streams.copy(in, baos)
+      baos.toByteArray()
+    }
   }
 
 }

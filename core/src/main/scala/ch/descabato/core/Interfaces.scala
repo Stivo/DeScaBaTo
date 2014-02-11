@@ -72,7 +72,7 @@ trait BackupPartHandler extends BackupActor {
   def remaining(): Int
 }
 
-trait HashListHandler extends BackupActor {
+trait HashListHandler extends BackupActor with UniversePart {
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte])
   def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]]
   def checkpoint(): Boolean
@@ -80,10 +80,10 @@ trait HashListHandler extends BackupActor {
 
 trait MetadataHandler extends HashListHandler with BackupPartHandler
 
-trait BlockHandler extends BackupActor {
+trait BlockHandler extends BackupActor with UniversePart {
   def writeBlockIfNotExists(blockId: BlockId, hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean)
   // or multiple blocks
-  def blockIsPersisted(hash: Array[Byte]): Boolean
+  def isPersisted(hash: Array[Byte]): Boolean
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
   def writeCompressedBlock(hash: Array[Byte], zipEntry: ZipEntry, header: Byte, block: ByteBuffer)
   def remaining: Int

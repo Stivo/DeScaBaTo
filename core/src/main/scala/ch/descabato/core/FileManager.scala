@@ -57,7 +57,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
 
   def nextNum(temp: Boolean = false) = {
-    val col = (if (temp) getTempFiles() else getFiles()).map(getNum)
+    val col = (if (temp) getTempFiles() else getFiles()).map(num)
     if (col.isEmpty) {
       0
     } else {
@@ -76,7 +76,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def matches(x: File) = x.getName().startsWith(globalPrefix + prefix)
 
-  def getFiles(f: File = config.folder) = f.
+  def getFiles(f: File = config.folder): Seq[File] = f.
     listFiles().view.filter(_.isFile()).
     filter(_.getName().startsWith(globalPrefix + prefix)).
     filterNot(_.getName.endsWith(".tmp"))
@@ -102,13 +102,13 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     rest
   }
 
-  def getDate(x: File) = {
+  def date(x: File) = {
     val name = stripPrefixes(x)
     val date = name.take(fileManager.dateFormatLength)
     fileManager.dateFormat.parse(date)
   }
 
-  def getNum(x: File) = {
+  def num(x: File) = {
     var rest = stripPrefixes(x)
     if (hasDate)
       rest = rest.drop(fileManager.dateFormatLength + 1)
@@ -119,6 +119,10 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       num.toInt
   }
 
+  def num(number: Int, temp: Boolean = false): Option[File] = {
+    getFiles().filter(x => num(x) == number).headOption
+  }
+  
   def write(x: T, temp: Boolean = false) = {
     val file = nextFile(temp = temp)
     val w = ZipFileHandlerFactory.writer(file, config)
@@ -224,20 +228,20 @@ class FileManager(override val universe: Universe) extends UniversePart {
   def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {
     val filesNow = config.folder.listFiles().filter(_.isFile()).filter(files.matches)
     val sorted = filesNow.sortBy(_.getName())
-    val lastDate = if (sorted.isEmpty) new Date(0) else files.getDate(sorted.filterNot(_.getName.startsWith(Constants.tempPrefix)).last)
-    val onlyLast = sorted.dropWhile(x => files.getDate(x).before(lastDate))
-    val updates = filesDelta.getFiles().dropWhile(filesDelta.getDate(_).before(lastDate))
+    val lastDate = if (sorted.isEmpty) new Date(0) else files.date(sorted.filterNot(_.getName.startsWith(Constants.tempPrefix)).last)
+    val onlyLast = sorted.dropWhile(x => files.date(x).before(lastDate))
+    val updates = filesDelta.getFiles().dropWhile(filesDelta.date(_).before(lastDate))
     val out1 = onlyLast ++ updates
     val complete = if (temp) out1 ++ files.getTempFiles() else out1
     (complete, !updates.isEmpty)
   }
 
   def getBackupDates(): Seq[Date] = {
-    files.getFiles().map(files.getDate).toList.distinct.sorted
+    files.getFiles().map(files.date).toList.distinct.sorted
   }
 
   def getBackupForDate(d: Date): Seq[File] = {
-    files.getFiles().filter(f => files.getDate(f) == d)
+    files.getFiles().filter(f => files.date(f) == d)
   }
 
 }

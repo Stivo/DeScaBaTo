@@ -4,6 +4,9 @@ import scala.collection.mutable
 import java.io.File
 import scala.collection.mutable.Buffer
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.ZipFileReader
+import ch.descabato.utils.ZipFileWriter
+import java.util.zip.ZipEntry
 
 class ZipHashListHandler extends HashListHandler with UniversePart {
   type HashListMap = mutable.HashMap[BAWrapper2, Array[Byte]]
@@ -58,4 +61,34 @@ class ZipHashListHandler extends HashListHandler with UniversePart {
     true
   }
   
+}
+
+class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHandler with UniversePart {
+  override def folder = "hashlists/"
+
+  def filetype = fileManager.hashlists
+
+  override def setupInternal() {
+    load()
+  }
+
+  override def configureWriter(writer: ZipFileWriter) {
+    writer.enableCompression()
+  }
+
+  def addHashlist(fileHash: Array[Byte], hashList: Array[Byte]) {
+    if (!exists(fileHash))
+      write(fileHash, hashList)
+  }
+  def hashListSeq(a: Array[Byte]) = a.grouped(config.getMessageDigest.getDigestLength()).toSeq
+  def getHashlist(fileHash: Array[Byte], size: Long) ={
+    hashListSeq(read(fileHash))
+  }
+  def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]) = false
+
+  def checkpoint(): Boolean = {
+    // TODO
+    true
+  }
+
 }

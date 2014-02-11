@@ -36,14 +36,6 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   
   var folder = new File("testdata/temp")
   
-  implicit class InputStreamBetter(in: InputStream) {
-    def readFully = {
-      val baos = new ByteArrayOutputStream()
-      Streams.copy(in, baos)
-      baos.toByteArray()
-    }
-  }
-
   implicit val x = Arbitrary {oneOf(CompressionMode.values)}
       
   class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, "", passphrase) {

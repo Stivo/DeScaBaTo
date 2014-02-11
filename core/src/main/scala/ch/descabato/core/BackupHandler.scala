@@ -16,27 +16,6 @@ import scala.collection.parallel.ThreadPoolTaskSupport
 trait BackupRelatedHandler {
   def config: BackupFolderConfiguration
 
-  var _lock: Option[(RandomAccessFile, FileLock)] = None
-
-  def takeLock() {
-    val file = new File(config.folder, config.configFileName)
-    try {
-      val fis = new RandomAccessFile(file, "rw")
-      val lock = fis.getChannel().tryLock()
-      _lock = Some((fis, lock))
-    } catch {
-      case e: IOException => throw new BackupInUseException().initCause(e)
-    }
-  }
-
-  def releaseLock() {
-    _lock match {
-      case Some((file, lock)) =>
-        lock.close(); file.close()
-      case None =>
-    }
-  }
-
   def statistics(x: BackupDescription) = {
     val num = x.size
     val totalSize = new Size(x.files.map(_.size).sum)
@@ -76,7 +55,6 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
   def backup(files: Seq[File]) {
     val started = System.currentTimeMillis()
     config.folder.mkdirs()
-    takeLock()
 
     l.info("Starting backup")
     // Walk tree and compile to do list
@@ -113,7 +91,6 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     // Clean up, handle failed entries
     val time = System.currentTimeMillis()
     l.info("Backup completed in " + format(time - started))
-    releaseLock()
   }
 
   def format(millis: Long) = {
