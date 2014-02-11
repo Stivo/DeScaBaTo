@@ -22,7 +22,10 @@ import ch.descabato.frontend.MaxValueCounter
 
 object Universes {
   def makeUniverse(config: BackupFolderConfiguration) = {
-    new AkkaUniverse(config)
+    if (config.threads == 1)
+      new SingleThreadUniverse(config)
+    else
+      new AkkaUniverse(config)
   }
 }
 
@@ -52,7 +55,14 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   lazy val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
   lazy val blockHandler = make(new ZipBlockHandler())
   lazy val hashHandler = make(new SingleThreadHasher())
-  lazy val journalHandler = make(new SimpleJournalHandler())
+  val journalHandler = make(new SimpleJournalHandler())
+  def finish() = {
+    blockHandler.finish()
+    hashListHandler.finish()
+    backupPartHandler.finish()
+    journalHandler.finish()
+    true
+  }
 }
 
 class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
@@ -91,5 +101,7 @@ class SingleThreadHasher extends HashHandler with UniversePart {
   }
 
   def waitUntilQueueIsDone = true
+
+  def fileFailed(fd: FileDescription) {}
 
 }

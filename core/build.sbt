@@ -65,7 +65,7 @@ packSettings
 
 packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
 
-packJvmOpts := Map("descabato" -> Seq("-Xms100m -XX:NewRatio=1 -XX:+UseParNewGC"))
+//packJvmOpts := Map("descabato" -> Seq("-Xms500m -Xmx1g -XX:NewRatio=1 -XX:+UseParNewGC"))
 
 packPreserveOriginalJarName := true
 

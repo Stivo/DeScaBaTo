@@ -4,8 +4,7 @@ import scala.collection.mutable
 import java.io.File
 import scala.collection.mutable.Buffer
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.ZipFileReader
-import ch.descabato.utils.ZipFileWriter
+import ch.descabato.utils.{Utils, ZipFileReader, ZipFileWriter}
 import java.util.zip.ZipEntry
 
 class ZipHashListHandler extends HashListHandler with UniversePart {
@@ -63,7 +62,7 @@ class ZipHashListHandler extends HashListHandler with UniversePart {
   
 }
 
-class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHandler with UniversePart {
+class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHandler with UniversePart with Utils {
   override def folder = "hashlists/"
 
   def filetype = fileManager.hashlists
@@ -89,6 +88,15 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
   def checkpoint(): Boolean = {
     // TODO
     true
+  }
+
+  override def endZipFile() {
+    if (currentWriter != null) {
+      val file = currentWriter.file
+      val num = filetype.num(file)
+      super.endZipFile()
+      l.info("Wrote hashlist "+num)
+    }
   }
 
 }

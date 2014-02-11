@@ -67,8 +67,8 @@ object CLI extends Utils {
         // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
         //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
         //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression none --volume-size 10mb F:/desca8 f:/data/python27/".split(" "))
-        parseCommandLine("verify --percent-of-files-to-check 100 f:/desca8".split(" "))
-        parseCommandLine("restore --restore-to-folder F:/restore f:/desca8".split(" "))
+        parseCommandLine("verify --percent-of-files-to-check 100 F:\\integrationtest\\testdata\\backup1".split(" "))
+//        parseCommandLine("restore --restore-to-folder F:/restore f:/desca8".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))
@@ -187,6 +187,9 @@ trait BackupRelatedCommand extends Command with Utils {
     try {
       val t = newT(args)
       t.afterInit()
+      if (t.noGui.isSupplied && t.noGui()) {
+        ProgressReporters.guiEnabled = false
+      }
       if (t.logfile.isSupplied) {
         System.setProperty("logname", t.logfile())
       }
@@ -243,7 +246,13 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
   val hashAlgorithm = opt[String](default = Some("md5"))
 }
 
-trait BackupFolderOption extends ScallopConf {
+trait ProgramOption extends ScallopConf {
+  val noGui = opt[Boolean](short = 'g')
+  val logfile = opt[String]()
+  val noansi = opt[Boolean]()
+}
+
+trait BackupFolderOption extends ProgramOption {
   val passphrase = opt[String](default = None)
   val prefix = opt[String](default = Some("")).map {
     x =>
@@ -256,8 +265,6 @@ trait BackupFolderOption extends ScallopConf {
         }
       }
   }
-  val logfile = opt[String]()
-  val noansi = opt[Boolean]()
   val backupDestination = trailArg[String](required = true).map(new File(_).getCanonicalFile())
 }
 
@@ -289,14 +296,14 @@ class BackupCommand extends BackupRelatedCommand with Utils {
 
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
-    val universe = Universes.makeUniverse(conf)
-    //    val universe = new SingleThreadUniverse(conf)
-    val bdh = new BackupHandler(universe)
-    if (!t.noScriptCreation()) {
-      writeBat(t, conf)
+    withUniverse(conf) {
+      universe =>
+        val bdh = new BackupHandler(universe)
+        if (!t.noScriptCreation()) {
+          writeBat(t, conf)
+        }
+        bdh.backup(t.folderToBackup() :: Nil)
     }
-    bdh.backup(t.folderToBackup() :: Nil)
-    universe.shutdown
     //    if (conf.redundancyEnabled) {
     //      l.info("Running redundancy creation")
     //      new RedundancyHandler(conf).createFiles
@@ -362,7 +369,7 @@ class VerifyCommand extends BackupRelatedCommand {
 
   def start(t: T, conf: BackupFolderConfiguration) = {
     println(t.summary)
-    val count = withUniverse(conf, true) {
+    val count = withUniverse(conf, false) {
       u =>
         val rh = new VerifyHandler(u)
         rh.verify(t)

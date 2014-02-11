@@ -31,7 +31,7 @@ trait Universe extends MustFinish {
   def fileManager() = _fileManager
 
   def waitForQueues() {}
-  def finish() = true
+  def finish(): Boolean
   def shutdown() {
     compressionStatistics().foreach{ _.report }
   }
@@ -108,5 +108,5 @@ trait HashHandler {
   def finish(fd: FileDescription)
   // Release resources associated with this file
   // TODO implement and use
-  def fileFailed(fd: FileDescription) = ???
+  def fileFailed(fd: FileDescription)
 }

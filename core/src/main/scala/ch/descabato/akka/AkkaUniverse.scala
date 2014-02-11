@@ -34,6 +34,8 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   val dispatcher = "backup-dispatcher"
 
+  ActorStats.tpe.setCorePoolSize(config.threads)
+  
   val taskers = 1
 
   val counters = mutable.Buffer[QueueCounter]()
@@ -208,7 +210,7 @@ object ActorStats {
         val t = Executors.defaultThreadFactory.newThread(r)
         t.setPriority(2)
         t.setDaemon(true)
-        println("Created new thread " + t.getName())
+//        println("Created new thread " + t.getName())
         t
       }
     })
@@ -287,6 +289,12 @@ class AkkaHasher extends HashHandler with UniversePart {
   def finish(fd: FileDescription) {
     val ref = map(fd.path)
     ref.finish(fd)
+    TypedActor.get(akkaUniverse.system).getActorRefFor(ref) ! PoisonPill
+  }
+
+  def fileFailed(fd: FileDescription) {
+    val ref = map(fd.path)
+    ref.fileFailed(fd)
     TypedActor.get(akkaUniverse.system).getActorRefFor(ref) ! PoisonPill
   }
 

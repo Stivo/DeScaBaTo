@@ -132,8 +132,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
 
     val (success, failed) = coll.partition(backupFileDesc)
 
-    println("Successfully backed up " + success.size + ", failed " + failed.size)
     universe.finish()
+    println("Successfully backed up " + success.size + ", failed " + failed.size)
     // Clean up, handle failed entries
     l.info("Backup completed in " + measuredTime())
   }
@@ -145,6 +145,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     counters.get.current = 0
     counters.get.filename = fileDesc.name
     var fis: FileInputStream = null
+    var success = false
     try {
       // This is a new file, so we start hashing its contents, fill those in and return the same instance
       val file = new File(fileDesc.path)
@@ -180,6 +181,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       universe.hashHandler.finish(fileDesc)
       fileCounter += 1
       updateProgress()
+      success = true
       true
     } catch {
       case io: IOException if io.getMessage().contains("The process cannot access the file") =>
@@ -196,6 +198,9 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     } finally {
       if (fis != null)
         fis.close()
+      if (!success) {
+        universe.hashHandler().fileFailed(fileDesc)
+      }
     }
   }
 

@@ -12,8 +12,12 @@ class SimpleJournalHandler extends JournalHandler with Utils {
 
   lazy val randomAccessFile = new RandomAccessFile(new File(config.folder, journalName), "rw")
   lazy val lock = try {
-    randomAccessFile.getChannel().tryLock()
+    val out = randomAccessFile.getChannel().tryLock()
+    if (out == null)
+      throw new BackupInUseException
+    out
   } catch {
+    case e: BackupInUseException => throw e
     case e: Exception => throw new BackupInUseException().initCause(e)
   }
   def checkLock() {
@@ -56,8 +60,10 @@ class SimpleJournalHandler extends JournalHandler with Utils {
     checkLock()
     randomAccessFile.synchronized {
       randomAccessFile.seek(randomAccessFile.length())
-      randomAccessFile.writeBytes("Finished " + name.length() + " " + name + "\r\n")
+      val line = "Finished " + name.length() + " " + name + "\r\n"
+      randomAccessFile.writeBytes(line)
       randomAccessFile.getFD().sync()
+      l.info("Wrote "+line.dropRight(2))
     }
     true
   }

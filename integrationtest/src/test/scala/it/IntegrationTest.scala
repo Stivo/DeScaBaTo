@@ -3,43 +3,30 @@ package ch.descabato.it
 import org.scalatest._
 import java.io.File
 import org.scalatest.Matchers._
-import java.util.Arrays
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.Buffer
 import scala.collection.mutable.Set
-import java.io.ByteArrayOutputStream
-import scala.collection.mutable.ArrayBuffer
 import java.util.{ List => JList }
-import java.util.ArrayList
-import scala.collection.convert.DecorateAsScala
-import scala.collection.JavaConversions._
-import java.io.ByteArrayInputStream
-import java.io.InputStream
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import org.scalacheck.Gen
 import scala.util.Random
-import org.scalacheck.Arbitrary
-import org.scalacheck._
-import Arbitrary.arbitrary
 import ch.descabato._
-import java.security.MessageDigest
-import ch.descabato.Streams.HashingOutputStream
+import ch.descabato.utils.Streams.{DelegatingOutputStream, HashingOutputStream}
+import ch.descabato.utils.Utils._
+import ch.descabato.utils.{Streams, Utils}
 import java.io.FileInputStream
 import java.io.RandomAccessFile
 import net.java.truevfs.access.TVFS
-import scala.io.Source
-import java.lang.ProcessBuilder.Redirect
 import org.apache.commons.exec.CommandLine
 import org.apache.commons.exec.DefaultExecutor
 import org.apache.commons.exec.ExecuteWatchdog
 import org.apache.commons.exec.ExecuteResultHandler
 import org.apache.commons.exec.ExecuteException
-import ch.descabato.RichFlatSpec
 import org.apache.commons.exec.PumpStreamHandler
 import java.io.FileOutputStream
-import ch.descabato.Streams.DelegatingOutputStream
+import java.nio.file.Paths
+import org.apache.commons.exec.environment.EnvironmentUtils
+import ch.descabato.frontend.CLI
 
-class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String, val secs: Int = 600) extends ExecuteWatchdog(secs * 1000) with ExecuteResultHandler with Utils {
+class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String, val secs: Int = 600) 
+	extends ExecuteWatchdog(secs * 1000) with ExecuteResultHandler with Utils {
   private val executor = new DefaultExecutor()
   executor.setWatchdog(this)
   executor.setWorkingDirectory(logfolder)
@@ -69,14 +56,21 @@ class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String, v
     close()
   }
 
+  val baseFolder = logfolder.getParentFile().getParentFile()
+  //val jacoco = new File(baseFolder, "jacocoagent.jar")
+  //val destfile = new File(baseFolder, "core/target/scala-2.10/jacoco/jacoco.exec")
+  //jacoco.exists() should be
+  val map = EnvironmentUtils.getProcEnvironment()
+  //EnvironmentUtils.addVariableToEnvironment(map, s"JVM_OPT=-javaagent:$jacoco=destfile=$destfile,append=true")
+  
   def startAndWait() = {
-    val out = executor.execute(args)
+    val out = executor.execute(args, map)
     close()
     out
   }
 
   def start() {
-    executor.execute(args, this)
+    executor.execute(args, map, this)
   }
 
   def close() {
@@ -86,17 +80,25 @@ class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String, v
 
 }
 
-class IntegrationTest extends RichFlatSpec with BeforeAndAfter with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
-  import org.scalacheck.Gen._
+class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
 
   CLI._overrideRunsInJar = true
 
   val suffix = if (Utils.isWindows) ".bat" else ""
   
-  val batchfile = new File(s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
+  val descabatoFolder = {
+    val folder = Paths.get("").toAbsolutePath().toFile()
+    if (folder.listFiles().map(_.getName()).contains("core")) {
+      folder
+    } else {
+      folder.getParentFile()
+    }
+  }
+    
+  val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
 
   var baseFolder = new File("integrationtest/testdata")
-  var logFolder = new File("integrationtest/logs")
+  var logFolder = new File(descabatoFolder, "integrationtest/logs")
 
   def folder(s: String) = new File(baseFolder, s).getAbsoluteFile()
   var input = folder("input")
@@ -109,6 +111,7 @@ class IntegrationTest extends RichFlatSpec with BeforeAndAfter with BeforeAndAft
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(currentTestName + ".log")
     cmdLine.addArgument("--noansi")
+    cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
@@ -125,6 +128,8 @@ class IntegrationTest extends RichFlatSpec with BeforeAndAfter with BeforeAndAft
   }
 
   override def beforeAll {
+    val destfile = new File(descabatoFolder, "core/target/scala-2.10/jacoco/jacoco.exec")
+    destfile.delete()
     System.setProperty("logname", "integrationtest.log")
     deleteAll(logFolder)
     logFolder.mkdirs()
@@ -149,19 +154,19 @@ class IntegrationTest extends RichFlatSpec with BeforeAndAfter with BeforeAndAft
   }
 
   "backup with multiple threads" should "work" in {
-    testWith(" --no-redundancy --compression bzip2 --threads 4 --volume-size 20Mb", "", 5, "50Mb", false)
+    testWith(" --no-redundancy --compression bzip2 --threads 8 --volume-size 20Mb", "", 5, "50Mb", false)
   }
 
-  "backup with redundancy" should "recover" in {
-    testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
-  }
+//  "backup with redundancy" should "recover" in {
+//    testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
+//  }
 
   "backup with crashes" should "work" in {
     testWith(" --no-redundancy --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, false)
   }
 
-  "backup with crashes and encryption" should "work" in {
-    testWith(" --no-redundancy --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, false)
+  "backup with crashes, encryption and multiple threads" should "work" in {
+    testWith(" --no-redundancy --threads 10 --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, false)
   }
 
   def numberOfCheckpoints(): Int = {
@@ -289,7 +294,7 @@ class IntegrationTest extends RichFlatSpec with BeforeAndAfter with BeforeAndAft
     for (c1 <- files1) {
       val c2 = getFile(files2, c1)
       if (c1.isDirectory()) {
-        c2 should be('directory)
+        c2 should be ('directory)
         compareBackups(c1, c2)
       } else {
         assert(c1.getName === c2.getName, "name should be same for " + c1)

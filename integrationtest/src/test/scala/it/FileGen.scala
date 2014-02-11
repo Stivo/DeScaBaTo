@@ -1,17 +1,16 @@
 package ch.descabato.it
 
-import ch.descabato.Size
 import java.io.File
 import scala.util.Random
 import scala.collection.mutable.Buffer
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.io.IOException
-import ch.descabato.OldIndexVisitor
+import ch.descabato.core.{Size, OldIndexVisitor}
 import scala.collection.mutable
 import java.io.RandomAccessFile
 import ch.descabato.TestUtils
-import ch.descabato.Utils
+import ch.descabato.utils.Utils
 import java.io.OutputStream
 
 class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) extends TestUtils {
@@ -57,11 +56,10 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
   def rescan() {
     val index = new OldIndexVisitor(mutable.Map.empty, recordAll = true)
     Files.walkFileTree(folder.toPath(), index)
-    val (folders, files) = index.all.map(x => new File(x.path)).partition(_.isDirectory())
     folderList.clear
-    folderList ++= folders
+    folderList ++= index.allDesc.folders.map(x => new File(x.path))
     fileList.clear
-    fileList ++= files
+    fileList ++= index.allDesc.files.map(x => new File(x.path))
   }
 
   def changeSome() {

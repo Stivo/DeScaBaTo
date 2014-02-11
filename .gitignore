@@ -9,9 +9,23 @@ project/boot/
 .classpath
 .history
 .cache
+.idea/
+.idea_modules/
+.settings/
+core/*.jar
+*.bat
+testdata
+untitled/
 backups/
 restore/
 /bin
 /testdata
 /index
 /index2
+/compression
+/compression2
+/compression.txt
+/compression2.txt
+/compression 3
+/compression3.txt
+/testimg

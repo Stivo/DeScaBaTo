@@ -16,9 +16,13 @@ import javax.swing.SwingUtilities
 
 object ProgressReporters {
 
+  var guiEnabled = true
+
   var gui: Option[ProgressGui] = None
 
   def openGui() {
+    if (!guiEnabled)
+      return
     gui.synchronized {
       counters.synchronized {
       SwingUtilities.invokeAndWait(new Runnable() {

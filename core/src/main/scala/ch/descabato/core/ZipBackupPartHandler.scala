@@ -11,40 +11,71 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
   override val filecountername = "Files hashed"
   override val bytecountername = "Data hashed"
-  
+
   def blocksFor(fd: FileDescription) = {
     if (fd.size == 0) 1
     else (1.0 * fd.size / config.blockSize.bytes).ceil.toInt
   }
-  
+
   class FileDescriptionWrapper(val fd: FileDescription) {
     lazy val blocks: BitSet = {
       val out = new BitSet(blocksFor(fd))
       out.set(0, blocksFor(fd), true)
       out
     }
-    lazy val hashList = ObjectPools.byteArrayPool.getExactly(blocksFor(fd) * config.hashLength)
+    var failed = false
+    var hashList = ObjectPools.byteArrayPool.getExactly(blocksFor(fd) * config.hashLength)
+
+    def setFailed() {
+      failed = true
+      ObjectPools.byteArrayPool.recycle(hashList)
+      hashList = null
+    }
+
+    def fileHashArrived(hash: Array[Byte]) {
+      fd.hash = hash
+      checkFinished()
+    }
+
+    private def checkFinished() {
+      if (blocks.isEmpty && fd.hash != null && !failed) {
+        unfinished -= fd.path
+        if (hashList.length > fd.hash.length)
+          universe.hashListHandler.addHashlist(fd.hash, hashList)
+        fileCounter += 1
+        updateProgress
+      }
+    }
+
+    def blockHashArrived(blockId: BlockId, hash: Array[Byte]) {
+      if (!failed) {
+        blocks.clear(blockId.part)
+        System.arraycopy(hash, 0, hashList, blockId.part * config.hashLength, config.hashLength)
+        checkFinished()
+      }
+    }
   }
 
   // reads all the backup parts for the given date
   // Does not keep a copy of this data
   def readBackup(date: Option[Date]): BackupDescription = {
     fileManager.backup.getFiles().reverse.take(1)
-    	.flatMap(fileManager.backup.read(_, OnFailureTryRepair))
-    	.fold(new BackupDescription())((x, y) => x.merge(y))
+      .flatMap(fileManager.backup.read(_, OnFailureTryRepair))
+      .fold(new BackupDescription())((x, y) => x.merge(y))
   }
-  
+
   // set current backup description, these are ready to be checkpointed
   // once the files are all in
   def setCurrent(bd: BackupDescription) {
     current = bd
-    bd.files.foreach { file =>
-      if (file.hash == null)
-        getUnfinished(file)
+    bd.files.foreach {
+      file =>
+        if (file.hash == null)
+          getUnfinished(file)
     }
     setMaximums(bd)
     universe.blockHandler.setTotalSize(byteCounter.maxValue)
-    l.info("After setCurrent "+remaining+" remaining")
+    l.info("After setCurrent " + remaining + " remaining")
   }
 
   protected def getUnfinished(fd: FileDescription) =
@@ -55,23 +86,15 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
         unfinished += fd.path -> out
         out
     }
-  
-  private def checkFinished(fd: FileDescription) {
-    val w = getUnfinished(fd) 
-    if (w.blocks.isEmpty && w.fd.hash != null) {
-        unfinished -= fd.path
-        if (w.hashList.length > fd.hash.length)
-          universe.hashListHandler.addHashlist(fd.hash, w.hashList)
-        fileCounter += 1
-        updateProgress
-    }
-  }
-  
+
   def hashForFile(fd: FileDescription, hash: Array[Byte]) {
-    getUnfinished(fd).fd.hash = hash
-    checkFinished(fd)
+    getUnfinished(fd).fileHashArrived(hash)
   }
-  
+
+  def fileFailed(fd: FileDescription) {
+    getUnfinished(fd).setFailed()
+  }
+
   // If file is complete, send hash list to the hashlist handler and mark
   // filedescription ready to be checkpointed
   def hashComputed(blockId: BlockId, hash: Array[Byte], content: Array[Byte]) {
@@ -79,20 +102,17 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     universe.blockHandler.writeBlockIfNotExists(blockId, hash, content, false)
     byteCounter += content.length
     updateProgress
-    val w = getUnfinished(blockId.file)
-    w.blocks.clear(blockId.part)
-    System.arraycopy(hash, 0, w.hashList, blockId.part * config.hashLength, config.hashLength)
-    checkFinished(w.fd)
+    getUnfinished(blockId.file).blockHashArrived(blockId, hash)
   }
-  
+
   // Checkpoint right now, clear all that can be checkpointed from toCheckpoint
   def checkpoint(): Boolean = {
     // TODO
     true
   }
-  
+
   def remaining(): Int = unfinished.size
-  
+
   // write current, clear checkpoint files
   def finish() = {
     if (current != null)
