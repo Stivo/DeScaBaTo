@@ -124,6 +124,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
   
   def write(x: T, temp: Boolean = false) = {
+    require(x != null)
     val file = nextFile(temp = temp)
     val w = ZipFileHandlerFactory.writer(file, config)
     try {

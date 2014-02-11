@@ -35,7 +35,6 @@ class SimpleJournalHandler extends JournalHandler with Utils {
       while ({ line = randomAccessFile.readLine(); line != null }) {
         if (line != null) {
           val parts = line.split(" ", 3)
-          l.info("Parts are " + parts.mkString(" "))
           if (parts(2).length() == parts(1).toInt) {
             if (!(files safeContains parts(2))) {
               l.warn("File is in journal, but not on disk "+files(parts(2)))
@@ -64,7 +63,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
   }
 
   def finish(): Boolean = {
-    cleanUnfinishedFiles()
+//    cleanUnfinishedFiles()
     lock.release()
     randomAccessFile.close()
     true

@@ -110,7 +110,7 @@ object Implicits {
 
 }
 
-object FileUtils {
+object FileUtils extends Utils {
   def getRelativePath(dest: File, to: File, path: String) = {
     // Needs to take common parts out of the path.
     // Different semantics on windows. Upper-/lowercase is ignored, ':' may not be part of the output
@@ -134,6 +134,29 @@ object FileUtils {
     def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
     new File(dest, cleaned(cut))
   }
+
+  def deleteAll(f: File) = {
+    def walk(f: File) {
+      f.isDirectory() match {
+        case true =>
+          f.listFiles().toList.foreach(walk);
+          f.delete()
+        case false =>
+          f.delete()
+          Files.deleteIfExists(f.toPath())
+      }
+    }
+    var i = 0
+    do {
+      walk(f)
+      i += 1
+      Thread.sleep(500)
+    } while (i < 5 && f.exists)
+    if (i > 1) {
+      logger.warn(s"Took delete all $i runs, now folder is deleted "+(!f.exists))
+    }
+  }
+
 }
 
 trait Utils extends Logging {

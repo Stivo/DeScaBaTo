@@ -48,7 +48,7 @@ trait UniversePart extends AnyRef with PostRestart {
 class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe {
   def make[T <: UniversePart](x: T) = {x.setup(this); x} 
   lazy val backupPartHandler = make(new ZipBackupPartHandler())
-  lazy val hashListHandler = make(new ZipHashListHandler())
+  lazy val hashListHandler = make(new NewZipHashListHandler())
   lazy val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
   lazy val blockHandler = make(new ZipBlockHandler())
   lazy val hashHandler = make(new SingleThreadHasher())

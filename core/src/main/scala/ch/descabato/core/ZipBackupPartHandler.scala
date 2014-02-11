@@ -95,7 +95,8 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
   
   // write current, clear checkpoint files
   def finish() = {
-    fileManager.backup.write(current)
+    if (current != null)
+      fileManager.backup.write(current)
     true
   }
 }

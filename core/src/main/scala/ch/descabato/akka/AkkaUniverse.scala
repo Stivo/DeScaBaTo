@@ -21,9 +21,14 @@ import java.lang.reflect.UndeclaredThrowableException
 import java.security.MessageDigest
 import scala.collection.immutable.HashMap
 
+object Counter {
+  var i = 0
+}
+
 class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with Utils {
 
-  var system = ActorSystem("HelloSystem")
+  var system = ActorSystem("Descabato-"+Counter.i)
+  Counter.i += 1
 
   val queueLimit = 100
 
@@ -86,7 +91,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
   lazy val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
-  lazy val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer")
+  val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer")
   // TODO compressionStatistics
   //override lazy val compressionStatistics = Some(actorOf[CompressionStatistics, SimpleCompressionStatistics]("Statistics", false))
 
@@ -115,6 +120,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     blockHandler.finish
     hashListHandler.finish
     backupPartHandler.finish
+    journalHandler.finish()
     true
   }
 

@@ -39,8 +39,12 @@ trait BackupProgressReporting extends Utils {
 
   def setMaximums(desc: BackupDescription) {
     ProgressReporters.openGui()
-    fileCounter.maxValue = desc.files.size
-    byteCounter.maxValue = desc.files.map(_.size).sum
+    setMaximums(desc.files)
+  }
+
+  def setMaximums(seq: Seq[FileDescription]) {
+    fileCounter.maxValue = seq.size
+    byteCounter.maxValue = seq.map(_.size).sum
     fileCounter.current = 0
     byteCounter.current = 0
   }

@@ -12,6 +12,10 @@ trait MustFinish {
   def finish(): Boolean
 }
 
+trait CanVerify {
+  def verify(counter: ProblemCounter): Boolean
+}
+
 trait Universe extends MustFinish {
   def config(): BackupFolderConfiguration
   def backupPartHandler(): BackupPartHandler
@@ -54,7 +58,7 @@ trait CompressionStatistics extends UniversePart {
 
 trait BackupPartHandler extends BackupActor {
   // reads all the backup parts for the given date
-  def readBackup(date: Option[Date]): BackupDescription
+  def readBackup(date: Option[Date] = None): BackupDescription
 
   // sets the backup description that should be saved
   def setCurrent(bd: BackupDescription)
@@ -80,7 +84,7 @@ trait HashListHandler extends BackupActor with UniversePart {
 
 trait MetadataHandler extends HashListHandler with BackupPartHandler
 
-trait BlockHandler extends BackupActor with UniversePart {
+trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def writeBlockIfNotExists(blockId: BlockId, hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean)
   // or multiple blocks
   def isPersisted(hash: Array[Byte]): Boolean

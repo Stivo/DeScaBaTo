@@ -66,8 +66,10 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
   var _initRan = false
 
   // TODO add in interface?
-  def verify(problemCounter: Counter) {
+  def verify(problemCounter: ProblemCounter) = {
     // TODO implement
+    // TODO there can't be anything done here. No index was written
+    true
   }
 
   override def setupInternal() {

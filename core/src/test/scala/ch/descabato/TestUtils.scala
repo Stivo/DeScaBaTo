@@ -19,6 +19,7 @@ trait TestUtils extends Utils {
     out.toByteArray()
   }
 
+  // TODO there is a copy of this now in FileUtils
   def deleteAll(f: File) = {
     def walk(f: File) {
       f.isDirectory() match {

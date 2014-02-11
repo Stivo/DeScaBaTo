@@ -6,6 +6,8 @@ import java.io.PrintStream
 import java.io.File
 import ScallopConverters._
 import ch.descabato.utils.Utils
+import ch.descabato.utils.FileUtils
+import ch.descabato.utils.Implicits._
 import ch.descabato.core._
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Streams
@@ -14,11 +16,12 @@ import ch.descabato.core.PasswordWrongException
 import ch.descabato.core.MisconfigurationException
 import ch.descabato.core.BackupCorruptedException
 import ch.descabato.core.BackupFolderConfiguration
+import ch.descabato.akka.AkkaUniverse
 
 object CLI extends Utils {
 
   var paused: Boolean = false
-  
+
   var lastErrors: Long = 0L
 
   var _overrideRunsInJar = false
@@ -27,9 +30,9 @@ object CLI extends Utils {
 
   def getCommands() = List(
     new BackupCommand(),
-//    new VerifyCommand(),
-//    new RestoreCommand(),
-//    new ReflectionCommand("browse", "ch.descabato.browser.BrowseCommand"),
+    new VerifyCommand(),
+    new RestoreCommand(),
+    //    new ReflectionCommand("browse", "ch.descabato.browser.BrowseCommand"),
     new HelpCommand()).map(x => (x.name.toLowerCase, x)).toMap
 
   def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
@@ -47,7 +50,7 @@ object CLI extends Utils {
   }
 
   def main(args: Array[String]) {
-    System.setProperty("logname", "backup.log")  
+    System.setProperty("logname", "backup.log")
     try {
       if (runsInJar) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
@@ -56,33 +59,38 @@ object CLI extends Utils {
       } else {
         //Thread.sleep(10000)
         try {
-          new File("F:/temp/desca8").listFiles().foreach(_.delete)
+          FileUtils.deleteAll(new File("f:/restore"))
         } catch {
-          case x : Exception => 
+          case x: Exception =>
         }
-    	 // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
+        //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-512 --compression gzip --volume-size 50mb f:/desca8 d:/pics/tosort/bilder".split(" "))
+        // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
         //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
-        parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression none --volume-size 100mb F:/temp/desca8 f:/SD".split(" "))
+        //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression none --volume-size 10mb F:/desca8 f:/data/python27/".split(" "))
+        parseCommandLine("verify --percent-of-files-to-check 100 f:/desca8".split(" "))
+        parseCommandLine("restore --restore-to-folder F:/restore f:/desca8".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))
         //              parseCommandLine("browse -p asdf backups".split(" "))
-//        parseCommandLine("restore --passphrase mypasshere --restore-to-folder restore --relative-to-folder . backups".split(" "))
+        //        parseCommandLine("restore --passphrase mypasshere --restore-to-folder restore --relative-to-folder . backups".split(" "))
       }
     } catch {
-      case e @ PasswordWrongException(m, cause) =>
-        l.warn(m); logException(e)
+      case e@PasswordWrongException(m, cause) =>
+        l.warn(m);
+        logException(e)
         exit(-1)
-      case e @ BackupVerification.BackupDoesntExist => 
-        l.warn(e.getMessage); logException(e)
+      case e@BackupVerification.BackupDoesntExist =>
+        l.warn(e.getMessage);
+        logException(e)
         exit(-2)
-      case e : Error =>
+      case e: Error =>
         l.warn(e.getMessage)
         logException(e)
         exit(-3)
     }
   }
-  
+
   def exit(exitCode: Int) {
     System.exit(exitCode)
   }
@@ -94,14 +102,20 @@ object ScallopConverters {
     def parse(s: List[(String, List[String])]) = {
       s match {
         case (_, i :: Nil) :: Nil =>
-          try { Right(Some(conv(i))) } catch { case _: Throwable => Left(msg) }
+          try {
+            Right(Some(conv(i)))
+          } catch {
+            case _: Throwable => Left(msg)
+          }
         case Nil => Right(None)
         case _ => Left("you should provide exactly one argument for this option")
       }
     }
+
     val tag = tt
     val argType = ArgType.SINGLE
   }
+
   implicit val modeConverter = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
   implicit val sizeConverter = singleArgConverter[Size](x => Size(x))
 
@@ -155,6 +169,20 @@ trait BackupRelatedCommand extends Command with Utils {
 
   def needsExistingBackup = true
 
+  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: Universe => T) = {
+    var universe: Universe = null
+    try {
+      universe = if (akkaAllowed)
+        Universes.makeUniverse(conf)
+      else
+        new SingleThreadUniverse(conf)
+      f(universe)
+    } finally {
+      if (universe != null)
+        universe.shutdown
+    }
+  }
+
   final override def execute(args: Seq[String]) {
     try {
       val t = newT(args)
@@ -167,7 +195,7 @@ trait BackupRelatedCommand extends Command with Utils {
       }
       start(t)
     } catch {
-      case e @ MisconfigurationException(message) =>
+      case e@MisconfigurationException(message) =>
         l.info(message)
         logException(e)
     }
@@ -178,7 +206,7 @@ trait BackupRelatedCommand extends Command with Utils {
     val confHandler = new BackupConfigurationHandler(t)
     var passphrase = t.passphrase.get
     confHandler.verify(needsExistingBackup) match {
-      case b @ BackupDoesntExist => throw b
+      case b@BackupDoesntExist => throw b
       case PasswordNeeded => passphrase = Some(askUser("This backup is passphrase protected. Please type your passphrase.", true))
       case OK =>
     }
@@ -217,15 +245,16 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
 
 trait BackupFolderOption extends ScallopConf {
   val passphrase = opt[String](default = None)
-  val prefix = opt[String](default = Some("")).map { x =>
-    if (x == "") {
-      x
-    } else {
-      x.last match {
-        case '.' | '_' | '-' | ';' => x
-        case _ => x + "_"
+  val prefix = opt[String](default = Some("")).map {
+    x =>
+      if (x == "") {
+        x
+      } else {
+        x.last match {
+          case '.' | '_' | '-' | ';' => x
+          case _ => x + "_"
+        }
       }
-    }
   }
   val logfile = opt[String]()
   val noansi = opt[Boolean]()
@@ -255,22 +284,24 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   }
 
   type T = BackupConf
+
   def newT(args: Seq[String]) = new BackupConf(args)
+
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
     val universe = Universes.makeUniverse(conf)
-//    val universe = new SingleThreadUniverse(conf)
+    //    val universe = new SingleThreadUniverse(conf)
     val bdh = new BackupHandler(universe)
     if (!t.noScriptCreation()) {
       writeBat(t, conf)
     }
     bdh.backup(t.folderToBackup() :: Nil)
     universe.shutdown
-//    if (conf.redundancyEnabled) {
-//      l.info("Running redundancy creation")
-//      new RedundancyHandler(conf).createFiles
-//      l.info("Redundancy creation finished")
-//    }
+    //    if (conf.redundancyEnabled) {
+    //      l.info("Running redundancy creation")
+    //      new RedundancyHandler(conf).createFiles
+    //      l.info("Redundancy creation finished")
+    //    }
   }
 
   override def needsExistingBackup = false
@@ -284,49 +315,63 @@ object RestoreRunners extends Utils {
         f()
         return
       } catch {
-        case e @ BackupCorruptedException(f, false) =>
+        case e@BackupCorruptedException(f, false) =>
           logException(e)
-//          Par2Handler.tryRepair(f, conf)
+        //          Par2Handler.tryRepair(f, conf)
       }
     }
   }
 }
 
-//class RestoreCommand extends BackupRelatedCommand {
-//  type T = RestoreConf
-//  def newT(args: Seq[String]) = new RestoreConf(args)
-//  def start(t: T, conf: BackupFolderConfiguration) {
-//    println(t.summary)
-//    if (t.chooseDate()) {
-//      val fm = new FileManager(conf)
-//      val options = fm.getBackupDates.zipWithIndex
-//      options.foreach { case (date, num) => println(s"[$num]: $date") }
-//      val option = askUser("Which backup would you like to restore from?").toInt
-//      RestoreRunners.run(conf) { _ =>
-//        val rh = new RestoreHandler(conf) with ZipBlockStrategy
-//        rh.restoreFromDate(t, options.find(_._2 == option).get._1)
-//      }
-//    } else {
-//      RestoreRunners.run(conf) { _ =>
-//        val rh = new RestoreHandler(conf) with ZipBlockStrategy
-//        rh.restore(t)
-//      }
-//    }
-//
-//  }
-//}
-//
-//class VerifyCommand extends BackupRelatedCommand {
-//  type T = VerifyConf
-//  def newT(args: Seq[String]) = new VerifyConf(args)
-//  def start(t: T, conf: BackupFolderConfiguration) = {
-//    println(t.summary)
-//    val rh = new VerifyHandler(conf) with ZipBlockStrategy
-//    val count = rh.verify(t)
-//    CLI.lastErrors = count
-//    CLI.exit(count.toInt)
-//  }
-//}
+class RestoreCommand extends BackupRelatedCommand {
+  type T = RestoreConf
+
+  def newT(args: Seq[String]) = new RestoreConf(args)
+
+  def start(t: T, conf: BackupFolderConfiguration) {
+    println(t.summary)
+    withUniverse(conf, false) {
+      universe =>
+        if (t.chooseDate()) {
+          val fm = new FileManager(universe)
+          val options = fm.getBackupDates.zipWithIndex
+          options.foreach {
+            case (date, num) => println(s"[$num]: $date")
+          }
+          val option = askUser("Which backup would you like to restore from?").toInt
+          RestoreRunners.run(conf) {
+            _ =>
+              val rh = new RestoreHandler(universe)
+              rh.restoreFromDate(t, options.find(_._2 == option).get._1)
+          }
+        } else {
+          RestoreRunners.run(conf) {
+            _ =>
+              val rh = new RestoreHandler(universe)
+              rh.restore(t)
+          }
+        }
+    }
+  }
+}
+
+class VerifyCommand extends BackupRelatedCommand {
+  type T = VerifyConf
+
+  def newT(args: Seq[String]) = new VerifyConf(args)
+
+  def start(t: T, conf: BackupFolderConfiguration) = {
+    println(t.summary)
+    val count = withUniverse(conf, true) {
+      u =>
+        val rh = new VerifyHandler(u)
+        rh.verify(t)
+    }
+    CLI.lastErrors = count
+    if (count != 0)
+      CLI.exit(count.toInt)
+  }
+}
 
 class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
 
@@ -345,19 +390,21 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
   val percentOfFilesToCheck = opt[Int](default = Some(5))
-  validate(percentOfFilesToCheck) { x: Int =>
-    x match {
-      case x if x > 0 && x <= 100 => Right(Unit)
-      case _ => Left("Needs to be percent")
-    }
+  validate(percentOfFilesToCheck) {
+    x: Int =>
+      x match {
+        case x if x > 0 && x <= 100 => Right(Unit)
+        case _ => Left("Needs to be percent")
+      }
   }
 }
 
 class HelpCommand extends Command {
   val T = ScallopConf
+
   override def execute(args: Seq[String]) {
     args.toList match {
-      case command :: _ if CLI.getCommands().contains(command) => CLI.parseCommandLine(command :: "--help" :: Nil)
+      case command :: _ if CLI.getCommands().safeContains(command) => CLI.parseCommandLine(command :: "--help" :: Nil)
       case _ =>
         val commands = CLI.getCommands().keys.mkString(", ")
         println(
