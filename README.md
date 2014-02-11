@@ -1,7 +1,11 @@
 DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
 =========
 
-The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups.
+### Warning
+Version 0.2.0 has shown a problem once recovering from a system crash. Version 0.3.0 will fix this with a journal.
+It will be optionally multi-threaded (based on akka), will feature a GUI to show backup progress and I am also working on automatically figuring out the best compression algorithm to use for each file type. Warning: The file format will also change again.
+
+The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups and is in alpha stage, the program's internals are still heavily changing as I am figuring stuff out.
 
 As of now, it has these features:
 - Backup and restore files and folders, including metadata (lastModifiedTime, posix owner and access rights)
