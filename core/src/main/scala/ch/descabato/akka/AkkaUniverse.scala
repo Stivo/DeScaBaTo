@@ -82,10 +82,12 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   counters += new CompressionTasksQueueCounter("CPU Tasks", ActorStats.remaining.get)
 
   lazy val backupPartHandler = actorOf[BackupPartHandler, ZipBackupPartHandler]("Backup Parts")
-  lazy val hashListHandler = actorOf[HashListHandler, ZipHashListHandler]("Hash Lists")
+  lazy val hashListHandler = actorOf[HashListHandler, ZipHashListHandler]("Hash Lists", false)
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
   lazy val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
+  // TODO compressionStatistics
+  //override lazy val compressionStatistics = Some(actorOf[CompressionStatistics, SimpleCompressionStatistics]("Statistics", false))
 
   override def finish() {
     while (backupPartHandler.remaining > 0) {
@@ -160,7 +162,10 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     checkQueue(backupPartHandler, "backup parts")
   }
 
-  override def shutdown() = system.shutdown()
+  override def shutdown() = {
+    super.shutdown()
+    system.shutdown()
+  }
 }
 
 class AkkaCpuTaskHandler(universe: AkkaUniverse) extends SingleThreadCpuTaskHandler(universe) {
@@ -171,9 +176,9 @@ class AkkaCpuTaskHandler(universe: AkkaUniverse) extends SingleThreadCpuTaskHand
     })
   }
 
-  override def compress(hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean) {
+  override def compress(blockId: BlockId, hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean) {
     universe.compressors ! (() => {
-      super.compress(hash, content, method, disable)
+      super.compress(blockId, hash, content, method, disable)
     })
   }
 

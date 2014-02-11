@@ -14,12 +14,16 @@ trait Universe {
   def blockHandler(): BlockHandler
   def hashHandler(): HashHandler
 
+  def compressionStatistics(): Option[CompressionStatistics] = None
+
   lazy val _fileManager = new FileManager(config)
   def fileManager() = _fileManager
 
   def waitForQueues() {}
   def finish() {}
-  def shutdown() {}
+  def shutdown() {
+    compressionStatistics().foreach{ _.report }
+  }
 }
 
 case class BlockId(file: FileDescription, part: Int)
@@ -27,6 +31,11 @@ case class BlockId(file: FileDescription, part: Int)
 trait BackupActor {
   def setup(universe: Universe)
   def finish(): Boolean
+}
+
+trait CompressionStatistics extends UniversePart {
+  def blockStatistics(block: BlockId, compressedSize: Long, uncompressedSize: Long, method: CompressionMode, time: Long)
+  def report()
 }
 
 trait BackupPartHandler extends BackupActor {
@@ -58,7 +67,7 @@ trait HashListHandler extends BackupActor {
 trait MetadataHandler extends HashListHandler with BackupPartHandler
 
 trait BlockHandler extends BackupActor {
-  def writeBlockIfNotExists(hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean)
+  def writeBlockIfNotExists(blockId: BlockId, hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean)
   // or multiple blocks
   def blockIsPersisted(hash: Array[Byte]): Boolean
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
@@ -72,7 +81,7 @@ trait CpuTaskHandler {
   // calls then hashComputed on metadatawriter
   def computeHash(x: Array[Byte], hashMethod: String, blockId: BlockId)
   // Calls then blockhandler#writeBlockIfNotExists
-  def compress(hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean)
+  def compress(blockId: BlockId, hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean)
 }
 
 trait HashHandler {

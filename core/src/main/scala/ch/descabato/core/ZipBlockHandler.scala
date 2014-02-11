@@ -18,6 +18,7 @@ import java.util.zip.ZipEntry
 import scala.collection.mutable.HashMap
 import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.frontend.ProgressReporters
+
 /**
  * A block handler that creates zip files with parts of blocks in it.
  * Additionally for each volume an index is written, which stores the hashes
@@ -142,7 +143,7 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
 
   private def asKey(hash: Array[Byte]): BAWrapper2 = hash
 
-  def writeBlockIfNotExists(hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean) {
+  def writeBlockIfNotExists(blockId: BlockId, hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean) {
     val k = asKey(hash)
     if ((knownBlocks contains k) || (knownBlocksTemp contains k)) {
       byteCounter.maxValue -= block.length
@@ -156,7 +157,7 @@ class ZipBlockHandler extends BlockHandler with Utils with UniversePart {
     //      writeCompressedBlock(hash, ZipFileHandlerFactory.createZipEntry(.0, ByteBuffer.wrap(block))
     //    } else {
     outstandingRequests += ((hash, block.length))
-    universe.cpuTaskHandler.compress(hash, block, config.compressor, compressDisabled)
+    universe.cpuTaskHandler.compress(blockId, hash, block, config.compressor, compressDisabled)
     //    }
   }
 

@@ -1,7 +1,7 @@
 package ch.descabato.core
 
 import java.security.MessageDigest
-import ch.descabato.CompressionMode
+import ch.descabato.{TimingUtil, CompressionMode}
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Utils
 import akka.actor._
@@ -77,10 +77,15 @@ class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
     universe.backupPartHandler.hashComputed(blockId, md.digest(content), content)
   }
 
-  def compress(hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean) {
+  def compress(blockId: BlockId, hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean) {
+    val startAt = TimingUtil.getCpuTime
     val (header, compressed) = CompressedStream.compress(content, method, disable)
+    val duration = TimingUtil.getCpuTime - startAt
     val name = Utils.encodeBase64Url(hash)
     val entry = ZipFileHandlerFactory.createZipEntry(name, header, compressed)
+    universe.compressionStatistics().foreach {
+      _.blockStatistics(blockId, compressed.remaining(), content.size, method, duration)
+    }
     universe.blockHandler.writeCompressedBlock(hash, entry, header, compressed)
   }
 

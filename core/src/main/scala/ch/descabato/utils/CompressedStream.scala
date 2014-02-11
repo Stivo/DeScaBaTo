@@ -47,7 +47,9 @@ object CompressedStream extends Utils {
         opt.setDictSize(1024*1024)
         size.foreach (x => opt.setDictSize(roundUp(x)))
         new XZOutputStream(out, opt)
-      case CompressionMode.bzip2 => new BZip2CompressorOutputStream(out)
+      case CompressionMode.bzip2 =>
+        val sizeBzip2 = BZip2CompressorOutputStream.chooseBlockSize(size.getOrElse(-1).toLong)
+        new BZip2CompressorOutputStream(out, sizeBzip2)
       case CompressionMode.snappy => SnappyOutputStream.newChecksumFreeBenchmarkOutputStream(out)
       case CompressionMode.deflate => new DeflaterOutputStream(out)
       case CompressionMode.none => out
