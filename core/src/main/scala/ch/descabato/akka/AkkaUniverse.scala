@@ -139,18 +139,24 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   def checkQueueWithFunction(f: => Int, name: String, limit: Int = queueLimit) {
     while (f > limit) {
-      l.info(s"Waiting for $name to finish, has $f left")
-      Thread.sleep(100)
+      if (shouldPrint)
+        l.info(s"Waiting for $name to finish, has $f left")
+      Thread.sleep(50)
     }
   }
+
+  var prints = 0
+
+  def shouldPrint = {prints += 1; prints % 10 == 0}
 
   def checkQueue(x: AnyRef, name: String, limit: Int = queueLimit) {
     var wait = true
     while (wait) {
       wait = queueInfo(x) match {
         case Some((cur, _)) if cur > limit =>
-          Thread.sleep(10);
-          l.info(s"Waiting for queue ${name} with $cur queued items")
+          Thread.sleep(50);
+          if (shouldPrint)
+            l.info(s"Waiting for queue ${name} with $cur queued items")
           true
         case _ => false
       }

@@ -7,5 +7,5 @@ branches:
     - master
 jdk:
   - openjdk7
-before_script: 
-   - sudo apt-get install par2
+#before_script:
+#   - sudo apt-get install par2
