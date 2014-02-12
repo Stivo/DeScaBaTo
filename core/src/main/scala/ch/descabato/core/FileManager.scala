@@ -278,6 +278,14 @@ class FileManager(override val universe: Universe) extends UniversePart {
 //    (complete, !updates.isEmpty)
 //  }
 
+  def getLastBackup(temp: Boolean = false): List[File] = {
+    val out = backup.getFiles().sorted.lastOption.toList
+    if (temp)
+      out ++ backup.getTempFiles().sorted
+    else
+      out
+  }
+  
   def getBackupDates(): Seq[Date] = {
     files.getFiles().map(files.date).toList.distinct.sorted
   }

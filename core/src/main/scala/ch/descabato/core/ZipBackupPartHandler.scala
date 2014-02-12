@@ -72,7 +72,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
   // reads all the backup parts for the given date
   def loadBackup(date: Option[Date]): BackupDescription = {
-    val filesToLoad: Seq[File] = fileManager.backup.getTempFiles() ++ fileManager.backup.getFiles().lastOption
+    val filesToLoad: Seq[File] = fileManager.getLastBackup(temp = true) 
     current = filesToLoad
       .flatMap(fileManager.backup.read(_, OnFailureTryRepair))
       .fold(new BackupDescription())((x, y) => x.merge(y))
@@ -131,7 +131,6 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
       case fd: FileDescription if fd.hash == null => false
       case fd: FileDescription if fd.size <= config.blockSize.bytes => true
       case fd: FileDescription => lookup(fd.hash)
-      case fd: FileDescription => throw new IllegalStateException("No other case should exist")
       case _ => true
     }
     val saveThisTime = new BackupDescription()
