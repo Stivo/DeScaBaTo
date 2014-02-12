@@ -43,6 +43,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
       failed = true
       ObjectPools.byteArrayPool.recycle(hashList)
       hashList = null
+      unfinished -= fd.path
     }
 
     def fileHashArrived(hash: Array[Byte]) {
@@ -85,7 +86,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     bd.files.foreach {
       file =>
         if (file.hash == null)
-        getUnfinished(file)
+          getUnfinished(file)
     }
     setMaximums(bd)
     toCheckpoint = current.copy(files = current.files.toList.toBuffer, folders = current.folders.toList.toBuffer,
@@ -151,6 +152,9 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
   // write current, clear checkpoint files
   def finish() = {
+    if (remaining != 0) {
+      throw new IllegalStateException("Backup Part Handler must be finished before finish may be called")
+    }
     checkpoint(None)
     val writer = ZipFileHandlerFactory.complexWriter(fileManager.backup.nextFile())
     fileManager.backup.mergeTempFilesIntoNew()

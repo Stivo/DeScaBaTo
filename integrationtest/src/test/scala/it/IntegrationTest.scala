@@ -97,7 +97,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     
   val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
 
-  var baseFolder = new File("f:/integrationtest/testdata")
+  var baseFolder = new File("integrationtest/testdata")
   var logFolder = new File(descabatoFolder, "integrationtest/logs")
 
   def folder(s: String) = new File(baseFolder, s).getAbsoluteFile()
