@@ -117,7 +117,7 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
   }
 
   def isPersisted(fileHash: Array[Byte]) = {
-    exists(fileHash)
+    isPersisted(fileHash: BAWrapper2)
   }
 
   override def endZipFile() {

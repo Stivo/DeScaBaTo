@@ -20,7 +20,7 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
   val unchangedDesc = new BackupDescription()
   lazy val deletedDesc = {
     val out = new BackupDescription()
-    oldMap.values.foreach(out += _)
+    oldMap.values.foreach(bp => out.deleted += new FileDeleted(bp.path))
     out
   }
   
