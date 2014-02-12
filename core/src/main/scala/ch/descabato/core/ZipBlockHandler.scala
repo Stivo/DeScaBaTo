@@ -21,17 +21,10 @@ import ch.descabato.frontend.ProgressReporters
 
 /**
  * A block handler that creates zip files with parts of blocks in it.
- * Additionally for each volume an index is written, which stores the hashes
- * stored in that volume. So the volume itself is not needed for further backups,
- * only for restores.
  * File patterns:
  * volume_num.zip => A zip file containing blocks with their hash used as filenames.
- * index_num.zip => A zip file containing a file index with all hashes of the volume
  * with the same number.
  * Only one instance can be used, it is currently not thread safe.
- * To make it thread safe:
- * - Maps would have to be thread safe
- * - Different writers could use same file, but only with the TFile api
  */
 class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with UniversePart {
   override def folder = "blocks/"
@@ -59,47 +52,43 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
 
   def filetype = fileManager.volumes
 
-  def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]): Boolean = ???
+  // Can not be called here, as the calling method is overwritten
+  protected def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]): Boolean = ???
 
   protected var outstandingRequests: HashMap[BAWrapper2, Int] = HashMap()
-
-  var _initRan = false
 
   // TODO add in interface?
   def verify(problemCounter: ProblemCounter) = {
     // TODO implement
-    // TODO there can't be anything done here. No index was written
+    // TODO check if key is in two volumes. Should be done in superclass
     true
   }
 
-  override def setupInternal() {
-    _init(false)
-  }
-
-  private def _init(verify: Boolean = false, problems: Option[Counter] = None) {
-    require(universe != null)
-    if (_initRan)
-      return
-    load()
-    // TODO
-    //      if (verify) {
-    //        val zip = getZipFileReader(num)
-    //        for (name <- zip.names.view.filter(_ != "manifest.txt")) {
-    //          if (!(lastSet safeContains (name))) {
-    //            problems.foreach(_ += 1)
-    //            l.warn("Index file is broken, does not contain " + name)
-    //          }
-    //          lastSet -= name
-    //        }
-    //        for (hash <- lastSet) {
-    //          problems.foreach(_ += 1)
-    //          l.warn("Hash " + hash + " is in index, but not in volume")
-    //        }
-    //        lastSet = Set.empty
-    //      }
-    //    }
-    _initRan = true
-  }
+//  New concept: Check if block is twice in volumes. This should be implemented on the super class though
+//  private def _init(verify: Boolean = false, problems: Option[Counter] = None) {
+//    require(universe != null)
+//    if (_initRan)
+//      return
+//    load()
+//    // TODO
+//    //      if (verify) {
+//    //        val zip = getZipFileReader(num)
+//    //        for (name <- zip.names.view.filter(_ != "manifest.txt")) {
+//    //          if (!(lastSet safeContains (name))) {
+//    //            problems.foreach(_ += 1)
+//    //            l.warn("Index file is broken, does not contain " + name)
+//    //          }
+//    //          lastSet -= name
+//    //        }
+//    //        for (hash <- lastSet) {
+//    //          problems.foreach(_ += 1)
+//    //          l.warn("Hash " + hash + " is in index, but not in volume")
+//    //        }
+//    //        lastSet = Set.empty
+//    //      }
+//    //    }
+//    _initRan = true
+//  }
 
   private def asKey(hash: Array[Byte]): BAWrapper2 = hash
 
@@ -135,7 +124,8 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
   }
 
   def readBlock(hash: Array[Byte], verifyHash: Boolean): InputStream = {
-    val file = filetype.num(inBackupIndex(hash)).get
+    ensureLoaded()
+    val file = inBackupIndex(hash)
     val stream = new ExceptionCatchingInputStream(CompressedStream.readStream(readValueAsStream(hash)),
       file)
     if (verifyHash) {
@@ -166,6 +156,7 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
       val num = filetype.num(file)
       super.endZipFile()
       l.info("Finished volume " + num)
+      universe.eventBus().publish(VolumeFinished(file))
     }
   }
 

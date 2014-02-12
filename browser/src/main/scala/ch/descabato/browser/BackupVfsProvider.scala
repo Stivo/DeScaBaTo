@@ -163,7 +163,7 @@ class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFile
 class VfsIndex(universe: Universe)
   extends RestoreHandler(universe) {
 
-  val backup = universe.backupPartHandler().readBackup()
+  val backup = universe.backupPartHandler().loadBackup()
   val parts = backup.allParts
 
   def registerIndex() {

@@ -12,6 +12,7 @@ import java.io.RandomAccessFile
 import ch.descabato.TestUtils
 import ch.descabato.utils.Utils
 import java.io.OutputStream
+import ch.descabato.utils.Implicits._
 
 class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) extends TestUtils {
 
@@ -154,7 +155,17 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     select(List(selectFile, selectFolder))
   }
 
-  def generateName() = random.alphanumeric.take(15).mkString ++ random.nextString(3)
+  def generateName(): String = {
+    val disallowed = ((0 to 31).map(_.toChar) ++ ("""\/?%*:|"<>""".toSet)).toSet
+    while(true) {
+      var out = random.alphanumeric.take(15).mkString ++ random.nextString(3)
+      if (!out.exists(c => disallowed safeContains c)) {
+        return out
+      }
+    }
+    // Can not reach here, but the compiler doesn't know that
+    ""
+  }
 
   def newFile(maxSize: Int = 100000) {
     var done = false

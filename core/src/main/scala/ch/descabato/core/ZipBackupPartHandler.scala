@@ -1,9 +1,11 @@
 package ch.descabato.core
 
 import java.util.Date
-import ch.descabato.utils.ObjectPools
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{ZipFileHandlerFactory, ObjectPools, Utils}
 import java.util.BitSet
+import scala.collection.mutable
+import ch.descabato.utils.Implicits._
+import java.io.File
 
 class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Utils with BackupProgressReporting {
   protected var current: BackupDescription = null
@@ -11,6 +13,17 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
   override val filecountername = "Files hashed"
   override val bytecountername = "Data hashed"
+
+  override def setupInternal() {
+    universe.eventBus().subscribe(eventListener)
+  }
+
+  val eventListener: PartialFunction[BackupEvent, Unit] = {
+    case HashListCheckpointed(set) =>
+      universe.backupPartHandler().checkpoint(Some(set))
+  }
+
+  var toCheckpoint: BackupDescription = new BackupDescription()
 
   def blocksFor(fd: FileDescription) = {
     if (fd.size == 0) 1
@@ -57,23 +70,26 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
   }
 
   // reads all the backup parts for the given date
-  // Does not keep a copy of this data
-  def readBackup(date: Option[Date]): BackupDescription = {
-    fileManager.backup.getFiles().sortBy(_.getName).reverse.take(1)
+  def loadBackup(date: Option[Date]): BackupDescription = {
+    val filesToLoad: Seq[File] = fileManager.backup.getTempFiles() ++ fileManager.backup.getFiles().lastOption
+    current = filesToLoad
       .flatMap(fileManager.backup.read(_, OnFailureTryRepair))
       .fold(new BackupDescription())((x, y) => x.merge(y))
+    current
   }
 
-  // set current backup description, these are ready to be checkpointed
-  // once the files are all in
-  def setCurrent(bd: BackupDescription) {
-    current = bd
+  // add files to the current backup description
+  // Also may contain deleted files, which then should be removed from current
+  def addFiles(bd: BackupDescription) {
+    current = current.merge(bd)
     bd.files.foreach {
       file =>
         if (file.hash == null)
-          getUnfinished(file)
+        getUnfinished(file)
     }
     setMaximums(bd)
+    toCheckpoint = current.copy(files = current.files.toList.toBuffer, folders = current.folders.toList.toBuffer,
+      symlinks = current.symlinks.toList.toBuffer, deleted = mutable.Buffer.empty)
     universe.blockHandler.setTotalSize(byteCounter.maxValue)
     l.info("After setCurrent " + remaining + " remaining")
   }
@@ -105,18 +121,39 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     getUnfinished(blockId.file).blockHashArrived(blockId, hash)
   }
 
-  // Checkpoint right now, clear all that can be checkpointed from toCheckpoint
-  def checkpoint(): Boolean = {
-    // TODO
-    true
+  def checkpoint(t: Option[Set[BAWrapper2]]) {
+    def lookup(x: Array[Byte]) = (t, x) match {
+      case (Some(set), h) if set safeContains h => true
+      case (_, h) => universe.hashListHandler().isPersisted(h)
+    }
+    def isFinished(x: UpdatePart) = x match {
+      case fd: FileDescription if fd.hash == null => false
+      case fd: FileDescription if fd.size <= config.blockSize.bytes => true
+      case fd: FileDescription => lookup(fd.hash)
+      case fd: FileDescription => throw new IllegalStateException("No other case should exist")
+      case _ => true
+    }
+    val saveThisTime = new BackupDescription()
+    def update[T <: UpdatePart](read: BackupDescription => mutable.Buffer[T], write: (mutable.Buffer[T], BackupDescription) => Unit) {
+      val (finished, remain) = read(toCheckpoint).partition(isFinished)
+      write(remain, toCheckpoint)
+      write(finished, saveThisTime)
+    }
+    update[FileDescription](x => x.files, (b, o) => {o.files.clear; o.files ++= b})
+    update[SymbolicLink](x => x.symlinks, (b, o) => {o.symlinks.clear; o.symlinks ++= b})
+    update[FolderDescription](x => x.folders, (b, o) => {o.folders.clear; o.folders ++= b})
+    update[FileDeleted](x => x.deleted, (b, o) => {o.deleted.clear; o.deleted ++= b})
+    if (saveThisTime.size > 0)
+      fileManager.backup.write(saveThisTime, true)
   }
 
   def remaining(): Int = unfinished.size
 
   // write current, clear checkpoint files
   def finish() = {
-    if (current != null)
-      fileManager.backup.write(current)
+    checkpoint(None)
+    val writer = ZipFileHandlerFactory.complexWriter(fileManager.backup.nextFile())
+    fileManager.backup.mergeTempFilesIntoNew()
     true
   }
 }

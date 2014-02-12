@@ -104,7 +104,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     startMeasuring()
     l.info("Starting backup")
     // Walk tree and compile to do list
-    val visitor = new OldIndexVisitor(backupPartHandler.readBackup(None).asMap(), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
+    val visitor = new OldIndexVisitor(backupPartHandler.loadBackup(None).asMap(), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
     val (newDesc, unchangedDesc, deletedDesc) = (visitor.newDesc, visitor.unchangedDesc, visitor.deletedDesc)
 
     l.info("Counting of files done")
@@ -115,7 +115,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       l.info("No files have been changed, aborting backup")
       return
     }
-    backupPartHandler.setCurrent(newDesc.merge(unchangedDesc))
+    newDesc.deleted ++= deletedDesc.deleted
+    backupPartHandler.addFiles(newDesc)
 
     // Backup files 
     setMaximums(newDesc)
@@ -294,7 +295,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
   def restore(options: RestoreConf, d: Option[Date] = None) {
     implicit val o = options
     startMeasuring()
-    val description = universe.backupPartHandler().readBackup(d)
+    val description = universe.backupPartHandler().loadBackup(d)
     initRoots(description.folders)
     val filtered = description // TODO if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
     l.info("Going to restore " + statistics(filtered))
@@ -417,7 +418,7 @@ class VerifyHandler(val universe: Universe)
 
   var problemCounter = new ProblemCounter()
 
-  lazy val backupDesc = universe.backupPartHandler().readBackup()
+  lazy val backupDesc = universe.backupPartHandler().loadBackup()
 
   def verify(t: VerifyConf) = {
     problemCounter = new ProblemCounter()

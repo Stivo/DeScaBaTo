@@ -2,12 +2,11 @@ package ch.descabato.core
 
 import ch.descabato.utils.ZipFileWriter
 import ch.descabato.utils.ZipFileReader
-import java.util.zip.ZipEntry
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.ZipFileHandlerFactory
-import java.io.File
 import ch.descabato.utils.Utils
-import java.io.ByteArrayOutputStream
+import java.io.File
+import net.java.truevfs.access.{TVFS, TFile}
 
 // Not threadsafe! Use from single thread or as one-instance actor
 // Only from one zip file may be read at the same time, at the moment
@@ -15,11 +14,14 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
   // Needs to end with a slash, otherwise implementation will break
   def folder = ""
   def filetype: FileType[_]
+  protected def lazyload = true
+  protected var _loaded = false
   def useIndexFiles = false
   // TODO implement this if needed
   def keepValuesInMemory = false
+  def writeTempFiles = false
   var inBackup: Map[K, V] = Map.empty
-  var inBackupIndex: Map[K, Int] = Map.empty
+  var inBackupIndex: Map[K, File] = Map.empty
   //var inCurrentWriter: Map[K, V] = Map.empty
   var inCurrentWriterKeys: Set[K] = Set.empty
 
@@ -35,7 +37,10 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
   protected var currentWriter: ZipFileWriter = null
 
   def load() {
-    val index = filetype.getFiles()
+    val completeFiles = filetype.getFiles()
+    val index = if (writeTempFiles) {
+      completeFiles ++ filetype.getTempFiles()
+    } else completeFiles
     index.foreach { f =>
       val num = filetype.num(f)
       val reader = ZipFileHandlerFactory.reader(f, config)
@@ -46,16 +51,24 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
           if (keepValuesInMemory) {
             inBackup += (key -> readValue(name, reader))
           }
-          inBackupIndex += (key -> num)
+          inBackupIndex += (key -> f)
         }
       }
     }
     // TODO if index should be used but doesn't exist, create index
   }
 
-  def shouldStartNextFile(w: ZipFileWriter, k: K, v: V): Boolean
+  protected def ensureLoaded() {
+    if (lazyload && !_loaded) {
+      load
+      _loaded = true
+    }
+  }
+
+  protected def shouldStartNextFile(w: ZipFileWriter, k: K, v: V): Boolean
 
   def write(k: K, v: V) {
+    ensureLoaded()
     if (shouldStartNextFile(currentWriter, k, v)) {
       endZipFile()
     }
@@ -67,7 +80,7 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
 
   protected def openZipFileWriter() {
     if (currentWriter == null) {
-      currentWriter = ZipFileHandlerFactory.writer(filetype.nextFile(), config)
+      currentWriter = ZipFileHandlerFactory.writer(filetype.nextFile(temp = writeTempFiles), config)
       currentWriter.writeManifest(fileManager)
     }
   }
@@ -79,13 +92,13 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
       // close the file
       currentWriter.close
       // update journal
-      universe.journalHandler.finishedFile(file.getName())
+      universe.journalHandler.finishedFile(file, filetype)
       // create an index if necessary
       if (useIndexFiles) {
         // TODO
       }
       // add toAdd to inBackup or inBackupIndex
-      inBackupIndex ++= inCurrentWriterKeys.map(x => (x, num))
+      inBackupIndex ++= inCurrentWriterKeys.map(x => (x, file))
       // reset toAdd
       inCurrentWriterKeys = Set.empty
       currentWriter = null
@@ -94,6 +107,7 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
 
   // May only be called when not writing????
   def read(k: K): V = {
+    ensureLoaded()
     // if values are loaded, check in inBackup and toAdd
     if (inBackup safeContains k) {
       return inBackup(k)
@@ -106,33 +120,50 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
     throw new NoSuchElementException("Value is not in backup")
   }
 
-  protected var lastZip: Option[(Int, ZipFileReader)] = None
+  protected var lastZip: Option[(File, ZipFileReader)] = None
 
-  protected def getZipFileReader(num: Int) = {
+  protected def getZipFileReader(file: File) = {
     lastZip match {
-      case Some((n, zip)) if n == num => zip
+      case Some((f, zip)) if f == file => zip
       case _ =>
         lastZip.foreach { case (_, zip) => zip.close() }
 
-        val out = ZipFileHandlerFactory.reader(filetype.num(num).get, config)
-        lastZip = Some((num, out))
+        val out = ZipFileHandlerFactory.reader(file, config)
+        lastZip = Some((file, out))
         out
     }
   }
 
   def exists(k: K): Boolean = {
+    ensureLoaded()
     if ((inBackupIndex safeContains k) || (inCurrentWriterKeys safeContains k)) {
       true
     } else false
   }
 
-  def isPersisted(k: K): Boolean = inBackupIndex safeContains k
+  def isPersisted(k: K): Boolean = {
+    ensureLoaded()
+    inBackupIndex safeContains k
+  }
 
   def finish(): Boolean = {
     endZipFile()
     lastZip.foreach(_._2.close)
     true
   }
+
+  protected def mergeFiles(from: Seq[File], to: File): Boolean = {
+    val writer = ZipFileHandlerFactory.complexWriter(to)
+    universe.journalHandler().createMarkerFile(writer, from)
+    writer.writeManifest(fileManager)
+    for (fromFile <- from) {
+      writer.writeIntoFrom(fromFile, folder)
+    }
+    writer.close()
+    universe.journalHandler().finishedFile(to, filetype, true)
+    true
+  }
+
 }
 
 abstract class StandardZipKeyValueStorage extends ZipKeyValueStorage[BAWrapper2, Array[Byte]] {

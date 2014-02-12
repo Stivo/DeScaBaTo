@@ -97,7 +97,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     
   val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
 
-  var baseFolder = new File("integrationtest/testdata")
+  var baseFolder = new File("f:/integrationtest/testdata")
   var logFolder = new File(descabatoFolder, "integrationtest/logs")
 
   def folder(s: String) = new File(baseFolder, s).getAbsoluteFile()
@@ -142,31 +142,31 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
   "plain backup" should "work" in {
-    testWith(" --no-redundancy", "", 3, "200Mb")
+    testWith(" --threads 1", "", 5, "300Mb")
   }
 
   "encrypted backup" should "work" in {
-    testWith(" --compression gzip --volume-size 20Mb --no-redundancy --passphrase mypassword", " --passphrase mypassword", 1, "50Mb")
+    testWith(" --threads 5 --compression gzip --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 5, "50Mb")
   }
 
   "low volumesize backup with prefix" should "work" in {
-    testWith(" --no-redundancy --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
+    testWith(" --threads 5 --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
   }
 
   "backup with multiple threads" should "work" in {
-    testWith(" --no-redundancy --compression bzip2 --threads 8 --volume-size 20Mb", "", 5, "50Mb", false)
+    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 5, "50Mb", false)
   }
 
-//  "backup with redundancy" should "recover" in {
-//    testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
-//  }
-
+//    "backup with redundancy" should "recover" in {
+//      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
+//    }
+//
   "backup with crashes" should "work" in {
-    testWith(" --no-redundancy --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, false)
+    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, false)
   }
 
   "backup with crashes, encryption and multiple threads" should "work" in {
-    testWith(" --no-redundancy --threads 10 --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, false)
+    testWith(" --threads 10 --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, false)
   }
 
   def numberOfCheckpoints(): Int = {
@@ -281,9 +281,9 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
         l.warn("Exception while unmounting truevfs ")
         logException(e)
     }
-    deleteAll(input)
-    deleteAll(backup1)
-    deleteAll(restore1)
+//    deleteAll(input)
+//    deleteAll(backup1)
+//    deleteAll(restore1)
   }
 
   def getFile(s1: Iterable[File], file: File) = s1.find(_.getName() == file.getName()).get

@@ -19,9 +19,8 @@ import net.java.truevfs.access.TConfig
 import net.java.truevfs.kernel.spec.FsAccessOption
 import java.io.FileOutputStream
 import Streams.DelegatingOutputStream
-import ch.descabato.core.BackupFolderConfiguration
+import ch.descabato.core.{FileType, BackupFolderConfiguration, FileManager}
 import ch.descabato.version.BuildInfo
-import ch.descabato.core.FileManager
 import java.nio.ByteBuffer
 import java.util.zip.CRC32
 import ch.descabato.utils.Implicits._
@@ -33,12 +32,14 @@ case class MetaInfo(date: String, writingVersion: String)
 object ZipFileHandlerFactory {
   
   def writer(file: File, config: BackupFolderConfiguration): ZipFileWriter = {
-    if (config.hasPassword) 
+    if (config.hasPassword)
       new ZipFileWriterTFile(file)
     else
       new ZipFileWriterJdk(file)
   }
-  
+
+  def complexWriter(file: File): ComplexZipFileWriter = new ZipFileWriterTFile(file)
+
   def reader(file: File, config: BackupFolderConfiguration): ZipFileReader = {
     new ZipFileReaderTFile(file)
   }
@@ -54,7 +55,7 @@ object ZipFileHandlerFactory {
     ze.setCrc(crc.getValue())
     ze
   }
-  
+
 }
 
 trait ZipFileHandlerCommon {
@@ -92,6 +93,12 @@ trait ZipFileReader extends ZipFileHandlerCommon {
   }
 
 }
+
+trait ComplexZipFileWriter extends ZipFileWriter {
+  def writeIntoFrom(zipFile: File, relativePath: String = ""): Boolean
+  def copyFrom(file: File, path: String, name: String): Boolean
+}
+
 
 trait ZipFileWriter extends ZipFileHandlerCommon {
 
@@ -185,7 +192,7 @@ private[this] class ZipFileReaderTFile(val file: File) extends ZipFileHandler(fi
  * A Zip File Writer using TrueVFS.
  * The size is a lower bound
  */
-private[this] class ZipFileWriterTFile(val file: File) extends ZipFileHandler(file) with ZipFileWriter {
+private[this] class ZipFileWriterTFile(val file: File) extends ZipFileHandler(file) with ComplexZipFileWriter {
 
   private var counter = 0L
 
@@ -223,6 +230,24 @@ private[this] class ZipFileWriterTFile(val file: File) extends ZipFileHandler(fi
   def enableCompression() {
     config.setAccessPreference(FsAccessOption.STORE, false)
     config.setAccessPreference(FsAccessOption.COMPRESS, true)
+  }
+
+  def writeIntoFrom(zipFile: File, relativePath: String = "") = {
+    val root = new TFile(zipFile)
+    val srcdir = if (relativePath != "") new TFile(root, relativePath) else root
+    val dstdir = if (relativePath != "") new TFile(tfile, relativePath) else tfile
+    srcdir.cp_rp(dstdir)
+    TVFS.umount(root)
+    true
+  }
+
+  def copyFrom(file: File, path: String, name: String) = {
+    val root = new TFile(file)
+    val src = new TFile(root, path)
+    val dst = new TFile(tfile, name)
+    src.cp(dst)
+    TVFS.umount(root)
+    true
   }
 
 }

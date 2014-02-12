@@ -214,11 +214,11 @@ case class SymbolicLink(path: String, linkTarget: String, attrs: FileAttributes)
   def isFolder = false
 }
 
-class BackupDescription(val files: Buffer[FileDescription], val folders: Buffer[FolderDescription],
+case class BackupDescription(val files: Buffer[FileDescription], val folders: Buffer[FolderDescription],
   val symlinks: Buffer[SymbolicLink], val deleted: Buffer[FileDeleted]) {
   def this() = this(Buffer.empty, Buffer.empty, Buffer.empty, Buffer.empty)
   def merge(later: BackupDescription) = {
-    val set = later.deleted.map(_.path)
+    val set = later.deleted.map(_.path).toSet ++ later.asMap().keySet
     def remove[T <: BackupPart](x: Buffer[T]) = {
       x.filterNot(bp => set safeContains bp.path)
     }

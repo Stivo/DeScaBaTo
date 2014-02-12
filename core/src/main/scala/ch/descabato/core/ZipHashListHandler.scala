@@ -7,7 +7,7 @@ import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Utils, ZipFileReader, ZipFileWriter}
 import java.util.zip.ZipEntry
 
-class ZipHashListHandler extends HashListHandler with UniversePart {
+class ZipHashListHandler extends HashListHandler {
   type HashListMap = mutable.HashMap[BAWrapper2, Array[Byte]]
 
   var hashListMap: HashListMap = new HashListMap()
@@ -17,7 +17,7 @@ class ZipHashListHandler extends HashListHandler with UniversePart {
   override def setupInternal() {
     hashListMap ++= oldBackupHashLists
   }
-  
+
   def oldBackupHashLists: mutable.Map[BAWrapper2, Array[Byte]] = {
     def loadFor(x: Iterable[File], failureOption: ReadFailureOption) = {
       x.flatMap(x => fileManager.hashlists.read(x, failureOption)).fold(Buffer())(_ ++ _).toBuffer
@@ -59,16 +59,32 @@ class ZipHashListHandler extends HashListHandler with UniversePart {
     fileManager.hashlists.deleteTempFiles()
     true
   }
-  
+
+  def isPersisted(fileHash: Array[Byte]) = {
+    hashListMap safeContains fileHash
+  }
+
+  // Checkpointing with an optional argument
+  override def checkpoint(t: Option[Set[BAWrapper2]]): Unit = ???
 }
 
 class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHandler with UniversePart with Utils {
-  override def folder = "hashlists/"
+  override val folder = "hashlists/"
+
+  override val writeTempFiles = true
 
   def filetype = fileManager.hashlists
 
+  var hashListsToWrite = Map[BAWrapper2, Array[Byte]]()
+
   override def setupInternal() {
-    load()
+    universe.eventBus().subscribe(eventListener)
+  }
+
+  val eventListener: PartialFunction[BackupEvent, Unit] = {
+    case e @ VolumeFinished(_) =>
+      // If this is in akka, thread safety is only possible to get via the actor reference
+      universe.hashListHandler().checkpoint(None)
   }
 
   override def configureWriter(writer: ZipFileWriter) {
@@ -76,18 +92,32 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
   }
 
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte]) {
-    if (!exists(fileHash))
-      write(fileHash, hashList)
+    if (!exists(fileHash)) {
+      hashListsToWrite += ((fileHash, hashList))
+    }
   }
+
   def hashListSeq(a: Array[Byte]) = a.grouped(config.getMessageDigest.getDigestLength()).toSeq
+
   def getHashlist(fileHash: Array[Byte], size: Long) ={
     hashListSeq(read(fileHash))
   }
+
   def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]) = false
 
-  def checkpoint(): Boolean = {
-    // TODO
+  def allBlocksExist(x: Array[Byte]) = hashListSeq(x).forall(universe.blockHandler().isPersisted)
+
+  def checkpoint(hashes: Option[Set[BAWrapper2]]) {
+    val (toWrite, toKeep) = hashListsToWrite.partition{case (_, value) => allBlocksExist(value)}
+    toWrite.foreach {case (k, v) => write(k, v)}
+    endZipFile()
+    hashListsToWrite = toKeep
+    universe.eventBus().publish(HashListCheckpointed(toWrite.keySet))
     true
+  }
+
+  def isPersisted(fileHash: Array[Byte]) = {
+    exists(fileHash)
   }
 
   override def endZipFile() {
@@ -97,6 +127,16 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
       super.endZipFile()
       l.info("Wrote hashlist "+num)
     }
+  }
+
+  override def finish() = {
+    super.finish()
+    val temps = filetype.getTempFiles()
+    if (!temps.isEmpty) {
+      super.mergeFiles(temps, filetype.nextFile(temp = false))
+      filetype.deleteTempFiles()
+    }
+    true
   }
 
 }

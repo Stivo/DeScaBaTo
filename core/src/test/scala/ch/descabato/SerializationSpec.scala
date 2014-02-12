@@ -13,20 +13,19 @@ import java.util.ArrayList
 import scala.collection.convert.DecorateAsScala
 import scala.collection.JavaConversions._
 import java.io.ByteArrayInputStream
-import ch.descabato.core.FileDeleted
-import ch.descabato.core.FileDescription
+import ch.descabato.core._
 import ch.descabato.utils.SmileSerialization
-import ch.descabato.core.UpdatePart
 import ch.descabato.utils.JsonSerialization
 import ch.descabato.utils.Implicits._
-import ch.descabato.core.BAWrapper2
-import ch.descabato.core.SymbolicLink
-import ch.descabato.core.FolderDescription
 import ch.descabato.utils.Serialization
-import ch.descabato.core.FileAttributes
+import ch.descabato.core.FileDescription
+import ch.descabato.core.FolderDescription
+import ch.descabato.core.SymbolicLink
 
 class SerializationSpec extends FlatSpec with TestUtils {
- 
+
+  implicit def toBuffer[T](t: T) = Buffer(t)
+
   def fixture =
     new {
 	  type ChainMap = ArrayBuffer[(BAWrapper2, Array[Byte])]
@@ -39,6 +38,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
       val fd = new FileDeleted("asdf")
 	  val symLink = new SymbolicLink("test", "asdf", new FileAttributes())
       val list : Seq[UpdatePart] = List(fid, fod, fd, symLink)
+      val bd = new BackupDescription(fid, fod, symLink, fd)
       val baout = new ByteArrayOutputStream()
     }
   
@@ -66,6 +66,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     assert(symLink === writeAndRead(ser, symLink))
     val listAfter = writeAndRead(ser, list)
     assert(list === writeAndRead(ser, list))
+    assert(bd === writeAndRead(ser, bd))
     (list.head, listAfter.head) match {
       case (x: FileDescription, y: FileDescription) => 
         assert(Arrays.equals(x.hash, y.hash))

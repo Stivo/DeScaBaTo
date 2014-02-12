@@ -18,7 +18,10 @@ class Parity
 object Constants {
   val tempPrefix = "temp."
   val filesEntry = "files.txt"
-  val objectEntry = "content.obj"
+  def objectEntry(num: Option[Int] = None): String = {
+    val add = num.map(x => "_"+x).getOrElse("")
+    s"content$add.obj"
+  }
 }
 
 trait ReadFailureOption
@@ -58,10 +61,12 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def nextNum(temp: Boolean = false) = {
     val col = (if (temp) getTempFiles() else getFiles()).map(num)
-    if (col.isEmpty) {
+    val fromJournal = fileManager.usedIdentifiers
+    val col2 = col ++ fromJournal.map(x => new File(config.folder, x)).filter(matches).filter(isTemp(_) == temp).map(num)
+    if (col2.isEmpty) {
       0
     } else {
-      col.max + 1
+      col2.max + 1
     }
   }
 
@@ -74,14 +79,22 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def nextFile(f: File = config.folder, temp: Boolean = false) = new File(f, nextName(temp))
 
-  def matches(x: File) = x.getName().startsWith(globalPrefix + prefix)
+  def matches(x: File): Boolean = {
+    var name = x.getName()
+    if (!name.startsWith(globalPrefix))
+      return false
+    name = name.drop(globalPrefix.length)
+    if (name.startsWith(tempPrefix))
+      name = name.drop(tempPrefix.length)
+    name.startsWith(prefix)
+  }
 
   def getFiles(f: File = config.folder): Seq[File] = f.
     listFiles().view.filter(_.isFile()).
     filter(_.getName().startsWith(globalPrefix + prefix)).
     filterNot(_.getName.endsWith(".tmp"))
 
-  def getTempFiles(f: File = config.folder) = f.
+  def getTempFiles(f: File = config.folder): Seq[File] = f.
     listFiles().view.filter(_.isFile()).
     filter(_.getName().startsWith(globalPrefix + tempPrefix + prefix)).
     filterNot(_.getName.endsWith(".tmp"))
@@ -128,27 +141,27 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     file.getName.startsWith(globalPrefix+tempPrefix)
   }
 
-  def write(x: T, temp: Boolean = false) = {
+  def write(x: T, temp: Boolean = false, writeToJournal: Boolean = true) = {
     require(x != null)
     val file = nextFile(temp = temp)
     val w = ZipFileHandlerFactory.writer(file, config)
     try {
       w.enableCompression
-      val desc = new ZipEntryDescription(objectEntry, config.serializerType, m.toString)
+      val desc = new ZipEntryDescription(objectEntry(), config.serializerType, m.toString)
       w.writeManifest(fileManager)
       w.writeJson(filesEntry, List(desc))
-      w.writeEntry(objectEntry) { fos =>
+      w.writeEntry(objectEntry()) { fos =>
         config.serialization().writeObject(x, fos)
       }
     } finally {
       w.close
-      if (!temp)
-        fileManager.universe.journalHandler.finishedFile(file.getName())
+      if (writeToJournal)
+        fileManager.universe.journalHandler.finishedFile(file, this)
     }
     file
   }
 
-  def read(file: File, failureOption: ReadFailureOption, first: Boolean = true): Option[T] = {
+  def read(file: File, failureOption: ReadFailureOption, first: Boolean = true): List[T] = {
     var firstCopy = first
     val reader = ZipFileHandlerFactory.reader(file, config)
     try {
@@ -158,19 +171,19 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 //        // Do not try to repair again
 //        firstCopy = false
 //      }
-      val entries = reader.getJson[List[ZipEntryDescription]](filesEntry)
-      entries match {
-        case Left(ZipEntryDescription(name, serType, clas) :: Nil) =>
-          val in = reader.getStream(name)
-          val either = config.serialization(serType).readObject[T](in)
-          in.close
-          either match {
-            case Left(read) => return Some(read)
-            case Right(e) => throw new BackupCorruptedException(file).initCause(e)
+      reader.getJson[List[ZipEntryDescription]](filesEntry) match {
+        case Left(zipentries) =>
+          zipentries.flatMap {
+            case ZipEntryDescription(name, ser, typ) =>
+              val in = reader.getStream(name)
+              val either = config.serialization(ser).readObject[T](in)
+              in.close
+              either match {
+                case Left(x) => Some(x)
+                case Right(e) => throw new BackupCorruptedException(file).initCause(e)
+              }
           }
-        case Right(e: BackupCorruptedException) => throw e
         case Right(e) => throw new BackupCorruptedException(file).initCause(e)
-        case _ => throw new BackupCorruptedException(file)
       }
     } catch {
       case c: SecurityException => throw c
@@ -180,7 +193,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
         reader.close
         f.delete()
         l.info(s"Deleted file $f because it was broken")
-        None
+        Nil
       case e @ BackupCorruptedException(f, false) if firstCopy && failureOption == OnFailureTryRepair =>
         logException(e)
         reader.close
@@ -193,9 +206,29 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       case e: Exception =>
         l.warn("Exception while loading " + file + ", file may be corrupt")
         logException(e)
-        None
+        Nil
     } finally {
       reader.close
+    }
+  }
+
+  def mergeTempFilesIntoNew() {
+    val temp = getTempFiles()
+    if (!temp.isEmpty) {
+
+      val dest = ZipFileHandlerFactory.complexWriter(nextFile())
+      fileManager.universe.journalHandler().createMarkerFile(dest, temp)
+      val descs = Buffer[ZipEntryDescription]()
+      temp.foreach { x =>
+        val name = objectEntry(Some(num(x)))
+        descs += new ZipEntryDescription(name, config.serializerType, m.toString)
+        dest.copyFrom(x, objectEntry(), name)
+      }
+      dest.writeJson(filesEntry, descs)
+      dest.writeManifest(fileManager)
+      dest.close()
+      fileManager.universe.journalHandler.finishedFile(dest.file, this, true)
+      deleteTempFiles()
     }
   }
 
@@ -208,6 +241,8 @@ class FileManager(override val universe: Universe) extends UniversePart {
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
   val dateFormatLength = dateFormat.format(new Date()).length()
   val startDate = new Date()
+
+  def usedIdentifiers = universe.journalHandler().usedIdentifiers()
 
   def getDateFormatted = dateFormat.format(startDate)
 
@@ -231,16 +266,17 @@ class FileManager(override val universe: Universe) extends UniversePart {
 
   def getFileType(x: File) = types.find(_.matches(x)).get
 
-  def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {
-    val filesNow = config.folder.listFiles().filter(_.isFile()).filter(files.matches)
-    val sorted = filesNow.sortBy(_.getName())
-    val lastDate = if (sorted.isEmpty) new Date(0) else files.date(sorted.filterNot(_.getName.startsWith(Constants.tempPrefix)).last)
-    val onlyLast = sorted.dropWhile(x => files.date(x).before(lastDate))
-    val updates = filesDelta.getFiles().dropWhile(filesDelta.date(_).before(lastDate))
-    val out1 = onlyLast ++ updates
-    val complete = if (temp) out1 ++ files.getTempFiles() else out1
-    (complete, !updates.isEmpty)
-  }
+// TODO some of this code is needed later
+//  def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {
+//    val filesNow = config.folder.listFiles().filter(_.isFile()).filter(files.matches)
+//    val sorted = filesNow.sortBy(_.getName())
+//    val lastDate = if (sorted.isEmpty) new Date(0) else files.date(sorted.filterNot(_.getName.startsWith(Constants.tempPrefix)).last)
+//    val onlyLast = sorted.dropWhile(x => files.date(x).before(lastDate))
+//    val updates = filesDelta.getFiles().dropWhile(filesDelta.date(_).before(lastDate))
+//    val out1 = onlyLast ++ updates
+//    val complete = if (temp) out1 ++ files.getTempFiles() else out1
+//    (complete, !updates.isEmpty)
+//  }
 
   def getBackupDates(): Seq[Date] = {
     files.getFiles().map(files.date).toList.distinct.sorted
