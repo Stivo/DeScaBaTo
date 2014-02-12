@@ -42,6 +42,13 @@ class SimpleJournalHandler extends JournalHandler with Utils {
           if (parts(2).length() == parts(1).toInt) {
             if (!(files safeContains parts(2))) {
               l.warn("File is in journal, but not on disk "+files(parts(2)))
+            } else {
+              // TODO some kind of publish/subscriber mechanism should be used instead of this
+              val file = new File(config.folder, parts(2))
+              val filetype = fileManager.getFileType(file)
+              if (!filetype.isTemp(file) && !filetype.redundant) {
+                universe.redundancyHandler.createPar2(file)
+              }
             }
             // Line has been written completely, is valid
             files -= parts(2)
@@ -56,14 +63,17 @@ class SimpleJournalHandler extends JournalHandler with Utils {
     }
   }
   
-  def finishedFile(name: String): Boolean = {
+  def finishedFile(file: File, filetype: FileType[_]): Boolean = {
     checkLock()
     randomAccessFile.synchronized {
+      val name = file.getName()
       randomAccessFile.seek(randomAccessFile.length())
       val line = "Finished " + name.length() + " " + name + "\r\n"
       randomAccessFile.writeBytes(line)
       randomAccessFile.getFD().sync()
-      l.info("Wrote "+line.dropRight(2))
+    }
+    if (!filetype.isTemp(file) && !filetype.redundant) {
+      universe.redundancyHandler.createPar2(file)
     }
     true
   }

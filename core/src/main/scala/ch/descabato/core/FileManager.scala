@@ -122,7 +122,12 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def num(number: Int, temp: Boolean = false): Option[File] = {
     getFiles().filter(x => num(x) == number).headOption
   }
-  
+
+  def isTemp(file: File) = {
+    require(matches(file))
+    file.getName.startsWith(globalPrefix+tempPrefix)
+  }
+
   def write(x: T, temp: Boolean = false) = {
     require(x != null)
     val file = nextFile(temp = temp)

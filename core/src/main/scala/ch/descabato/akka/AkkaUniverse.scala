@@ -34,7 +34,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   val dispatcher = "backup-dispatcher"
 
-  ActorStats.tpe.setCorePoolSize(config.threads)
+  ActorStats.tpe.setCorePoolSize(Math.max(config.threads-1, 1))
   
   val taskers = 1
 

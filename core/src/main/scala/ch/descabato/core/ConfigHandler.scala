@@ -23,10 +23,10 @@ object InitBackupFolderConfiguration extends Utils {
         o.volumeSize.foreach(out.volumeSize = _)
         o.threads.foreach(out.threads = _)
         o.checkpointEvery.foreach(out.checkPointEvery = _)
-        o.renameDetection.foreach(out.renameDetection = _)
-        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
-        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
-        o.metadataRedundancy.foreach(out.metadataRedundancy = _)
+//        o.renameDetection.foreach(out.renameDetection = _)
+//        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
+//        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
+//        o.metadataRedundancy.foreach(out.metadataRedundancy = _)
         o.dontSaveSymlinks.foreach(b => out.saveSymlinks = !b)
         o.compression.foreach(x => out.compressor = x)
       case _ =>
@@ -62,22 +62,22 @@ object InitBackupFolderConfiguration extends Utils {
           o.checkpointEvery.foreach(old.checkPointEvery = _)
           changed = true
         }
-        if (o.renameDetection.isSupplied) {
-          o.renameDetection.foreach(old.renameDetection = _)
-          changed = true
-        }
-        if (o.noRedundancy.isSupplied) {
-          o.noRedundancy.foreach(b => old.redundancyEnabled = !b)
-          changed = true
-        }
-        if (o.volumeRedundancy.isSupplied) {
-          o.volumeRedundancy.foreach(old.volumeRedundancy = _)
-          changed = true
-        }
-        if (o.metadataRedundancy.isSupplied) {
-          o.metadataRedundancy.foreach(old.metadataRedundancy = _)
-          changed = true
-        }
+//        if (o.renameDetection.isSupplied) {
+//          o.renameDetection.foreach(old.renameDetection = _)
+//          changed = true
+//        }
+//        if (o.noRedundancy.isSupplied) {
+//          o.noRedundancy.foreach(b => old.redundancyEnabled = !b)
+//          changed = true
+//        }
+//        if (o.volumeRedundancy.isSupplied) {
+//          o.volumeRedundancy.foreach(old.volumeRedundancy = _)
+//          changed = true
+//        }
+//        if (o.metadataRedundancy.isSupplied) {
+//          o.metadataRedundancy.foreach(old.metadataRedundancy = _)
+//          changed = true
+//        }
         if (o.dontSaveSymlinks.isSupplied) {
           o.dontSaveSymlinks.foreach(b => old.saveSymlinks = !b)
           changed = true

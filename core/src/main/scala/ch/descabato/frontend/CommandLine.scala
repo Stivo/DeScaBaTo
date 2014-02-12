@@ -32,7 +32,7 @@ object CLI extends Utils {
     new BackupCommand(),
     new VerifyCommand(),
     new RestoreCommand(),
-    //    new ReflectionCommand("browse", "ch.descabato.browser.BrowseCommand"),
+    new ReflectionCommand("browse", "ch.descabato.browser.BrowseCommand"),
     new HelpCommand()).map(x => (x.name.toLowerCase, x)).toMap
 
   def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
@@ -224,18 +224,18 @@ trait BackupRelatedCommand extends Command with Utils {
 // Parsing classes
 
 trait RedundancyOptions extends BackupFolderOption {
-  val metadataRedundancy = opt[Int](default = Some(20))
-  val volumeRedundancy = opt[Int](default = Some(5))
-  val noRedundancy = opt[Boolean](default = Some(false))
+//  val metadataRedundancy = opt[Int](default = Some(20))
+//  val volumeRedundancy = opt[Int](default = Some(5))
+//  val noRedundancy = opt[Boolean](default = Some(false))
 }
 
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {
   val keylength = opt[Int](default = Some(128))
   val volumeSize = opt[Size](default = Some(Size("100Mb")))
-  val threads = opt[Int](default = Some(1))
+  val threads = opt[Int](default = Some(2))
   val noScriptCreation = opt[Boolean](default = Some(false))
   val checkpointEvery = opt[Size](default = Some(Size("100Mb")))
-  val renameDetection = opt[Boolean](default = Some(false))
+//  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks = opt[Boolean](default = Some(false))
   val compression = opt[CompressionMode]()
 }

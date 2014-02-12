@@ -225,10 +225,12 @@ class BackupDescription(val files: Buffer[FileDescription], val folders: Buffer[
     new BackupDescription(remove(files) ++ later.files, remove(folders) ++ later.folders,
       remove(symlinks) ++ later.symlinks, later.deleted)
   }
-  
+
+  @JsonIgnore def allParts = files ++ folders ++ symlinks
+
   @JsonIgnore def asMap(): mutable.Map[String, BackupPart] = {
     val map = new mutable.HashMap[String, BackupPart]
-    (files ++ folders ++ symlinks).foreach {x => map += ((x.path, x))}
+    allParts.foreach {x => map += ((x.path, x))}
     map
   }
   

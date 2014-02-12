@@ -17,7 +17,6 @@ object CreateProgressGui {
       new ProgressGui()
     }
   }
-
 }
 
 class ProgressGui extends ActionListener {

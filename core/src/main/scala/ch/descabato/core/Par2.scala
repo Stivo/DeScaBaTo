@@ -2,7 +2,6 @@
 //
 //import java.io.InputStream
 //import java.io.File
-//import java.io.FileInputStream
 //import java.nio.charset.Charset
 //import java.util.Arrays
 //import java.io.IOException
@@ -11,12 +10,56 @@
 //import java.nio.channels.FileChannel
 //import java.nio.ByteOrder
 //import scala.collection.mutable.Buffer
-//import java.util.regex.Pattern
-//import scala.collection.mutable.WeakHashMap
 //import java.security.MessageDigest
 //import scala.io.Source
 //import net.java.truevfs.access.TVFS
-//import java.lang.ProcessBuilder.Redirect
+//import ch.descabato.utils.{Streams, Utils}
+//import ch.descabato.utils.Utils.{encodeBase64, decodeBase64}
+//
+//trait Par2Repairer extends Utils {
+//  def folder: File
+//  private var attemptedFiles = Set[File]()
+//  private var cache = Map[String, String]()
+//
+//    def getPar2(): String = {
+//      CommandLineToolSearcher.lookUpName("par2").getOrElse(
+//        throw ExceptionFactory.newPar2Missing()
+//      )
+//    }
+//
+//
+//  def startProcess(cmd: Iterable[String]) = {
+//    l.debug("Starting command " + cmd.mkString(" "))
+//    val proc = new ProcessBuilder().command(cmd.toList: _*)
+//      //      .redirectOutput(Redirect.INHERIT)
+//      .redirectOutput(new File(folder, "par2out.txt"))
+//      .redirectError(new File(folder, "par2error.txt"))
+//      .directory(folder)
+//      .start
+//    val exit = proc.waitFor()
+//    proc.destroy()
+//    val s = Source.fromFile(new File(folder, "par2error.txt"))
+//    val log = s.getLines.mkString("\n")
+//    if (log.trim != "") {
+//      l.warn("Par2Log: " + log)
+//    }
+//    if (exit != 0) {
+//      l.warn("Exit code was " + exit)
+//    }
+//    s.close
+//    exit == 0
+//  }
+//
+//  def startRepair(par2File: File) = {
+//    val par2Executable = CommandLineToolSearcher.lookUpName("par2")
+//    val cmd = Buffer[String]()
+//    cmd += getPar2()
+//    cmd += "repair"
+//    cmd += par2File.getName()
+//    startProcess(cmd)
+//  }
+//
+//}
 //
 //object CommandLineToolSearcher {
 //  private var cache = Map[String, String]()
@@ -50,21 +93,12 @@
 //}
 //
 ///**
-// * Creates par2 files for the backup folder that cover the
-// * index, the hash chains and the volumes.
-// */
-//class RedundancyHandler(config: BackupFolderConfiguration) extends Utils {
+//* Creates par2 files for the backup folder that cover the
+//* index, the hash chains and the volumes.
+//*/
+//class Par2RedundancyHandler(universe: Universe) extends RedundancyHandler with Utils {
 //
 //  import Par2Handler._
-//
-//  lazy val fileManager = config.fileManager
-//
-//  def createFiles() {
-//    forHashListsAndIndex()
-//    forVolumes()
-//  }
-//
-//  var numberOfFiles = 1
 //
 //  def notCovered[T](ft: FileType[T]) = {
 //    val covered = readCoveredFiles(config.folder)
@@ -73,46 +107,10 @@
 //    out.toList
 //  }
 //
-//  def forVolumes() {
-//    val p2volume = config.fileManager.par2ForVolumes
-//    var volumes = filesMatchingPrefix(fileManager.volumes)
-//    while (!volumes.isEmpty) {
-//      val f = p2volume.nextFile()
-//      start(f, volumes.take(1), 5, Some(config.blockSize.bytes))
-//      volumes = volumes.drop(1)
-//    }
-//  }
-//
-//  def filesMatchingPrefix[T](ft: FileType[T], sort: Boolean = true) = {
-//    val out = notCovered(ft)
-//    if (sort) {
-//      out.sortBy(ft.getNum(_))
-//    } else {
-//      out
-//    }
-//  }
-//
-//  def handleFiles[T](parFt: FileType[Parity], ft: FileType[T], redundancy: Int) = {
-//    val par2File = parFt.nextFile()
-//    start(par2File, filesMatchingPrefix(ft, true), redundancy)
-//  }
-//
-//  def forHashListsAndIndex() {
-//    handleFiles(fileManager.par2ForFiles, fileManager.files, 50)
-//    handleFiles(fileManager.par2ForHashLists, fileManager.hashlists, 50)
-//    handleFiles(fileManager.par2ForFilesDelta, fileManager.filesDelta, 50)
-//  }
-//
-//  def getPar2(): String = {
-//    CommandLineToolSearcher.lookUpName("par2").getOrElse(
-//      throw ExceptionFactory.newPar2Missing()
-//    )
-//  }
-//
 //  /**
 //   * Starts the command line utility to create the par2 files
 //   */
-//  def start(par2File: File, files: Iterable[File], redundancy: Int, size: Option[Long] = None) {
+//  def startCreation(par2File: File, files: Iterable[File], redundancy: Int, size: Option[Long] = None) {
 //    //import redundancy._
 //    if (files.isEmpty) {
 //      return
@@ -137,38 +135,7 @@
 //    }
 //  }
 //
-//  def startProcess(cmd: Iterable[String]) = {
-//    l.debug("Starting command " + cmd.mkString(" "))
-//    val proc = new ProcessBuilder().command(cmd.toList: _*)
-////      .redirectOutput(Redirect.INHERIT)
-//      .redirectOutput(new File(config.folder, "par2out.txt"))
-//      .redirectError(new File(config.folder, "par2error.txt"))
-//      .directory(config.folder)
-//      .start
-//    val exit = proc.waitFor()
-//    proc.destroy()
-//    val s = Source.fromFile(new File(config.folder, "par2error.txt"))
-//    val log = s.getLines.mkString("\n")
-//    if (log.trim != "") {
-//      l.warn("Par2Log: " + log)
-//    }
-//    if (exit != 0) {
-//      l.warn("Exit code was " + exit)
-//    }
-//    s.close
-//    exit == 0
-//  }
-//
-//  def startRepair(par2File: File) = {
-//    val par2Executable = CommandLineToolSearcher.lookUpName("par2")
-//    val cmd = Buffer[String]()
-//    cmd += getPar2()
-//    cmd += "repair"
-//    cmd += par2File.getName()
-//    startProcess(cmd)
-//  }
-//
-//  def repair(file: File): Boolean = {
+//  def tryRepair(file: File): Boolean = {
 //    parseAllPar2(config.folder).find(_.coveredFiles.map(_._1).contains(file.getName())).map(_.par2File(config.folder)) match {
 //      case Some(f) =>
 //        val out = startRepair(f)
@@ -186,7 +153,7 @@
 //
 //}
 //
-//object Par2Handler extends Utils {
+//object Par2Infos extends Utils {
 //  // This map contains the parsed par2files for a given par2 file
 //  private val cache = new mutable.HashMap[File, Par2File]()
 //
@@ -202,7 +169,7 @@
 //  def parseAllPar2(folder: File): Seq[Par2File] = {
 //    val list = folder.listFiles().filter(_.getName().endsWith(".par2"))
 //      .filterNot(f => regex.pattern.matcher(f.getName).matches())
-//    list.map(Par2Handler.get(_))
+//    list.map(Par2Infos.get(_))
 //  }
 //
 //  // This map contains for each covered file in which par2 file it is covered
@@ -229,7 +196,6 @@
 //    if (attemptedFiles.contains(f)) {
 //      throw new IllegalStateException("File " + f + " was already repaired")
 //    }
-//    TVFS.umount()
 //    attemptedFiles += f
 //    l.info("Backup corrupted on " + f + ", trying to repair")
 //    if (!new RedundancyHandler(conf).repair(f)) {
@@ -244,16 +210,15 @@
 //    attemptedFiles = Set.empty
 //    cache.clear
 //  }
-//  
+//
 //}
 //
 ///**
-// * Parses a given par2 file to find out which
-// * files it covers.
-// */
+//* Parses a given par2 file to find out which
+//* files it covers.
+//*/
 //private class Par2Parser(val f: File) {
 //  lazy val raf = new RandomAccessFile(f, "r")
-//  import Utils._
 //
 //  private var files = mutable.LinkedHashMap[String, String]()
 //  private var hashes = mutable.Map[String, Array[Byte]]()

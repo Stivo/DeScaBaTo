@@ -1,10 +1,12 @@
 package ch.descabato.core
 
 import ch.descabato.CompressionMode
-import java.io.InputStream
+import java.io.{File, InputStream}
 import java.util.Date
 import java.nio.ByteBuffer
 import java.util.zip.ZipEntry
+import ch.descabato.utils.Streams
+import java.security.MessageDigest
 
 trait MustFinish {
   // Return value is used so akka blocks this call
@@ -24,7 +26,14 @@ trait Universe extends MustFinish {
   def blockHandler(): BlockHandler
   def hashHandler(): HashHandler
   def journalHandler(): JournalHandler
-  
+  def redundancyHandler(): RedundancyHandler = {
+    if (false) {
+      makeRedundancyHandler()
+    } else {
+      new NoOpRedundancyHandler()
+    }
+  }
+  protected def makeRedundancyHandler(): RedundancyHandler = ???
   def compressionStatistics(): Option[CompressionStatistics] = None
 
   lazy val _fileManager = new FileManager(this)
@@ -40,7 +49,7 @@ trait Universe extends MustFinish {
 trait JournalHandler extends UniversePart with MustFinish {
   // Saves this file in the journal as finished
   // Makes an effort to sync it to the file system
-  def finishedFile(name: String): Boolean
+  def finishedFile(name: String, filetype: FileType[_]): Boolean
   // Removes all files not mentioned in the journal
   def cleanUnfinishedFiles(): Boolean
 }
@@ -49,6 +58,30 @@ case class BlockId(file: FileDescription, part: Int)
 
 trait BackupActor extends MustFinish {
   def setup(universe: Universe)
+}
+
+// TODO implement this again? or design it better?
+trait RedundancyHandler extends UniversePart with MustFinish {
+  // Requires that the file is finished
+  def createPar2(file: File)
+  // Requires that the file is not in use
+  def tryRepair(file: File): Boolean
+  // No requirements, will just return None if no hash exists
+  def md5HashForFile(file: File): Option[Array[Byte]]
+  // Will just return same stream if no md5 hash around
+  def wrapVerifyStreamIfCovered(file: File, is: InputStream): InputStream = {
+    md5HashForFile(file) match {
+      case Some(hash) => new Streams.VerifyInputStream(is, MessageDigest.getInstance("MD5"), hash, f)
+      case None => is
+    }
+  }
+}
+
+class NoOpRedundancyHandler extends UniversePart with MustFinish {
+  def createPar2(file: File) {}
+  def tryRepair(file: File) = false
+  def md5HashForFile(file: File): Option[Array[Byte]] = None
+  def finish() = true
 }
 
 trait CompressionStatistics extends UniversePart {
@@ -107,6 +140,5 @@ trait HashHandler {
   // Finish this file, call backupparthandler 
   def finish(fd: FileDescription)
   // Release resources associated with this file
-  // TODO implement and use
   def fileFailed(fd: FileDescription)
 }
