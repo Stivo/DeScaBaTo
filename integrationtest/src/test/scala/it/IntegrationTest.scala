@@ -299,7 +299,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
       } else {
         assert(c1.getName === c2.getName, "name should be same for " + c1)
         assert(c1.length === c2.length, "length should be same for " + c1)
-        assert(c1.lastModified === c2.lastModified +- 1000, "Last modified should be within a second")
+        assert(c1.lastModified === c2.lastModified +- 1000, "Last modified should be within a second for "+c1)
         assert(hash(c1) === hash(c2), "content should be same for " + c1)
       }
     }
