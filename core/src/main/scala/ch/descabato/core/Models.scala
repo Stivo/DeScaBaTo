@@ -25,6 +25,7 @@ import ch.descabato.utils.Utils
 import ch.descabato.utils.Implicits._
 import scala.collection.mutable.Buffer
 import scala.collection.mutable
+import com.google.common.base.Objects
 
 case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
   def this() = this(null)
@@ -77,14 +78,6 @@ class FileAttributes extends HashMap[String, Any] with Utils {
       case x => println("Was modified: " + lastMod + " vs " + x + " " + x.getClass + " "); true
     }
     out
-  }
-
-  override def equals(other: Any) = {
-    def prepare(x: HashMap[String, _]) = x.asScala
-    other match {
-      case x: HashMap[String, _] => prepare(x).equals(prepare(x))
-      case _ => false
-    }
   }
 
 }
@@ -183,13 +176,20 @@ case class FileDeleted(path: String) extends UpdatePart {
 object FileDeleted {
   def apply(x: BackupPart) = x match {
     case FolderDescription(path, _) => new FileDeleted(path)
-    case FileDescription(path, _, _) => new FileDeleted(path)
+    case FileDescription(path, _, _, _) => new FileDeleted(path)
   }
 }
 
-case class FileDescription(path: String, size: Long, attrs: FileAttributes) extends BackupPart {
-  var hash: Array[Byte] = null
+case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Array[Byte] = null) extends BackupPart {
   @JsonIgnore def isFolder = false
+  override def equals(x: Any) = x match {
+    case FileDescription(p, s, attrs, h) if p == path && s == size && attrs == attrs => Arrays.equals(hash, h)
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    Objects.hashCode(path)
+  }
 }
 
 case class FolderDescription(path: String, attrs: FileAttributes) extends BackupPart {
@@ -214,12 +214,12 @@ case class SymbolicLink(path: String, linkTarget: String, attrs: FileAttributes)
   def isFolder = false
 }
 
-case class BackupDescription(val files: Buffer[FileDescription], val folders: Buffer[FolderDescription],
-  val symlinks: Buffer[SymbolicLink], val deleted: Buffer[FileDeleted]) {
-  def this() = this(Buffer.empty, Buffer.empty, Buffer.empty, Buffer.empty)
+case class BackupDescription(val files: Vector[FileDescription] = Vector.empty,
+                             val folders: Vector[FolderDescription] = Vector.empty,
+  val symlinks: Vector[SymbolicLink] = Vector.empty, val deleted: Vector[FileDeleted] = Vector.empty) {
   def merge(later: BackupDescription) = {
-    val set = later.deleted.map(_.path).toSet ++ later.asMap().keySet
-    def remove[T <: BackupPart](x: Buffer[T]) = {
+    val set = later.deleted.map(_.path).toSet ++ later.asMap.keySet
+    def remove[T <: BackupPart](x: Vector[T]) = {
       x.filterNot(bp => set safeContains bp.path)
     }
     new BackupDescription(remove(files) ++ later.files, remove(folders) ++ later.folders,
@@ -228,22 +228,23 @@ case class BackupDescription(val files: Buffer[FileDescription], val folders: Bu
 
   @JsonIgnore def allParts = files ++ folders ++ symlinks
 
-  @JsonIgnore def asMap(): mutable.Map[String, BackupPart] = {
-    val map = new mutable.HashMap[String, BackupPart]
+  @JsonIgnore lazy val asMap: Map[String, BackupPart] = {
+    var map = Map[String, BackupPart]()
     allParts.foreach {x => map += ((x.path, x))}
     map
   }
   
-  def += (x: UpdatePart) = x match {
-    case x: FileDescription => files += x
-    case x: FolderDescription => folders += x
-    case x: SymbolicLink => symlinks += x
+  def + (x: UpdatePart) = x match {
+    case x: FileDescription => this.copy(files = files :+ x)
+    case x: FolderDescription => this.copy(folders = folders :+ x)
+    case x: SymbolicLink => this.copy(symlinks = symlinks :+ x)
   }
   
   @JsonIgnore def size = files.size + folders.size + symlinks.size
   
-  @JsonIgnore def isEmpty() = size == 0
+  @JsonIgnore def sizeWithDeleted = size + deleted.size
   
+  @JsonIgnore def isEmpty() = sizeWithDeleted == 0
 }
 
 /**

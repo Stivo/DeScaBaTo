@@ -48,7 +48,7 @@ trait UniversePart extends AnyRef with PostRestart {
   protected def setupInternal() {}
 }
 
-class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe {
+class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe with PureLifeCycle {
   def make[T <: UniversePart](x: T) = {x.setup(this); x}
   val journalHandler = make(new SimpleJournalHandler())
   val backupPartHandler = make(new ZipBackupPartHandler())
@@ -58,16 +58,13 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val hashHandler = make(new SingleThreadHasher())
   lazy val eventBus = new SimpleEventBus[BackupEvent]()
 
-  def finish() = {
-    blockHandler.finish()
-    hashListHandler.finish()
-    backupPartHandler.finish()
-    journalHandler.finish()
-    true
+  override def finish() = {
+    finishOrder.map (_.finish).reduce(_ && _)
   }
 
-  override def shutdown() {
+  override def shutdown() = {
     journalHandler.finish()
+    ret
   }
 }
 
@@ -90,11 +87,9 @@ class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
     universe.blockHandler.writeCompressedBlock(hash, entry, header, compressed)
   }
 
-  def finish = true
-
 }
 
-class SingleThreadHasher extends HashHandler with UniversePart {
+class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycle {
   lazy val md = universe.config.getMessageDigest
 
   def hash(blockId: BlockId, block: Array[Byte]) {

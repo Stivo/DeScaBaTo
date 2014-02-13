@@ -308,7 +308,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   def hash(f: File) = {
     val hos = new HashingOutputStream("md5")
     val buf = Streams.copy(new FileInputStream(f), hos)
-    Utils.encodeBase64(hos.out.get)
+    Utils.encodeBase64Url(hos.out.get)
   }
 
 }

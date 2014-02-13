@@ -11,13 +11,7 @@ import java.nio.file.{NoSuchFileException, LinkOption, Files}
 import java.security.DigestOutputStream
 import java.util
 import java.util.Enumeration
-import ch.descabato.core.BlockId
 import scala.Some
-import ch.descabato.core.FileDescription
-import ch.descabato.core.FolderDescription
-import ch.descabato.core.SymbolicLink
-import ch.descabato.core.BackupCorruptedException
-import ch.descabato.core.BackupFolderConfiguration
 import scala.util.Random
 
 trait MeasureTime {
@@ -102,9 +96,10 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
   def backup(files: Seq[File]) {
     config.folder.mkdirs()
     startMeasuring()
+    universe.loadBlocking()
     l.info("Starting backup")
     // Walk tree and compile to do list
-    val visitor = new OldIndexVisitor(backupPartHandler.loadBackup(None).asMap(), recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
+    val visitor = new OldIndexVisitor(backupPartHandler.loadBackup(None).asMap, recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
     val (newDesc, unchangedDesc, deletedDesc) = (visitor.newDesc, visitor.unchangedDesc, visitor.deletedDesc)
 
     l.info("Counting of files done")
@@ -115,8 +110,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       l.info("No files have been changed, aborting backup")
       return
     }
-    newDesc.deleted ++= deletedDesc.deleted
-    backupPartHandler.addFiles(newDesc)
+    val allFiles = unchangedDesc.merge(newDesc)
+    backupPartHandler.setFiles(allFiles)
 
     // Backup files 
     setMaximums(newDesc)
@@ -132,9 +127,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     }
 
     val (success, failed) = coll.partition(backupFileDesc)
-
     universe.finish()
-    println("Successfully backed up " + success.size + ", failed " + failed.size)
+    l.info("Successfully backed up " + success.size + ", failed " + failed.size)
     // Clean up, handle failed entries
     l.info("Backup completed in " + measuredTime())
   }
@@ -200,6 +194,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       if (fis != null)
         fis.close()
       if (!success) {
+        l.info("File was not successfully backed up "+fileDesc)
         universe.hashHandler().fileFailed(fileDesc)
       }
     }

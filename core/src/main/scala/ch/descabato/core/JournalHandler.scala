@@ -107,15 +107,19 @@ class SimpleJournalHandler extends JournalHandler with Utils {
     new BlockingOperation()
   }
 
-  def finish(): Boolean = {
+  def shutdown(): BlockingOperation = {
     if (_open) {
       lock.release()
       randomAccessFile.close()
       _open = false
     }
-    true
+    ret
   }
 
+  def finish(): Boolean = {
+    true
+  }
+  
   def createMarkerFile(writer: ZipFileWriter, filesToDelete: Seq[File]): BlockingOperation = {
     writer.writeEntry(journalInZipFile) { out =>
       out.write(filesToDelete.map(_.getName).mkString("\r\n").getBytes("UTF-8"))

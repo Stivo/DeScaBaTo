@@ -15,6 +15,9 @@ class ZipHashListHandler extends HashListHandler {
   var hashListMapNew: HashListMap = new HashListMap()
   var hashListMapCheckpoint: HashListMap = new HashListMap()
 
+  def load() { /* already done */ } 
+  def shutdown() = { finish; ret }
+  
   override def setupInternal() {
     hashListMap ++= oldBackupHashLists
   }
@@ -54,6 +57,8 @@ class ZipHashListHandler extends HashListHandler {
     true
   }
   
+  def getAllPersistedKeys(): Set[BAWrapper2] = hashListMap.keySet.toSet
+  
   def finish() = {
     if (!hashListMapNew.isEmpty)
       fileManager.hashlists.write(hashListMapNew.toBuffer)
@@ -61,7 +66,7 @@ class ZipHashListHandler extends HashListHandler {
     true
   }
 
-  def isPersisted(fileHash: Array[Byte]) = {
+  override def isPersisted(fileHash: Array[Byte]) = {
     hashListMap safeContains fileHash
   }
 
@@ -76,6 +81,9 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
 
   def filetype = fileManager.hashlists
 
+   override def load() { super.load } 
+   override def shutdown() = { finish; ret }
+  
   var hashListsToWrite = Map[BAWrapper2, Array[Byte]]()
 
   override def setupInternal() {
@@ -83,9 +91,9 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
   }
 
   val eventListener: PartialFunction[BackupEvent, Unit] = {
-    case e @ VolumeFinished(_) =>
+    case e @ VolumeFinished(file, blocks) =>
       // If this is in akka, thread safety is only possible to get via the actor reference
-      universe.hashListHandler().checkpoint(None)
+      universe.hashListHandler().checkpoint(Some(blocks))
   }
 
   override def configureWriter(writer: ZipFileWriter) {
@@ -106,20 +114,23 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
 
   def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]) = false
 
-  def allBlocksExist(x: Array[Byte]) = hashListSeq(x).forall(universe.blockHandler().isPersisted)
-
-  def checkpoint(hashes: Option[Set[BAWrapper2]]) {
+  def checkpoint(blocks: Option[Set[BAWrapper2]]) {
+    val persistedBlocks = blocks match {
+      case Some(set) => set
+      case None => universe.blockHandler.getAllPersistedKeys
+    }
+    def allBlocksExist(x: Array[Byte]) = hashListSeq(x).forall(persistedBlocks(_))
     val (toWrite, toKeep) = hashListsToWrite.partition{case (_, value) => allBlocksExist(value)}
-    toWrite.foreach {case (k, v) => write(k, v)}
-    endZipFile()
-    hashListsToWrite = toKeep
-    universe.eventBus().publish(HashListCheckpointed(toWrite.keySet))
+    if (!toWrite.isEmpty) {
+      toWrite.foreach {case (k, v) => write(k, v)}
+      endZipFile()
+      hashListsToWrite = toKeep
+      universe.eventBus().publish(HashListCheckpointed(getAllPersistedKeys, persistedBlocks))
+    }
   }
 
-  def isPersisted(fileHash: Array[Byte]) = {
-    isPersisted(fileHash: BAWrapper2)
-  }
-
+  def getAllPersistedKeys(): Set[BAWrapper2] = inBackupIndex.keySet
+  
   override def endZipFile() {
     if (currentWriter != null) {
       val file = currentWriter.file

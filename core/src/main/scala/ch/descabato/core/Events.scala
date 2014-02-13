@@ -4,7 +4,7 @@ import scala.collection.mutable
 import java.io.File
 import ch.descabato.utils.Utils
 
-trait EventBus[Event] {
+trait EventBus[Event] extends LifeCycle {
   type Subscriber = PartialFunction[Event, Unit]
 
   def subscribe(x: Subscriber)
@@ -12,6 +12,10 @@ trait EventBus[Event] {
   def unsubscribe(x: Subscriber)
 
   def publish(e: Event)
+  
+  def load(): Unit = {} 
+  def shutdown(): BlockingOperation = ret
+  def finish(): Boolean = true
 }
 
 // A simple event bus. Not optimized, not thread safe
@@ -28,7 +32,7 @@ class SimpleEventBus[T] extends EventBus[T] with Utils {
   }
 
   def publish(e: T) {
-    l.info("Publishing event "+e)
+    //l.info("Publishing event "+e)
     subscribers.view.filter(_.isDefinedAt(e)).foreach(_.apply(e))
   }
 }
@@ -58,6 +62,10 @@ trait ThreadSafeEventBus[T] extends EventBus[T] {
 
 trait BackupEvent
 
-case class VolumeFinished(f: File) extends BackupEvent
+case class VolumeFinished(f: File, savedBlocks: Set[BAWrapper2]) extends BackupEvent
 
-case class HashListCheckpointed(hashLists: Set[BAWrapper2]) extends BackupEvent
+case class HashListCheckpointed(hashLists: Set[BAWrapper2], savedBlocks: Set[BAWrapper2]) extends BackupEvent
+
+case object Add1CpuTask extends BackupEvent
+
+case object Subtract1CpuTask extends BackupEvent

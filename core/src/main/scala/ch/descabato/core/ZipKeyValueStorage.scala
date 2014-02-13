@@ -20,7 +20,8 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
   // TODO implement this if needed
   def keepValuesInMemory = false
   def writeTempFiles = false
-  var inBackup: Map[K, V] = Map.empty
+  //var inBackup: Map[K, V] = Map.empty
+  // All files that are persisted
   var inBackupIndex: Map[K, File] = Map.empty
   //var inCurrentWriter: Map[K, V] = Map.empty
   var inCurrentWriterKeys: Set[K] = Set.empty
@@ -49,7 +50,7 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
           val keyname = name.substring(folder.length())
           val key = convertToKey(keyname)
           if (keepValuesInMemory) {
-            inBackup += (key -> readValue(name, reader))
+//            inBackup += (key -> readValue(name, reader))
           }
           inBackupIndex += (key -> f)
         }
@@ -109,9 +110,9 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
   def read(k: K): V = {
     ensureLoaded()
     // if values are loaded, check in inBackup and toAdd
-    if (inBackup safeContains k) {
-      return inBackup(k)
-    }
+//    if (inBackup safeContains k) {
+//      return inBackup(k)
+//    }
     if (inBackupIndex safeContains k) {
       return readValue(nameFor(k), getZipFileReader(inBackupIndex(k)))
     }

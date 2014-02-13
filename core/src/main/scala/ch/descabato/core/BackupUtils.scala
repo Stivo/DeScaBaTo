@@ -9,10 +9,10 @@ import ch.descabato.frontend.ETACounter
 import ch.descabato.frontend.ProgressReporters
 
 object BackupUtils {
-  def findOld[T <: BackupPart](file: File, oldMap: mutable.Map[String, BackupPart])(implicit manifest: Manifest[T]): (Option[T]) = {
+  def findOld[T <: BackupPart](file: File, oldMap: Map[String, BackupPart])(implicit manifest: Manifest[T]): (Map[String, BackupPart], Option[T]) = {
     val path = file.getCanonicalPath
     // if the file is in the map, no other file can have the same name. Therefore we remove it.
-    val out = oldMap.remove(path)
+    val out = oldMap.get(path)
     if (out.isDefined &&
       // file size has not changed, if it is a file
       (!(out.get.isInstanceOf[FileDescription]) || out.get.size == file.length()) &&
@@ -21,9 +21,9 @@ object BackupUtils {
       // if the file has attributes and the last modified date is different, return (None, fa)
       (out.get.attrs != null && !out.get.attrs.hasBeenModified(file))) {
       // backup part is correct and unchanged
-      Some(out.get.asInstanceOf[T])
+      (oldMap - path, Some(out.get.asInstanceOf[T]))
     } else {
-      None
+      (oldMap, None)
     }
   }
 }

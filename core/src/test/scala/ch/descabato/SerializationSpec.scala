@@ -21,10 +21,11 @@ import ch.descabato.utils.Serialization
 import ch.descabato.core.FileDescription
 import ch.descabato.core.FolderDescription
 import ch.descabato.core.SymbolicLink
+import scala.language.implicitConversions
 
 class SerializationSpec extends FlatSpec with TestUtils {
 
-  implicit def toBuffer[T](t: T) = Buffer(t)
+  implicit def toVector[T](t: T) = Vector(t)
 
   def fixture =
     new {
@@ -32,8 +33,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
 	  var chainMap : ChainMap = new ChainMap()
 	  chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
 	  val f = List("README.md", "../README.md").map(new File(_)).filter(_.exists).head
-      val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()))
-      fid.hash = "adsfasdfasdf".getBytes()
+      val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()), "adsfasdfasdf".getBytes())
       val fod = new FolderDescription("test.txt", new FileAttributes())
       val fd = new FileDeleted("asdf")
 	  val symLink = new SymbolicLink("test", "asdf", new FileAttributes())

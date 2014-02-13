@@ -11,17 +11,15 @@ import ch.descabato.FileVisitorHelper
 import ch.descabato.frontend.ProgressReporters
 import ch.descabato.frontend.Counter
 
-class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
+class OldIndexVisitor(var oldMap: Map[String, BackupPart],
   recordNew: Boolean = false, recordAll: Boolean = false, recordUnchanged: Boolean = false,
   progress: Option[Counter] = None) extends FileVisitorHelper {
 
-  val allDesc = new BackupDescription()
-  val newDesc = new BackupDescription()
-  val unchangedDesc = new BackupDescription()
+  var allDesc = new BackupDescription()
+  var newDesc = new BackupDescription()
+  var unchangedDesc = new BackupDescription()
   lazy val deletedDesc = {
-    val out = new BackupDescription()
-    oldMap.values.foreach(bp => out.deleted += new FileDeleted(bp.path))
-    out
+    new BackupDescription(deleted = oldMap.values.map(x => new FileDeleted(x.path)).toVector)
   }
   
   val symManifest = manifest[SymbolicLink]
@@ -29,10 +27,11 @@ class OldIndexVisitor(oldMap: mutable.Map[String, BackupPart],
   def handleFile[T <: BackupPart](f: => T, dir: Path, attrs: BasicFileAttributes)(implicit m: Manifest[T]) {
     lazy val desc = f
     var wasadded = false
-    val old = if (Files.isSymbolicLink(dir))
+    val (mapNew, old) = if (Files.isSymbolicLink(dir))
       BackupUtils.findOld[SymbolicLink](dir.toFile(), oldMap)(symManifest)
     else
       BackupUtils.findOld(dir.toFile(), oldMap)(m)
+    oldMap = mapNew
     if (old.isDefined) {
       if (recordUnchanged) {
         unchangedDesc += old.get

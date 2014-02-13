@@ -8,11 +8,11 @@ import java.util.zip.ZipEntry
 import ch.descabato.utils.{ZipFileWriter, Streams}
 import java.security.MessageDigest
 import scala.collection.mutable
-import ch.descabato.core.BlockingOperation
+import ch.descabato.utils.Implicits._
 
 trait MustFinish {
-  // Return value is used so akka blocks this call
-  // Return value can signal failure, but currently no checks are done
+  // Finishes writing, so the backup can be completed
+  // Resources for reading are still kept
   def finish(): Boolean
 }
 
@@ -25,7 +25,26 @@ trait CanCheckpoint[T] {
   def checkpoint(t: Option[T])
 }
 
-trait Universe extends MustFinish {
+trait LifeCycle extends MustFinish {
+  def ret = new BlockingOperation
+  def mayUseNonBlockingLoad = true
+  // Loads the data associated with this component
+  def load()
+  def loadBlocking() = {
+    load()
+    new BlockingOperation()
+  }
+  // Releases all the resources in use
+  def shutdown(): BlockingOperation
+}
+
+trait PureLifeCycle extends LifeCycle {
+  def load() {}
+  def shutdown() = ret
+  def finish() = true
+}
+
+trait Universe extends LifeCycle {
   def config(): BackupFolderConfiguration
   def eventBus(): EventBus[BackupEvent]
   def backupPartHandler(): BackupPartHandler
@@ -39,17 +58,27 @@ trait Universe extends MustFinish {
   }
   def compressionStatistics(): Option[CompressionStatistics] = None
 
+  lazy val startUpOrder: List[LifeCycle] = List(journalHandler(), eventBus, cpuTaskHandler, 
+      hashHandler, blockHandler, hashListHandler, backupPartHandler)
+
+  lazy val finishOrder = List(blockHandler, hashListHandler, backupPartHandler,
+    eventBus, cpuTaskHandler, hashHandler, journalHandler)
+
+  // Doesn't really matter
+  lazy val shutdownOrder = startUpOrder.reverse
+      
   lazy val _fileManager = new FileManager(this)
   def fileManager() = _fileManager
 
   def waitForQueues() {}
   def finish(): Boolean
-  def shutdown() {
+  def shutdown() = {
     compressionStatistics().foreach{ _.report }
+    ret
   }
 }
 
-trait JournalHandler extends UniversePart with MustFinish {
+trait JournalHandler extends UniversePart with LifeCycle {
   // Saves this file in the journal as finished
   // Makes an effort to sync it to the file system
   def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false): BlockingOperation
@@ -59,11 +88,15 @@ trait JournalHandler extends UniversePart with MustFinish {
   def createMarkerFile(writer: ZipFileWriter, filesToDelete: Seq[File]): BlockingOperation
   // All the identifiers that were once used and are now unsafe to use again
   def usedIdentifiers(): Set[String]
+  
+  override val mayUseNonBlockingLoad = false
+  override def load() = new IllegalAccessException("Journal handler must be loaded synchronously")
+  override def loadBlocking() = cleanUnfinishedFiles
 }
 
 case class BlockId(file: FileDescription, part: Int)
 
-trait BackupActor extends UniversePart with MustFinish
+trait BackupActor extends UniversePart with LifeCycle
 
 // TODO implement this again? or design it better?
 trait RedundancyHandler extends UniversePart with MustFinish {
@@ -82,11 +115,10 @@ trait RedundancyHandler extends UniversePart with MustFinish {
   }
 }
 
-class NoOpRedundancyHandler extends RedundancyHandler with MustFinish {
+class NoOpRedundancyHandler extends RedundancyHandler with PureLifeCycle {
   def createPar2(file: File) {}
   def tryRepair(file: File) = false
   def md5HashForFile(file: File): Option[Array[Byte]] = None
-  def finish() = true
 }
 
 trait CompressionStatistics extends UniversePart {
@@ -94,12 +126,12 @@ trait CompressionStatistics extends UniversePart {
   def report()
 }
 
-trait BackupPartHandler extends BackupActor with CanCheckpoint[Set[BAWrapper2]] {
+trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BAWrapper2], Set[BAWrapper2])] {
   // reads all the backup parts for the given date
   def loadBackup(date: Option[Date] = None): BackupDescription
 
   // sets the backup description that should be saved
-  def addFiles(bd: BackupDescription)
+  def setFiles(bd: BackupDescription)
   
   // sets the hash for this file
   def hashForFile(fd: FileDescription, hash: Array[Byte])
@@ -114,12 +146,13 @@ trait BackupPartHandler extends BackupActor with CanCheckpoint[Set[BAWrapper2]] 
 trait HashListHandler extends BackupActor with UniversePart with CanCheckpoint[Set[BAWrapper2]] {
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte])
   def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]]
-  def isPersisted(fileHash: Array[Byte]): Boolean
+  def getAllPersistedKeys(): Set[BAWrapper2]
+  def isPersisted(fileHash: Array[Byte]) = getAllPersistedKeys safeContains fileHash
 }
 
 trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def writeBlockIfNotExists(blockId: BlockId, hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean)
-  // or multiple blocks
+  def getAllPersistedKeys(): Set[BAWrapper2]
   def isPersisted(hash: Array[Byte]): Boolean
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
   def writeCompressedBlock(hash: Array[Byte], zipEntry: ZipEntry, header: Byte, block: ByteBuffer)
@@ -127,14 +160,14 @@ trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def setTotalSize(size: Long)
 }
 
-trait CpuTaskHandler extends MustFinish {
+trait CpuTaskHandler extends PureLifeCycle {
   // calls then hashComputed on metadatawriter
   def computeHash(x: Array[Byte], hashMethod: String, blockId: BlockId)
   // Calls then blockhandler#writeBlockIfNotExists
   def compress(blockId: BlockId, hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean)
 }
 
-trait HashHandler {
+trait HashHandler extends LifeCycle with UniversePart {
     // Hash this block of this file
   def hash(blockId: BlockId, block: Array[Byte])
   // Finish this file, call backupparthandler 

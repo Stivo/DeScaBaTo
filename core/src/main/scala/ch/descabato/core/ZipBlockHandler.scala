@@ -104,11 +104,13 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     //      writeCompressedBlock(hash, ZipFileHandlerFactory.createZipEntry(.0, ByteBuffer.wrap(block))
     //    } else {
     outstandingRequests += ((hash, block.length))
+//    universe.eventBus().publish(Add1CpuTask)
     universe.cpuTaskHandler.compress(blockId, hash, block, config.compressor, compressDisabled)
     //    }
   }
 
   def writeCompressedBlock(hash: Array[Byte], zipEntry: ZipEntry, header: Byte, block: ByteBuffer) {
+//    universe.eventBus().publish(Subtract1CpuTask)
     if (currentWriter != null && currentWriter.size + block.remaining() + zipEntry.getName().length > volumeSize.bytes) {
       endZipFile()
     }
@@ -135,8 +137,10 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     }
   }
 
-  def isPersisted(hash: Array[Byte]) = isPersisted(hash: BAWrapper2)
-  
+  def getAllPersistedKeys(): Set[BAWrapper2] = inBackupIndex.keySet
+
+  def isPersisted(hash: Array[Byte]) = inBackupIndex safeContains hash
+
   def remaining(): Int = {
     outstandingRequests.size
   }
@@ -156,16 +160,21 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
       val num = filetype.num(file)
       super.endZipFile()
       l.info("Finished volume " + num)
-      universe.eventBus().publish(VolumeFinished(file))
+      universe.eventBus().publish(VolumeFinished(file, inBackupIndex.keySet))
     }
   }
 
   override def finish() = {
-    while (remaining > 0) {
-      Thread.sleep(100)
+    if (remaining > 0) {
+      throw new IllegalAccessException("Should not be called while still waiting for blocks")
     }
     super.finish
     true
   }
 
+  def shutdown() = {
+    super.finish
+    ret
+  }
+  
 }

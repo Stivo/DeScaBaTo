@@ -15,6 +15,7 @@ import ch.descabato.ByteArrayOutputStream
 import ch.descabato.core.BAWrapper2
 import scala.collection.mutable
 import java.io.InputStream
+import scala.language.implicitConversions
 
 object Utils extends Logging {
 
@@ -27,8 +28,8 @@ object Utils extends Logging {
     return new DecimalFormat("#,##0." + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups);
   }
 
-  def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes);
-  def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s);
+  private def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes);
+  private def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s);
 
   def encodeBase64Url(bytes: Array[Byte]) = encodeBase64(bytes).replace('+', '-').replace('/', '_')
   def decodeBase64Url(s: String) = decodeBase64(s.replace('-', '+').replace('_', '/'));

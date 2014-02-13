@@ -27,6 +27,8 @@ object Counter {
 
 class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with Utils {
 
+  val cpuTaskCounter = new AtomicInteger()
+  
   var system = ActorSystem("Descabato-"+Counter.i)
   Counter.i += 1
 
@@ -40,15 +42,18 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   val counters = mutable.Buffer[QueueCounter]()
 
-  lazy val hashers = system.actorOf(Props[MyActor]
+  lazy val hashers = system.actorOf(Props(classOf[MyActor], this)
     .withDispatcher(dispatcher).withRouter(RoundRobinRouter(nrOfInstances = taskers).withResizer(new Resizer("hasher"))))
-  lazy val compressors = system.actorOf(Props[MyActor].withDispatcher(dispatcher)
+  lazy val compressors = system.actorOf(Props(classOf[MyActor], this).withDispatcher(dispatcher)
     .withRouter(RoundRobinRouter(4).withResizer(new Resizer("compressor"))))
 
   val dispatch = system.dispatchers.lookup(dispatcher)
 
-  def actorOf[I <: AnyRef, T <: I : ClassTag](name: String, withCounter: Boolean = true, dispatcher: String = dispatcher) = {
-    val ref = TypedActor(system).typedActorOf(p(TypedProps.apply[T], dispatcher = dispatcher))
+  def actorOf[I <: AnyRef : Manifest, T <: I : Manifest](name: String, withCounter: Boolean = true, dispatcher: String = dispatcher) = {
+    val classI = manifest[I].runtimeClass.asInstanceOf[Class[I]]
+    val classT = manifest[T].runtimeClass.asInstanceOf[Class[T]]
+    val ref = TypedActor(system).typedActorOf(p(
+      TypedProps.apply[T](classI, classT), dispatcher = dispatcher))
     val out: I = ref
     out match {
       case u: UniversePart => u.setup(this)
@@ -88,34 +93,60 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     }
   }
 
-  counters += new CompressionTasksQueueCounter("Compression", blockHandler.remaining)
-  counters += new CompressionTasksQueueCounter("CPU Tasks", ActorStats.remaining.get)
+  //counters += new CompressionTasksQueueCounter("Compression", blockHandler.remaining)
+  counters += new CompressionTasksQueueCounter("CPU Tasks", cpuTaskCounter.get())
 
   val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer", dispatcher = "single-dispatcher")
   journalHandler.cleanUnfinishedFiles()
   val backupPartHandler = actorOf[BackupPartHandler, ZipBackupPartHandler]("Backup Parts")
-  val hashListHandler = actorOf[HashListHandler, NewZipHashListHandler]("Hash Lists", dispatcher = "single-dispatcher")
+  val hashListHandler = actorOf[HashListHandler, NewZipHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
   lazy val eventBus = actorOf[EventBus[BackupEvent], SimpleEventBus[BackupEvent]]("Event Bus")
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
-  val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer", dispatcher = "single-dispatcher")
+  val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
   // TODO compressionStatistics
   //override lazy val compressionStatistics = Some(actorOf[CompressionStatistics, SimpleCompressionStatistics]("Statistics", false))
 
+  def load() {
+    startUpOrder.foreach { a =>
+      if (a.mayUseNonBlockingLoad)
+    	  a.load
+      else
+     	  a.loadBlocking
+    }
+    eventBus.subscribe(counterUpdater)
+  }
+
+  val counterUpdater: PartialFunction[BackupEvent, Unit] = {
+    case Subtract1CpuTask => cpuTaskCounter.decrementAndGet()
+    case Add1CpuTask => cpuTaskCounter.incrementAndGet()
+  }
+  
   override def finish() = {
-    // order to wait, from front to back
-    checkQueueWithFunction(hashHandler.remaining(), "file hashers remaining", 0)
-    checkQueueWithFunction(ActorStats.remaining.get(), "cpu task handlers", 0)
-    checkQueue(hashHandler, "block hashers queue", 0)
-    checkQueueWithFunction(backupPartHandler.remaining, "Backup parts", 0)
-    checkQueueWithFunction(blockHandler.remaining, "blocks to compress", 0)
-    checkQueue(hashListHandler, "Hash lists", 0)
+    var count = 0
+    do {
+      if (count != 0) {
+        Thread.sleep(100)
+      }
+      count = 0
+      count += cpuTaskCounter.get
+      count += List(hashHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler)
+                .map(queueLength).sum
+      count += blockHandler.remaining + hashHandler.remaining() + backupPartHandler.remaining()
+      l.info(s"$count open items in all queues")
+    } while (count > 0)
+    //Thread.sleep(10000)
     // Actually finishing the backup, from inside out
-    blockHandler.finish
-    hashListHandler.finish
-    backupPartHandler.finish
-    journalHandler.finish()
+    finishOrder.foreach { _.finish }
     true
+  }
+
+  def queueLength(x: AnyRef) = {
+    val ref = TypedActor(system).getActorRefFor(x)
+     Queues(Some(ref)) match {
+       case Some(queue) => queue.queue.size()
+       case None => l.info("Could not find queue for "+x); 0
+     }
   }
 
   def queueInfo(x: AnyRef): Option[(Int, Int)] = {
@@ -166,49 +197,62 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   override def waitForQueues() {
     checks += 1
     updateProgress()
-    if (checks % 20 != 0) {
-      return
-    }
+//    if (checks % 20 != 0) {
+//      return
+//    }
+    checkQueueWithFunction(cpuTaskCounter.get(), "CPU Tasks")
     checkQueue(hashHandler, "hash handler")
-    checkQueue(eventBus, "event bus", 0)
+    checkQueue(eventBus, "event bus")
+    checkQueue(blockHandler, "writer")
     //if (blockHandler.remaining > queueLimit*2)
     //l.info(s"Waiting for compressors to catch up ${blockHandler.remaining}")
-    while (blockHandler.remaining > queueLimit * 2) {
-      Thread.sleep(10)
-    }
+//    while (blockHandler.remaining > queueLimit * 2) {
+//      Thread.sleep(10)
+//    }
     checkQueue(backupPartHandler, "backup parts")
   }
 
   override def shutdown() = {
     super.shutdown()
+    shutdownOrder.foreach(_.shutdown)
+    shutdownOrder.collect{ case x: ActorRef => x}.foreach(_ ! PoisonPill)
     system.shutdown()
+    ret
   }
 }
 
-class AkkaCpuTaskHandler(universe: AkkaUniverse) extends SingleThreadCpuTaskHandler(universe) {
+trait AkkaUniversePart extends UniversePart {
+  def uni = universe.asInstanceOf[AkkaUniverse]
+  def add1 = uni.cpuTaskCounter.incrementAndGet()
+  def subtract1 = uni.cpuTaskCounter.decrementAndGet()
+}
+
+class AkkaCpuTaskHandler(universe: AkkaUniverse) extends SingleThreadCpuTaskHandler(universe) with AkkaUniversePart {
+
+  setup(universe)
 
   override def computeHash(content: Array[Byte], hashMethod: String, blockId: BlockId) {
+    add1
     universe.hashers ! (() => {
       super.computeHash(content, hashMethod, blockId)
+      subtract1
     })
   }
 
   override def compress(blockId: BlockId, hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean) {
+    add1
     universe.compressors ! (() => {
       super.compress(blockId, hash, content, method, disable)
+      subtract1
     })
   }
 
   override def finish() = {
-    while (ActorStats.remaining.get() > 0) {
-      Thread.sleep(100)
-    }
     true
   }
 }
 
 object ActorStats {
-  val remaining = new AtomicInteger(0)
   val tpe = {
     val out = new ThreadPoolExecutor(10, 10, 10, TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue[Runnable]())
@@ -226,19 +270,21 @@ object ActorStats {
 
 }
 
-class MyActor extends Actor {
+class MyActor(override val uni: AkkaUniverse) extends Actor with AkkaUniversePart {
   val log = Logging(context.system, this)
   var idleSince = System.currentTimeMillis()
 
   def receive = {
     case (x: Function0[_]) =>
-      ActorStats.remaining.incrementAndGet()
       x()
       idleSince = System.currentTimeMillis()
-      ActorStats.remaining.decrementAndGet()
     case "idleSince" => sender ! idleSince
     case "test" => log.info("received test")
     case _ => log.info("received unknown message")
+  }
+  
+  override def postRestart(reason: Throwable) {
+    System.exit(17)
   }
 }
 
@@ -280,30 +326,38 @@ class MyExecutorServiceFactory extends ExecutorServiceFactory {
   }
 }
 
-class AkkaHasher extends HashHandler with UniversePart {
+class AkkaHasher extends HashHandler with UniversePart with PureLifeCycle with AkkaUniversePart {
   var map: Map[String, HashHandler] = new HashMap()
 
-  def akkaUniverse = universe.asInstanceOf[AkkaUniverse]
+  override def setupInternal() {
+    println("Universe is set up and not null? "+universe)
+  }
 
   def hash(blockId: BlockId, block: Array[Byte]) {
+    add1
     val s = blockId.file.path
     if (map.get(s).isEmpty) {
-      map += s -> akkaUniverse.actorOf[HashHandler, SingleThreadHasher]("hasher for " + s, false)
+      val actor = uni.actorOf[HashHandler, AkkaSingleThreadHasher]("hasher for " + s, false)
+      map += s -> actor
     }
     map(s).hash(blockId, block)
   }
 
   def finish(fd: FileDescription) {
+    add1
     val ref = map(fd.path)
     ref.finish(fd)
-    TypedActor.get(akkaUniverse.system).getActorRefFor(ref) ! PoisonPill
+    TypedActor.get(uni.system).getActorRefFor(ref) ! PoisonPill
     map -= fd.path
   }
 
   def fileFailed(fd: FileDescription) {
-    val ref = map(fd.path)
-    ref.fileFailed(fd)
-    TypedActor.get(akkaUniverse.system).getActorRefFor(ref) ! PoisonPill
+    map.get(fd.path) match {
+      case Some(ref) =>
+        ref.fileFailed(fd)
+        TypedActor.get(uni.system).getActorRefFor(ref) ! PoisonPill
+      case None =>
+    }
     map -= fd.path
   }
 
@@ -311,3 +365,15 @@ class AkkaHasher extends HashHandler with UniversePart {
 }
 
 class AkkaEventBus extends SimpleEventBus with UniversePart
+
+class AkkaSingleThreadHasher extends SingleThreadHasher with AkkaUniversePart {
+  override def hash(blockId: BlockId, block: Array[Byte]) {
+    super.hash(blockId, block)
+    subtract1
+  }
+
+  override def finish(fd: FileDescription) {
+    super.finish(fd)
+    subtract1
+  }
+}

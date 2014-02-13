@@ -8,7 +8,6 @@ import ch.descabato.utils.Implicits._
 import java.io.File
 
 class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Utils with BackupProgressReporting {
-  protected var current: BackupDescription = null
   protected var unfinished: Map[String, FileDescriptionWrapper] = Map.empty
 
   override val filecountername = "Files hashed"
@@ -18,19 +17,26 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     universe.eventBus().subscribe(eventListener)
   }
 
+  // Doesn't know which backup to load, load is explicit here.
+  def load() {}
+  
   val eventListener: PartialFunction[BackupEvent, Unit] = {
-    case HashListCheckpointed(set) =>
-      universe.backupPartHandler().checkpoint(Some(set))
+    case HashListCheckpointed(set, blocks) =>
+      universe.backupPartHandler().checkpoint(Some(set, blocks))
   }
 
+  var current: BackupDescription = new BackupDescription()
+  
   var toCheckpoint: BackupDescription = new BackupDescription()
 
+  var failedObjects = new BackupDescription()
+  
   def blocksFor(fd: FileDescription) = {
     if (fd.size == 0) 1
     else (1.0 * fd.size / config.blockSize.bytes).ceil.toInt
   }
 
-  class FileDescriptionWrapper(val fd: FileDescription) {
+  class FileDescriptionWrapper(var fd: FileDescription) {
     lazy val blocks: BitSet = {
       val out = new BitSet(blocksFor(fd))
       out.set(0, blocksFor(fd), true)
@@ -41,22 +47,24 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
     def setFailed() {
       failed = true
+      failedObjects += fd 
       ObjectPools.byteArrayPool.recycle(hashList)
       hashList = null
       unfinished -= fd.path
     }
 
     def fileHashArrived(hash: Array[Byte]) {
-      fd.hash = hash
+      fd = fd.copy(hash = hash)
       checkFinished()
     }
 
     private def checkFinished() {
       if (blocks.isEmpty && fd.hash != null && !failed) {
-        unfinished -= fd.path
+        toCheckpoint = toCheckpoint + fd
         if (hashList.length > fd.hash.length)
           universe.hashListHandler.addHashlist(fd.hash, hashList)
         fileCounter += 1
+        unfinished -= fd.path
         updateProgress
       }
     }
@@ -81,16 +89,15 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
   // add files to the current backup description
   // Also may contain deleted files, which then should be removed from current
-  def addFiles(bd: BackupDescription) {
-    current = current.merge(bd)
+  def setFiles(bd: BackupDescription) {
+    current = bd
     bd.files.foreach {
       file =>
         if (file.hash == null)
           getUnfinished(file)
     }
     setMaximums(bd)
-    toCheckpoint = current.copy(files = current.files.toList.toBuffer, folders = current.folders.toList.toBuffer,
-      symlinks = current.symlinks.toList.toBuffer, deleted = mutable.Buffer.empty)
+    toCheckpoint = current.copy(files = current.files.filter(_.hash != null))
     universe.blockHandler.setTotalSize(byteCounter.maxValue)
     l.info("After setCurrent " + remaining + " remaining")
   }
@@ -122,43 +129,51 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     getUnfinished(blockId.file).blockHashArrived(blockId, hash)
   }
 
-  def checkpoint(t: Option[Set[BAWrapper2]]) {
-    //if (true) return
-    def lookup(x: Array[Byte]) = (t, x) match {
-      case (Some(set), h) if set safeContains h => true
-      case (_, h) => universe.hashListHandler().isPersisted(h)
+  def checkpoint(t: Option[(Set[BAWrapper2], Set[BAWrapper2])]) {
+    if (toCheckpoint.isEmpty)
+      return
+    val (hashlists, blocks) = t match {
+      case Some(x) => x
+      case _ => (universe.hashListHandler.getAllPersistedKeys, universe.blockHandler.getAllPersistedKeys)
     }
-    def isFinished(x: UpdatePart) = x match {
+    def isFinished(fd: FileDescription) = fd match {
       case fd: FileDescription if fd.hash == null => false
-      case fd: FileDescription if fd.size <= config.blockSize.bytes => 
-        universe.blockHandler.isPersisted(fd.hash)
-      case fd: FileDescription => lookup(fd.hash)
-      case _ => true
+      case fd: FileDescription if fd.size <= config.blockSize.bytes =>
+//        if (logMoreInfos && !universe.blockHandler().isPersisted(fd.hash))
+//          l.info("File "+fd+" is not finished apparently "+Utils.encodeBase64Url(fd.hash))
+        blocks safeContains fd.hash
+      case fd: FileDescription =>
+        hashlists safeContains fd.hash
     }
-    val saveThisTime = new BackupDescription()
-    def update[T <: UpdatePart](read: BackupDescription => mutable.Buffer[T], write: (mutable.Buffer[T], BackupDescription) => Unit) {
-      val (finished, remain) = read(toCheckpoint).partition(isFinished)
-      write(remain, toCheckpoint)
-      write(finished, saveThisTime)
-    }
-    update[FileDescription](x => x.files, (b, o) => {o.files.clear; o.files ++= b})
-    update[SymbolicLink](x => x.symlinks, (b, o) => {o.symlinks.clear; o.symlinks ++= b})
-    update[FolderDescription](x => x.folders, (b, o) => {o.folders.clear; o.folders ++= b})
-    update[FileDeleted](x => x.deleted, (b, o) => {o.deleted.clear; o.deleted ++= b})
-    if (saveThisTime.size > 0)
-      fileManager.backup.write(saveThisTime, true)
+    val (filesToSave, filesToKeep) = toCheckpoint.files.partition(isFinished)
+    val toSave = new BackupDescription(filesToSave, toCheckpoint.folders, toCheckpoint.symlinks, toCheckpoint.deleted)
+    toCheckpoint = new BackupDescription(files = filesToKeep)
+    if (!toSave.isEmpty)
+      fileManager.backup.write(toSave, true, true)
   }
 
   def remaining(): Int = unfinished.size
 
+//  var logMoreInfos = false
+
   // write current, clear checkpoint files
   def finish() = {
+//    logMoreInfos = true
     if (remaining != 0) {
       throw new IllegalStateException("Backup Part Handler must be finished before finish may be called")
     }
     checkpoint(None)
     fileManager.backup.mergeTempFilesIntoNew()
+    if (!toCheckpoint.isEmpty()) {
+      for (x <- toCheckpoint.asMap) {
+        l.info("Still contains "+x)
+      }
+      throw new IllegalStateException("Did not write everything")
+    }
     //fileManager.backup.write(current, false, true)
     true
   }
+  
+  def shutdown() = ret
+  
 }

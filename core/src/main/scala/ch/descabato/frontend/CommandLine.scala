@@ -59,15 +59,15 @@ object CLI extends Utils {
       } else {
         //Thread.sleep(10000)
         try {
-          FileUtils.deleteAll(new File("f:/restore"))
+          FileUtils.deleteAll(new File("f:/desca8"))
         } catch {
           case x: Exception =>
         }
         //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-512 --compression gzip --volume-size 50mb f:/desca8 d:/pics/tosort/bilder".split(" "))
         // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
         //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
-        //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression none --volume-size 10mb F:/desca8 f:/data/python27/".split(" "))
-        parseCommandLine("verify --percent-of-files-to-check 100 F:\\integrationtest\\testdata\\backup1".split(" "))
+        parseCommandLine("backup --threads 10 --serializer-type json --hash-algorithm sha-256 --compression snappy --volume-size 10mb F:/desca8 f:/data/python27/".split(" "))
+//        parseCommandLine("verify --percent-of-files-to-check 100 F:\\desca8".split(" "))
 //        parseCommandLine("restore --restore-to-folder F:/restore f:/desca8".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
