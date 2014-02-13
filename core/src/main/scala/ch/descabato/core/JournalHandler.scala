@@ -52,7 +52,8 @@ class SimpleJournalHandler extends JournalHandler with Utils {
           if (parts(2).length() == parts(1).toInt) {
             _usedIdentifiers += parts(2)
             if (!(files safeContains parts(2))) {
-              l.warn("File is in journal, but not on disk "+parts(2))
+              if (!(parts(2) contains "temp."))
+            	  l.warn("File is in journal, but not on disk "+parts(2))
             } else {
               val file = new File(config.folder, parts(2))
               // Read the journal update. A file within a zip file that tells which files should be deleted

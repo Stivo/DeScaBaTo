@@ -215,7 +215,6 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def mergeTempFilesIntoNew() {
     val temp = getTempFiles().sortBy(num)
     if (!temp.isEmpty) {
-
       val dest = ZipFileHandlerFactory.complexWriter(nextFile())
       fileManager.universe.journalHandler().createMarkerFile(dest, temp)
       val descs = Buffer[ZipEntryDescription]()

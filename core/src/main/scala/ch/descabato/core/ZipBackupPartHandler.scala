@@ -123,13 +123,15 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
   }
 
   def checkpoint(t: Option[Set[BAWrapper2]]) {
+    //if (true) return
     def lookup(x: Array[Byte]) = (t, x) match {
       case (Some(set), h) if set safeContains h => true
       case (_, h) => universe.hashListHandler().isPersisted(h)
     }
     def isFinished(x: UpdatePart) = x match {
       case fd: FileDescription if fd.hash == null => false
-      case fd: FileDescription if fd.size <= config.blockSize.bytes => true
+      case fd: FileDescription if fd.size <= config.blockSize.bytes => 
+        universe.blockHandler.isPersisted(fd.hash)
       case fd: FileDescription => lookup(fd.hash)
       case _ => true
     }
@@ -155,8 +157,8 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
       throw new IllegalStateException("Backup Part Handler must be finished before finish may be called")
     }
     checkpoint(None)
-    val writer = ZipFileHandlerFactory.complexWriter(fileManager.backup.nextFile())
     fileManager.backup.mergeTempFilesIntoNew()
+    //fileManager.backup.write(current, false, true)
     true
   }
 }

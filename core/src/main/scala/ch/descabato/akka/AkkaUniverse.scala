@@ -92,7 +92,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   counters += new CompressionTasksQueueCounter("CPU Tasks", ActorStats.remaining.get)
 
   val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer", dispatcher = "single-dispatcher")
-  journalHandler.usedIdentifiers()
+  journalHandler.cleanUnfinishedFiles()
   val backupPartHandler = actorOf[BackupPartHandler, ZipBackupPartHandler]("Backup Parts")
   val hashListHandler = actorOf[HashListHandler, NewZipHashListHandler]("Hash Lists", dispatcher = "single-dispatcher")
   lazy val eventBus = actorOf[EventBus[BackupEvent], SimpleEventBus[BackupEvent]]("Event Bus")

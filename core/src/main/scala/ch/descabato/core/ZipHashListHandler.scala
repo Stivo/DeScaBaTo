@@ -7,6 +7,7 @@ import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Utils, ZipFileReader, ZipFileWriter}
 import java.util.zip.ZipEntry
 
+@Deprecated
 class ZipHashListHandler extends HashListHandler {
   type HashListMap = mutable.HashMap[BAWrapper2, Array[Byte]]
 
@@ -113,7 +114,6 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
     endZipFile()
     hashListsToWrite = toKeep
     universe.eventBus().publish(HashListCheckpointed(toWrite.keySet))
-    true
   }
 
   def isPersisted(fileHash: Array[Byte]) = {
@@ -130,6 +130,7 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
   }
 
   override def finish() = {
+    checkpoint(None)
     super.finish()
     val temps = filetype.getTempFiles()
     if (!temps.isEmpty) {
