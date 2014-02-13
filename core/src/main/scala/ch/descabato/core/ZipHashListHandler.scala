@@ -141,7 +141,8 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
   }
 
   override def finish() = {
-    checkpoint(None)
+    if (!hashListsToWrite.isEmpty)
+      checkpoint(None)
     super.finish()
     val temps = filetype.getTempFiles()
     if (!temps.isEmpty) {

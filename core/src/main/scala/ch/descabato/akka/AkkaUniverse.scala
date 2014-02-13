@@ -216,6 +216,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   }
 
   override def shutdown() = {
+    ActorStats.tpe.setCorePoolSize(10)
     super.shutdown()
     shutdownOrder.foreach(_.shutdown)
     shutdownOrder.collect{ case x: ActorRef => x}.foreach(_ ! PoisonPill)
