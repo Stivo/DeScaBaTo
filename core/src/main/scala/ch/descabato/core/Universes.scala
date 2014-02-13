@@ -58,6 +58,8 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val hashHandler = make(new SingleThreadHasher())
   lazy val eventBus = new SimpleEventBus[BackupEvent]()
 
+  load()
+
   override def finish() = {
     finishOrder.map (_.finish).reduce(_ && _)
   }

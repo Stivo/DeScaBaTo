@@ -10,17 +10,17 @@ import ch.descabato.utils.Utils
 import java.awt.event.{ActionEvent, ActionListener}
 
 object CreateProgressGui {
-  def apply() = {
+  def apply(threads: Int) = {
     if (Utils.isWindows) {
-      new WindowsProgressGui()
+      new WindowsProgressGui(threads)
     } else {
-      new ProgressGui()
+      new ProgressGui(threads)
     }
   }
 }
 
-class ProgressGui extends ActionListener {
-  val mon = new ProgressMonitor(this)
+class ProgressGui(threads: Int) extends ActionListener {
+  val mon = new ProgressMonitor(this, threads)
   val timer = new Timer(40, this)
   show()
 
@@ -91,7 +91,7 @@ class ProgressGui extends ActionListener {
   def setValue(value: Int, max: Int) {}
 }
 
-class WindowsProgressGui extends ProgressGui {
+class WindowsProgressGui(threads: Int) extends ProgressGui(threads) {
   var list: ITaskbarList3 = null
   var hwnd: Pointer[Integer] = null
   try {
@@ -113,6 +113,5 @@ class WindowsProgressGui extends ProgressGui {
     val flag = if (pausing) ITaskbarList3.TbpFlag.TBPF_PAUSED else ITaskbarList3.TbpFlag.TBPF_NORMAL
     list.SetProgressState(hwnd, flag);
   }
-
 
 }

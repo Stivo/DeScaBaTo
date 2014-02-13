@@ -137,9 +137,15 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     }
   }
 
-  def getAllPersistedKeys(): Set[BAWrapper2] = inBackupIndex.keySet
+  def getAllPersistedKeys(): Set[BAWrapper2] = {
+    ensureLoaded()
+    inBackupIndex.keySet
+  }
 
-  def isPersisted(hash: Array[Byte]) = inBackupIndex safeContains hash
+  def isPersisted(hash: Array[Byte]) = {
+    ensureLoaded()
+    inBackupIndex safeContains hash
+  }
 
   def remaining(): Int = {
     outstandingRequests.size

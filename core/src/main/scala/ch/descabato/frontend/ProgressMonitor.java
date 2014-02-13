@@ -18,7 +18,7 @@ public class ProgressMonitor extends JFrame {
 	/**
 	 * Create the frame.
 	 */
-	public ProgressMonitor(final ProgressGui gui) {
+	public ProgressMonitor(final ProgressGui gui, int numthreads) {
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 331);
 		contentPane = new JPanel();
@@ -64,10 +64,10 @@ public class ProgressMonitor extends JFrame {
 			public void stateChanged(ChangeEvent e) {
 				ActorStats.tpe().setCorePoolSize(slider.getValue());
 				ActorStats.tpe().setMaximumPoolSize(slider.getValue()*2);
-				threads.setText("Threads: "+slider.getValue());
+				threads.setText("Threads: " + slider.getValue());
 			}
 		});
-		slider.setValue(4);
+		slider.setValue(numthreads);
 		slider.setPaintLabels(true);
 		slider.setMinimum(1);
 		slider.setMaximum(40);

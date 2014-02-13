@@ -97,18 +97,17 @@ object ObjectPools extends Utils {
       None
     }
 
-    
     final def recycle(t: T) {
 //      val stack = getStack
 //      stack += (WeakReference(t))
     }
+
     protected def makeNew(arg: Int): T = {
       Array.ofDim[Byte](arg)
     }
   }
 
   val byteArrayPool = new ByteArrayObjectPool
-
 }
 
 object Streams extends Utils {

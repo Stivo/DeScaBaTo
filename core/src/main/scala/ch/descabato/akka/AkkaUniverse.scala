@@ -135,6 +135,9 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       count += blockHandler.remaining + hashHandler.remaining() + backupPartHandler.remaining()
       l.info(s"$count open items in all queues")
     } while (count > 0)
+    // In the end, more threads are needed because there is some synchronous operations
+    val threads = ActorStats.tpe.getCorePoolSize()
+    ActorStats.tpe.setCorePoolSize(Math.max(threads, 3))
     //Thread.sleep(10000)
     // Actually finishing the backup, from inside out
     finishOrder.foreach { _.finish }

@@ -13,6 +13,7 @@ import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow
 import ch.descabato.utils.Utils
 import javax.swing.SwingUtilities
+import ch.descabato.akka.ActorStats
 
 object ProgressReporters {
 
@@ -28,7 +29,7 @@ object ProgressReporters {
       SwingUtilities.invokeAndWait(new Runnable() {
         def run() {
           if (gui.isEmpty) {
-            gui = Some(CreateProgressGui())
+            gui = Some(CreateProgressGui(ActorStats.tpe.getCorePoolSize))
             counters.filterNot(_._1.contains("iles found")).values.foreach{gui.get.add}
           }
         }
