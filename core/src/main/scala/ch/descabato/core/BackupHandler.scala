@@ -64,11 +64,18 @@ trait BackupRelatedHandler {
     val enumeration = new Enumeration[InputStream]() {
       val hashIterator = hashes.iterator
       def hasMoreElements = hashIterator.hasNext
-      def nextElement = readBlock(hashIterator.next, true)
+      def nextElement = {
+        try {
+          readBlock(hashIterator.next, true)
+        } catch {
+          case x: Exception =>
+            l.info("Exception while getting next element in stream",x)
+          throw new Throwable()
+        }
+      }
     }
     new SequenceInputStream(enumeration)
   }
-
 }
 
 class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {
@@ -211,11 +218,8 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
   sealed trait Result
 
   case object IsSubFolder extends Result
-
   case object IsTopFolder extends Result
-
   case object IsUnrelated extends Result
-
   case object IsSame extends Result
 
   def isRelated(folder: BackupPart, relatedTo: BackupPart): Result = {
@@ -297,7 +301,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     setMaximums(filtered)
 
     description.folders.foreach(restoreFolderDesc(_))
-    description.files.foreach(restoreFileDesc)
+    description.files.par.foreach(restoreFileDesc)
     description.symlinks.foreach(restoreLink)
     description.folders.foreach(restoreFolderDesc(_, false))
     universe.finish()
@@ -409,13 +413,14 @@ class ProblemCounter extends Counter {
 }
 
 class VerifyHandler(val universe: Universe)
-  extends BackupRelatedHandler with Utils with BackupProgressReporting {
+  extends BackupRelatedHandler with Utils with BackupProgressReporting with MeasureTime {
 
   var problemCounter = new ProblemCounter()
 
   lazy val backupDesc = universe.backupPartHandler().loadBackup()
 
   def verify(t: VerifyConf) = {
+    startMeasuring()
     problemCounter = new ProblemCounter()
     try {
       universe.blockHandler().verify(problemCounter)
@@ -428,6 +433,7 @@ class VerifyHandler(val universe: Universe)
         l.warn("Aborting verification because of error ", x)
         logException(x)
     }
+    l.info(s"Verification completed with ${problemCounter.current} errors in "+measuredTime())
     problemCounter.current
   }
 
@@ -473,7 +479,7 @@ class VerifyHandler(val universe: Universe)
       return
     val tests = getRandomXElements(probes, files)
     setMaximums(tests)
-    tests.foreach { file =>
+    tests.par.foreach { file =>
       val in = getInputStream(file)
       val hos = new HashingOutputStream(config.hashAlgorithm)
       copy(in, hos)

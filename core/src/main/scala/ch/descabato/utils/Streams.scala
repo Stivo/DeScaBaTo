@@ -97,17 +97,18 @@ object ObjectPools extends Utils {
       None
     }
 
+
     final def recycle(t: T) {
 //      val stack = getStack
 //      stack += (WeakReference(t))
     }
-
     protected def makeNew(arg: Int): T = {
       Array.ofDim[Byte](arg)
     }
   }
 
   val byteArrayPool = new ByteArrayObjectPool
+
 }
 
 object Streams extends Utils {
@@ -157,14 +158,7 @@ object Streams extends Utils {
   }
 
   class DelegatingInputStream(in: InputStream) extends InputStream {
-    private val _buf = Array[Byte](1);
-    def read() = {
-      val out = read(_buf);
-      if (out < 0)
-        -1
-      else
-        _buf(0)
-    }
+    def read() = in.read()
     override def read(b: Array[Byte], start: Int, len: Int) = in.read(b, start, len)
     override def close() = in.close()
     override def mark(limit: Int) = in.mark(limit)

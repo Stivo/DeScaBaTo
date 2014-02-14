@@ -81,8 +81,10 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
 
   def filetype = fileManager.hashlists
 
-   override def load() { super.load } 
-   override def shutdown() = { finish; ret }
+  override val keepValuesInMemory = true
+
+  override def load() { super.load }
+  override def shutdown() = { finish; ret }
   
   var hashListsToWrite = Map[BAWrapper2, Array[Byte]]()
 

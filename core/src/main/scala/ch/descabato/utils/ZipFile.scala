@@ -7,7 +7,7 @@ import java.io.BufferedInputStream
 import java.util.zip.ZipOutputStream
 import java.io.FileInputStream
 import java.io.OutputStream
-import Streams.CountingOutputStream
+import ch.descabato.utils.Streams.{DelegatingInputStream, CountingOutputStream, DelegatingOutputStream}
 import java.io.InputStream
 import net.java.truevfs.access.TFile
 import net.java.truevfs.access.TFileOutputStream
@@ -18,7 +18,6 @@ import java.security.MessageDigest
 import net.java.truevfs.access.TConfig
 import net.java.truevfs.kernel.spec.FsAccessOption
 import java.io.FileOutputStream
-import Streams.DelegatingOutputStream
 import ch.descabato.core.{FileType, BackupFolderConfiguration, FileManager}
 import ch.descabato.version.BuildInfo
 import java.nio.ByteBuffer
@@ -30,7 +29,9 @@ import scala.collection.mutable
 case class MetaInfo(date: String, writingVersion: String)
 
 object ZipFileHandlerFactory {
-  
+
+  private var readerCache = Map[File, ZipFileReaderTFile]()
+
   def writer(file: File, config: BackupFolderConfiguration): ZipFileWriter = {
     if (config.hasPassword)
       new ZipFileWriterTFile(file)
@@ -41,7 +42,11 @@ object ZipFileHandlerFactory {
   def complexWriter(file: File): ComplexZipFileWriter = new ZipFileWriterTFile(file)
 
   def reader(file: File, config: BackupFolderConfiguration): ZipFileReader = {
-    new ZipFileReaderTFile(file)
+    if ((readerCache safeContains file) && readerCache(file).isValid)
+      readerCache(file)
+    val out = new ZipFileReaderTFile(file)
+    readerCache += file -> out
+    out
   }
   
   def createZipEntry(name: String, header: Byte, content: ByteBuffer) = {
@@ -166,6 +171,9 @@ abstract class ZipFileHandler(zip: File) {
  */
 private[this] class ZipFileReaderTFile(val file: File) extends ZipFileHandler(file) with ZipFileReader with Utils {
 
+  private var openStreams = 0
+  private var closeRequested = false
+
   def this(s: String) = this(new File(s))
 
   def names = {
@@ -180,12 +188,35 @@ private[this] class ZipFileReaderTFile(val file: File) extends ZipFileHandler(fi
   }
 
   def getStream(name: String): InputStream = {
+    if (closeRequested)
+      throw new IllegalStateException("Tried to close this zip file")
     val e = new TFile(tfile, name);
-    new BufferedInputStream(new TFileInputStream(e))
+    new CountingInputStream(new BufferedInputStream(new TFileInputStream(e)))
   }
 
   def getEntrySize(name: String) = new TFile(tfile, name).length()
 
+  class CountingInputStream(in: InputStream) extends DelegatingInputStream(in) {
+    override def close() {
+      super.close()
+      this.synchronized{
+        openStreams -= 1
+        if (closeRequested)
+          close()
+      }
+    }
+  }
+
+  def isValid = !closeRequested
+
+  override def close() {
+    this.synchronized {
+      closeRequested = true
+      if (openStreams == 0) {
+        super.close()
+      }
+    }
+  }
 }
 
 /**

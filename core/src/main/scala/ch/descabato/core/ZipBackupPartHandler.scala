@@ -148,8 +148,10 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     val (filesToSave, filesToKeep) = toCheckpoint.files.partition(isFinished)
     val toSave = new BackupDescription(filesToSave, toCheckpoint.folders, toCheckpoint.symlinks, toCheckpoint.deleted)
     toCheckpoint = new BackupDescription(files = filesToKeep)
-    if (!toSave.isEmpty)
+    if (!toSave.isEmpty) {
+      l.info(s"Checkpointed ${toSave.size} items")
       fileManager.backup.write(toSave, true, true)
+    }
   }
 
   def remaining(): Int = unfinished.size

@@ -66,6 +66,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
 
   override def shutdown() = {
     journalHandler.finish()
+    shutdownOrder.foreach { _.shutdown() }
     ret
   }
 }

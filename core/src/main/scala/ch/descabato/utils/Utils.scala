@@ -91,13 +91,10 @@ object Implicits {
   implicit class InvariantContains[T, CC[X] <: Seq[X]](xs: CC[T]) {
     def safeContains(x: T): Boolean = xs contains x
   }
-  implicit class InvariantContains2[T, CC[X] <: Set[X]](xs: CC[T]) {
+  implicit class InvariantContains2[T, CC[X] <: scala.collection.Set[X]](xs: CC[T]) {
     def safeContains(x: T): Boolean = xs contains x
   }
-  implicit class InvariantContains3[T](xs: Map[T, _]) {
-    def safeContains(x: T): Boolean = xs.keySet contains x
-  }
-  implicit class InvariantContains4[T](xs: mutable.Map[T, _]) {
+  implicit class InvariantContains3[T](xs: scala.collection.Map[T, _]) {
     def safeContains(x: T): Boolean = xs.keySet contains x
   }
 
@@ -108,7 +105,6 @@ object Implicits {
       baos.toByteArray()
     }
   }
-
 }
 
 object FileUtils extends Utils {
