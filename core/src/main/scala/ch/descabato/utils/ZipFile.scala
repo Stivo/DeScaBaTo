@@ -202,10 +202,10 @@ private[this] class ZipFileReaderTFile(val file: File) extends ZipFileHandler(fi
   class CountingInputStream(in: InputStream) extends DelegatingInputStream(in) {
     override def close() {
       super.close()
-      this[ZipFileReaderTFile].synchronized{
+      ZipFileReaderTFile.this.synchronized{
         openStreams -= 1
         if (closeRequested)
-          this[ZipFileReaderTFile].close()
+          ZipFileReaderTFile.this.close()
       }
     }
   }
