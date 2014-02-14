@@ -6,7 +6,9 @@ public enum CompressionMode {
 	bzip2(2), 
 	lzma(3),
     snappy(4),
-    deflate(5);
+    deflate(5),
+    lz4(6),
+    lz4hc(7);
 
 	private final int val;
 

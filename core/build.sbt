@@ -27,6 +27,12 @@ libraryDependencies ++= Seq(
     "org.fusesource.jansi" % "jansi" % "1.11"
 )
 
+// compressors
+libraryDependencies ++= Seq(
+  "org.iq80.snappy" % "snappy" % "0.3",
+  "net.jpountz.lz4" % "lz4" % "1.2.0"
+)
+
 // Logging
 libraryDependencies ++= Seq(
 		"ch.qos.logback" % "logback-classic" % "1.0.13",
@@ -43,7 +49,8 @@ libraryDependencies ++= Seq(
 // truevfs
 libraryDependencies ++= Seq(
     "javax.inject" % "javax.inject" % "1",
-    "com.google.code.findbugs" % "annotations" % "2.0.3"
+    "com.google.code.findbugs" % "annotations" % "2.0.3",
+	"org.apache.commons" % "commons-compress" % "1.7"
 )
 
 // Test dependencies

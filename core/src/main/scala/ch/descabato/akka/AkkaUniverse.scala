@@ -93,7 +93,6 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     }
   }
 
-  //counters += new CompressionTasksQueueCounter("Compression", blockHandler.remaining)
   counters += new CompressionTasksQueueCounter("CPU Tasks", cpuTaskCounter.get())
 
   val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer", dispatcher = "single-dispatcher")

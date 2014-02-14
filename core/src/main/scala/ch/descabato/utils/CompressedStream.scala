@@ -11,6 +11,8 @@ import ch.descabato.ByteArrayOutputStream
 import ch.descabato.CompressionMode
 import org.iq80.snappy.{SnappyInputStream, SnappyOutputStream}
 import scala.Some
+import org.apache.commons.compress.compressors.pack200.{Pack200CompressorOutputStream, Pack200CompressorInputStream}
+import net.jpountz.lz4.{LZ4Compressor, LZ4Factory, LZ4BlockOutputStream, LZ4BlockInputStream}
 
 /**
  * Adds compressors and decompressors
@@ -52,18 +54,23 @@ object CompressedStream extends Utils {
         new BZip2CompressorOutputStream(out, sizeBzip2)
       case CompressionMode.snappy => SnappyOutputStream.newChecksumFreeBenchmarkOutputStream(out)
       case CompressionMode.deflate => new DeflaterOutputStream(out)
+      case CompressionMode.lz4 => new LZ4BlockOutputStream(out, 1<<12, LZ4Factory.fastestJavaInstance().fastCompressor())
+      case CompressionMode.lz4hc => new LZ4BlockOutputStream(out, 1<<12, LZ4Factory.fastestJavaInstance().highCompressor())
       case CompressionMode.none => out
     }
   }
   
   def readStream(in: InputStream): InputStream = {
     val byte = in.read()
+
     CompressionMode.getByByte(byte) match {
       case CompressionMode.gzip => new GZIPInputStream(in, 65536)
       case CompressionMode.lzma => new XZInputStream(in)
       case CompressionMode.bzip2 => new BZip2CompressorInputStream(in)
       case CompressionMode.snappy => new SnappyInputStream(in, false)
       case CompressionMode.deflate => new InflaterInputStream(in)
+      case CompressionMode.lz4 => new LZ4BlockInputStream(in)
+      case CompressionMode.lz4hc => new LZ4BlockInputStream(in)
       case _ => in
     }
   }
