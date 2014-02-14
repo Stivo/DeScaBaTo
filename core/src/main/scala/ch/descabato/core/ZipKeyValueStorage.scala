@@ -155,7 +155,7 @@ abstract class ZipKeyValueStorage[K, V] extends UniversePart {
     }
   }
 
-  val cache = CacheBuilder.newBuilder().concurrencyLevel(5).maximumSize(10)
+  val cache = CacheBuilder.newBuilder().concurrencyLevel(5).maximumSize(20)
     .removalListener(new CacheRemovalListener)
     .build[File, ZipFileReader](new ReaderCacheLoader())
 

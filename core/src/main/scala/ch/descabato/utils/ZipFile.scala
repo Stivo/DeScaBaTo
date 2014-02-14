@@ -189,8 +189,11 @@ private[this] class ZipFileReaderTFile(val file: File) extends ZipFileHandler(fi
 
   def getStream(name: String): InputStream = {
     if (closeRequested)
-      throw new IllegalStateException("Tried to close this zip file")
+      throw new IllegalStateException("Tried to open a stream from a closed zip file")
     val e = new TFile(tfile, name);
+    this.synchronized {
+      openStreams += 1
+    }
     new CountingInputStream(new BufferedInputStream(new TFileInputStream(e)))
   }
 
@@ -199,10 +202,10 @@ private[this] class ZipFileReaderTFile(val file: File) extends ZipFileHandler(fi
   class CountingInputStream(in: InputStream) extends DelegatingInputStream(in) {
     override def close() {
       super.close()
-      this.synchronized{
+      this[ZipFileReaderTFile].synchronized{
         openStreams -= 1
         if (closeRequested)
-          close()
+          this[ZipFileReaderTFile].close()
       }
     }
   }
