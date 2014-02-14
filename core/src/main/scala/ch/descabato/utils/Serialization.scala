@@ -18,8 +18,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.dataformat.smile.SmileGenerator
 import com.fasterxml.jackson.dataformat.smile.SmileParser
-import java.io.OutputStream
-import java.io.InputStream
+import java.io.{OutputStream, InputStream}
 import ch.descabato.core.FileDeleted
 import ch.descabato.core.FileDescription
 import ch.descabato.core.BackupPart
@@ -28,6 +27,7 @@ import ch.descabato.core.BAWrapper2
 import ch.descabato.core.SymbolicLink
 import ch.descabato.core.FolderDescription
 import ch.descabato.utils.Implicits._
+import de.undercouch.bson4jackson.{BsonGenerator, BsonFactory}
 
 trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit
@@ -121,3 +121,15 @@ class SmileSerialization extends AbstractJacksonSerialization {
 
   lazy val mapper = new ObjectMapper(fac) with ScalaObjectMapper
 }
+
+class BsonSerialization extends AbstractJacksonSerialization {
+
+  lazy val fac = {
+    val out = new BsonFactory
+    out.enable(BsonGenerator.Feature.ENABLE_STREAMING);
+    out
+  }
+
+  lazy val mapper = new ObjectMapper(fac) with ScalaObjectMapper
+}
+

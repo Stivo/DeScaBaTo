@@ -17,11 +17,9 @@ import java.nio.file.attribute.PosixFilePermissions
 import java.security.Principal
 import java.nio.file.attribute.PosixFileAttributeView
 import java.io.IOException
-import ch.descabato.utils.SmileSerialization
+import ch.descabato.utils.{BsonSerialization, SmileSerialization, JsonSerialization, Utils}
 import java.security.MessageDigest
-import ch.descabato.utils.JsonSerialization
 import ch.descabato.CompressionMode
-import ch.descabato.utils.Utils
 import ch.descabato.utils.Implicits._
 import scala.collection.mutable.Buffer
 import scala.collection.mutable
@@ -37,6 +35,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   def serialization(typ: String = serializerType) = typ match {
     case "smile" => new SmileSerialization
     case "json" => new JsonSerialization
+    case "bson" => new BsonSerialization
   }
   var keyLength = 128
   var compressor = CompressionMode.gzip

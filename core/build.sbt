@@ -36,7 +36,8 @@ libraryDependencies ++= Seq(
 // Jackson / persistence
 libraryDependencies ++= Seq(
 		"com.fasterxml.jackson.module" % "jackson-module-scala_2.10" % "2.3.1",
-		"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.3.1"
+		"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.3.1",
+    "de.undercouch" % "bson4jackson" % "2.3.1"
 )
 
 // truevfs

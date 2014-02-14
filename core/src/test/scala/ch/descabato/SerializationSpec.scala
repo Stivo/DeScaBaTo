@@ -4,24 +4,17 @@ import org.scalatest._
 import java.io.File
 import org.scalatest.Matchers._
 import java.util.Arrays
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.Buffer
-import scala.collection.mutable.Set
-import scala.collection.mutable.ArrayBuffer
-import java.util.{List => JList}
-import java.util.ArrayList
-import scala.collection.convert.DecorateAsScala
+
 import scala.collection.JavaConversions._
-import java.io.ByteArrayInputStream
 import ch.descabato.core._
-import ch.descabato.utils.SmileSerialization
-import ch.descabato.utils.JsonSerialization
+import ch.descabato.utils._
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Serialization
+import scala.language.implicitConversions
 import ch.descabato.core.FileDescription
 import ch.descabato.core.FolderDescription
+import ch.descabato.core.BackupDescription
 import ch.descabato.core.SymbolicLink
-import scala.language.implicitConversions
+import scala.collection.mutable.ArrayBuffer
 
 class SerializationSpec extends FlatSpec with TestUtils {
 
@@ -29,14 +22,14 @@ class SerializationSpec extends FlatSpec with TestUtils {
 
   def fixture =
     new {
-	  type ChainMap = ArrayBuffer[(BAWrapper2, Array[Byte])]
-	  var chainMap : ChainMap = new ChainMap()
-	  chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
-	  val f = List("README.md", "../README.md").map(new File(_)).filter(_.exists).head
+	    type ChainMap = ArrayBuffer[(BAWrapper2, Array[Byte])]
+	    var chainMap : ChainMap = new ChainMap()
+	    chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
+	    val f = List("README.md", "../README.md").map(new File(_)).filter(_.exists).head
       val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()), "adsfasdfasdf".getBytes())
       val fod = new FolderDescription("test.txt", new FileAttributes())
       val fd = new FileDeleted("asdf")
-	  val symLink = new SymbolicLink("test", "asdf", new FileAttributes())
+	    val symLink = new SymbolicLink("test", "asdf", new FileAttributes())
       val list : Seq[UpdatePart] = List(fid, fod, fd, symLink)
       val bd = new BackupDescription(fid, fod, symLink, fd)
       val baout = new ByteArrayOutputStream()
@@ -45,9 +38,8 @@ class SerializationSpec extends FlatSpec with TestUtils {
   def writeAndRead[T](s: Serialization, t: T)(implicit m: Manifest[T]) = {
     val f = fixture
     import f._
-    
     s.writeObject(t, baout)
-    //println("Serialization size of "+t+" with "+s.getClass().getSimpleName()+" is "+baout.size())
+//    println("Serialization size of "+t+" with "+s.getClass().getSimpleName()+" is "+baout.size())
     val in = replay(baout)
     val t2 = s.readObject[T](in).left.get
     t2
@@ -78,10 +70,15 @@ class SerializationSpec extends FlatSpec with TestUtils {
     val json = new JsonSerialization()
     testSerializer(json)
   }
-  
- "smile" should "serialize backubparts" in {
+
+  "smile" should "serialize backubparts" in {
     val smile = new SmileSerialization()
     testSerializer(smile)
   }
- 
+
+  "bson" should "serialize backubparts" in {
+    val ser = new BsonSerialization()
+    testSerializer(ser)
+  }
+
 }
