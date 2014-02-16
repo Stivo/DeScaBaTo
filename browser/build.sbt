@@ -51,7 +51,7 @@ packSettings
 
 packMain := Map("descabato" -> "ch.descabato.browser.Main")
 
-packJvmOpts := Map("descabato" -> Seq("-Xms100m -XX:NewRatio=1 -XX:+UseParNewGC"))
+packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m", "-XX:NewRatio=1","-XX:+UseParNewGC"))
 
 packPreserveOriginalJarName := true
 

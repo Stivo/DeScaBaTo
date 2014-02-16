@@ -169,6 +169,8 @@ trait BackupRelatedCommand extends Command with Utils {
 
   def needsExistingBackup = true
 
+  var lastArgs: Seq[String] = Nil
+
   def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: Universe => T) = {
     var universe: Universe = null
     try {
@@ -185,6 +187,7 @@ trait BackupRelatedCommand extends Command with Utils {
 
   final override def execute(args: Seq[String]) {
     try {
+      lastArgs = args
       val t = newT(args)
       t.afterInit()
       if (t.noGui.isSupplied && t.noGui()) {
@@ -274,10 +277,9 @@ class BackupCommand extends BackupRelatedCommand with Utils {
 
   val suffix = if (Utils.isWindows) ".bat" else ""
 
-  def writeBat(t: T, conf: BackupFolderConfiguration) = {
+  def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]) = {
     val path = new File(s"descabato$suffix").getCanonicalPath()
-    val prefix = if (conf.prefix == "") "" else "--prefix " + conf.prefix
-    val line = s"$path backup $prefix ${t.backupDestination()} ${t.folderToBackup()}"
+    val line = s"$path "+args.mkString(" ")
     def writeTo(bat: File) {
       if (!bat.exists) {
         val ps = new PrintStream(new Streams.UnclosedFileOutputStream(bat))
@@ -300,7 +302,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
       universe =>
         val bdh = new BackupHandler(universe)
         if (!t.noScriptCreation()) {
-          writeBat(t, conf)
+          writeBat(t, conf, lastArgs)
         }
         bdh.backup(t.folderToBackup() :: Nil)
     }

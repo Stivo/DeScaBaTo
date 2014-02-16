@@ -3,7 +3,7 @@ package ch.descabato.frontend
 import org.fusesource.jansi.AnsiConsole
 import org.fusesource.jansi.Ansi._
 import org.fusesource.jansi.Ansi
-import java.util.Date
+import java.util.{TimerTask, Date}
 import scala.collection.mutable.Buffer
 import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.classic.spi.ILoggingEvent
@@ -12,8 +12,10 @@ import scala.collection.JavaConverters._
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow
 import ch.descabato.utils.Utils
+import ch.descabato.utils.Implicits._
 import javax.swing.SwingUtilities
 import ch.descabato.akka.ActorStats
+import java.util.concurrent.atomic.AtomicBoolean
 
 object ProgressReporters {
 
@@ -21,7 +23,7 @@ object ProgressReporters {
 
   var gui: Option[ProgressGui] = None
 
-  def openGui() {
+  def openGui(nameOfOperation: String, sliderDisabled: Boolean = false) {
     if (!guiEnabled)
       return
     gui.synchronized {
@@ -29,7 +31,7 @@ object ProgressReporters {
       SwingUtilities.invokeAndWait(new Runnable() {
         def run() {
           if (gui.isEmpty) {
-            gui = Some(CreateProgressGui(ActorStats.tpe.getCorePoolSize))
+            gui = Some(CreateProgressGui(ActorStats.tpe.getCorePoolSize, nameOfOperation, sliderDisabled))
             counters.filterNot(_._1.contains("iles found")).values.foreach{gui.get.add}
           }
         }
@@ -40,13 +42,13 @@ object ProgressReporters {
 
   val reporter = ConsoleManager
 
-  def addCounter(c: Counter) {
+  def addCounter(newCounters: Counter*) {
     counters.synchronized {
-    if (counters.get(c.name).isDefined)
-      return
-    counters += c.name -> c
-    for (g <- gui)
-      g.add(c)
+      for (c <- newCounters if !(counters safeContains c.name)) {
+        counters += c.name -> c
+        for (g <- gui)
+          g.add(c)
+      }
     }
   }
 
@@ -54,12 +56,7 @@ object ProgressReporters {
 
   private var counters = Map[String, Counter]()
 
-  def updateWithCounters(counters: Seq[Counter]) {
-    counters.foreach{ addCounter }
-    reporter.ephemeralMessage {
-      counters.map(_.nameAndValue).mkString(" ")
-    }
-  }
+  var activeCounters: Seq[Counter] = List()
 
   def newPrettyTime() = {
     val out = new PrettyTime()
@@ -72,6 +69,13 @@ object ProgressReporters {
       case (_, x: SimpleTimeFormat) => x.setFutureSuffix("")
     }
     out
+  }
+
+  def consoleUpdate(names: Boolean = false): String = {
+    activeCounters.map {
+      case x: ETACounter => s"""${if (names) x.name+": " else ""}${x.formattedWithEta}"""
+      case x => s"""${if (names) x.name+": " else ""}${x.formatted}"""
+    }.mkString(" --- ")
   }
 
 }
@@ -90,29 +94,7 @@ trait MaxValueCounter extends Counter {
   def percent = if (maxValue == 0) 0 else (100 * current / maxValue).toInt
 }
 
-trait UpdatingCounter extends Counter {
-  def update()
-  abstract override def allowed() = {
-    val out = super.allowed()
-    if (out)
-      update
-    out
-  }
-}
-
 trait Counter {
-  private var nextTime = 0L
-  var lastCurrent = -1L
-  def allowed() = {
-    if (System.currentTimeMillis() > nextTime) {
-      nextTime = System.currentTimeMillis() + 5
-      lastCurrent = current
-      true
-    } else {
-      false
-    }
-  }
-
   def name: String
   var current = 0L
 
@@ -122,7 +104,12 @@ trait Counter {
     }
   }
 
-  def formatted = s"$current"
+  def update() {}
+
+  def formatted = {
+    update()
+    s"$current"
+  }
 
   def nameAndValue = s"$name $formatted"
 }
@@ -159,7 +146,7 @@ trait ETACounter extends MaxValueCounter with Utils {
       p.format(new Date(System.currentTimeMillis() + ms.toLong))
   }
 
-  override def formatted = super.formatted + " " + calcEta
+  def formattedWithEta = formatted + " " + calcEta
 }
 
 class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxValueCounter {
@@ -253,22 +240,35 @@ object AnsiUtil {
 
 }
 
-object ConsoleManager extends ProgressReporting {
+object ConsoleManager extends ProgressReporting with Utils {
   var appender: ConsoleAppenderWithDeleteSupport = null
 
-  var lastOne = 0L
-
   def ephemeralMessage(message: => String) {
-    val timeNow = System.currentTimeMillis()
-    if (timeNow > lastOne) {
-      if (AnsiUtil.deleteLinesEnabled) {
-        ConsoleManager.appender.writeDeleteLine(message)
-        lastOne = timeNow + 20
-      } else {
-        ConsoleManager.appender.writeDeleteLine(message + "\n", false)
-        lastOne = timeNow + 5000
-      }
+    appender.writeDeleteLine(message, true)
+  }
+
+  lazy val timer = new java.util.Timer()
+
+  class RepeatingWithTimeDelayTask(function: => Unit, period: Int) extends TimerTask {
+    def run() {
+      function
+      timer.schedule(new RepeatingWithTimeDelayTask(function, period), period)
     }
+  }
+
+  def startConsoleUpdater() {
+    if (AnsiUtil.deleteLinesEnabled) {
+      timer.schedule(new RepeatingWithTimeDelayTask({
+        ephemeralMessage(updateConsoleStatus())
+      }, 100), 1000)
+    }
+    timer.schedule(new RepeatingWithTimeDelayTask({
+      l.info(updateConsoleStatus(true))
+    }, 10000), 1000)
+  }
+
+  def updateConsoleStatus(names: Boolean = false) = {
+    ProgressReporters.consoleUpdate(names)
   }
 
 }
@@ -277,7 +277,7 @@ class ConsoleAppenderWithDeleteSupport extends ConsoleAppender[ILoggingEvent] {
   AnsiUtil.initAnsi
   ConsoleManager.appender = this
 
-  @volatile var canDeleteLast = false
+  var canDeleteLast = false
 
   override def append(t: ILoggingEvent) {
     lock.synchronized {
@@ -299,9 +299,10 @@ class ConsoleAppenderWithDeleteSupport extends ConsoleAppender[ILoggingEvent] {
       if (!delete) {
         canDeleteLast = false
       }
-      canDeleteLast match {
-        case true => sendAnsiLine(message)
-        case false => writeSafe(message)
+      if (canDeleteLast && delete) {
+        sendAnsiLine(message)
+      } else {
+        writeSafe(message)
       }
       canDeleteLast = true
     }

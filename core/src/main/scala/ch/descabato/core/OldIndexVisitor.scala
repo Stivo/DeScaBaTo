@@ -48,7 +48,6 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart],
     }
     progress.foreach { x =>
       x += 1
-      ProgressReporters.updateWithCounters(List(x))
     }
   }
 

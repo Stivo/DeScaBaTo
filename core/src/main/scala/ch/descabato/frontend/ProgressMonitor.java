@@ -18,7 +18,7 @@ public class ProgressMonitor extends JFrame {
 	/**
 	 * Create the frame.
 	 */
-	public ProgressMonitor(final ProgressGui gui, int numthreads) {
+	public ProgressMonitor(final ProgressGui gui, int numthreads, boolean sliderDisabled) {
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 331);
 		contentPane = new JPanel();
@@ -68,6 +68,8 @@ public class ProgressMonitor extends JFrame {
 			}
 		});
 		slider.setValue(numthreads);
+        if (sliderDisabled)
+            slider.setEnabled(false);
 		slider.setPaintLabels(true);
 		slider.setMinimum(1);
 		slider.setMaximum(40);

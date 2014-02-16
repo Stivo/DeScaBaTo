@@ -17,6 +17,8 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     universe.eventBus().subscribe(eventListener)
   }
 
+  def nameOfOperation = "Should not be shown, bug here"
+
   // Doesn't know which backup to load, load is explicit here.
   def load() {}
   
@@ -65,7 +67,6 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
           universe.hashListHandler.addHashlist(fd.hash, hashList)
         fileCounter += 1
         unfinished -= fd.path
-        updateProgress
       }
     }
 
@@ -98,7 +99,6 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     }
     setMaximums(bd)
     toCheckpoint = current.copy(files = current.files.filter(_.hash != null))
-    universe.blockHandler.setTotalSize(byteCounter.maxValue)
     l.info("After setCurrent " + remaining + " remaining")
   }
 
@@ -125,7 +125,6 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     // TODO compressDisabled!
     universe.blockHandler.writeBlockIfNotExists(blockId, hash, content, false)
     byteCounter += content.length
-    updateProgress
     getUnfinished(blockId.file).blockHashArrived(blockId, hash)
   }
 

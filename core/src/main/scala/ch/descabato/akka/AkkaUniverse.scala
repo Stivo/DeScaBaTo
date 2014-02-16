@@ -10,7 +10,7 @@ import ch.descabato.core._
 import akka.actor._
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import ch.descabato.frontend.{ProgressReporters, UpdatingCounter, MaxValueCounter}
+import ch.descabato.frontend.{Counter, ProgressReporters, MaxValueCounter}
 import java.util.concurrent.atomic.AtomicInteger
 import akka.event.Logging
 import ch.descabato.CompressionMode
@@ -68,11 +68,11 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   def p[T <: AnyRef](props: TypedProps[T], dispatcher: String = dispatcher) = props.withDispatcher(dispatcher).withTimeout(1.day)
 
-  class QueueCounter(queueName: String, ref: AnyRef) extends MaxValueCounter with UpdatingCounter {
+  class QueueCounter(queueName: String, ref: AnyRef) extends MaxValueCounter {
     val name = s"Queue $queueName"
     maxValue = 500
 
-    def update {
+    override def update {
       queueInfo(ref) match {
         case Some((cur, max)) => current = cur; maxValue = max
         case _ =>
@@ -166,10 +166,6 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   var checks = 1
 
-  def updateProgress() {
-    ProgressReporters.updateWithCounters(counters)
-  }
-
   def checkQueueWithFunction(f: => Int, name: String, limit: Int = queueLimit) {
     while (f > limit) {
       if (shouldPrint)
@@ -180,7 +176,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   var prints = 0
 
-  def shouldPrint = {prints += 1; prints % 10 == 0}
+  def shouldPrint = false //{prints += 1; prints % 10 == 0}
 
   def checkQueue(x: AnyRef, name: String, limit: Int = queueLimit) {
     var wait = true
@@ -198,10 +194,10 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   override def waitForQueues() {
     checks += 1
-    updateProgress()
-//    if (checks % 20 != 0) {
-//      return
-//    }
+    if (checks % 10 != 0) {
+      return
+    }
+    ProgressReporters.addCounter(counters: _*)
     checkQueueWithFunction(cpuTaskCounter.get(), "CPU Tasks")
     checkQueue(hashHandler, "hash handler")
     checkQueue(eventBus, "event bus")

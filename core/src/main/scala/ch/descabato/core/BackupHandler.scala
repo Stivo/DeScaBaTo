@@ -86,6 +86,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
 
   var threadNumber = 0
 
+  val nameOfOperation = "Backing up"
+
   class FileProgress extends MaxValueCounter() {
     val name = "Current file " + (config.synchronized {
       val copy = threadNumber
@@ -105,7 +107,9 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     startMeasuring()
     universe.loadBlocking()
     l.info("Starting backup")
+    ConsoleManager.startConsoleUpdater()
     // Walk tree and compile to do list
+    ProgressReporters.activeCounters = List(scanCounter)
     val visitor = new OldIndexVisitor(backupPartHandler.loadBackup(None).asMap, recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
     val (newDesc, unchangedDesc, deletedDesc) = (visitor.newDesc, visitor.unchangedDesc, visitor.deletedDesc)
 
@@ -122,6 +126,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
 
     // Backup files 
     setMaximums(newDesc)
+    ProgressReporters.activeCounters = List(fileCounter, byteCounter)
+    universe.blockHandler.setTotalSize(byteCounter.maxValue)
 
     val coll = if (true) newDesc.files
     else {
@@ -146,6 +152,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     counters.get.maxValue = fileDesc.size
     counters.get.current = 0
     counters.get.filename = fileDesc.name
+    ProgressReporters.activeCounters = List(fileCounter, byteCounter, counters.get)
     var fis: FileInputStream = null
     var success = false
     try {
@@ -172,7 +179,6 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
           universe.hashHandler.hash(bid, block)
           byteCounter += block.length
           counters.get += block.length
-          updateProgress()
           waitForQueues()
           while (CLI.paused) {
             Thread.sleep(100)
@@ -182,7 +188,6 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       copy(fis, blockHasher)
       universe.hashHandler.finish(fileDesc)
       fileCounter += 1
-      updateProgress()
       success = true
       true
     } catch {
@@ -207,13 +212,11 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     }
   }
 
-  override def updateProgress() {
-    ProgressReporters.updateWithCounters(fileCounter :: byteCounter :: Nil)
-  }
-
 }
 
 class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {
+
+  val nameOfOperation = "Restoring"
 
   sealed trait Result
 
@@ -354,7 +357,6 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     fd.applyAttrsTo(restoredFile)
     if (count)
       fileCounter += 1
-    updateProgress
   }
 
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
@@ -403,7 +405,6 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     }
     fileCounter += 1
     byteCounter += fd.size
-    updateProgress
   }
 
 }
@@ -414,6 +415,8 @@ class ProblemCounter extends Counter {
 
 class VerifyHandler(val universe: Universe)
   extends BackupRelatedHandler with Utils with BackupProgressReporting with MeasureTime {
+
+  val nameOfOperation = "Verifying"
 
   var problemCounter = new ProblemCounter()
 
@@ -490,7 +493,6 @@ class VerifyHandler(val universe: Universe)
       }
       byteCounter += file.size
       fileCounter += 1
-      updateProgress
     }
   }
 

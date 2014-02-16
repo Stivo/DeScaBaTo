@@ -10,17 +10,17 @@ import ch.descabato.utils.Utils
 import java.awt.event.{ActionEvent, ActionListener}
 
 object CreateProgressGui {
-  def apply(threads: Int) = {
+  def apply(threads: Int, nameOfOp: String, sliderDisabled: Boolean) = {
     if (Utils.isWindows) {
-      new WindowsProgressGui(threads)
+      new WindowsProgressGui(threads, nameOfOp, sliderDisabled)
     } else {
-      new ProgressGui(threads)
+      new ProgressGui(threads, nameOfOp, sliderDisabled)
     }
   }
 }
 
-class ProgressGui(threads: Int) extends ActionListener {
-  val mon = new ProgressMonitor(this, threads)
+class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false) extends ActionListener {
+  val mon = new ProgressMonitor(this, threads, sliderDisabled)
   val timer = new Timer(40, this)
   show()
 
@@ -45,12 +45,12 @@ class ProgressGui(threads: Int) extends ActionListener {
       }
     copy.foreach {
       x =>
+        x.update
         x match {
-          case x: UpdatingCounter => x.update
           case max: MaxValueCounter if max.name contains "Blocks" =>
             setValue(max.percent, 100)
           case max: ETACounter if max.name contains "Data Read" =>
-            mon.setTitle(s"Backing up ${max.percent}%, ${max.calcEta}")
+            mon.setTitle(s"$nameOfOperation ${max.percent}%, ${max.calcEta}")
           case _ =>
         }
         val slice = getSlice(x)
@@ -91,7 +91,8 @@ class ProgressGui(threads: Int) extends ActionListener {
   def setValue(value: Int, max: Int) {}
 }
 
-class WindowsProgressGui(threads: Int) extends ProgressGui(threads) {
+class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false)
+    extends ProgressGui(threads, nameOfOperation, sliderDisabled) {
   var list: ITaskbarList3 = null
   var hwnd: Pointer[Integer] = null
   try {

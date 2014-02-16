@@ -27,9 +27,9 @@ object ObjectPools extends Utils {
   var foundMinimumRequests = 0
 
   def printStatistics(size: Int) {
-    l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
-    l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
-    l.info("Current Weak References "+size)
+//    l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
+//    l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
+//    l.info("Current Weak References "+size)
   }
   
   class ByteArrayObjectPool {

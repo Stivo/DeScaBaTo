@@ -44,9 +44,7 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     byteCounter.maxValue = size
   }
 
-  def updateProgress() {
-    ProgressReporters.updateWithCounters(byteCounter :: compressionRatioCounter :: Nil)
-  }
+  ProgressReporters.addCounter(byteCounter, compressionRatioCounter)
 
   protected def volumeSize = config.volumeSize
 
