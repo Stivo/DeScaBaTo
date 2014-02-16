@@ -52,7 +52,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   def make[T <: UniversePart](x: T) = {x.setup(this); x}
   val journalHandler = make(new SimpleJournalHandler())
   val backupPartHandler = make(new ZipBackupPartHandler())
-  val hashListHandler = make(new NewZipHashListHandler())
+  val hashListHandler = make(new ZipHashListHandler())
   val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
   val blockHandler = make(new ZipBlockHandler())
   val hashHandler = make(new SingleThreadHasher())

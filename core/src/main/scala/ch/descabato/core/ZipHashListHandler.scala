@@ -1,39 +1,43 @@
 package ch.descabato.core
 
-import scala.collection.mutable
 import java.io.File
 import scala.collection.mutable.Buffer
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Utils, ZipFileReader, ZipFileWriter}
 import java.util.zip.ZipEntry
 
-@Deprecated
-class ZipHashListHandler extends HashListHandler {
-  type HashListMap = mutable.HashMap[BAWrapper2, Array[Byte]]
+class ZipHashListHandler extends HashListHandler with Utils {
+  type HashListMap = Map[BAWrapper2, Array[Byte]]
 
-  var hashListMap: HashListMap = new HashListMap()
-  var hashListMapNew: HashListMap = new HashListMap()
-  var hashListMapCheckpoint: HashListMap = new HashListMap()
+  var hashListsPersisted: HashListMap = Map.empty
+  var hashListsToWrite: HashListMap = Map.empty
 
-  def load() { /* already done */ } 
-  def shutdown() = { finish; ret }
-  
-  override def setupInternal() {
-    hashListMap ++= oldBackupHashLists
+  def load() {
+
   }
 
-  def oldBackupHashLists: mutable.Map[BAWrapper2, Array[Byte]] = {
+  override def setupInternal() {
+    universe.eventBus().subscribe(eventListener)
+    hashListsPersisted = oldBackupHashLists
+  }
+
+  val eventListener: PartialFunction[BackupEvent, Unit] = {
+    case e @ VolumeFinished(file, blocks) =>
+      // If this is in akka, thread safety is only possible to get via the actor reference
+      universe.hashListHandler().checkpoint(Some(blocks))
+  }
+
+  def shutdown() = { finish; ret }
+  
+  def oldBackupHashLists: Map[BAWrapper2, Array[Byte]] = {
     def loadFor(x: Iterable[File], failureOption: ReadFailureOption) = {
-      x.flatMap(x => fileManager.hashlists.read(x, failureOption)).fold(Buffer())(_ ++ _).toBuffer
+      x.flatMap(x => fileManager.hashlists.read(x, failureOption)).fold(Vector())(_ ++ _)
     }
     val temps = loadFor(fileManager.hashlists.getTempFiles(), OnFailureDelete)
-    if (!temps.isEmpty) {
-      fileManager.hashlists.write(temps)
-      fileManager.hashlists.deleteTempFiles()
-    }
     val list = loadFor(fileManager.hashlists.getFiles(), OnFailureTryRepair)
-    val map = new HashListMap
+    var map: HashListMap = Map.empty
     map ++= list
+    map ++= temps
     map
   }
 
@@ -43,35 +47,45 @@ class ZipHashListHandler extends HashListHandler {
     if (size <= config.blockSize.bytes) {
       List(fileHash)
     } else {
-      hashListSeq(hashListMap.get(fileHash).get)
+      hashListSeq(hashListsPersisted.get(fileHash).get)
     }
   }
 
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte]) {
-    if (!(hashListMap safeContains fileHash))
-      hashListMapNew += ((fileHash, hashList))
+    if (!(hashListsPersisted safeContains fileHash) && !(hashListsToWrite safeContains fileHash))
+      hashListsToWrite += ((fileHash, hashList))
   }
   
-  def checkpoint() = {
-    // TODO!!!!!
-    true
-  }
-  
-  def getAllPersistedKeys(): Set[BAWrapper2] = hashListMap.keySet.toSet
+  def getAllPersistedKeys(): Set[BAWrapper2] = hashListsPersisted.keySet
   
   def finish() = {
-    if (!hashListMapNew.isEmpty)
-      fileManager.hashlists.write(hashListMapNew.toBuffer)
-    fileManager.hashlists.deleteTempFiles()
+    if (!hashListsToWrite.isEmpty)
+      checkpoint(None)
+    fileManager.hashlists.mergeTempFilesIntoNew()
     true
   }
 
   override def isPersisted(fileHash: Array[Byte]) = {
-    hashListMap safeContains fileHash
+    hashListsPersisted safeContains fileHash
   }
 
   // Checkpointing with an optional argument
-  override def checkpoint(t: Option[Set[BAWrapper2]]): Unit = ???
+  def checkpoint(blocks: Option[Set[BAWrapper2]]) {
+    val persistedBlocks = blocks match {
+      case Some(set) => set
+      case None => universe.blockHandler.getAllPersistedKeys
+    }
+    def allBlocksExist(x: Array[Byte]) = hashListSeq(x).forall(persistedBlocks(_))
+    val (toWrite, toKeep) = hashListsToWrite.partition{case (_, value) => allBlocksExist(value)}
+    if (!toWrite.isEmpty) {
+      val num = fileManager.hashlists.nextNum(true)
+      fileManager.hashlists.write(toWrite.toVector, true)
+      l.info("Wrote temp hashlist "+num)
+      hashListsPersisted ++= toWrite
+      hashListsToWrite = toKeep
+      universe.eventBus().publish(HashListCheckpointed(getAllPersistedKeys, persistedBlocks))
+    }
+  }
 }
 
 class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHandler with UniversePart with Utils {
@@ -114,7 +128,7 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
     hashListSeq(read(fileHash))
   }
 
-  def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]) = false
+  def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]) = hashListsToWrite.size > 10000
 
   def checkpoint(blocks: Option[Set[BAWrapper2]]) {
     val persistedBlocks = blocks match {

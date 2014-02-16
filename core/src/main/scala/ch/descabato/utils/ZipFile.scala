@@ -43,7 +43,7 @@ object ZipFileHandlerFactory {
 
   def reader(file: File, config: BackupFolderConfiguration): ZipFileReader = {
     if ((readerCache safeContains file) && readerCache(file).isValid)
-      readerCache(file)
+      return readerCache(file)
     val out = new ZipFileReaderTFile(file)
     readerCache += file -> out
     out

@@ -246,7 +246,7 @@ class FileManager(override val universe: Universe) extends UniversePart {
   def getDateFormatted = dateFormat.format(startDate)
 
   val volumes = new FileType[Volume]("volume_", false, ".zip", localC = false)
-  val hashlists = new FileType[Buffer[(BAWrapper2, Array[Byte])]]("hashlists_", false, ".zip")
+  val hashlists = new FileType[Vector[(BAWrapper2, Array[Byte])]]("hashlists_", false, ".zip")
   val files = new FileType[Buffer[BackupPart]]("files_", true, ".zip", hasDateC = true)
   val backup = new FileType[BackupDescription]("backup_", true, ".zip", hasDateC = true)
   val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".zip", hasDateC = true)

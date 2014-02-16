@@ -304,7 +304,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     setMaximums(filtered)
 
     description.folders.foreach(restoreFolderDesc(_))
-    description.files.par.foreach(restoreFileDesc)
+    description.files.foreach(restoreFileDesc)
     description.symlinks.foreach(restoreLink)
     description.folders.foreach(restoreFolderDesc(_, false))
     universe.finish()
@@ -425,6 +425,7 @@ class VerifyHandler(val universe: Universe)
   def verify(t: VerifyConf) = {
     startMeasuring()
     problemCounter = new ProblemCounter()
+    universe.load()
     try {
       universe.blockHandler().verify(problemCounter)
       verifyHashes()
@@ -482,7 +483,7 @@ class VerifyHandler(val universe: Universe)
       return
     val tests = getRandomXElements(probes, files)
     setMaximums(tests)
-    tests.par.foreach { file =>
+    tests.foreach { file =>
       val in = getInputStream(file)
       val hos = new HashingOutputStream(config.hashAlgorithm)
       copy(in, hos)

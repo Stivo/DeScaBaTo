@@ -98,7 +98,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer", dispatcher = "single-dispatcher")
   journalHandler.cleanUnfinishedFiles()
   val backupPartHandler = actorOf[BackupPartHandler, ZipBackupPartHandler]("Backup Parts")
-  val hashListHandler = actorOf[HashListHandler, NewZipHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
+  val hashListHandler = actorOf[HashListHandler, ZipHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
   lazy val eventBus = actorOf[EventBus[BackupEvent], SimpleEventBus[BackupEvent]]("Event Bus")
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
   val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")

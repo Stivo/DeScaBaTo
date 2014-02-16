@@ -25,61 +25,6 @@ import java.nio.file.Paths
 import org.apache.commons.exec.environment.EnvironmentUtils
 import ch.descabato.frontend.CLI
 
-class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String, val secs: Int = 600) 
-	extends ExecuteWatchdog(secs * 1000) with ExecuteResultHandler with Utils {
-  private val executor = new DefaultExecutor()
-  executor.setWatchdog(this)
-  executor.setWorkingDirectory(logfolder)
-  val out = new FileOutputStream(new File(logfolder, name + "_out.log"), true)
-  val error = new FileOutputStream(new File(logfolder, name + "_error.log"), true)
-  val streamHandler = new PumpStreamHandler(new DelegatingOutputStream(out, System.out),
-    new DelegatingOutputStream(error, System.err))
-  executor.setStreamHandler(streamHandler)
-  @volatile var finished = false
-  var exit = Int.MinValue
-
-  def onProcessComplete(exitValue: Int) {
-    finished = true
-    exit = exitValue
-    close()
-  }
-
-  override def destroyProcess() {
-    super.destroyProcess()
-    close()
-  }
-
-  def onProcessFailed(e: ExecuteException) {
-    logException(e)
-    finished = true
-    exit = -1
-    close()
-  }
-
-  val baseFolder = logfolder.getParentFile().getParentFile()
-  //val jacoco = new File(baseFolder, "jacocoagent.jar")
-  //val destfile = new File(baseFolder, "core/target/scala-2.10/jacoco/jacoco.exec")
-  //jacoco.exists() should be
-  val map = EnvironmentUtils.getProcEnvironment()
-  //EnvironmentUtils.addVariableToEnvironment(map, s"JVM_OPT=-javaagent:$jacoco=destfile=$destfile,append=true")
-  
-  def startAndWait() = {
-    val out = executor.execute(args, map)
-    close()
-    out
-  }
-
-  def start() {
-    executor.execute(args, map, this)
-  }
-
-  def close() {
-    out.close()
-    error.close()
-  }
-
-}
-
 class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
 
   CLI._overrideRunsInJar = true
@@ -96,6 +41,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
     
   val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
+  val packFolder = new File(descabatoFolder, s"core/target/pack").getAbsoluteFile()
 
   var baseFolder = new File("integrationtest/testdata")
   var logFolder = new File(descabatoFolder, "integrationtest/logs")
@@ -106,7 +52,11 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   val restore1 = folder("restore1")
 
   def createHandler(args: Seq[String], redirect: Boolean = true, maxSeconds: Int = 600) = {
-    val cmdLine = new CommandLine(batchfile);
+    val cmdLine = new CommandLine("java");
+    val libFolder = new File(packFolder, "lib")
+    cmdLine.addArgument(s"-cp")
+    cmdLine.addArgument(s"libFolder/*")
+    cmdLine.addArgument("ch.descabato.frontend.CLI")
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(currentTestName + ".log")
@@ -115,8 +65,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
-    val handler = new BackupExecutionHandler(cmdLine, logFolder, currentTestName, maxSeconds)
-    handler
+    new BackupExecutionHandler(cmdLine, packFolder, currentTestName, maxSeconds)
   }
 
   def startAndWait(args: Seq[String], redirect: Boolean = true) = {
@@ -160,7 +109,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 //    "backup with redundancy" should "recover" in {
 //      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
 //    }
-//
+
   "backup with crashes" should "work" in {
     testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, false)
   }
@@ -309,6 +258,61 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     val hos = new HashingOutputStream("md5")
     val buf = Streams.copy(new FileInputStream(f), hos)
     Utils.encodeBase64Url(hos.out.get)
+  }
+
+}
+
+class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String, val secs: Int = 600)
+  extends ExecuteWatchdog(secs * 1000) with ExecuteResultHandler with Utils {
+  private val executor = new DefaultExecutor()
+  executor.setWatchdog(this)
+  executor.setWorkingDirectory(logfolder)
+  val out = new FileOutputStream(new File(logfolder, name + "_out.log"), true)
+  val error = new FileOutputStream(new File(logfolder, name + "_error.log"), true)
+  val streamHandler = new PumpStreamHandler(new DelegatingOutputStream(out, System.out),
+    new DelegatingOutputStream(error, System.err))
+  executor.setStreamHandler(streamHandler)
+  @volatile var finished = false
+  var exit = Int.MinValue
+
+  def onProcessComplete(exitValue: Int) {
+    finished = true
+    exit = exitValue
+    close()
+  }
+
+  override def destroyProcess() {
+    super.destroyProcess()
+    close()
+  }
+
+  def onProcessFailed(e: ExecuteException) {
+    logException(e)
+    finished = true
+    exit = -1
+    close()
+  }
+
+  val baseFolder = logfolder.getParentFile().getParentFile()
+  //val jacoco = new File(baseFolder, "jacocoagent.jar")
+  //val destfile = new File(baseFolder, "core/target/scala-2.10/jacoco/jacoco.exec")
+  //jacoco.exists() should be
+  val map = EnvironmentUtils.getProcEnvironment()
+  //EnvironmentUtils.addVariableToEnvironment(map, s"JVM_OPT=-javaagent:$jacoco=destfile=$destfile,append=true")
+
+  def startAndWait() = {
+    val out = executor.execute(args, map)
+    close()
+    out
+  }
+
+  def start() {
+    executor.execute(args, map, this)
+  }
+
+  def close() {
+    out.close()
+    error.close()
   }
 
 }
