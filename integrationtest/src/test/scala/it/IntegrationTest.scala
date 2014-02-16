@@ -52,11 +52,31 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   val restore1 = folder("restore1")
 
   def createHandler(args: Seq[String], redirect: Boolean = true, maxSeconds: Int = 600) = {
+    if (Utils.isWindows)
+      createHandlerJava(args, redirect, maxSeconds)
+    else
+      createHandlerScript(args, redirect, maxSeconds)
+  }
+
+  def createHandlerJava(args: Seq[String], redirect: Boolean = true, maxSeconds: Int = 600) = {
     val cmdLine = new CommandLine("java");
     val libFolder = new File(packFolder, "lib")
     cmdLine.addArgument(s"-cp")
     cmdLine.addArgument(s"libFolder/*")
     cmdLine.addArgument("ch.descabato.frontend.CLI")
+    cmdLine.addArgument(args.head)
+    cmdLine.addArgument("--logfile")
+    cmdLine.addArgument(currentTestName + ".log")
+    cmdLine.addArgument("--noansi")
+    cmdLine.addArgument("--no-gui")
+    args.tail.foreach { arg =>
+      cmdLine.addArgument(arg)
+    }
+    new BackupExecutionHandler(cmdLine, packFolder, currentTestName, maxSeconds)
+  }
+
+  def createHandlerScript(args: Seq[String], redirect: Boolean = true, maxSeconds: Int = 600) = {
+    val cmdLine = new CommandLine(batchfile);
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(currentTestName + ".log")
