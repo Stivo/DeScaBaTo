@@ -1,0 +1,5 @@
+sizeplot("txt")
+sizeplot("log")
+sizeplot("scala")
+sizeplot("pdf")
+sizeplot("avi")
