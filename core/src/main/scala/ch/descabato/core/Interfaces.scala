@@ -9,6 +9,7 @@ import ch.descabato.utils.{ZipFileWriter, Streams}
 import java.security.MessageDigest
 import scala.collection.mutable
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.ObjectPools
 
 trait MustFinish {
   // Finishes writing, so the backup can be completed
@@ -96,6 +97,19 @@ trait JournalHandler extends UniversePart with LifeCycle {
 
 case class BlockId(file: FileDescription, part: Int)
 
+class Block(val id: BlockId, val content: Array[Byte]) {
+  val uncompressedLength = content.length 
+  @volatile var hash: Array[Byte] = null
+  @volatile var mode: CompressionMode = null
+  @volatile var compressed: ByteBuffer = null
+  @volatile var header: Byte = -1
+  def recycle() {
+    if (compressed != null)
+      compressed.recycle()
+    ObjectPools.byteArrayPool.recycle(content)
+  }
+}
+
 trait BackupActor extends UniversePart with LifeCycle
 
 // TODO implement this again? or design it better?
@@ -138,7 +152,7 @@ trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BAWrapper2],
   
   // If file is complete, send hash list to the hashlist handler and mark
   // filedescription ready to be checkpointed
-  def hashComputed(blockId: BlockId, hash: Array[Byte], content: Array[Byte])
+  def hashComputed(blockWrapper: Block)
   
   def remaining(): Int
 }
@@ -151,25 +165,25 @@ trait HashListHandler extends BackupActor with UniversePart with CanCheckpoint[S
 }
 
 trait BlockHandler extends BackupActor with UniversePart with CanVerify {
-  def writeBlockIfNotExists(blockId: BlockId, hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean)
+  def writeBlockIfNotExists(blockWrapper: Block)
   def getAllPersistedKeys(): Set[BAWrapper2]
   def isPersisted(hash: Array[Byte]): Boolean
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
-  def writeCompressedBlock(hash: Array[Byte], zipEntry: ZipEntry, header: Byte, block: ByteBuffer)
+  def writeCompressedBlock(blockWrapper: Block, zipEntry: ZipEntry)
   def remaining: Int
   def setTotalSize(size: Long)
 }
 
 trait CpuTaskHandler extends PureLifeCycle {
   // calls then hashComputed on metadatawriter
-  def computeHash(x: Array[Byte], hashMethod: String, blockId: BlockId)
+  def computeHash(blockWrapper: Block)
   // Calls then blockhandler#writeBlockIfNotExists
-  def compress(blockId: BlockId, hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean)
+  def compress(blockWrapper: Block)
 }
 
 trait HashHandler extends LifeCycle with UniversePart {
     // Hash this block of this file
-  def hash(blockId: BlockId, block: Array[Byte])
+  def hash(blockwrapper: Block)
   // Finish this file, call backupparthandler 
   def finish(fd: FileDescription)
   // Release resources associated with this file
