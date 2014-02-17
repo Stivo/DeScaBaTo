@@ -55,4 +55,4 @@ packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m", "-XX:NewRatio=1","
 
 packPreserveOriginalJarName := true
 
-packResourceDir := "../releases/0.1.0"
+packResourceDir := "../releases/0.3.0"

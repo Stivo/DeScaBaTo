@@ -1,0 +1,44 @@
+DeScaBaTo makes use of many libraries. These is a listing of the licenses of the used libraries.
+
+BSD 3-Clause License:
+- Scala 2.10.3
+
+Eclipse Public License, Version 1.0:
+- TrueVFS
+
+Apache License 2.0:
+- OtrosVfsBrowser
+- Akka
+- Snappy
+- prettytime
+- jansi
+- jpountz lz4
+- typesafe scalalogging
+- bson4jackson
+- org.apache.commons compress
+- scalatest
+
+New BSD License:
+- bridj
+
+Other licenses:
+- Scallop
+- scalacheck
+
+Multiple licenses:
+- Logback and SLF4j are available with LGPL 2.1 and EPL 1.0
+- Jackson is available with LGPL 2.1 and ASL 2.0
+- Miglayout is available with BSD and GPL
+
+I used a bunch of tools while writing this program.
+- Eclipse with Scala IDE
+- Intellij with the Scala Plugin
+- Git and Github of course
+- Travis CI for free continuous integration
+- sbt and multiple sbt plugins
+- JVisualVM for debuggin
+- Ubuntu for linux testing
+- RStudio to write and run R code
+- org.apache.commons exec for the integration test
+
+Thanks to all these projects! It's been a pleasure to use them.
