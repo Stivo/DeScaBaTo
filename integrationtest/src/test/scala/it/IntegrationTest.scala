@@ -131,11 +131,11 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 //    }
 
   "backup with crashes" should "work" in {
-    testWith(" --checkpoint-every 10Mb --volume-size 10Mb", "", 5, "300Mb", true, false)
+    testWith(" --volume-size 10Mb", "", 5, "300Mb", true, false)
   }
 
   "backup with crashes, encryption and multiple threads" should "work" in {
-    testWith(" --threads 10 --checkpoint-every 10Mb --volume-size 10Mb", "", 2, "200Mb", true, false)
+    testWith(" --threads 10 --volume-size 10Mb", "", 2, "200Mb", true, false)
   }
 
   def numberOfCheckpoints(): Int = {
