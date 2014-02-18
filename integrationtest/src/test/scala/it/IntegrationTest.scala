@@ -43,7 +43,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
   val packFolder = new File(descabatoFolder, s"core/target/pack").getAbsoluteFile()
 
-  var baseFolder = new File("integrationtest/testdata")
+  var baseFolder = new File("/mnt/tmpfs/integrationtest/testdata")
   var logFolder = new File(descabatoFolder, "integrationtest/logs")
 
   def folder(s: String) = new File(baseFolder, s).getAbsoluteFile()
@@ -62,7 +62,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     val cmdLine = new CommandLine("java");
     val libFolder = new File(packFolder, "lib")
     cmdLine.addArgument(s"-cp")
-    cmdLine.addArgument(s"libFolder/*")
+    cmdLine.addArgument(s"$libFolder/*")
     cmdLine.addArgument("ch.descabato.frontend.CLI")
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
