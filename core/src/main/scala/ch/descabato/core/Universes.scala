@@ -48,7 +48,7 @@ trait UniversePart extends AnyRef with PostRestart {
   protected def setupInternal() {}
 }
 
-class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe with PureLifeCycle {
+class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe with PureLifeCycle with Utils {
   def make[T <: UniversePart](x: T) = {x.setup(this); x}
   val journalHandler = make(new SimpleJournalHandler())
   val backupPartHandler = make(new ZipBackupPartHandler())
@@ -66,28 +66,37 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
 
   override def shutdown() = {
     journalHandler.finish()
-    shutdownOrder.foreach { _.shutdown() }
+    shutdownOrder.foreach { h =>
+      try {
+        h.shutdown()
+      } catch {
+        case e: Exception => "exception while shutting down"
+          logException(e)
+      }
+    }
     ret
   }
 }
 
 class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
-
-  def computeHash(content: Array[Byte], hashMethod: String, blockId: BlockId) {
-    val md = MessageDigest.getInstance(hashMethod)
-    universe.backupPartHandler.hashComputed(blockId, md.digest(content), content)
+  
+  def computeHash(blockWrapper: Block) {
+    val md = universe.config.getMessageDigest
+    blockWrapper.hash = md.digest(blockWrapper.content)
+    universe.backupPartHandler.hashComputed(blockWrapper)
   }
 
-  def compress(blockId: BlockId, hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean) {
+  def compress(block: Block) {
     val startAt = TimingUtil.getCpuTime
-    val (header, compressed) = CompressedStream.compress(content, method, disable)
+    val (header, compressed) = CompressedStream.compress(block.content, block.mode)
+	block.header = header
+	block.compressed = compressed
     val duration = TimingUtil.getCpuTime - startAt
-    val name = Utils.encodeBase64Url(hash)
+    val name = Utils.encodeBase64Url(block.hash)
     val entry = ZipFileHandlerFactory.createZipEntry("blocks/"+name, header, compressed)
-    universe.compressionStatistics().foreach {
-      _.blockStatistics(blockId, compressed.remaining(), content.size, method, duration)
-    }
-    universe.blockHandler.writeCompressedBlock(hash, entry, header, compressed)
+//    universe.compressionStatistics().
+//    	blockStatistics(blockId, compressed.remaining(), content.size, method, duration)
+    universe.blockHandler.writeCompressedBlock(block, entry)
   }
 
 }
@@ -95,8 +104,8 @@ class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
 class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycle {
   lazy val md = universe.config.getMessageDigest
 
-  def hash(blockId: BlockId, block: Array[Byte]) {
-    md.update(block)
+  def hash(block: Block) {
+    md.update(block.content)
   }
 
   def finish(fd: FileDescription) {
@@ -106,6 +115,8 @@ class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycl
 
   def waitUntilQueueIsDone = true
 
-  def fileFailed(fd: FileDescription) {}
+  def fileFailed(fd: FileDescription) {
+    md.reset()
+  }
 
 }

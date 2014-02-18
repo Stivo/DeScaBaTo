@@ -28,6 +28,9 @@ import ch.descabato.frontend.ProgressReporters
  */
 class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with UniversePart {
   override def folder = "blocks/"
+    
+  lazy val indexFileType = fileManager.volumeIndex
+  
   private val byteCounter = new MaxValueCounter() {
     var compressedBytes = 0
     def name: String = "Blocks written"
@@ -90,10 +93,11 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
 
   private def asKey(hash: Array[Byte]): BAWrapper2 = hash
 
-  def writeBlockIfNotExists(blockId: BlockId, hash: Array[Byte], block: Array[Byte], compressDisabled: Boolean) {
+  def writeBlockIfNotExists(block: Block) {
+    val hash = block.hash
     val k = asKey(hash)
     if (exists(k) || (outstandingRequests safeContains hash)) {
-      byteCounter.maxValue -= block.length
+      byteCounter.maxValue -= block.content.length
       return
     }
     // TODO
@@ -101,21 +105,23 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     //      val content = ByteBuffer.wrap(block)
     //      writeCompressedBlock(hash, ZipFileHandlerFactory.createZipEntry(.0, ByteBuffer.wrap(block))
     //    } else {
-    outstandingRequests += ((hash, block.length))
+    block.mode = config.compressor
+    outstandingRequests += ((hash, block.content.length))
 //    universe.eventBus().publish(Add1CpuTask)
-    universe.cpuTaskHandler.compress(blockId, hash, block, config.compressor, compressDisabled)
+    universe.cpuTaskHandler.compress(block)
     //    }
   }
 
-  def writeCompressedBlock(hash: Array[Byte], zipEntry: ZipEntry, header: Byte, block: ByteBuffer) {
+  def writeCompressedBlock(block: Block, zipEntry: ZipEntry) {
 //    universe.eventBus().publish(Subtract1CpuTask)
-    if (currentWriter != null && currentWriter.size + block.remaining() + zipEntry.getName().length > volumeSize.bytes) {
+    if (currentWriter != null && currentWriter.size + block.compressed.remaining() + zipEntry.getName().length > volumeSize.bytes) {
       endZipFile()
     }
     openZipFileWriter()
-    byteCounter.compressedBytes += block.remaining()
-    compressionRatioCounter += block.remaining()
-    currentWriter.writeUncompressedEntry(zipEntry, header, block)
+    byteCounter.compressedBytes += block.compressed.remaining()
+    compressionRatioCounter += block.compressed.remaining()
+    val hash: BAWrapper2 = block.hash
+    currentWriter.writeUncompressedEntry(zipEntry, block.header, block.compressed)
     block.recycle()
     byteCounter += outstandingRequests(hash)
     compressionRatioCounter.maxValue += outstandingRequests(hash)
@@ -149,19 +155,10 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     outstandingRequests.size
   }
 
-  //  class IndexWriter(x: File) {
-  //    lazy val zipWriter = ZipFileHandlerFactory.writer(x, config)
-  //    lazy val bos = zipWriter.newOutputStream("index")
-  //    def close() {
-  //      bos.close()
-  //      zipWriter.close
-  //    }
-  //  }
-
   override def endZipFile() {
     if (currentWriter != null) {
       val file = currentWriter.file
-      val num = filetype.num(file)
+      val num = filetype.numberOf(file)
       super.endZipFile()
       l.info("Finished volume " + num)
       universe.eventBus().publish(VolumeFinished(file, inBackupIndex.keySet))

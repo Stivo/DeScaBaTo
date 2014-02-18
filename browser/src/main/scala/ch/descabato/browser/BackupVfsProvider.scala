@@ -106,7 +106,7 @@ class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFile
   def nextPathPart(x: String) = x.drop(nameInBackup.length()).dropWhile(isPathChar).takeWhile(!isPathChar(_))
 
   lazy val childrenOfPath = {
-    val out = if (nameInBackup == "") {
+    val out = if (nameInBackup == "" && Utils.isWindows) {
       index.parts.map(_.path.take(3)).toSet.toSeq.sorted
     } else {
       val candidates = index.parts.filter(x => Utils.normalizePath(x.path).startsWith(nameInBackup))

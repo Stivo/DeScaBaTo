@@ -22,7 +22,7 @@ object InitBackupFolderConfiguration extends Utils {
         o.keylength.foreach(out.keyLength = _)
         o.volumeSize.foreach(out.volumeSize = _)
         o.threads.foreach(out.threads = _)
-        o.checkpointEvery.foreach(out.checkPointEvery = _)
+//        o.checkpointEvery.foreach(out.checkPointEvery = _)
 //        o.renameDetection.foreach(out.renameDetection = _)
 //        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
 //        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
@@ -58,10 +58,10 @@ object InitBackupFolderConfiguration extends Utils {
           o.threads.foreach(old.threads = _)
           changed = true
         }
-        if (o.checkpointEvery.isSupplied) {
-          o.checkpointEvery.foreach(old.checkPointEvery = _)
-          changed = true
-        }
+//        if (o.checkpointEvery.isSupplied) {
+//          o.checkpointEvery.foreach(old.checkPointEvery = _)
+//          changed = true
+//        }
 //        if (o.renameDetection.isSupplied) {
 //          o.renameDetection.foreach(old.renameDetection = _)
 //          changed = true

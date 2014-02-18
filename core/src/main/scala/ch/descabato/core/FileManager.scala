@@ -18,6 +18,7 @@ class Parity
 object Constants {
   val tempPrefix = "temp."
   val filesEntry = "files.txt"
+  val indexSuffix = ".index"
   def objectEntry(num: Option[Int] = None): String = {
     val add = num.map(x => "_"+x).getOrElse("")
     s"content$add.obj"
@@ -60,9 +61,9 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
 
   def nextNum(temp: Boolean = false) = {
-    val col = (if (temp) getTempFiles() else getFiles()).map(num)
+    val col = (if (temp) getTempFiles() else getFiles()).map(numberOf)
     val fromJournal = fileManager.usedIdentifiers
-    val col2 = col ++ fromJournal.map(x => new File(config.folder, x)).filter(matches).filter(isTemp(_) == temp).map(num)
+    val col2 = col ++ fromJournal.map(x => new File(config.folder, x)).filter(matches).filter(isTemp(_) == temp).map(numberOf)
     if (col2.isEmpty) {
       0
     } else {
@@ -71,13 +72,11 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
 
   def nextName(tempFile: Boolean = false) = {
-    val temp = if (tempFile) tempPrefix else ""
-    val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    val add = if (m.runtimeClass == classOf[Parity]) "" else s"${config.raes}"
-    s"$globalPrefix$temp$prefix$date${nextNum(tempFile)}$suffix$add"
+    filenameForNumber(nextNum(tempFile), tempFile)
   }
 
-  def nextFile(f: File = config.folder, temp: Boolean = false) = new File(f, nextName(temp))
+  def nextFile(f: File = config.folder, temp: Boolean = false)
+  	= new File(f, nextName(temp))
 
   def matches(x: File): Boolean = {
     var name = x.getName()
@@ -86,17 +85,35 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     name = name.drop(globalPrefix.length)
     if (name.startsWith(tempPrefix))
       name = name.drop(tempPrefix.length)
-    name.startsWith(prefix)
+    if (!(name.startsWith(prefix)))
+      return false
+    name = name.drop(prefix.length)
+    if (hasDate) {
+      try {
+        fileManager.dateFormat.parse(name.take(fileManager.dateFormatLength))
+        // there is an underscore after the date
+        name = name.drop(fileManager.dateFormatLength + 1)
+      } catch {
+        case e: java.text.ParseException => return false
+      }
+    }
+    val num = name.takeWhile(_.isDigit)
+    if (num.length() == 0) {
+      return false
+    }
+    name = name.drop(num.length())
+    name.startsWith(suffix)
   }
 
   def getFiles(f: File = config.folder): Seq[File] = f.
     listFiles().view.filter(_.isFile()).
-    filter(_.getName().startsWith(globalPrefix + prefix)).
+    filter(matches).
     filterNot(_.getName.endsWith(".tmp"))
 
   def getTempFiles(f: File = config.folder): Seq[File] = f.
     listFiles().view.filter(_.isFile()).
     filter(_.getName().startsWith(globalPrefix + tempPrefix + prefix)).
+    filter(matches).
     filterNot(_.getName.endsWith(".tmp"))
 
   def deleteTempFiles(f: File = config.folder) = getTempFiles(f).foreach(_.delete)
@@ -121,7 +138,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     fileManager.dateFormat.parse(date)
   }
 
-  def num(x: File) = {
+  def numberOf(x: File) = {
     var rest = stripPrefixes(x)
     if (hasDate)
       rest = rest.drop(fileManager.dateFormatLength + 1)
@@ -132,10 +149,17 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       num.toInt
   }
 
-  def num(number: Int, temp: Boolean = false): Option[File] = {
-    getFiles().filter(x => num(x) == number).headOption
+  def filenameForNumber(number: Int, tempFile: Boolean = false): String = {
+    val temp = if (tempFile) tempPrefix else ""
+    val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
+    val raes = if (m.runtimeClass == classOf[Parity]) "" else s"${config.raes}"
+    s"$globalPrefix$temp$prefix$date$number$suffix$raes"
   }
 
+  def fileForNumber(number: Int, temp: Boolean = false): Option[File] = {
+    getFiles().filter(x => numberOf(x) == number).headOption
+  }
+  
   def isTemp(file: File) = {
     require(matches(file))
     file.getName.startsWith(globalPrefix+tempPrefix)
@@ -213,13 +237,13 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
 
   def mergeTempFilesIntoNew() {
-    val temp = getTempFiles().sortBy(num)
+    val temp = getTempFiles().sortBy(numberOf)
     if (!temp.isEmpty) {
       val dest = ZipFileHandlerFactory.complexWriter(nextFile())
       fileManager.universe.journalHandler().createMarkerFile(dest, temp)
       val descs = Buffer[ZipEntryDescription]()
       temp.foreach { x =>
-        val name = objectEntry(Some(num(x)))
+        val name = objectEntry(Some(numberOf(x)))
         descs += new ZipEntryDescription(name, config.serializerType, m.toString)
         dest.copyFrom(x, objectEntry(), name)
       }
@@ -231,6 +255,20 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     }
   }
 
+}
+
+trait Index
+
+class IndexFileType(val filetype: FileType[_]) extends FileType[Index](filetype.prefix, true, ".index.zip") {
+  
+  def indexForFile(file: File): File = {
+    new File(file.getParentFile(), filenameForNumber(filetype.numberOf(file)))
+  }
+  
+  def fileForIndex(file: File): File = {
+    new File(file.getParentFile(), filetype.filenameForNumber(numberOf(file)))
+  }
+  
 }
 
 /**
@@ -246,18 +284,20 @@ class FileManager(override val universe: Universe) extends UniversePart {
   def getDateFormatted = dateFormat.format(startDate)
 
   val volumes = new FileType[Volume]("volume_", false, ".zip", localC = false)
+  val volumeIndex = new IndexFileType(volumes)
   val hashlists = new FileType[Vector[(BAWrapper2, Array[Byte])]]("hashlists_", false, ".zip")
   val files = new FileType[Buffer[BackupPart]]("files_", true, ".zip", hasDateC = true)
   val backup = new FileType[BackupDescription]("backup_", true, ".zip", hasDateC = true)
   val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".zip", hasDateC = true)
-  val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
+  //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
   val par2ForVolumes = new FileType[Parity]("par_volume_", true, ".par2", localC = false, redundantC = true)
   val par2ForHashLists = new FileType[Parity]("par_hashlist_", true, ".par2", localC = false, redundantC = true)
   val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
   val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
 
-  private val types = List(volumes, hashlists, files, filesDelta, backup, index, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
+  private val types = List(volumes, volumeIndex, hashlists, files, filesDelta, 
+      backup, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
   def allFiles(temp: Boolean = true) = types.flatMap(ft => ft.getFiles()++(if(temp) ft.getTempFiles() else Nil))
   
@@ -278,9 +318,9 @@ class FileManager(override val universe: Universe) extends UniversePart {
 //  }
 
   def getLastBackup(temp: Boolean = false): List[File] = {
-    val out = backup.getFiles().sortBy(f => (backup.date(f), backup.num(f))).lastOption.toList
+    val out = backup.getFiles().sortBy(f => (backup.date(f), backup.numberOf(f))).lastOption.toList
     if (temp)
-      out ++ backup.getTempFiles().sortBy(backup.num)
+      out ++ backup.getTempFiles().sortBy(backup.numberOf)
     else
       out
   }

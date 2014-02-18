@@ -230,18 +230,18 @@ class AkkaCpuTaskHandler(universe: AkkaUniverse) extends SingleThreadCpuTaskHand
 
   setup(universe)
 
-  override def computeHash(content: Array[Byte], hashMethod: String, blockId: BlockId) {
+  override def computeHash(block: Block) {
     add1
     universe.hashers ! (() => {
-      super.computeHash(content, hashMethod, blockId)
+      super.computeHash(block)
       subtract1
     })
   }
 
-  override def compress(blockId: BlockId, hash: Array[Byte], content: Array[Byte], method: CompressionMode, disable: Boolean) {
+  override def compress(block: Block) {
     add1
     universe.compressors ! (() => {
-      super.compress(blockId, hash, content, method, disable)
+      super.compress(block)
       subtract1
     })
   }
@@ -328,18 +328,14 @@ class MyExecutorServiceFactory extends ExecutorServiceFactory {
 class AkkaHasher extends HashHandler with UniversePart with PureLifeCycle with AkkaUniversePart {
   var map: Map[String, HashHandler] = new HashMap()
 
-  override def setupInternal() {
-    println("Universe is set up and not null? "+universe)
-  }
-
-  def hash(blockId: BlockId, block: Array[Byte]) {
+  def hash(block: Block) {
     add1
-    val s = blockId.file.path
+    val s = block.id.file.path
     if (map.get(s).isEmpty) {
       val actor = uni.actorOf[HashHandler, AkkaSingleThreadHasher]("hasher for " + s, false)
       map += s -> actor
     }
-    map(s).hash(blockId, block)
+    map(s).hash(block)
   }
 
   def finish(fd: FileDescription) {
@@ -366,8 +362,8 @@ class AkkaHasher extends HashHandler with UniversePart with PureLifeCycle with A
 class AkkaEventBus extends SimpleEventBus with UniversePart
 
 class AkkaSingleThreadHasher extends SingleThreadHasher with AkkaUniversePart {
-  override def hash(blockId: BlockId, block: Array[Byte]) {
-    super.hash(blockId, block)
+  override def hash(block: Block) {
+    super.hash(block)
     subtract1
   }
 

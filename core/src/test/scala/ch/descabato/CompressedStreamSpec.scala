@@ -26,6 +26,7 @@ import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.ObjectPools
 import ch.descabato.utils.Streams
 import ch.descabato.utils.Utils
+import ch.descabato.core.Block
 
 class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll 
 	with GeneratorDrivenPropertyChecks with TestUtils {
@@ -43,12 +44,13 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   }
   
   forAll(minSize(0), maxSize(1000000), minSuccessful(50)) 
-  		{ (compressor: CompressionMode, toEncode: Array[Byte], disable: Boolean) => {
+  		{ (compressor: CompressionMode, toEncode: Array[Byte]) => {
     val baosOriginal = new ByteArrayOutputStream()
-    val wrapped = CompressedStream.wrapStream(baosOriginal, compressor, disable)
+    val wrapped = CompressedStream.wrapStream(baosOriginal, compressor)
     wrapped.write(toEncode)
     wrapped.close()
-    val (header, compressed) = CompressedStream.compress(toEncode, compressor, disable)
+    
+    val (header, compressed) = CompressedStream.compress(toEncode, compressor) 
     
     val encoded = baosOriginal.toByteArray(true)
     encoded(0) should be (header)

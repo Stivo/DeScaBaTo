@@ -62,7 +62,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     val cmdLine = new CommandLine("java");
     val libFolder = new File(packFolder, "lib")
     cmdLine.addArgument(s"-cp")
-    cmdLine.addArgument(s"libFolder/*")
+    cmdLine.addArgument(s"$libFolder/*")
     cmdLine.addArgument("ch.descabato.frontend.CLI")
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")

@@ -19,8 +19,8 @@ import net.jpountz.lz4.{LZ4Compressor, LZ4Factory, LZ4BlockOutputStream, LZ4Bloc
  */
 object CompressedStream extends Utils {
   
-  def compress(content: Array[Byte], compressor: CompressionMode, disableCompression: Boolean = false) : (Byte, ByteBuffer) = {
-    val write = if (disableCompression) 0 else compressor.getByte()
+  def compress(content: Array[Byte], compressor: CompressionMode) : (Byte, ByteBuffer) = {
+    val write = compressor.getByte()
     if (write == 0) {
       return (0, ByteBuffer.wrap(content))
     }
@@ -28,7 +28,6 @@ object CompressedStream extends Utils {
     val wrapped = getCompressor(write, baos, Some(content.length))
     wrapped.write(content)
     wrapped.close()
-    ObjectPools.byteArrayPool.recycle(content)
     val out = baos.toByteBuffer()
     (write.toByte, out)
   }
@@ -75,8 +74,8 @@ object CompressedStream extends Utils {
     }
   }
   
-  def wrapStream(out: OutputStream, compressor: CompressionMode, disableCompression: Boolean = false) = {
-    val write = if (disableCompression) 0 else compressor.getByte()
+  def wrapStream(out: OutputStream, compressor: CompressionMode) = {
+    val write = compressor.getByte()
     out.write(write)
     getCompressor(write, out)
   }

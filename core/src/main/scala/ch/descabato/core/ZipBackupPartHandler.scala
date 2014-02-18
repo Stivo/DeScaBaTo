@@ -121,11 +121,10 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
   // If file is complete, send hash list to the hashlist handler and mark
   // filedescription ready to be checkpointed
-  def hashComputed(blockId: BlockId, hash: Array[Byte], content: Array[Byte]) {
-    // TODO compressDisabled!
-    universe.blockHandler.writeBlockIfNotExists(blockId, hash, content, false)
-    byteCounter += content.length
-    getUnfinished(blockId.file).blockHashArrived(blockId, hash)
+  def hashComputed(block: Block) {
+    universe.blockHandler.writeBlockIfNotExists(block)
+    byteCounter += block.content.length
+    getUnfinished(block.id.file).blockHashArrived(block.id, block.hash)
   }
 
   def checkpoint(t: Option[(Set[BAWrapper2], Set[BAWrapper2])]) {

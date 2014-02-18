@@ -88,9 +88,13 @@ class ZipHashListHandler extends HashListHandler with Utils {
   }
 }
 
+// Index capability needs to be added
+@Deprecated
 class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHandler with UniversePart with Utils {
   override val folder = "hashlists/"
 
+  def indexFileType = ???
+    
   override val writeTempFiles = true
 
   def filetype = fileManager.hashlists
@@ -150,7 +154,7 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
   override def endZipFile() {
     if (currentWriter != null) {
       val file = currentWriter.file
-      val num = filetype.num(file)
+      val num = filetype.numberOf(file)
       super.endZipFile()
       l.info("Wrote hashlist "+num)
     }

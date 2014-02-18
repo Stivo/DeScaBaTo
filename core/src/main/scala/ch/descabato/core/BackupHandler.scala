@@ -174,9 +174,12 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       var i = 0
       val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, {
         block: Array[Byte] =>
+          
           val bid = new BlockId(fileDesc, i)
-          universe.cpuTaskHandler.computeHash(block, config.hashAlgorithm, bid)
-          universe.hashHandler.hash(bid, block)
+          val wrapper = new Block(bid, block)
+          val wrapper2 = new Block(bid, block)
+          universe.cpuTaskHandler.computeHash(wrapper)
+          universe.hashHandler.hash(wrapper2)
           byteCounter += block.length
           counters.get += block.length
           waitForQueues()
