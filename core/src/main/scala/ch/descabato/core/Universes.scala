@@ -48,7 +48,7 @@ trait UniversePart extends AnyRef with PostRestart {
   protected def setupInternal() {}
 }
 
-class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe with PureLifeCycle {
+class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe with PureLifeCycle with Utils {
   def make[T <: UniversePart](x: T) = {x.setup(this); x}
   val journalHandler = make(new SimpleJournalHandler())
   val backupPartHandler = make(new ZipBackupPartHandler())
@@ -66,7 +66,14 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
 
   override def shutdown() = {
     journalHandler.finish()
-    shutdownOrder.foreach { _.shutdown() }
+    shutdownOrder.foreach { h =>
+      try {
+        h.shutdown()
+      } catch {
+        case e: Exception => "exception while shutting down"
+          logException(e)
+      }
+    }
     ret
   }
 }

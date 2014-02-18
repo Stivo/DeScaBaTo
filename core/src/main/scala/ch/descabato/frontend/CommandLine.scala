@@ -237,7 +237,7 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
   val volumeSize = opt[Size](default = Some(Size("100Mb")))
   val threads = opt[Int](default = Some(2))
   val noScriptCreation = opt[Boolean](default = Some(false))
-  val checkpointEvery = opt[Size](default = Some(Size("100Mb")))
+//  val checkpointEvery = opt[Size](default = Some(Size("100Mb")))
 //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks = opt[Boolean](default = Some(false))
   val compression = opt[CompressionMode]()
@@ -278,7 +278,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   val suffix = if (Utils.isWindows) ".bat" else ""
 
   def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]) = {
-    val path = new File(s"descabato$suffix").getCanonicalPath()
+    val path = new File(s"${conf.prefix}descabato$suffix").getCanonicalPath()
     val line = s"$path "+args.mkString(" ")
     def writeTo(bat: File) {
       if (!bat.exists) {

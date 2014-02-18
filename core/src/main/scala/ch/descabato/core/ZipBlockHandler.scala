@@ -28,6 +28,9 @@ import ch.descabato.frontend.ProgressReporters
  */
 class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with UniversePart {
   override def folder = "blocks/"
+    
+  lazy val indexFileType = fileManager.volumeIndex
+  
   private val byteCounter = new MaxValueCounter() {
     var compressedBytes = 0
     def name: String = "Blocks written"
@@ -152,19 +155,10 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     outstandingRequests.size
   }
 
-  //  class IndexWriter(x: File) {
-  //    lazy val zipWriter = ZipFileHandlerFactory.writer(x, config)
-  //    lazy val bos = zipWriter.newOutputStream("index")
-  //    def close() {
-  //      bos.close()
-  //      zipWriter.close
-  //    }
-  //  }
-
   override def endZipFile() {
     if (currentWriter != null) {
       val file = currentWriter.file
-      val num = filetype.num(file)
+      val num = filetype.numberOf(file)
       super.endZipFile()
       l.info("Finished volume " + num)
       universe.eventBus().publish(VolumeFinished(file, inBackupIndex.keySet))
