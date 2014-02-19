@@ -108,7 +108,7 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     block.mode = config.compressor
     outstandingRequests += ((hash, block.content.length))
 //    universe.eventBus().publish(Add1CpuTask)
-    universe.cpuTaskHandler.compress(block)
+    universe.compressionDecider().compressBlock(block)
     //    }
   }
 

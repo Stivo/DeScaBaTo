@@ -56,11 +56,13 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
   val blockHandler = make(new ZipBlockHandler())
   val hashHandler = make(new SingleThreadHasher())
+  val compressionDecider = make(new SmartCompressionDecider())
   lazy val eventBus = new SimpleEventBus[BackupEvent]()
 
   load()
 
   override def finish() = {
+    compressionDecider.report()
     finishOrder.map (_.finish).reduce(_ && _)
   }
 
@@ -89,13 +91,17 @@ class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
   def compress(block: Block) {
     val startAt = TimingUtil.getCpuTime
     val (header, compressed) = CompressedStream.compress(block.content, block.mode)
-	block.header = header
-	block.compressed = compressed
+	  block.header = header
+	  block.compressed = compressed
     val duration = TimingUtil.getCpuTime - startAt
-    val name = Utils.encodeBase64Url(block.hash)
-    val entry = ZipFileHandlerFactory.createZipEntry("blocks/"+name, header, compressed)
 //    universe.compressionStatistics().
 //    	blockStatistics(blockId, compressed.remaining(), content.size, method, duration)
+    universe.compressionDecider.blockCompressed(block, duration)
+  }
+  
+  def makeZipEntry(block: Block) {
+    val name = Utils.encodeBase64Url(block.hash)
+    val entry = ZipFileHandlerFactory.createZipEntry("blocks/"+name, block.header, block.compressed)
     universe.blockHandler.writeCompressedBlock(block, entry)
   }
 

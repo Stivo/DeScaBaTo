@@ -25,13 +25,6 @@ libraryDependencies ++= Seq(
 //		"commons-net" % "commons-net" % "3.3"
 )
 
-// Test dependencies
-libraryDependencies ++= Seq(
-		"org.apache.ftpserver" % "ftpserver-core" % "1.0.6" % "test",
-		"org.scalatest" %% "scalatest" % "2.0" % "test",
-		"org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
-)
-
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
 // Dependencies for the otros vfs browser

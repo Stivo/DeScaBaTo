@@ -32,7 +32,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   var system = ActorSystem("Descabato-"+Counter.i)
   Counter.i += 1
 
-  val queueLimit = 100
+  val queueLimit = 50
 
   val dispatcher = "backup-dispatcher"
 
@@ -103,6 +103,8 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
   val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
+  lazy val compressionDecider = actorOf[CompressionDecider, SmartCompressionDecider]("Compression Decider")
+
   // TODO compressionStatistics
   //override lazy val compressionStatistics = Some(actorOf[CompressionStatistics, SimpleCompressionStatistics]("Statistics", false))
 
@@ -129,7 +131,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       }
       count = 0
       count += cpuTaskCounter.get
-      count += List(hashHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler)
+      count += List(hashHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
                 .map(queueLength).sum
       count += blockHandler.remaining + hashHandler.remaining() + backupPartHandler.remaining()
       l.info(s"$count open items in all queues")
@@ -202,6 +204,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     checkQueue(hashHandler, "hash handler")
     checkQueue(eventBus, "event bus")
     checkQueue(blockHandler, "writer")
+    checkQueue(compressionDecider, "compression decider")
     //if (blockHandler.remaining > queueLimit*2)
     //l.info(s"Waiting for compressors to catch up ${blockHandler.remaining}")
 //    while (blockHandler.remaining > queueLimit * 2) {

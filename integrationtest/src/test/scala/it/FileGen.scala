@@ -168,9 +168,10 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
   }
 
   def newFile(maxSize: Int = 100000) {
+    val isTextFile = random.nextInt(100) < 95
     var done = false
     while (!done) {
-      val name = new File(selectFolder, generateName)
+      val name = new File(selectFolder, generateName+ (if (isTextFile) ".txt" else ".z7"))
       if (name.exists()) {
         if (!fileList.contains(name))
           fileList += name
@@ -183,8 +184,17 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
           val buf = Array.ofDim[Byte](random.nextInt(maxSize) + maxSize / 10)
           var chance = 1.0
           while (random.nextFloat < chance) {
-            random.nextBytes(buf)
-            fos.write(buf)
+            if (isTextFile) {
+              val pattern = random.alphanumeric.take(123).toString.getBytes
+              var written = 0
+              while (written < buf.length) {
+                fos.write(pattern)
+                written += pattern.length
+              }
+            } else {
+              random.nextBytes(buf)
+              fos.write(buf)
+            }
             chance = chance / 1.5
           }
         }

@@ -57,7 +57,7 @@ trait Universe extends LifeCycle {
   def redundancyHandler(): RedundancyHandler = {
       new NoOpRedundancyHandler()
   }
-  def compressionStatistics(): Option[CompressionStatistics] = None
+  def compressionDecider(): CompressionDecider
 
   lazy val startUpOrder: List[LifeCycle] = List(journalHandler(), eventBus, cpuTaskHandler, 
       hashHandler, blockHandler, hashListHandler, backupPartHandler)
@@ -74,7 +74,7 @@ trait Universe extends LifeCycle {
   def waitForQueues() {}
   def finish(): Boolean
   def shutdown() = {
-    compressionStatistics().foreach{ _.report }
+    compressionDecider().report
     ret
   }
 }
@@ -135,8 +135,9 @@ class NoOpRedundancyHandler extends RedundancyHandler with PureLifeCycle {
   def md5HashForFile(file: File): Option[Array[Byte]] = None
 }
 
-trait CompressionStatistics extends UniversePart {
-  def blockStatistics(block: BlockId, compressedSize: Long, uncompressedSize: Long, method: CompressionMode, time: Long)
+trait CompressionDecider extends UniversePart {
+  def compressBlock(block: Block)
+  def blockCompressed(block: Block, nanoTime: Long)
   def report()
 }
 
@@ -176,9 +177,11 @@ trait BlockHandler extends BackupActor with UniversePart with CanVerify {
 
 trait CpuTaskHandler extends PureLifeCycle {
   // calls then hashComputed on metadatawriter
-  def computeHash(blockWrapper: Block)
+  def computeHash(block: Block)
+  // Calls then compressionDecider#compressedBlock
+  def compress(block: Block)
   // Calls then blockhandler#writeBlockIfNotExists
-  def compress(blockWrapper: Block)
+  def makeZipEntry(block: Block)
 }
 
 trait HashHandler extends LifeCycle with UniversePart {
