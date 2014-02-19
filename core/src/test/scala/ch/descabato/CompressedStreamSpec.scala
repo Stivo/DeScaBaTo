@@ -37,7 +37,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   
   var folder = new File("testdata/temp")
   
-  implicit val x = Arbitrary {oneOf(CompressionMode.values)}
+  implicit val x = Arbitrary {oneOf(CompressionMode.values.filter(_.isCompressionAlgorithm))}
       
   class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, "", passphrase) {
     override def toString = s"Compression mode is $compressor, keylength is $keyLength, passphrase is $passphrase"
