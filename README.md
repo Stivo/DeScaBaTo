@@ -44,7 +44,7 @@ Once a backup is executed, a batch file will be created to restart this backup. 
     -l, --logfile  <arg>
     -g, --no-gui
         --no-script-creation
-    -n, --noansi
+    -n, --no-ansi
     -p, --passphrase  <arg>                              *
         --prefix  <arg>             (default = )         *
     -s, --serializer-type  <arg>
@@ -59,7 +59,7 @@ These options apply to backup only. The options with a star in the end can only 
     -c, --choose-date
     -l, --logfile  <arg>
     -g, --no-gui
-    -n, --noansi
+    -n, --no-ansi
     -p, --passphrase  <arg>
         --prefix  <arg>               (default = )
         --restore-to-folder  <arg>

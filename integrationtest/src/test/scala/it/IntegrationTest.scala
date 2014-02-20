@@ -67,7 +67,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(currentTestName + ".log")
-    cmdLine.addArgument("--noansi")
+    cmdLine.addArgument("--no-ansi")
     cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
@@ -80,7 +80,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(currentTestName + ".log")
-    cmdLine.addArgument("--noansi")
+    cmdLine.addArgument("--no-ansi")
     cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
