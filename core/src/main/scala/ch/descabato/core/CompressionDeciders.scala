@@ -75,7 +75,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
 
   val algos = CompressionMode.values.filter(_.isCompressionAlgorithm()).sortBy(_.getByte)
   
-  val speeds = algos.map(_ => mutable.Buffer[Long]()).toArray
+  val speeds = algos.map(x => mutable.Buffer[Long](x.getEstimatedTime)).toArray
 
   val statistics = algos.map(x => 0)
 

@@ -111,7 +111,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
   "plain backup" should "work" in {
-    testWith(" --threads 1", "", 5, "300Mb")
+    testWith(" --threads 1", "", 5, "100Mb")
   }
 
   "encrypted backup" should "work" in {

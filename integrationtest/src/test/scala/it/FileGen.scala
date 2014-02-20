@@ -35,13 +35,14 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     folderList += folder
     times(25) { newFolder() }
     var bigFiles = 4
-    newFile(maxSizeIn.toInt / 2)
+    newFile(maxSizeIn.toInt / 2, true)
+    newFile(maxSizeIn.toInt / 10, true)
     val copyFrom1 = fileList.last
-    newFile(maxSizeIn.toInt / 10)
     while (fileList.size < minFiles || fileList.map(_.length).sum < maxSizeIn) {
       newFile(1000000)
     }
     times(10)(newFile(0))
+    times(5)(newFile(102400, true))
     Files.copy(copyFrom1.toPath, new File(folder, "copy1").toPath)
     def selectSmallFile() = {
       var file = selectFile
@@ -167,11 +168,11 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     ""
   }
 
-  def newFile(maxSize: Int = 100000) {
-    val isTextFile = random.nextInt(100) < 95
+  def newFile(maxSize: Int = 100000, sizeExact: Boolean = false) {
+    val isTextFile = random.nextInt(100) < 75
     var done = false
     while (!done) {
-      val name = new File(selectFolder, generateName+ (if (isTextFile) ".txt" else ".z7"))
+      val name = new File(selectFolder, generateName+ (if (isTextFile) ".txt" else ".7z"))
       if (name.exists()) {
         if (!fileList.contains(name))
           fileList += name
@@ -181,21 +182,30 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
       try {
         fos = new FileOutputStream(name)
         if (maxSize > 0) {
-          val buf = Array.ofDim[Byte](random.nextInt(maxSize) + maxSize / 10)
+          var written = 0
           var chance = 1.0
-          while (random.nextFloat < chance) {
-            if (isTextFile) {
-              val pattern = random.alphanumeric.take(123).toString.getBytes
-              var written = 0
-              while (written < buf.length) {
-                fos.write(pattern)
-                written += pattern.length
-              }
-            } else {
-              random.nextBytes(buf)
-              fos.write(buf)
+          lazy val pattern = (0 to 122).map(_ => random.nextPrintableChar().toByte).toArray
+          lazy val buf = Array.ofDim[Byte](random.nextInt(maxSize) + maxSize / 10)
+          def continue() = {
+            (written, maxSize, sizeExact) match {
+              case (w, m, true) if (w < m) => m - w
+              case (w, m, false) if (random.nextFloat() < chance) => chance = chance / 1.5; buf.length
+              case _ => 0
             }
-            chance = chance / 1.5
+          }
+          var writeBytes = continue()
+          while (writeBytes > 0) {
+            if (isTextFile) {
+                val write = Math.min(writeBytes, pattern.length)
+                fos.write(pattern, 0, write)
+                written += pattern.length
+            } else {
+              val write = Math.min(writeBytes, buf.length)
+              random.nextBytes(buf)
+              fos.write(buf, 0, write)
+              written += buf.length
+            }
+            writeBytes = continue()
           }
         }
         fos.close()
