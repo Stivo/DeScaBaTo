@@ -1,6 +1,6 @@
 DeScaBaTo
 =========
-(View this file online at TODO for prettier formatting)
+(View this file online at https://github.com/Stivo/DeScaBaTo/tree/master/releases/0.3.0 for prettier formatting)
 
 The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups. This is the third release, and seems to work fine, but no warranty is given. Test it first before using it extensively.
 
@@ -10,8 +10,9 @@ As of now, it has these features:
 - A deduplicating storage mechanism. Parts of a file that are the same are only saved once. 
 - Supports compression (gzip, lzma, bzip2, snappy) and encryption based on TrueVFS
 - Command line interface
-- Multithreaded backup possible (set --threads 4 on command line)
+- Multithreaded backup possible
 - Journal for reliable crash recovery (as tested on continous integration)
+- Smart choosing of compression algorithm for each file extension
 
 Compared to duplicati:
 
@@ -19,7 +20,8 @@ Compared to duplicati:
 - Both do deduplication in the same way
 - DeScaBaTo is faster, especially when multi-threaded
 - By using md5 for hashing as default there is less space required for metadata
-- The design is simpler (no database to keep synchronized), and should be more robust
+- The design is simpler (no database to keep synchronized), and should be more robust. DeScaBaTo only writes to the target folder
+- Duplicati has a gui, supports remote backups and more, DeScaBaTo does not yet have those features
 
 ### Installation
 
@@ -32,6 +34,7 @@ General:
 - RAM usage may be high. I think at least 300MB for each Terabyte of data backed up. This will be improved in the future.
 - No scheduling features
 - No remote backups
+- No GUI for configuring & running jobs
 - No compaction implemented. All versions will be kept. This will be changed later.
 
 Linux:

@@ -118,6 +118,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     l.info("Unchanged files: " + statistics(unchangedDesc))
     l.info("Deleted files  : " + statistics(deletedDesc))
     if ((newDesc.size + deletedDesc.size) == 0) {
+      ProgressReporters.activeCounters = Nil
       l.info("No files have been changed, aborting backup")
       return
     }
@@ -125,8 +126,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     backupPartHandler.setFiles(allFiles)
 
     // Backup files 
-    setMaximums(newDesc)
-    ProgressReporters.activeCounters = List(fileCounter, byteCounter)
+    setMaximums(newDesc, true)
+    ProgressReporters.activeCounters = List(fileCounter, byteCounter, failureCounter)
     universe.blockHandler.setTotalSize(byteCounter.maxValue)
 
     val coll = if (true) newDesc.files
@@ -141,6 +142,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
 
     val (success, failed) = coll.partition(backupFileDesc)
     universe.finish()
+    ProgressReporters.activeCounters = Nil
     l.info("Successfully backed up " + success.size + ", failed " + failed.size)
     // Clean up, handle failed entries
     l.info("Backup completed in " + measuredTime())
@@ -152,7 +154,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     counters.get.maxValue = fileDesc.size
     counters.get.current = 0
     counters.get.filename = fileDesc.name
-    ProgressReporters.activeCounters = List(fileCounter, byteCounter, counters.get)
+    ProgressReporters.activeCounters = List(fileCounter, byteCounter, failureCounter, counters.get)
     var fis: FileInputStream = null
     var success = false
     try {
@@ -174,7 +176,6 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       var i = 0
       val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, {
         block: Array[Byte] =>
-          
           val bid = new BlockId(fileDesc, i)
           val wrapper = new Block(bid, block)
           val wrapper2 = new Block(bid, block)
@@ -210,7 +211,9 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
         fis.close()
       if (!success) {
         l.info("File was not successfully backed up "+fileDesc)
+        failureCounter += 1
         universe.hashHandler().fileFailed(fileDesc)
+        universe.backupPartHandler().fileFailed(fileDesc)
       }
     }
   }
@@ -305,12 +308,14 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     val filtered = description // TODO if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
     l.info("Going to restore " + statistics(filtered))
     setMaximums(filtered)
+    ProgressReporters.activeCounters = List(fileCounter, byteCounter)
 
     description.folders.foreach(restoreFolderDesc(_))
     description.files.foreach(restoreFileDesc)
     description.symlinks.foreach(restoreLink)
     description.folders.foreach(restoreFolderDesc(_, false))
     universe.finish()
+    ProgressReporters.activeCounters = Nil
     println("Finished restoring "+measuredTime())
   }
 
@@ -478,6 +483,7 @@ class VerifyHandler(val universe: Universe)
   }
 
   def verifySomeFiles(percent: Int) {
+    ProgressReporters.activeCounters = List(fileCounter, byteCounter)
     val files = backupDesc.files.toArray
     var probes = ((percent * 1.0 / 100.0) * files.size).toInt + 1
     if (probes > files.size)
@@ -485,19 +491,20 @@ class VerifyHandler(val universe: Universe)
     if (probes <= 0)
       return
     val tests = getRandomXElements(probes, files)
-    setMaximums(tests)
+    setMaximums(tests, true)
     tests.foreach { file =>
       val in = getInputStream(file)
       val hos = new HashingOutputStream(config.hashAlgorithm)
-      copy(in, hos)
+      def p(x: Int) { byteCounter += x }
+      copy(in, hos, Some(p))
       if (!util.Arrays.equals(file.hash, hos.out.get)) {
         l.warn("File " + file + " is broken in backup")
         l.warn(Utils.encodeBase64Url(file.hash) + " " + Utils.encodeBase64Url(hos.out.get))
         problemCounter += 1
       }
-      byteCounter += file.size
       fileCounter += 1
     }
+    ProgressReporters.activeCounters = Nil
   }
 
 }

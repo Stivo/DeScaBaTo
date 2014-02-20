@@ -49,7 +49,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
     def setFailed() {
       failed = true
-      failedObjects += fd 
+      failedObjects += fd
       ObjectPools.byteArrayPool.recycle(hashList)
       hashList = null
       unfinished -= fd.path
@@ -152,7 +152,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     }
   }
 
-  def remaining(): Int = unfinished.size
+  def remaining(): Int = unfinished.filter(!_._2.failed).size
 
 //  var logMoreInfos = false
 

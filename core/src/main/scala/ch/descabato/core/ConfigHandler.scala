@@ -27,6 +27,7 @@ object InitBackupFolderConfiguration extends Utils {
 //        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
 //        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
 //        o.metadataRedundancy.foreach(out.metadataRedundancy = _)
+        o.createIndexes.foreach(b => out.createIndexes = b)
         o.dontSaveSymlinks.foreach(b => out.saveSymlinks = !b)
         o.compression.foreach(x => out.compressor = x)
       case _ =>
@@ -56,6 +57,10 @@ object InitBackupFolderConfiguration extends Utils {
         }
         if (o.threads.isSupplied) {
           o.threads.foreach(old.threads = _)
+          changed = true
+        }
+        if (o.createIndexes.isSupplied) {
+          o.createIndexes.foreach(old.createIndexes = _)
           changed = true
         }
 //        if (o.checkpointEvery.isSupplied) {

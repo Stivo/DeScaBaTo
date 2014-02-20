@@ -23,5 +23,8 @@ Version 0.2.0 (27.01.2014):
 Version 0.3.0 (16.02.2014):
 - Fully multithreaded backup with run-time configurable number of threads (single threaded version via command line switch)
 - New checkpointing mechanism with a journal for reliable crash recovery
-- A GUI to show progress
+- A GUI to show progress (--no-gui to suppress)
 - Lots of bugfixes
+- Smart compression mode: Creates statistics for each file extension and chooses the best algorithm based on that
+- Removed par2 creation for now
+- Removed a few command line options (checkpoint-every, redundancy stuff etc)

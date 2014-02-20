@@ -259,11 +259,15 @@ object ConsoleManager extends ProgressReporting with Utils {
   def startConsoleUpdater() {
     if (AnsiUtil.deleteLinesEnabled) {
       timer.schedule(new RepeatingWithTimeDelayTask({
-        ephemeralMessage(updateConsoleStatus())
+        val status = updateConsoleStatus(false)
+        if (status != "")
+          ephemeralMessage(status)
       }, 100), 1000)
     }
     timer.schedule(new RepeatingWithTimeDelayTask({
-      l.info(updateConsoleStatus(true))
+      val status = updateConsoleStatus(true)
+      if (status != "")
+        l.info(status)
     }, 10000), 1000)
   }
 

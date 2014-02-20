@@ -233,7 +233,7 @@ trait IndexedKeyValueStorage[K, V] extends ZipKeyValueStorage[K, V] {
         }
         val indexNums = indexes.map(indexFileType.numberOf).toSet
         val volumeNums = filetype.getFiles().map(filetype.numberOf).toSet
-        val volumesWithoutIndexes = indexNums -- volumeNums
+        val volumesWithoutIndexes = volumeNums -- indexNums
         super.load(volumesWithoutIndexes.flatMap(filetype.fileForNumber(_, false)))
         _loaded = true
       } else {

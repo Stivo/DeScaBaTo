@@ -56,7 +56,10 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
   val blockHandler = make(new ZipBlockHandler())
   val hashHandler = make(new SingleThreadHasher())
-  val compressionDecider = make(new SmartCompressionDecider())
+  val compressionDecider = make(config.compressor match {
+    case x if x.isCompressionAlgorithm => new SimpleCompressionDecider()
+    case smart => new SmartCompressionDecider()
+  })
   lazy val eventBus = new SimpleEventBus[BackupEvent]()
 
   load()

@@ -36,7 +36,8 @@ libraryDependencies ++= Seq(
 // Logging
 libraryDependencies ++= Seq(
 		"ch.qos.logback" % "logback-classic" % "1.0.13",
-		"com.typesafe" % "scalalogging-slf4j_2.10" % "1.0.1"
+		"com.typesafe" % "scalalogging-slf4j_2.10" % "1.1.0",
+    "org.scala-lang" % "scala-reflect" % Common.scalaVersion
 )
 
 // Jackson / persistence
@@ -65,7 +66,7 @@ testOptions in Test += Tests.Argument("-oF")
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
-libraryDependencies += "com.nativelibs4java" % "bridj" % "0.6.2"
+libraryDependencies += "com.nativelibs4java" % "bridj" % "0.6.2" exclude("com.google.android.tools", "dx")
 
 libraryDependencies += "com.miglayout" % "miglayout-swing" % "4.2"
 

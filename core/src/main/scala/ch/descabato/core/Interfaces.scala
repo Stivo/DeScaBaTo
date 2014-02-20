@@ -104,7 +104,7 @@ class Block(val id: BlockId, val content: Array[Byte]) {
   @volatile var compressed: ByteBuffer = null
   @volatile var header: Byte = -1
   def recycle() {
-    if (compressed != null)
+    if (compressed != null && compressed.array() != content)
       compressed.recycle()
     ObjectPools.byteArrayPool.recycle(content)
   }
@@ -150,7 +150,10 @@ trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BAWrapper2],
   
   // sets the hash for this file
   def hashForFile(fd: FileDescription, hash: Array[Byte])
-  
+
+  // Sets this file as failed
+  def fileFailed(fd: FileDescription)
+
   // If file is complete, send hash list to the hashlist handler and mark
   // filedescription ready to be checkpointed
   def hashComputed(blockWrapper: Block)

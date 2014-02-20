@@ -129,10 +129,12 @@ object Streams extends Utils {
     }
   }
 
-  def copy(in: InputStream, out: OutputStream) {
+  def copy(in: InputStream, out: OutputStream, progress: Option[Int => Unit] = None) {
     try {
       readFrom(in, { (x: Array[Byte], len: Int) =>
         out.write(x, 0, len)
+        for (p <- progress)
+          p(len)
       })
     } finally {
       in.close()

@@ -141,9 +141,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
             statistics(winnerBackup.getByte) -= 1
           val ratiosAndNames = algos.zip(medians).sortBy(_._2).mkString(", ")
           val speedsAndNames = algos.zip(speeds.map(_.median(config.blockSize.bytes * 10))).sortBy(_._2).mkString(", ")
-          l.info( s"""Sampling for $ext is done and winner is $winner with ${ratioSamples(winner.getByte).median(100)},
-ratios are $ratiosAndNames,
-speeds are $speedsAndNames""")
+          l.info( s"""Sampling for $ext is done and winner is $winner with ${ratioSamples(winner.getByte).median(100)}""")
         }
       }
     }
@@ -229,7 +227,7 @@ speeds are $speedsAndNames""")
     
   def report() {
     if (statistics.sum > 0) {
-      val stats = algos.zip(statistics).mkString("\n")
+      val stats = algos.zip(statistics).filter(_._2 > 0).mkString("\n")
       l.info(s"All algorithms with how often they were chosen:\n$stats")
     }
   }

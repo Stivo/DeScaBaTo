@@ -28,7 +28,9 @@ import ch.descabato.frontend.ProgressReporters
  */
 class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with UniversePart {
   override def folder = "blocks/"
-    
+
+  override def useIndexFiles = config.createIndexes
+
   lazy val indexFileType = fileManager.volumeIndex
   
   private val byteCounter = new MaxValueCounter() {
@@ -61,6 +63,7 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
   // TODO add in interface?
   def verify(problemCounter: ProblemCounter) = {
     // TODO implement
+    // If indexes are used, make sure that they are synced
     // TODO check if key is in two volumes. Should be done in superclass
     true
   }
@@ -100,20 +103,12 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
       byteCounter.maxValue -= block.content.length
       return
     }
-    // TODO
-    //    if (compressDisabled || config.compressor == CompressionMode.none) {
-    //      val content = ByteBuffer.wrap(block)
-    //      writeCompressedBlock(hash, ZipFileHandlerFactory.createZipEntry(.0, ByteBuffer.wrap(block))
-    //    } else {
     block.mode = config.compressor
     outstandingRequests += ((hash, block.content.length))
-//    universe.eventBus().publish(Add1CpuTask)
     universe.compressionDecider().compressBlock(block)
-    //    }
   }
 
   def writeCompressedBlock(block: Block, zipEntry: ZipEntry) {
-//    universe.eventBus().publish(Subtract1CpuTask)
     if (currentWriter != null && currentWriter.size + block.compressed.remaining() + zipEntry.getName().length > volumeSize.bytes) {
       endZipFile()
     }

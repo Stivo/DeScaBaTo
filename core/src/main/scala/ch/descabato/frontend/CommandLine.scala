@@ -17,6 +17,7 @@ import ch.descabato.core.MisconfigurationException
 import ch.descabato.core.BackupCorruptedException
 import ch.descabato.core.BackupFolderConfiguration
 import ch.descabato.akka.AkkaUniverse
+import java.lang.reflect.InvocationTargetException
 
 object CLI extends Utils {
 
@@ -50,7 +51,8 @@ object CLI extends Utils {
   }
 
   def main(args: Array[String]) {
-    System.setProperty("logname", "backup.log")
+    if (System.getProperty("logname") == null)
+      System.setProperty("logname", "backup.log")
     try {
       if (runsInJar) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
@@ -59,14 +61,14 @@ object CLI extends Utils {
       } else {
         //Thread.sleep(10000)
         try {
-          FileUtils.deleteAll(new File("f:/desca8"))
+//          FileUtils.deleteAll(new File("f:/desca8"))
         } catch {
           case x: Exception =>
         }
         //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-512 --compression gzip --volume-size 50mb f:/desca8 d:/pics/tosort/bilder".split(" "))
         // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
         //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
-        parseCommandLine("backup --threads 5 --serializer-type json --hash-algorithm sha-256 --compression smart --volume-size 10mb F:/desca8 f:/tmp".split(" "))
+        parseCommandLine("backup --create-indexes --threads 1 --serializer-type json --hash-algorithm sha-256 --compression smart --volume-size 10mb F:/desca8 f:/tmp".split(" "))
 //        parseCommandLine("verify --percent-of-files-to-check 100 F:\\desca8".split(" "))
 //        parseCommandLine("restore --restore-to-folder F:/restore f:/desca8".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
@@ -74,6 +76,7 @@ object CLI extends Utils {
         //              parseCommandLine("restore --help".split(" "))
         //              parseCommandLine("browse -p asdf backups".split(" "))
         //        parseCommandLine("restore --passphrase mypasshere --restore-to-folder restore --relative-to-folder . backups".split(" "))
+        exit(0)
       }
     } catch {
       case e@PasswordWrongException(m, cause) =>
@@ -157,6 +160,7 @@ class ReflectionCommand(override val name: String, clas: String) extends Command
       clazz.getMethod("execute", classOf[Seq[String]]).invoke(instance, args)
     } catch {
       case e: ReflectiveOperationException if e.getCause().isInstanceOf[BackupException] => throw e.getCause
+      case e: InvocationTargetException if e.getCause() != null => throw e.getCause
     }
   }
 
@@ -240,7 +244,8 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
 //  val checkpointEvery = opt[Size](default = Some(Size("100Mb")))
 //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks = opt[Boolean](default = Some(false))
-  val compression = opt[CompressionMode]()
+  val compression = opt[CompressionMode](default = Some(CompressionMode.smart))
+  val createIndexes = opt[Boolean](default = Some(false))
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
@@ -278,8 +283,12 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   val suffix = if (Utils.isWindows) ".bat" else ""
 
   def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]) = {
-    val path = new File(s"${conf.prefix}descabato$suffix").getCanonicalPath()
-    val line = s"$path "+args.mkString(" ")
+    var path = new File(s"${conf.prefix}descabato$suffix").getCanonicalFile
+    // TODO the directory should be determined by looking at the classpath
+    if (!path.exists) {
+      path = new File(path.getParent() + "/bin", path.getName)
+    }
+    val line = s"$path backup "+args.mkString(" ")
     def writeTo(bat: File) {
       if (!bat.exists) {
         val ps = new PrintStream(new Streams.UnclosedFileOutputStream(bat))
@@ -393,7 +402,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   val chooseDate = opt[Boolean]()
   val restoreToFolder = opt[String]()
   //  val overwriteExisting = toggle(default = Some(false))
-  val pattern = opt[String]()
+//  val pattern = opt[String]()
   mutuallyExclusive(restoreToOriginalPath, restoreToFolder)
 }
 

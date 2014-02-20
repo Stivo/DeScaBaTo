@@ -103,10 +103,10 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
   val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
-  lazy val compressionDecider = actorOf[CompressionDecider, SmartCompressionDecider]("Compression Decider")
-
-  // TODO compressionStatistics
-  //override lazy val compressionStatistics = Some(actorOf[CompressionStatistics, SimpleCompressionStatistics]("Statistics", false))
+  lazy val compressionDecider = config.compressor match {
+    case x if x.isCompressionAlgorithm => actorOf[CompressionDecider, SimpleCompressionDecider]("Compression Decider")
+    case smart => actorOf[CompressionDecider, SmartCompressionDecider]("Compression Decider")
+  }
 
   def load() {
     startUpOrder.foreach { a =>

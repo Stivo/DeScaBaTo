@@ -38,14 +38,14 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
     case "bson" => new BsonSerialization
   }
   var keyLength = 128
-  var compressor = CompressionMode.gzip
+  var compressor = CompressionMode.smart
   def hashLength = getMessageDigest().getDigestLength()
   var hashAlgorithm = "MD5"
   @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
   var blockSize: Size = Size("16Kb")
   var volumeSize: Size = Size("100Mb")
   var threads: Int = 1
-  var checkPointEvery: Size = volumeSize
+//  var checkPointEvery: Size = volumeSize
   val useDeltas = false
   var hasPassword = passphrase.isDefined
   var renameDetection = true
@@ -53,6 +53,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var metadataRedundancy: Int = 20
   var volumeRedundancy: Int = 5
   var saveSymlinks: Boolean = true
+  var createIndexes: Boolean = false
   @JsonIgnore def raes = if (hasPassword) ".raes" else ""
 }
 
