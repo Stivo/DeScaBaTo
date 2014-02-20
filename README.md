@@ -12,6 +12,7 @@ As of now, it has these features:
 - Command line interface
 - Fully multithreaded backup process
 - GUI to show progress and to control number of threads
+- A [journal](https://github.com/Stivo/DeScaBaTo/wiki/Crash-Resistance-(Journal)) to account for arbitrary crashes while backing up
 - The large files with the actual file contents are not needed for an incremental backup and can be saved separately (on an external volume or on a cloud provider)
 
 Compared to duplicati:
