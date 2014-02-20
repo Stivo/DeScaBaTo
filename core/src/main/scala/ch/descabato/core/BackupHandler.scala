@@ -348,8 +348,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
       if (Files.exists(path.toPath(), LinkOption.NOFOLLOW_LINKS))
         return
       val linkTarget = makePath(link.linkTarget, true)
-      println("Creating link from " + path + " to " + linkTarget)
-      // TODO if link links into backup, path should be updated
+      //println("Creating link from " + path + " to " + linkTarget)
       Files.createSymbolicLink(path.toPath(), linkTarget.getCanonicalFile().toPath())
       link.applyAttrsTo(path)
     } catch {

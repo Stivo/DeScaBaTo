@@ -155,6 +155,7 @@ object FileAttributes extends Utils {
           Files.setAttribute(file.toPath(), name, s, LinkOption.NOFOLLOW_LINKS)
         }
       } catch {
+        case e: IOException if Files.isSymbolicLink(path) => // Ignore, seems normal on linux
         case e: IOException => l.warn("Failed to restore attribute " + k + " for file " + file)
       }
     }

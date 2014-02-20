@@ -10,6 +10,7 @@ import java.nio.file.Path
 import ch.descabato.FileVisitorHelper
 import ch.descabato.frontend.ProgressReporters
 import ch.descabato.frontend.Counter
+import java.nio.file.LinkOption
 
 class OldIndexVisitor(var oldMap: Map[String, BackupPart],
   recordNew: Boolean = false, recordAll: Boolean = false, recordUnchanged: Boolean = false,
@@ -28,9 +29,9 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart],
     lazy val desc = f
     var wasadded = false
     val (mapNew, old) = if (Files.isSymbolicLink(dir))
-      BackupUtils.findOld[SymbolicLink](dir.toFile(), oldMap)(symManifest)
+      BackupUtils.findOld[SymbolicLink](dir.toRealPath().toFile(), oldMap)(symManifest)
     else
-      BackupUtils.findOld(dir.toFile(), oldMap)(m)
+      BackupUtils.findOld(dir.toRealPath().toFile(), oldMap)(m)
     oldMap = mapNew
     if (old.isDefined) {
       if (recordUnchanged) {
@@ -52,7 +53,7 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart],
   }
 
   override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = {
-    handleFile(new FolderDescription(dir.toAbsolutePath().toString(), FileAttributes(dir)),
+    handleFile(new FolderDescription(dir.toRealPath().toString(), FileAttributes(dir)),
       dir, attrs)
     super.preVisitDirectory(dir, attrs)
   }
@@ -60,10 +61,10 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart],
   override def visitFile(file: Path, attrs: BasicFileAttributes) = {
     handleFile({
       if (Files.isSymbolicLink(file)) {
-        new SymbolicLink(file.toAbsolutePath().toString(),
-          Files.readSymbolicLink(file).toAbsolutePath().toString(), FileAttributes(file))
+        new SymbolicLink(file.toRealPath(LinkOption.NOFOLLOW_LINKS).toString(),
+          file.getParent.resolve(Files.readSymbolicLink(file)).toRealPath().toString(), FileAttributes(file))
       } else {
-        val out = new FileDescription(file.toAbsolutePath().toString(), file.toFile().length(),
+        val out = new FileDescription(file.toRealPath().toString(), file.toFile().length(),
           FileAttributes(file))
         out
       }
