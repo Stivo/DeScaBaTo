@@ -7,7 +7,7 @@ As of now, it has these features:
 
 - Backup and restore files and folders, including metadata (lastModifiedTime, posix owner and access rights)
 - A deduplicating storage mechanism. Parts of a file that are the same are only saved once. 
-- Supports 8 different compression algorithms and chooses automatically the best one for each file type
+- Supports 8 different compression algorithms and chooses [automatically](https://github.com/Stivo/DeScaBaTo/wiki/Smart-Compression-Decider) the best one for each file type
 - Supports fully encrypted backups (based on [TrueVFS](https://truezip.java.net/truezip-driver/truezip-driver-tzp/))
 - Command line interface
 - Fully multithreaded backup process
