@@ -1,19 +1,18 @@
 DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
 =========
 
-### Warning
-Version 0.2.0 has shown a problem once recovering from a system crash. Version 0.3.0 will fix this with a journal.
-It will be optionally multi-threaded (based on akka), will feature a GUI to show backup progress and will also automatically choose the best compression algorithm to use for each file type. Warning: The file format will also change again.
-
-The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups and is in alpha stage, the program's internals are still heavily changing as I am figuring stuff out.
+The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups and is in alpha stage, the program's internals are still heavily changing as I am figuring stuff out. The version 0.3.0, while rough around the edges, seems reliable for backups and restores even with simulated crashes.
 
 As of now, it has these features:
 
 - Backup and restore files and folders, including metadata (lastModifiedTime, posix owner and access rights)
 - A deduplicating storage mechanism. Parts of a file that are the same are only saved once. 
-- Supports compression (gzip, bzip2 or lzma) and encryption (based on [TrueVFS](https://truezip.java.net/truezip-driver/truezip-driver-tzp/))
+- Supports 8 different compression algorithms and chooses automatically the best one for each file type
+- Supports fully encrypted backups (based on [TrueVFS](https://truezip.java.net/truezip-driver/truezip-driver-tzp/))
 - Command line interface
-- Parity creation: Parity files are created so that broken backup files can be recovered.
+- Fully multithreaded backup process
+- GUI to show progress and to control number of threads
+- The large files with the actual file contents are not needed for an incremental backup and can be saved separately (on an external volume or on a cloud provider)
 
 Compared to duplicati:
 
