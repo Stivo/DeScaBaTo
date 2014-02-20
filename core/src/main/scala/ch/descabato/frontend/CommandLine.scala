@@ -200,8 +200,8 @@ trait BackupRelatedCommand extends Command with Utils {
       if (t.logfile.isSupplied) {
         System.setProperty("logname", t.logfile())
       }
-      if (t.noansi.isSupplied) {
-        AnsiUtil.ansiDisabled = t.noansi()
+      if (t.noAnsi.isSupplied) {
+        AnsiUtil.ansiDisabled = t.noAnsi()
       }
       start(t)
     } catch {
@@ -257,7 +257,7 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
 trait ProgramOption extends ScallopConf {
   val noGui = opt[Boolean](short = 'g')
   val logfile = opt[String]()
-  val noansi = opt[Boolean]()
+  val noAnsi = opt[Boolean]()
 }
 
 trait BackupFolderOption extends ProgramOption {
