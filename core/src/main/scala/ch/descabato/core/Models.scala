@@ -82,9 +82,7 @@ class FileAttributes extends HashMap[String, Any] with Utils {
 
 }
 
-case class MetadataOptions {
-  val saveMetadata: Boolean = false
-}
+case class MetadataOptions(val saveMetadata: Boolean = false)
 
 object FileAttributes extends Utils {
 

@@ -20,10 +20,9 @@ unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
 
 // Core dependencies
 libraryDependencies ++= Seq(
-    "com.typesafe.akka" % "akka-actor_2.10" % "2.2.3",
-    "org.rogach" %% "scallop" % "0.9.4",
-    "org.iq80.snappy" % "snappy" % "0.3",
-    "org.ocpsoft.prettytime" % "prettytime" % "3.1.0.Final",
+    "com.typesafe.akka" % "akka-actor_2.11" % "2.3.4",
+    "org.rogach" %% "scallop" % "0.9.5",
+    "org.ocpsoft.prettytime" % "prettytime" % "3.2.5.Final",
     "org.fusesource.jansi" % "jansi" % "1.11"
 )
 
@@ -35,29 +34,29 @@ libraryDependencies ++= Seq(
 
 // Logging
 libraryDependencies ++= Seq(
-		"ch.qos.logback" % "logback-classic" % "1.0.13",
-		"com.typesafe" % "scalalogging-slf4j_2.10" % "1.1.0",
+	"ch.qos.logback" % "logback-classic" % "1.1.2",
+	"com.typesafe.scala-logging" % "scala-logging-slf4j_2.11" % "2.1.2",
     "org.scala-lang" % "scala-reflect" % Common.scalaVersion
 )
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-		"com.fasterxml.jackson.module" % "jackson-module-scala_2.10" % "2.3.1",
-		"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.3.1",
-    "de.undercouch" % "bson4jackson" % "2.3.1"
+	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.4.1",
+	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.4.1",
+    "de.undercouch" % "bson4jackson" % "2.4.0"
 )
 
 // truevfs
 libraryDependencies ++= Seq(
     "javax.inject" % "javax.inject" % "1",
-    "com.google.code.findbugs" % "annotations" % "2.0.3",
-	"org.apache.commons" % "commons-compress" % "1.7"
+    "com.google.code.findbugs" % "annotations" % "3.0.0",
+	"org.apache.commons" % "commons-compress" % "1.8.1"
 )
 
 // Test dependencies
 libraryDependencies ++= Seq(
-		"org.scalatest" %% "scalatest" % "2.0" % "test",
-		"org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
+		"org.scalatest" %% "scalatest" % "2.2.1" % "test",
+		"org.scalacheck" %% "scalacheck" % "1.11.5" % "test"
 )
 
 parallelExecution in Test := false

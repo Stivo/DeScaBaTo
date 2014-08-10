@@ -1,10 +1,14 @@
 import de.johoop.jacoco4sbt._
 import JacocoPlugin._
 
+version := Common.version
+
+scalaVersion := Common.scalaVersion
+
 // Test dependencies
 libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % "2.0" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.10.0" % "test"
+	"org.scalatest" %% "scalatest" % "2.2.1" % "test",
+	"org.scalacheck" %% "scalacheck" % "1.11.5" % "test"
 )
 
 parallelExecution in Test := false

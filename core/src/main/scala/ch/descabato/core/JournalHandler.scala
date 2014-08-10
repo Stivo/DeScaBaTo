@@ -24,7 +24,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
   lazy val lock = try {
     val out = randomAccessFile.getChannel().tryLock()
     if (out == null)
-      throw new BackupInUseException
+      throw new BackupInUseException()
     out
   } catch {
     case e: BackupInUseException => throw e

@@ -3,5 +3,5 @@ import Keys._
 
 object Common {
   def version = "0.3.0"
-  def scalaVersion = "2.10.3"
+  def scalaVersion = "2.11.2"
 }

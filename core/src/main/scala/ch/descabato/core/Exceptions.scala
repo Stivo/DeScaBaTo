@@ -10,7 +10,7 @@ case class PasswordWrongException(message: String, cause: Throwable) extends Exc
 case class BackupCorruptedException(file: File, repairTried: Boolean = false)
   extends Exception("File " + file + " of this backup is corrupt") with BackupException
 
-case class BackupInUseException extends Exception("Another process seems to be changing this backup.") with BackupException
+class BackupInUseException extends Exception("Another process seems to be changing this backup.") with BackupException
   
 case class MisconfigurationException(message: String) extends Exception(message) with BackupException
 

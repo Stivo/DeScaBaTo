@@ -3,7 +3,6 @@ package ch.descabato.utils
 import java.io.PrintStream
 import javax.xml.bind.DatatypeConverter
 import java.text.DecimalFormat
-import com.typesafe.scalalogging.slf4j.Logging
 import net.java.truevfs.access.TFile
 import net.java.truevfs.access.TVFS
 import java.io.File
@@ -16,9 +15,10 @@ import ch.descabato.core.BAWrapper2
 import scala.collection.mutable
 import java.io.InputStream
 import scala.language.implicitConversions
+import com.typesafe.scalalogging.slf4j.LazyLogging
 
-object Utils extends Logging {
-
+object Utils extends LazyLogging {
+  
   private val units = Array[String]("B", "KB", "MB", "GB", "TB");
   def isWindows = System.getProperty("os.name").contains("indows")
   def readableFileSize(size: Long, afterDot: Int = 1): String = {
@@ -156,7 +156,7 @@ object FileUtils extends Utils {
 
 }
 
-trait Utils extends Logging {
+trait Utils extends LazyLogging {
   lazy val l = logger
 
   def readableFileSize(size: Long): String = Utils.readableFileSize(size)

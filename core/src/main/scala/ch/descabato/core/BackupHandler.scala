@@ -13,6 +13,7 @@ import java.util
 import java.util.Enumeration
 import scala.Some
 import scala.util.Random
+import scala.language.reflectiveCalls
 
 trait MeasureTime {
   var startTime = 0L

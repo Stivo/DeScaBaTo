@@ -1,7 +1,8 @@
 package ch.descabato.akka
 
-import akka.routing.{RoundRobinRouter, RouteeProvider, DefaultResizer}
+import akka.routing.{RoundRobinPool, DefaultResizer}
 import ch.descabato.utils.Utils
+import scala.collection.immutable
 import com.typesafe.config.Config
 import akka.dispatch.{ExecutorServiceFactory, ExecutorServiceConfigurator, DispatcherPrerequisites}
 import java.util.concurrent._
@@ -10,7 +11,7 @@ import ch.descabato.core._
 import akka.actor._
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import ch.descabato.frontend.{Counter, ProgressReporters, MaxValueCounter}
+import ch.descabato.frontend.{ProgressReporters, MaxValueCounter}
 import java.util.concurrent.atomic.AtomicInteger
 import akka.event.Logging
 import ch.descabato.CompressionMode
@@ -20,6 +21,7 @@ import akka.pattern.AskTimeoutException
 import java.lang.reflect.UndeclaredThrowableException
 import java.security.MessageDigest
 import scala.collection.immutable.HashMap
+import akka.routing.Routee
 
 object Counter {
   var i = 0
@@ -43,9 +45,9 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   val counters = mutable.Buffer[QueueCounter]()
 
   lazy val hashers = system.actorOf(Props(classOf[MyActor], this)
-    .withDispatcher(dispatcher).withRouter(RoundRobinRouter(nrOfInstances = taskers).withResizer(new Resizer("hasher"))))
+    .withDispatcher(dispatcher).withRouter(RoundRobinPool(nrOfInstances = taskers).withResizer(new Resizer("hasher"))))
   lazy val compressors = system.actorOf(Props(classOf[MyActor], this).withDispatcher(dispatcher)
-    .withRouter(RoundRobinRouter(4).withResizer(new Resizer("compressor"))))
+    .withRouter(RoundRobinPool(4).withResizer(new Resizer("compressor"))))
 
   val dispatch = system.dispatchers.lookup(dispatcher)
 
@@ -297,23 +299,17 @@ class Resizer(name: String) extends DefaultResizer(messagesPerResize = 100) with
     maxValue = upperBound
     ProgressReporters.addCounter(this)
   }
-  override def resize(routeeProvider: RouteeProvider): Unit = {
+  override def resize(currentRoutees: immutable.IndexedSeq[Routee]): Int = {
     val maxThreads = ActorStats.tpe.getCorePoolSize
-    val currentRoutees = routeeProvider.routees
     if (maxThreads == currentRoutees.size) {
       counter.current = currentRoutees.size
-      return
+      return 0
     }
     var requestedCapacity = capacity(currentRoutees)
     var endResult = requestedCapacity + currentRoutees.size
     val newThreads = Math.min(requestedCapacity + currentRoutees.size, maxThreads)
     requestedCapacity = newThreads - currentRoutees.size
-//    if (requestedCapacity != 0) {
-//      l.info(s"Changing number of $name threads to " + (currentRoutees.size + requestedCapacity))
-//    }
-    counter.current = currentRoutees.size + requestedCapacity
-    if (requestedCapacity > 0) routeeProvider.createRoutees(requestedCapacity)
-    else if (requestedCapacity < 0) routeeProvider.removeRoutees(-requestedCapacity, stopDelay)
+    return requestedCapacity
   }
 
 }

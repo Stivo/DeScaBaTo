@@ -4,6 +4,7 @@ import Keys._
 //import scalariform.formatter.preferences._
 
 object HelloBuild extends Build {
+  scalaVersion in ThisBuild := "2.11.2"
   
   val core = Project(id = "core", base = file("core"), 
       settings = Project.defaultSettings ++ commonSettings)

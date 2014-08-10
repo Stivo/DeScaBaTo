@@ -211,7 +211,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       }
     } catch {
       case c: SecurityException => throw c
-      case e: Exception if (e.getMessage + e.getStackTraceString).contains("CipherInputStream") =>
+      case e: Exception if (e.getMessage + e.getStackTrace().mkString("\n")).contains("CipherInputStream") =>
         throw new PasswordWrongException("Exception while loading " + file + ", most likely the supplied passphrase is wrong.", e)
       case e @ BackupCorruptedException(f, false) if failureOption == OnFailureDelete =>
         reader.close
