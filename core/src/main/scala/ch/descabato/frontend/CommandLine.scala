@@ -183,6 +183,11 @@ trait BackupRelatedCommand extends Command with Utils {
       else
         new SingleThreadUniverse(conf)
       f(universe)
+    } catch {
+      case e: Exception =>
+        logger.error("Exception while backing up")
+        logException(e)      
+        throw e
     } finally {
       if (universe != null)
         universe.shutdown

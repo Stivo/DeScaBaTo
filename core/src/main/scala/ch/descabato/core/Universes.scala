@@ -75,7 +75,8 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
       try {
         h.shutdown()
       } catch {
-        case e: Exception => "exception while shutting down"
+        case e: Exception => 
+          logger.error("exception while shutting down")
           logException(e)
       }
     }

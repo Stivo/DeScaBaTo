@@ -30,7 +30,7 @@ case class MyMailbox(capacity: Int, pushTimeOut: FiniteDuration)
   extends MailboxType with ProducesMessageQueue[UnboundedMailbox.MessageQueue] {
 
   def this(settings: ActorSystem.Settings, config: Config) = this(config.getInt("mailbox-capacity"),
-    Duration(config.getNanoseconds("mailbox-push-timeout-time"), TimeUnit.NANOSECONDS))
+    Duration(config.getDuration("mailbox-push-timeout-time", TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS))
 
   if (capacity < 0) throw new IllegalArgumentException("The capacity for BoundedMailbox can not be negative")
   if (pushTimeOut eq null) throw new IllegalArgumentException("The push time-out for BoundedMailbox can not be null")
