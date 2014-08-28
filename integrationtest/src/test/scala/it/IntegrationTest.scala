@@ -105,17 +105,17 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
   before {
-    //deleteAll(input)
+    deleteAll(input)
     deleteAll(backup1)
     deleteAll(restore1)
   }
 
   "plain backup" should "work" in {
-    testWith(" --threads 1", "", 1, "10Mb")
+    testWith(" --threads 4 --compression bzip2", "", 5, "100Mb")
   }
 
 //  "encrypted backup" should "work" in {
-//    testWith(" --threads 5 --compression gzip --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 5, "50Mb")
+//    testWith(" --threads 5 --compression gzip --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 2, "50Mb")
 //  }
 //
 //  "low volumesize backup with prefix" should "work" in {
@@ -123,7 +123,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 //  }
 //
 //  "backup with multiple threads" should "work" in {
-//    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 5, "50Mb", false)
+//    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 2, "50Mb", false)
 //  }
 //
 ////    "backup with redundancy" should "recover" in {
@@ -147,6 +147,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
   def testWith(config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false) {
+    val hasPassword = configRestore.contains("--passphrase")
     l.info("")
     l.info("")
     l.info("")
@@ -156,9 +157,9 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     deleteAll(backup1)
     deleteAll(restore1)
     // create some files
-//    val fg = new FileGen(input, maxSize)
-//    fg.generateFiles
-//    fg.rescan()
+    val fg = new FileGen(input, maxSize)
+    fg.generateFiles
+    fg.rescan()
     val maxCrashes = 10
     for (i <- 1 to iterations) {
       l.info(s"Iteration $i of $iterations")
@@ -198,6 +199,10 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
       input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
       // verify backup
 //      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
+//
+//      if (hasPassword) {
+//        startAndWait(s"verify${configRestore}a --percent-of-files-to-check 50 $backup1".split(" ")) should not be (0)
+//      }
 
       if (redundancy) {
         // Testing what happens when messing with the files
@@ -210,7 +215,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
       // delete some files
       if (i != iterations) {
         l.info("Changing files")
-//        fg.changeSome
+        fg.changeSome
         l.info("Changing files done")
       }
     }

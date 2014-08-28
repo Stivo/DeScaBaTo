@@ -1,11 +1,12 @@
 package ch.descabato.core.storage
 
+import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Streams.ExceptionCatchingInputStream
 import scala.collection.immutable.HashMap
 import ch.descabato.core.BackupPartHandler
 import ch.descabato.core.HashListHandler
 import ch.descabato.core.BlockHandler
-import ch.descabato.core.BaWrapper
 import java.io.File
 import java.io.ByteArrayInputStream
 import java.io.InputStream
@@ -16,8 +17,6 @@ import ch.descabato.core.UniversePart
 import ch.descabato.core.VolumeFinished
 import ch.descabato.core.ProblemCounter
 import ch.descabato.core.BaWrapper
-import ch.descabato.core.BaWrapper
-import java.util.Arrays
 
 class KvStoreBackupPartHandler extends BackupPartHandler {
   def checkpoint(t: Option[(Set[ch.descabato.core.BaWrapper], Set[ch.descabato.core.BaWrapper])]): Unit = {
@@ -141,12 +140,11 @@ class KvStoreBlockHandler extends BlockHandler with UniversePart {
     val reader = getReaderForLocation(pos.file)
     val out = new ByteArrayInputStream(reader.get(pos))
     reader.close()
-    out
+    new ExceptionCatchingInputStream(CompressedStream.readStream(out), pos.file)
   }
 
   def remaining: Int = {
-    // TODO
-    0
+    outstandingRequests.size
   }
 
   def setTotalSize(size: Long): Unit = {
@@ -162,22 +160,38 @@ class KvStoreBlockHandler extends BlockHandler with UniversePart {
     true
   }
 
-  def writeBlockIfNotExists(blockWrapper: Block) {
-    ensureLoaded()
-    if (!isPersisted(blockWrapper.hash)) {
-      if (currentlyWritingFile == null) {
-        currentlyWritingFile = 
-          new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, false))
-      }
-      persistedEntries += new BaWrapper(blockWrapper.hash) -> null
-//      val target = Array.ofDim[Byte](blockWrapper.content.length + 1)
-//      target(0) = 0
-//      System.arraycopy(blockWrapper.content, 0, target, 1, blockWrapper.content.length)
-      currentlyWritingFile.add(blockWrapper.hash, blockWrapper.content)
-    }
-  }
+  protected var outstandingRequests: HashMap[BaWrapper, Int] = HashMap()
 
-  def writeCompressedBlock(blockWrapper: Block, zipEntry: ZipEntry): Unit = {
-    ???
+  def writeBlockIfNotExists(block: Block) {
+    ensureLoaded()
+    val hash = block.hash
+    if (isPersisted(hash) || (outstandingRequests safeContains hash)) {
+      //byteCounter.maxValue -= block.content.length
+      return
+    }
+    block.mode = config.compressor
+    outstandingRequests += ((hash, block.content.length))
+    universe.compressionDecider().compressBlock(block)
+   }
+
+  def writeCompressedBlock(block: Block, zipEntry: ZipEntry) {
+    if (currentlyWritingFile == null) {
+      currentlyWritingFile =
+        new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, false))
+    }
+    persistedEntries += new BaWrapper(block.hash) -> null
+    currentlyWritingFile.add(block.hash, Array.apply(block.header) ++ block.compressed.toArray())
+    outstandingRequests -= block.hash
+    // TODO
+//    if (currentWriter != null && currentWriter.size + block.compressed.remaining() + zipEntry.getName().length > volumeSize.bytes) {
+//      endZipFile()
+//    }
+//    openZipFileWriter()
+//    byteCounter.compressedBytes += block.compressed.remaining()
+//    compressionRatioCounter += block.compressed.remaining()
+//    byteCounter += outstandingRequests(hash)
+//    compressionRatioCounter.maxValue += outstandingRequests(hash)
+//    outstandingRequests -= hash
+//    inCurrentWriterKeys += (hash)
   }
 }
