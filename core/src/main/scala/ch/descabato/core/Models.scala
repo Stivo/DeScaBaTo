@@ -249,16 +249,16 @@ case class BackupDescription(val files: Vector[FileDescription] = Vector.empty,
 /**
  * A wrapper for a byte array so it can be used in a map as a key.
  */
-class BAWrapper2(ba: Array[Byte]) {
-  def data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
-  def equals(other: BAWrapper2): Boolean = Arrays.equals(data, other.data)
+class BaWrapper(ba: Array[Byte]) {
+  val data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
+  def equals(other: BaWrapper): Boolean = Arrays.equals(data, other.data)
   override def equals(obj: Any): Boolean =
     obj match {
-      case other: BAWrapper2 => equals(other)
+      case other: BaWrapper => equals(other)
       case _ => false
     }
-
   override def hashCode: Int = Arrays.hashCode(data)
+  override def toString() = data.length + ": " + new String(data)
 }
 
 // Domain classes

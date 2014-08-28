@@ -56,9 +56,9 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
   def filetype = fileManager.volumes
 
   // Can not be called here, as the calling method is overwritten
-  protected def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]): Boolean = ???
+  protected def shouldStartNextFile(w: ZipFileWriter, k: BaWrapper, v: Array[Byte]): Boolean = ???
 
-  protected var outstandingRequests: HashMap[BAWrapper2, Int] = HashMap()
+  protected var outstandingRequests: HashMap[BaWrapper, Int] = HashMap()
 
   // TODO add in interface?
   def verify(problemCounter: ProblemCounter) = {
@@ -94,7 +94,7 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
 //    _initRan = true
 //  }
 
-  private def asKey(hash: Array[Byte]): BAWrapper2 = hash
+  private def asKey(hash: Array[Byte]): BaWrapper = hash
 
   def writeBlockIfNotExists(block: Block) {
     val hash = block.hash
@@ -115,7 +115,7 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     openZipFileWriter()
     byteCounter.compressedBytes += block.compressed.remaining()
     compressionRatioCounter += block.compressed.remaining()
-    val hash: BAWrapper2 = block.hash
+    val hash: BaWrapper = block.hash
     currentWriter.writeUncompressedEntry(zipEntry, block.header, block.compressed)
     block.recycle()
     byteCounter += outstandingRequests(hash)
@@ -136,7 +136,7 @@ class ZipBlockHandler extends StandardZipKeyValueStorage with BlockHandler with 
     }
   }
 
-  def getAllPersistedKeys(): Set[BAWrapper2] = {
+  def getAllPersistedKeys(): Set[BaWrapper] = {
     ensureLoaded()
     inBackupIndex.keySet
   }

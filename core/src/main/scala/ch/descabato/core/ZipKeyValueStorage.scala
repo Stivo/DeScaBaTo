@@ -262,14 +262,14 @@ trait IndexedKeyValueStorage[K, V] extends ZipKeyValueStorage[K, V] {
   
 }
 
-abstract class StandardZipKeyValueStorage extends ZipKeyValueStorage[BAWrapper2, Array[Byte]] 
-		with IndexedKeyValueStorage[BAWrapper2, Array[Byte]] {
+abstract class StandardZipKeyValueStorage extends ZipKeyValueStorage[BaWrapper, Array[Byte]] 
+		with IndexedKeyValueStorage[BaWrapper, Array[Byte]] {
   
   protected def convertStringToKey(x: String) = {
     Utils.decodeBase64Url(x)
   }
 
-  protected def convertKeyToString(x: BAWrapper2) = {
+  protected def convertKeyToString(x: BaWrapper) = {
     Utils.encodeBase64Url(x.data)
   }
 
@@ -277,15 +277,15 @@ abstract class StandardZipKeyValueStorage extends ZipKeyValueStorage[BAWrapper2,
     reader.getStream(name).readFully
   }
 
-  def readValueAsStream(k: BAWrapper2) = {
+  def readValueAsStream(k: BaWrapper) = {
     getZipFileReader(inBackupIndex(k)).getStream(nameFor(k))
   }
 
-  protected def convertKeyToBytes(x: BAWrapper2) = x.data
+  protected def convertKeyToBytes(x: BaWrapper) = x.data
 
-  protected def convertBytesToKey(bytes: Array[Byte]): Iterator[BAWrapper2] = {
+  protected def convertBytesToKey(bytes: Array[Byte]): Iterator[BaWrapper] = {
     bytes.grouped(universe.config.hashLength).map {
-      x => x : BAWrapper2
+      x => x : BaWrapper
     }
   }
 

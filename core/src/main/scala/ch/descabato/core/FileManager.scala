@@ -285,7 +285,7 @@ class FileManager(override val universe: Universe) extends UniversePart {
 
   val volumes = new FileType[Volume]("volume_", false, ".zip", localC = false)
   val volumeIndex = new IndexFileType(volumes)
-  val hashlists = new FileType[Vector[(BAWrapper2, Array[Byte])]]("hashlists_", false, ".zip")
+  val hashlists = new FileType[Vector[(BaWrapper, Array[Byte])]]("hashlists_", false, ".zip")
   val files = new FileType[Buffer[BackupPart]]("files_", true, ".zip", hasDateC = true)
   val backup = new FileType[BackupDescription]("backup_", true, ".zip", hasDateC = true)
   val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".zip", hasDateC = true)

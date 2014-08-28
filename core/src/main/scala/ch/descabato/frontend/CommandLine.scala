@@ -65,10 +65,12 @@ object CLI extends Utils {
         } catch {
           case x: Exception =>
         }
+//        parseCommandLine("backup --threads 1 --serializer-type json --hash-algorithm md5 --compression none --volume-size 10mb C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/input".split(" "))
+        parseCommandLine("restore --restore-to-folder C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/restore1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1".split(" "))
         //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-512 --compression gzip --volume-size 50mb f:/desca8 d:/pics/tosort/bilder".split(" "))
         // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
         //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
-        parseCommandLine("backup --create-indexes --threads 1 --serializer-type json --hash-algorithm sha-256 --compression smart --volume-size 10mb F:/desca8 f:/tmp".split(" "))
+//        parseCommandLine("backup --create-indexes --threads 1 --serializer-type json --hash-algorithm sha-256 --compression smart --volume-size 10mb F:/desca8 f:/tmp".split(" "))
 //        parseCommandLine("verify --percent-of-files-to-check 100 F:\\desca8".split(" "))
 //        parseCommandLine("restore --restore-to-folder F:/restore f:/desca8".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
@@ -332,7 +334,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
 
 object RestoreRunners extends Utils {
 
-  def run(conf: BackupFolderConfiguration)(f: Unit => Unit) {
+  def run(conf: BackupFolderConfiguration)(f: () => Unit) {
     while (true) {
       try {
         f()
@@ -362,14 +364,12 @@ class RestoreCommand extends BackupRelatedCommand {
             case (date, num) => println(s"[$num]: $date")
           }
           val option = askUser("Which backup would you like to restore from?").toInt
-          RestoreRunners.run(conf) {
-            _ =>
+          RestoreRunners.run(conf) { () =>
               val rh = new RestoreHandler(universe)
               rh.restoreFromDate(t, options.find(_._2 == option).get._1)
           }
         } else {
-          RestoreRunners.run(conf) {
-            _ =>
+          RestoreRunners.run(conf) { () =>
               val rh = new RestoreHandler(universe)
               rh.restore(t)
           }

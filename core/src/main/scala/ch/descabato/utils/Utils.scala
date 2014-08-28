@@ -11,11 +11,11 @@ import java.nio.ByteBuffer
 import java.io.OutputStream
 import sun.nio.ch.DirectBuffer
 import ch.descabato.ByteArrayOutputStream
-import ch.descabato.core.BAWrapper2
 import scala.collection.mutable
 import java.io.InputStream
 import scala.language.implicitConversions
 import com.typesafe.scalalogging.slf4j.LazyLogging
+import ch.descabato.core.BaWrapper
 
 object Utils extends LazyLogging {
   
@@ -60,7 +60,7 @@ object Utils extends LazyLogging {
 
 object Implicits {
   import scala.language.higherKinds
-  implicit def byteArrayToWrapper(a: Array[Byte]) = new BAWrapper2(a)
+  implicit def byteArrayToWrapper(a: Array[Byte]) = new BaWrapper(a)
   
   implicit class ByteBufferUtils(buf: ByteBuffer) {
     def writeTo(out: OutputStream) {

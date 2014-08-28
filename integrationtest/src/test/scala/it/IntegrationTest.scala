@@ -105,38 +105,38 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
   before {
-    deleteAll(input)
+    //deleteAll(input)
     deleteAll(backup1)
     deleteAll(restore1)
   }
 
   "plain backup" should "work" in {
-    testWith(" --threads 1", "", 5, "100Mb")
+    testWith(" --threads 1", "", 1, "10Mb")
   }
 
-  "encrypted backup" should "work" in {
-    testWith(" --threads 5 --compression gzip --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 5, "50Mb")
-  }
-
-  "low volumesize backup with prefix" should "work" in {
-    testWith(" --threads 5 --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
-  }
-
-  "backup with multiple threads" should "work" in {
-    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 5, "50Mb", false)
-  }
-
-//    "backup with redundancy" should "recover" in {
-//      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
-//    }
-
-  "backup with crashes" should "work" in {
-    testWith(" --volume-size 10Mb", "", 5, "300Mb", true, false)
-  }
-
-  "backup with crashes, encryption and multiple threads" should "work" in {
-    testWith(" --threads 10 --volume-size 10Mb", "", 2, "200Mb", true, false)
-  }
+//  "encrypted backup" should "work" in {
+//    testWith(" --threads 5 --compression gzip --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 5, "50Mb")
+//  }
+//
+//  "low volumesize backup with prefix" should "work" in {
+//    testWith(" --threads 5 --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
+//  }
+//
+//  "backup with multiple threads" should "work" in {
+//    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 5, "50Mb", false)
+//  }
+//
+////    "backup with redundancy" should "recover" in {
+////      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
+////    }
+//
+//  "backup with crashes" should "work" in {
+//    testWith(" --volume-size 10Mb", "", 5, "300Mb", true, false)
+//  }
+//
+//  "backup with crashes, encryption and multiple threads" should "work" in {
+//    testWith(" --threads 10 --volume-size 10Mb", "", 2, "200Mb", true, false)
+//  }
 
   def numberOfCheckpoints(): Int = {
     if (backup1.exists) {
@@ -156,9 +156,9 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     deleteAll(backup1)
     deleteAll(restore1)
     // create some files
-    val fg = new FileGen(input, maxSize)
-    fg.generateFiles
-    fg.rescan()
+//    val fg = new FileGen(input, maxSize)
+//    fg.generateFiles
+//    fg.rescan()
     val maxCrashes = 10
     for (i <- 1 to iterations) {
       l.info(s"Iteration $i of $iterations")
@@ -197,7 +197,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
       // no temp files in backup
       input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
       // verify backup
-      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
+//      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
 
       if (redundancy) {
         // Testing what happens when messing with the files
@@ -210,7 +210,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
       // delete some files
       if (i != iterations) {
         l.info("Changing files")
-        fg.changeSome
+//        fg.changeSome
         l.info("Changing files done")
       }
     }

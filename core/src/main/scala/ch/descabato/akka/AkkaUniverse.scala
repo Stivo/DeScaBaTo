@@ -22,6 +22,7 @@ import java.lang.reflect.UndeclaredThrowableException
 import java.security.MessageDigest
 import scala.collection.immutable.HashMap
 import akka.routing.Routee
+import ch.descabato.core.storage.KvStoreBlockHandler
 
 object Counter {
   var i = 0
@@ -103,7 +104,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   val hashListHandler = actorOf[HashListHandler, ZipHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
   lazy val eventBus = actorOf[EventBus[BackupEvent], SimpleEventBus[BackupEvent]]("Event Bus")
   lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
-  val blockHandler = actorOf[BlockHandler, ZipBlockHandler]("Writer")
+  val blockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
   lazy val compressionDecider = config.compressor match {
     case x if x.isCompressionAlgorithm => actorOf[CompressionDecider, SimpleCompressionDecider]("Compression Decider")

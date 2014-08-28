@@ -7,7 +7,7 @@ import ch.descabato.utils.{Utils, ZipFileReader, ZipFileWriter}
 import java.util.zip.ZipEntry
 
 class ZipHashListHandler extends HashListHandler with Utils {
-  type HashListMap = Map[BAWrapper2, Array[Byte]]
+  type HashListMap = Map[BaWrapper, Array[Byte]]
 
   var hashListsPersisted: HashListMap = Map.empty
   var hashListsToWrite: HashListMap = Map.empty
@@ -29,7 +29,7 @@ class ZipHashListHandler extends HashListHandler with Utils {
 
   def shutdown() = { finish; ret }
   
-  def oldBackupHashLists: Map[BAWrapper2, Array[Byte]] = {
+  def oldBackupHashLists: Map[BaWrapper, Array[Byte]] = {
     def loadFor(x: Iterable[File], failureOption: ReadFailureOption) = {
       x.flatMap(x => fileManager.hashlists.read(x, failureOption)).fold(Vector())(_ ++ _)
     }
@@ -56,7 +56,7 @@ class ZipHashListHandler extends HashListHandler with Utils {
       hashListsToWrite += ((fileHash, hashList))
   }
   
-  def getAllPersistedKeys(): Set[BAWrapper2] = hashListsPersisted.keySet
+  def getAllPersistedKeys(): Set[BaWrapper] = hashListsPersisted.keySet
   
   def finish() = {
     if (!hashListsToWrite.isEmpty)
@@ -70,7 +70,7 @@ class ZipHashListHandler extends HashListHandler with Utils {
   }
 
   // Checkpointing with an optional argument
-  def checkpoint(blocks: Option[Set[BAWrapper2]]) {
+  def checkpoint(blocks: Option[Set[BaWrapper]]) {
     val persistedBlocks = blocks match {
       case Some(set) => set
       case None => universe.blockHandler.getAllPersistedKeys
@@ -104,7 +104,7 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
   override def load() { super.load }
   override def shutdown() = { finish; ret }
   
-  var hashListsToWrite = Map[BAWrapper2, Array[Byte]]()
+  var hashListsToWrite = Map[BaWrapper, Array[Byte]]()
 
   override def setupInternal() {
     universe.eventBus().subscribe(eventListener)
@@ -132,9 +132,9 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
     hashListSeq(read(fileHash))
   }
 
-  def shouldStartNextFile(w: ZipFileWriter, k: BAWrapper2, v: Array[Byte]) = hashListsToWrite.size > 10000
+  def shouldStartNextFile(w: ZipFileWriter, k: BaWrapper, v: Array[Byte]) = hashListsToWrite.size > 10000
 
-  def checkpoint(blocks: Option[Set[BAWrapper2]]) {
+  def checkpoint(blocks: Option[Set[BaWrapper]]) {
     val persistedBlocks = blocks match {
       case Some(set) => set
       case None => universe.blockHandler.getAllPersistedKeys
@@ -149,7 +149,7 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
     }
   }
 
-  def getAllPersistedKeys(): Set[BAWrapper2] = inBackupIndex.keySet
+  def getAllPersistedKeys(): Set[BaWrapper] = inBackupIndex.keySet
   
   override def endZipFile() {
     if (currentWriter != null) {

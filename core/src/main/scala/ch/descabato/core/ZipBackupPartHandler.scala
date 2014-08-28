@@ -127,7 +127,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     getUnfinished(block.id.file).blockHashArrived(block.id, block.hash)
   }
 
-  def checkpoint(t: Option[(Set[BAWrapper2], Set[BAWrapper2])]) {
+  def checkpoint(t: Option[(Set[BaWrapper], Set[BaWrapper])]) {
     if (toCheckpoint.isEmpty)
       return
     val (hashlists, blocks) = t match {

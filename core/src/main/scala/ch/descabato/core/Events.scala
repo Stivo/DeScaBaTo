@@ -62,9 +62,9 @@ trait ThreadSafeEventBus[T] extends EventBus[T] {
 
 trait BackupEvent
 
-case class VolumeFinished(f: File, savedBlocks: Set[BAWrapper2]) extends BackupEvent
+case class VolumeFinished(f: File, savedBlocks: Set[BaWrapper]) extends BackupEvent
 
-case class HashListCheckpointed(hashLists: Set[BAWrapper2], savedBlocks: Set[BAWrapper2]) extends BackupEvent
+case class HashListCheckpointed(hashLists: Set[BaWrapper], savedBlocks: Set[BaWrapper]) extends BackupEvent
 
 case object Add1CpuTask extends BackupEvent
 

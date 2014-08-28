@@ -22,7 +22,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
 
   def fixture =
     new {
-	    type ChainMap = ArrayBuffer[(BAWrapper2, Array[Byte])]
+	    type ChainMap = ArrayBuffer[(BaWrapper, Array[Byte])]
 	    var chainMap : ChainMap = new ChainMap()
 	    chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
 	    val f = List("README.md", "../README.md").map(new File(_)).filter(_.exists).head

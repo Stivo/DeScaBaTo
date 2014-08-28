@@ -23,7 +23,10 @@ libraryDependencies ++= Seq(
     "com.typesafe.akka" % "akka-actor_2.11" % "2.3.4",
     "org.rogach" %% "scallop" % "0.9.5",
     "org.ocpsoft.prettytime" % "prettytime" % "3.2.5.Final",
-    "org.fusesource.jansi" % "jansi" % "1.11"
+    "org.fusesource.jansi" % "jansi" % "1.11",
+    "org.iq80.leveldb" % "leveldb" % "0.7",
+    "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.7",
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.51"
 )
 
 // compressors

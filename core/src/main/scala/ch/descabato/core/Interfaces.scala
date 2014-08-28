@@ -141,7 +141,7 @@ trait CompressionDecider extends UniversePart {
   def report()
 }
 
-trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BAWrapper2], Set[BAWrapper2])] {
+trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BaWrapper], Set[BaWrapper])] {
   // reads all the backup parts for the given date
   def loadBackup(date: Option[Date] = None): BackupDescription
 
@@ -161,16 +161,16 @@ trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BAWrapper2],
   def remaining(): Int
 }
 
-trait HashListHandler extends BackupActor with UniversePart with CanCheckpoint[Set[BAWrapper2]] {
+trait HashListHandler extends BackupActor with UniversePart with CanCheckpoint[Set[BaWrapper]] {
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte])
   def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]]
-  def getAllPersistedKeys(): Set[BAWrapper2]
+  def getAllPersistedKeys(): Set[BaWrapper]
   def isPersisted(fileHash: Array[Byte]) = getAllPersistedKeys safeContains fileHash
 }
 
 trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def writeBlockIfNotExists(blockWrapper: Block)
-  def getAllPersistedKeys(): Set[BAWrapper2]
+  def getAllPersistedKeys(): Set[BaWrapper]
   def isPersisted(hash: Array[Byte]): Boolean
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
   def writeCompressedBlock(blockWrapper: Block, zipEntry: ZipEntry)

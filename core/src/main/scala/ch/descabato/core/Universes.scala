@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit
 import ch.descabato.akka.AkkaUniverse
 import scala.collection.mutable
 import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.core.storage.KvStoreBlockHandler
 
 object Universes {
   def makeUniverse(config: BackupFolderConfiguration) = {
@@ -54,7 +55,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val backupPartHandler = make(new ZipBackupPartHandler())
   val hashListHandler = make(new ZipHashListHandler())
   val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
-  val blockHandler = make(new ZipBlockHandler())
+  val blockHandler = make(new KvStoreBlockHandler())
   val hashHandler = make(new SingleThreadHasher())
   val compressionDecider = make(config.compressor match {
     case x if x.isCompressionAlgorithm => new SimpleCompressionDecider()

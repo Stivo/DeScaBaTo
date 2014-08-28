@@ -23,7 +23,7 @@ import ch.descabato.core.FileDeleted
 import ch.descabato.core.FileDescription
 import ch.descabato.core.BackupPart
 import ch.descabato.core.UpdatePart
-import ch.descabato.core.BAWrapper2
+import ch.descabato.core.BaWrapper
 import ch.descabato.core.SymbolicLink
 import ch.descabato.core.FolderDescription
 import ch.descabato.utils.Implicits._
@@ -64,14 +64,14 @@ abstract class AbstractJacksonSerialization extends Serialization {
       }
     }
   }
-  class BAWrapper2Deserializer extends StdDeserializer[BAWrapper2](classOf[BAWrapper2]) {
+  class BaWrapperDeserializer extends StdDeserializer[BaWrapper](classOf[BaWrapper]) {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
       val bytes = jp.readValueAs(classOf[Array[Byte]])
       bytes
     }
   }
-  class BAWrapper2Serializer extends StdSerializer[BAWrapper2](classOf[BAWrapper2]) {
-    def serialize(ba: BAWrapper2, jg: JsonGenerator, prov: SerializerProvider): Unit = {
+  class BaWrapperSerializer extends StdSerializer[BaWrapper](classOf[BaWrapper]) {
+    def serialize(ba: BaWrapper, jg: JsonGenerator, prov: SerializerProvider): Unit = {
       jg.writeBinary(ba.data)
     }
   }
@@ -79,8 +79,8 @@ abstract class AbstractJacksonSerialization extends Serialization {
   val testModule = new SimpleModule("MyModule", new Version(1, 0, 0, null));
   testModule.addDeserializer(classOf[UpdatePart], new UpdatePartDeserializer())
   testModule.addDeserializer(classOf[BackupPart], new BackupPartDeserializer())
-  testModule.addDeserializer(classOf[BAWrapper2], new BAWrapper2Deserializer())
-  testModule.addSerializer(classOf[BAWrapper2], new BAWrapper2Serializer())
+  testModule.addDeserializer(classOf[BaWrapper], new BaWrapperDeserializer())
+  testModule.addSerializer(classOf[BaWrapper], new BaWrapperSerializer())
 
   def mapper: ObjectMapper with ScalaObjectMapper
 
