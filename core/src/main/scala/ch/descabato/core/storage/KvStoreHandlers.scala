@@ -101,7 +101,7 @@ class KvStoreBlockHandler extends BlockHandler with UniversePart {
   var _loaded = false
   
   private def getReaderForLocation(file: File) = {
-    new KvStoreStorageMechanismReader(file)
+    new KvStoreStorageMechanismReader(file, config.passphrase)
   }
   
   def finish(): Boolean = {
@@ -115,7 +115,10 @@ class KvStoreBlockHandler extends BlockHandler with UniversePart {
     true
   }
 
-  def getAllPersistedKeys(): Set[BaWrapper] = persistedEntries.keySet
+  def getAllPersistedKeys(): Set[BaWrapper] = {
+    ensureLoaded()
+    persistedEntries.keySet
+  }
 
   def isPersisted(hash: Array[Byte]): Boolean = getAllPersistedKeys() safeContains hash
 

@@ -111,7 +111,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
   "plain backup" should "work" in {
-    testWith(" --threads 4 --compression bzip2", "", 5, "100Mb")
+    testWith(" --threads 1", "", 5, "100Mb")
   }
 
 //  "encrypted backup" should "work" in {
@@ -122,9 +122,9 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 //    testWith(" --threads 5 --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
 //  }
 //
-//  "backup with multiple threads" should "work" in {
-//    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 2, "50Mb", false)
-//  }
+  "backup with multiple threads" should "work" in {
+    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 2, "50Mb", false)
+  }
 //
 ////    "backup with redundancy" should "recover" in {
 ////      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
@@ -198,11 +198,11 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
       // no temp files in backup
       input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
       // verify backup
-//      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
-//
-//      if (hasPassword) {
-//        startAndWait(s"verify${configRestore}a --percent-of-files-to-check 50 $backup1".split(" ")) should not be (0)
-//      }
+      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
+
+      if (hasPassword) {
+        startAndWait(s"verify${configRestore}a --percent-of-files-to-check 50 $backup1".split(" ")) should not be (0)
+      }
 
       if (redundancy) {
         // Testing what happens when messing with the files

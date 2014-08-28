@@ -21,8 +21,8 @@ trait StorageMechanismReader[L <: Location, K, V] extends AutoCloseable with Ite
   def get(l: L): V
 }
 
-class KvStoreStorageMechanismWriter(val file: File) extends StorageMechanismWriter[KvStoreLocation, Array[Byte], Array[Byte]] {
-  lazy val kvstoreWriter = KvStore.makeWriterType0(file)
+class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[String] = None) extends StorageMechanismWriter[KvStoreLocation, Array[Byte], Array[Byte]] {
+  lazy val kvstoreWriter = KvStore.makeWriterType2(file, if (passphrase.isDefined) passphrase.get else null)
 
   def add(k: Array[Byte], v: Array[Byte]) {
     kvstoreWriter.writeKeyValue(k, v)
@@ -39,8 +39,8 @@ class KvStoreStorageMechanismWriter(val file: File) extends StorageMechanismWrit
 
 class KvStoreLocation(val file: File, val pos: Long) extends Location
 
-class KvStoreStorageMechanismReader(val file: File) extends StorageMechanismReader[KvStoreLocation, Array[Byte], Array[Byte]] {
-  lazy val kvstoreReader = KvStore.makeReader(file)
+class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[String] = None) extends StorageMechanismReader[KvStoreLocation, Array[Byte], Array[Byte]] {
+  lazy val kvstoreReader = KvStore.makeReaderWithPassphrase(file, if (passphrase.isDefined) passphrase.get else null)
   
   def iterator = {
     kvstoreReader.iterator().collect{case Entry(_, k::v::Nil) => (k.array, new KvStoreLocation(file, v.startPos))}
