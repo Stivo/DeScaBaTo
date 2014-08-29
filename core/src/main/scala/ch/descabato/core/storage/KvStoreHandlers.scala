@@ -1,22 +1,14 @@
 package ch.descabato.core.storage
 
+import java.io.{ByteArrayInputStream, File, InputStream}
+import java.util.zip.ZipEntry
+
+import ch.descabato.core._
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Streams.ExceptionCatchingInputStream
+import ch.descabato.utils.Streams.{VerifyInputStream, ExceptionCatchingInputStream}
+
 import scala.collection.immutable.HashMap
-import ch.descabato.core.BackupPartHandler
-import ch.descabato.core.HashListHandler
-import ch.descabato.core.BlockHandler
-import java.io.File
-import java.io.ByteArrayInputStream
-import java.io.InputStream
-import ch.descabato.core.BlockingOperation
-import ch.descabato.core.Block
-import java.util.zip.ZipEntry
-import ch.descabato.core.UniversePart
-import ch.descabato.core.VolumeFinished
-import ch.descabato.core.ProblemCounter
-import ch.descabato.core.BaWrapper
 
 class KvStoreBackupPartHandler extends BackupPartHandler {
   def checkpoint(t: Option[(Set[ch.descabato.core.BaWrapper], Set[ch.descabato.core.BaWrapper])]): Unit = {
@@ -61,40 +53,84 @@ class KvStoreBackupPartHandler extends BackupPartHandler {
 }
 
 class KvStoreHashListHandler extends HashListHandler {
-  
+  lazy val fileType = fileManager.hashlists
+
+  var persistedEntries = Map.empty[BaWrapper, KvStoreLocation]
+
+  var currentlyWritingFile: KvStoreStorageMechanismWriter = null
+
+  var _loaded = false
+
+  private def getReaderForLocation(file: File) = {
+    new KvStoreStorageMechanismReader(file, config.passphrase)
+  }
+
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte]): Unit = {
-    ???
+    ensureLoaded()
+    if (persistedEntries safeContains fileHash)
+      return
+    if (currentlyWritingFile == null) {
+      currentlyWritingFile =
+        new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, false), config.passphrase)
+    }
+    persistedEntries += new BaWrapper(fileHash) -> null
+    currentlyWritingFile.add(fileHash, hashList)
   }
 
   def checkpoint(t: Option[Set[ch.descabato.core.BaWrapper]]): Unit = {
-    ???
+    if (currentlyWritingFile != null) {
+      currentlyWritingFile.checkpoint()
+    }
   }
 
   def finish(): Boolean = {
-    ???
+    if (currentlyWritingFile != null) {
+      currentlyWritingFile.close()
+      universe.eventBus().publish(HashListCheckpointed(getAllPersistedKeys, universe.blockHandler().getAllPersistedKeys()))
+      currentlyWritingFile = null
+    }
+    true
   }
 
   def getAllPersistedKeys(): Set[ch.descabato.core.BaWrapper] = {
-    ???
+    ensureLoaded()
+    persistedEntries.keySet
   }
 
   def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]] = {
-    ???
+    ensureLoaded()
+    val pos = persistedEntries(fileHash)
+    val reader = getReaderForLocation(pos.file)
+    val out = reader.get(pos)
+    reader.close()
+    out.grouped(config.hashLength).toSeq
   }
 
-  def load(): Unit = {
-    ???
+  def load() {
+    for (file <- fileType.getFiles(config.folder)) {
+      val reader = getReaderForLocation(file)
+      persistedEntries ++= reader.iterator.map {case (k, v) => (new BaWrapper(k), v)}
+      reader.close()
+    }
+  }
+
+  private def ensureLoaded() {
+    if (!_loaded) {
+      load()
+      _loaded = true
+    }
   }
 
   def shutdown(): ch.descabato.core.BlockingOperation = {
-    ???
+    finish()
+    new BlockingOperation()
   }
 }
 
 class KvStoreBlockHandler extends BlockHandler with UniversePart {
   lazy val fileType = fileManager.volumes
 
-  var persistedEntries = Map.empty[BaWrapper, KvStoreLocation] 
+  var persistedEntries = Map.empty[BaWrapper, KvStoreLocation]
   
   var currentlyWritingFile: KvStoreStorageMechanismWriter = null
   
@@ -143,7 +179,12 @@ class KvStoreBlockHandler extends BlockHandler with UniversePart {
     val reader = getReaderForLocation(pos.file)
     val out = new ByteArrayInputStream(reader.get(pos))
     reader.close()
-    new ExceptionCatchingInputStream(CompressedStream.readStream(out), pos.file)
+    val out2 = new ExceptionCatchingInputStream(CompressedStream.readStream(out), pos.file)
+    if (verify) {
+      new VerifyInputStream(out2, config.getMessageDigest(), hash, pos.file)
+    } else {
+      out2
+    }
   }
 
   def remaining: Int = {
@@ -180,7 +221,7 @@ class KvStoreBlockHandler extends BlockHandler with UniversePart {
   def writeCompressedBlock(block: Block, zipEntry: ZipEntry) {
     if (currentlyWritingFile == null) {
       currentlyWritingFile =
-        new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, false))
+        new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, false), config.passphrase)
     }
     persistedEntries += new BaWrapper(block.hash) -> null
     currentlyWritingFile.add(block.hash, Array.apply(block.header) ++ block.compressed.toArray())

@@ -26,7 +26,8 @@ libraryDependencies ++= Seq(
     "org.fusesource.jansi" % "jansi" % "1.11",
     "org.iq80.leveldb" % "leveldb" % "0.7",
     "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.7",
-    "org.bouncycastle" % "bcprov-jdk15on" % "1.51"
+    "org.bouncycastle" % "bcprov-jdk16" % "1.46"
+    //"org.bouncycastle" % "bcprov-jdk15on" % "1.51"
 )
 
 // compressors

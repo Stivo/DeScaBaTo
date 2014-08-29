@@ -110,21 +110,21 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     deleteAll(restore1)
   }
 
-  "plain backup" should "work" in {
-    testWith(" --threads 1", "", 5, "100Mb")
-  }
-
-//  "encrypted backup" should "work" in {
-//    testWith(" --threads 5 --compression gzip --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 2, "50Mb")
+//  "plain backup" should "work" in {
+//    testWith(" --threads 1", "", 5, "100Mb")
 //  }
+
+  "encrypted backup" should "work" in {
+    testWith(" --threads 5 --compression none --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 1, "50Mb")
+  }
 //
 //  "low volumesize backup with prefix" should "work" in {
 //    testWith(" --threads 5 --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
 //  }
 //
-  "backup with multiple threads" should "work" in {
-    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 2, "50Mb", false)
-  }
+//  "backup with multiple threads" should "work" in {
+//    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 2, "50Mb", false)
+//  }
 //
 ////    "backup with redundancy" should "recover" in {
 ////      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
@@ -222,7 +222,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     if (!redundancy) {
       messupBackupFiles
       l.info("Verification should fail after files have been messed up")
-      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" "), false) should not be (0)
+      startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" "), false) should not be (0)
       l.info("Verification failed as expected")
     }
   }
@@ -234,14 +234,14 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     files.filter(x => set.exists(s => x.getName.toLowerCase().startsWith(prefix + s))).foreach { f =>
       l.info("Messing up " + f + " length " + f.length())
       val raf = new RandomAccessFile(f, "rw")
-      raf.seek(raf.length() / 2);
+      raf.seek(raf.length() / 2)
       raf.write(("\0").getBytes)
       raf.close()
     }
     files.filter(_.getName.startsWith(prefix + "volume")).filter(_.length > 100 * 1024).foreach { f =>
       l.info("Messing up " + f)
       val raf = new RandomAccessFile(f, "rw")
-      raf.seek(raf.length() / 2);
+      raf.seek(raf.length() / 2)
       raf.write(("\0" * 100).getBytes)
       raf.close()
     }
