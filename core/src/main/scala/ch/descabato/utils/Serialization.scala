@@ -96,6 +96,14 @@ abstract class AbstractJacksonSerialization extends Serialization {
     out.close()
   }
 
+  def write[T](t: T)(implicit m: Manifest[T]) = {
+    mapper.writeValueAsBytes(t)
+  }
+
+  def read[T](in: Array[Byte])(implicit m: Manifest[T]) = {
+    Left(mapper.readValue(in))
+  }
+
   def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Either[T, Exception] = {
     try {
       Left(mapper.readValue(in))

@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 import ch.descabato.akka.AkkaUniverse
 import scala.collection.mutable
 import ch.descabato.frontend.MaxValueCounter
-import ch.descabato.core.storage.{KvStoreHashListHandler, KvStoreBlockHandler}
+import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreHashListHandler, KvStoreBlockHandler}
 
 object Universes {
   def makeUniverse(config: BackupFolderConfiguration) = {
@@ -52,7 +52,7 @@ trait UniversePart extends AnyRef with PostRestart {
 class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe with PureLifeCycle with Utils {
   def make[T <: UniversePart](x: T) = {x.setup(this); x}
   val journalHandler = make(new SimpleJournalHandler())
-  val backupPartHandler = make(new ZipBackupPartHandler())
+  val backupPartHandler = make(new KvStoreBackupPartHandler())
   val hashListHandler = make(new KvStoreHashListHandler())
   val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
   val blockHandler = make(new KvStoreBlockHandler())
