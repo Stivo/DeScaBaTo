@@ -5,7 +5,6 @@ import scala.collection.immutable.HashMap
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.util.Arrays
-import org.bouncycastle.crypto.generators.SCrypt
 import javax.crypto.Mac
 import ch.descabato.core.BaWrapper
 
@@ -122,7 +121,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	lazy val writer = {
     val baos = new ByteArrayOutputStream()
 	  val tempOut = new DataOutputStream(baos) 
-	  val out = new EncryptedFileWriterAes(file)
+	  val out = new EncryptedRandomAccessFileImpl(file)
     def copyTempOutToOut() = {
       tempOut.flush()
       val bytes = baos.toByteArray()
@@ -139,7 +138,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
         val array = copyTempOutToOut()
   	    val keyInfo = new KeyInfo(key)
   	    keyInfo.iv = encryptionInfo.iv
-  	    out.turnEncryptionOn(keyInfo)
+  	    out.setEncryptionBoundary(keyInfo)
   	    out.write(CryptoUtils.hmac(array, keyInfo))
     }
     def writeKeyDerivationInfo() {
@@ -195,7 +194,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	    writer.writeInt(CrcUtil.crc(part.array))
 	}
 	
-  def close(): Unit = {
+  def close() {
     writer.close()
   }
 }
@@ -205,7 +204,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
   private var startOfEntries = 0L
   private var encryptionInfo: EncryptionInfo = null
   lazy val reader = {
-    val out = new EncryptedFileReaderAes(file)
+    val out = new EncryptedRandomAccessFileImpl(file)
     val marker = Array.ofDim[Byte](7)
     out.read(marker)
     if (!new String(marker).equals("KvStore")) {
@@ -230,7 +229,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
       val keyInfo = new KeyInfo(key)
       keyInfo.iv = encryptionInfo.iv
       val backup = out.getFilePos()
-      out.turnEncryptionOn(backup, keyInfo)
+      out.setEncryptionBoundary(keyInfo)
       val hmacInFile = out.readBytes(32)
       out.seek(0)
       val bytesToHmac = out.readBytes(backup.toInt)

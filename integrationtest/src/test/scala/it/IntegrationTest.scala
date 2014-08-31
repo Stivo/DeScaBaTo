@@ -43,7 +43,8 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
   val packFolder = new File(descabatoFolder, s"core/target/pack").getAbsoluteFile()
 
-  var baseFolder = new File("integrationtest/testdata")
+  var baseFolder = new File("H:/testdata")
+//  var baseFolder = new File("integrationtest/testdata")
   var logFolder = new File(descabatoFolder, "integrationtest/logs")
 
   def folder(s: String) = new File(baseFolder, s).getAbsoluteFile()
@@ -111,11 +112,11 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
 //  "plain backup" should "work" in {
-//    testWith(" --threads 1", "", 5, "100Mb")
+//    testWith(" --threads 1", "", 2, "100Mb")
 //  }
 
   "encrypted backup" should "work" in {
-    testWith(" --threads 5 --compression none --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 1, "50Mb")
+    testWith(" --threads 5 --compression none --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 2, "50Mb")
   }
 //
 //  "low volumesize backup with prefix" should "work" in {

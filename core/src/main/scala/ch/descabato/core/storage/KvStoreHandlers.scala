@@ -205,7 +205,7 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
 
   def writeBackupPart(fd: BackupPart) {
     val json = js.write(fd)
-    writeEntry(fd.name, json)
+    writeEntry(fd.path, json)
   }
 
   protected def getUnfinished(fd: FileDescription) =
