@@ -29,11 +29,16 @@ class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[Strin
   }
 
   def checkpoint(): Unit = {
+    kvstoreWriter.checkpoint()
     // TODO kvstoreWriter.checkpoint()
   }
 
   def close(): Unit = {
     kvstoreWriter.close()
+  }
+
+  def length() = {
+    kvstoreWriter.length()
   }
 }
 

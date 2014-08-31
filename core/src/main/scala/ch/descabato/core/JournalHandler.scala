@@ -12,6 +12,8 @@ class BlockingOperation
 // TODO some javadoc here
 class SimpleJournalHandler extends JournalHandler with Utils {
 
+  private var _incosistentBackup = false
+
   val journalInZipFile = "journalUpdates.txt"
   val updateMarker = "_withUpdate"
 
@@ -78,7 +80,8 @@ class SimpleJournalHandler extends JournalHandler with Utils {
         }
       }
       files.foreach { f =>
-        l.debug(s"Deleting file $f because Journal does not mention it")
+        l.debug(s"Checking file $f because Journal does not mention it")
+        _incosistentBackup = true
         val file = new File(config.folder, f)
         var shouldDelete = true
         if (file.getName.endsWith(".zip.raes") || file.getName.endsWith(".zip")) {
@@ -87,7 +90,8 @@ class SimpleJournalHandler extends JournalHandler with Utils {
           kvStore.close()
           if (success) {
             shouldDelete = false
-            finishedFile(file, universe.fileManager().volumes)
+            val ft = universe.fileManager().getFileType(file)
+            finishedFile(file, ft)
           }
         }
         if (shouldDelete) {
@@ -103,6 +107,8 @@ class SimpleJournalHandler extends JournalHandler with Utils {
       _usedIdentifiers
 //    }
   }
+
+  def isInconsistentBackup() = true
 
   def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false): BlockingOperation = {
     checkLock()

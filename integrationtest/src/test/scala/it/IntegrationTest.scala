@@ -114,10 +114,10 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 //  "plain backup" should "work" in {
 //    testWith(" --threads 1", "", 2, "100Mb")
 //  }
-
-  "encrypted backup" should "work" in {
-    testWith(" --threads 5 --compression none --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 2, "50Mb")
-  }
+//
+//  "encrypted backup" should "work" in {
+//    testWith(" --threads 5 --compression none --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 2, "20Mb")
+//  }
 //
 //  "low volumesize backup with prefix" should "work" in {
 //    testWith(" --threads 5 --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
@@ -132,16 +132,16 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 ////    }
 //
 //  "backup with crashes" should "work" in {
-//    testWith(" --volume-size 10Mb", "", 5, "300Mb", true, false)
+//    testWith(" --compression deflate --volume-size 10Mb", "", 5, "300Mb", true, false)
 //  }
-//
-//  "backup with crashes, encryption and multiple threads" should "work" in {
-//    testWith(" --threads 10 --volume-size 10Mb", "", 2, "200Mb", true, false)
-//  }
+
+  "backup with crashes, encryption and multiple threads" should "work" in {
+    testWith(" --threads 10 --passphrase testpass --volume-size 10Mb", "--passphrase testpass", 2, "600mb", true, false)
+  }
 
   def numberOfCheckpoints(): Int = {
     if (backup1.exists) {
-      backup1.listFiles().filter(_.getName().contains("temp.hash")).size
+      backup1.listFiles().filter(_.getName().contains("volume_")).size
     } else {
       0
     }
@@ -161,7 +161,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     val fg = new FileGen(input, maxSize)
     fg.generateFiles
     fg.rescan()
-    val maxCrashes = 10
+    val maxCrashes = 3
     for (i <- 1 to iterations) {
       l.info(s"Iteration $i of $iterations")
       if (crash) {
@@ -172,7 +172,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
           val proc = createHandler(s"backup$config $backup1 $input".split(" "))
           proc.start()
           if (Random.nextBoolean) {
-            val secs = Random.nextInt(10) + 2
+            val secs = Random.nextInt(10) + 5
             l.info(s"Waiting for $secs seconds before destroying process")
             var waited = 0
             while (waited < secs && !proc.finished) {
@@ -180,9 +180,9 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
               waited += 1
             }
           } else {
-            l.info("Waiting for new hashlist before destroying process")
+            l.info("Waiting for 2 new volume before destroying process")
             Thread.sleep(1000)
-            while ((numberOfCheckpoints() == checkpoints) && !proc.finished) {
+            while ((numberOfCheckpoints() <= checkpoints + 1) && !proc.finished) {
               Thread.sleep(100)
             }
           }

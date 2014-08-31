@@ -112,19 +112,43 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     // Walk tree and compile to do list
     ProgressReporters.activeCounters = List(scanCounter)
     val visitor = new OldIndexVisitor(backupPartHandler.loadBackup(None).asMap, recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
-    val (newDesc, unchangedDesc, deletedDesc) = (visitor.newDesc, visitor.unchangedDesc, visitor.deletedDesc)
+    var (newDesc, unchangedDesc, deletedDesc) = (visitor.newDesc, visitor.unchangedDesc, visitor.deletedDesc)
 
     l.info("Counting of files done")
     l.info("New Files      : " + statistics(newDesc))
     l.info("Unchanged files: " + statistics(unchangedDesc))
     l.info("Deleted files  : " + statistics(deletedDesc))
+    if (universe.journalHandler().isInconsistentBackup()) {
+      def finished(fileDesc: FileDescription): Boolean = {
+        if (fileDesc.hash == null)
+          return false
+        var blocks: Iterable[Array[Byte]] = List(fileDesc.hash)
+        if (fileDesc.size > config.blockSize.bytes) {
+          if (!universe.hashListHandler().isPersisted(fileDesc.hash)) {
+            return false
+          }
+          blocks = universe.hashListHandler().getHashlist(fileDesc.hash, config.hashLength)
+        }
+        for (hash <- blocks) {
+          if (!universe.blockHandler().isPersisted(hash)) {
+            return false
+          }
+        }
+        true
+      }
+      val (finishedFiles, unfinished) = unchangedDesc.files.partition(finished)
+      newDesc = newDesc.copy(files = newDesc.files ++ unfinished)
+      unchangedDesc = unchangedDesc.copy(files = finishedFiles)
+      l.info("Counting of files after considering inconsistent backup state")
+      l.info("New Files      : " + statistics(newDesc))
+      l.info("Unchanged files: " + statistics(unchangedDesc))
+    }
     if ((newDesc.size + deletedDesc.size) == 0) {
       ProgressReporters.activeCounters = Nil
       l.info("No files have been changed, aborting backup")
       return
     }
-    val allFiles = unchangedDesc.merge(newDesc)
-    backupPartHandler.setFiles(allFiles)
+    backupPartHandler.setFiles(unchangedDesc, newDesc)
 
     // Backup files 
     setMaximums(newDesc, true)
@@ -141,7 +165,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       out
     }
 
-    val (success, failed) = coll.partition(backupFileDesc)
+    val r = new Random()
+    val (success, failed) = r.shuffle(newDesc.files).partition(backupFileDesc)
     universe.finish()
     ProgressReporters.activeCounters = Nil
     l.info("Successfully backed up " + success.size + ", failed " + failed.size)

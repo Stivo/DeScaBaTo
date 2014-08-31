@@ -90,7 +90,9 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
   // add files to the current backup description
   // Also may contain deleted files, which then should be removed from current
-  def setFiles(bd: BackupDescription) {
+  def setFiles(bd: BackupDescription, a: BackupDescription) {
+    if (true)
+      throw new IllegalArgumentException("Should be updated or, better, deleted...")
     current = bd
     bd.files.foreach {
       file =>

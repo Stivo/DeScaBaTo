@@ -27,7 +27,6 @@ trait KvStoreHandler[T, K] extends UniversePart {
   def load() {
     for (file <- fileType.getFiles(config.folder)) {
       val reader = getReaderForLocation(file)
-      reader.kvstoreReader.checkAndFixFile()
       persistedEntries ++= reader.iterator.map {
         case (k, v) => (storageToKey(k), v)
       }
@@ -67,6 +66,8 @@ trait KvStoreHandler[T, K] extends UniversePart {
     true
   }
 
+  var entries = 0
+
   def writeEntry(key: K, value: Array[Byte]): Unit = {
     if (currentlyWritingFile == null) {
       currentlyWritingFile =
@@ -74,6 +75,9 @@ trait KvStoreHandler[T, K] extends UniversePart {
     }
     persistedEntries += key -> null
     currentlyWritingFile.add(keyToStorage(key), value)
+    entries += 1
+    if (entries % 10 == 0)
+      currentlyWritingFile.checkpoint()
   }
 
   def keyToStorage(k: K): Array[Byte]
@@ -188,15 +192,15 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
     unfinished.filter(!_._2.failed).size
   }
 
-  def setFiles(bd: BackupDescription) {
-    current = bd
-    bd.files.foreach {
+  def setFiles(finished: BackupDescription, unfinished: BackupDescription) {
+    current = finished.merge(unfinished)
+    unfinished.files.foreach {
       file =>
-        if (file.hash == null)
-          getUnfinished(file)
+        getUnfinished(file.copy(hash = null))
     }
-    val toCheckpoint = current.copy(files = current.files.filter(_.hash != null))
+    val toCheckpoint = finished
     toCheckpoint.allParts.foreach(writeBackupPart)
+    unfinished.folders.foreach(writeBackupPart)
     // TODO setMaximums(bd)
     //toCheckpoint = current.copy(files = current.files.filter(_.hash != null))
     l.info("After setCurrent " + remaining + " remaining")
@@ -252,7 +256,7 @@ class KvStoreHashListHandler extends KvStoreHandler[Vector[(BaWrapper, Array[Byt
   override def checkpoint(t: Option[Set[BaWrapper]]): Unit = {}
 }
 
-class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockHandler {
+class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockHandler with Utils {
   lazy val fileType = fileManager.volumes
 
   override def keyToStorage(k: BaWrapper): Array[Byte] = k.data
@@ -301,18 +305,22 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
    }
 
   def writeCompressedBlock(block: Block, zipEntry: ZipEntry) {
+
+    if (currentlyWritingFile != null) {
+      val currentSize = currentlyWritingFile.length() + block.compressed.remaining() + config.hashLength + 50
+      if (currentSize > config.volumeSize.bytes) {
+        currentlyWritingFile.close()
+        fileFinished()
+        currentlyWritingFile = null
+      }
+    }
     writeEntry(block.hash, Array.apply(block.header) ++ block.compressed.toArray())
     outstandingRequests -= block.hash
-    // TODO
-//    if (currentWriter != null && currentWriter.size + block.compressed.remaining() + zipEntry.getName().length > volumeSize.bytes) {
-//      endZipFile()
-//    }
-//    openZipFileWriter()
+  // TODO counters
 //    byteCounter.compressedBytes += block.compressed.remaining()
 //    compressionRatioCounter += block.compressed.remaining()
 //    byteCounter += outstandingRequests(hash)
 //    compressionRatioCounter.maxValue += outstandingRequests(hash)
 //    outstandingRequests -= hash
-//    inCurrentWriterKeys += (hash)
   }
 }

@@ -129,7 +129,7 @@ trait IndexedKvStoreReader extends KvStoreReader {
 }
 
 class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: Array[Byte] = null, val fsyncThreshold: Long = 1024*1024) extends KvStoreWriter {
-  lazy val encryptionInfo = new EncryptionInfo() 
+  lazy val encryptionInfo = new EncryptionInfo()
   lazy val keyDerivationInfo = new KeyDerivationInfo()
 	lazy val writer = {
     val baos = new ByteArrayOutputStream()
@@ -199,6 +199,8 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	  }
   }
 
+  def checkpoint(): Unit = writer.fsync()
+
 	def writeEntryPart(part: EntryPart) {
 	  writer.writeByte(if (part.hasCrc) 1 else 0)
 	  writer.writeVLong(part.array.length)
@@ -211,6 +213,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
     writer.writeByte(255.toByte)
     writer.close()
   }
+  def length() = writer.getFileLength()
 }
 
 class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGiven: Array[Byte] = null) extends KvStoreReader with Utils {
@@ -290,6 +293,16 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
 
   def checkAndFixFile(): Boolean = {
     var success = true
+    try {
+      reader.getFilePos()
+    } catch {
+      case e: Exception =>
+        l.error(s"Got exception while opening kvstore $file, deleting whole file", e)
+        if (reader != null)
+          reader.raf.close()
+        reader.file.delete()
+        return false
+    }
     val backup = reader.getFilePos()
     var continue = true
     val it = iterator()
@@ -305,16 +318,16 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
         }
       } catch {
         case e: Exception =>
-          l.warn(s"Exception happened while trying to read entry at offset $lastGoodPos in file $file", e)
+          l.warn(s"Exception ${e.getMessage} happened while trying to read entry at offset $lastGoodPos in file $file")
         delete = true
       }
-      if (e != null && e.getEndOfEntryPos() >= reader.getFileLength()) {
+      if (e != null && e.getEndOfEntryPos() > reader.getFileLength()) {
         l.warn(s"Entry at $lastGoodPos is longer than file $file")
         delete = true
-      } else {
+      } else if (e != null) {
         lastGoodPos = e.getEndOfEntryPos()
       }
-      if (delete) {
+      if (e == null || delete) {
         continue = false
         try {
           reader.seek(lastGoodPos)

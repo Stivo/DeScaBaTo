@@ -89,6 +89,9 @@ trait JournalHandler extends UniversePart with LifeCycle {
   def createMarkerFile(writer: ZipFileWriter, filesToDelete: Seq[File]): BlockingOperation
   // All the identifiers that were once used and are now unsafe to use again
   def usedIdentifiers(): Set[String]
+
+  // Reports whether the last shut down was dirty (crash)
+  def isInconsistentBackup(): Boolean
   
   override val mayUseNonBlockingLoad = false
   override def load() = new IllegalAccessException("Journal handler must be loaded synchronously")
@@ -142,12 +145,13 @@ trait CompressionDecider extends UniversePart {
 }
 
 trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BaWrapper], Set[BaWrapper])] {
+
   // reads all the backup parts for the given date
   def loadBackup(date: Option[Date] = None): BackupDescription
 
   // sets the backup description that should be saved
-  def setFiles(bd: BackupDescription)
-  
+  def setFiles(finishedFiles: BackupDescription, unfinishedFiles: BackupDescription)
+
   // sets the hash for this file
   def hashForFile(fd: FileDescription, hash: Array[Byte])
 

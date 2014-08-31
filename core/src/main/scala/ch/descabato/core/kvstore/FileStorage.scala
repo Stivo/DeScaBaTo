@@ -135,11 +135,10 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       val destOffset = (filePos - startOfBlockPos).toInt
       val lenHere = List(len, blockSize - destOffset).min
       plainBytes()
-      System.out.println(s"destOffset is $destOffset, lenHere $lenHere, xOffset $xOffset, length ${_plainBytes.length}")
+//      System.out.println(s"destOffset is $destOffset, lenHere $lenHere, xOffset $xOffset, length ${_plainBytes.length}")
       if (_plainBytes.length < blockSize) {
         val rest = blockSize - _plainBytes.length
         _plainBytes = _plainBytes ++ Array.ofDim[Byte](rest)
-        System.out.println(s"Adding $rest bytes to _plainBytes")
       }
       System.arraycopy(x, xOffset, _plainBytes, destOffset, lenHere)
       endOfBlock = Math.max(destOffset + lenHere, endOfBlock)
@@ -150,7 +149,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     def readBytes(bytes: Array[Byte], destOffset: Int, filePos: Long, len: Int) = {
       val srcOffset = (filePos - startOfBlockPos).toInt
       val lenHere = List(len, endOfBlock - srcOffset).min
-      System.out.println(s"Copying $lenHere bytes from plainBytes (${plainBytes().length} at $srcOffset) to bytes (${bytes.length} at $destOffset), at pos $filePos/${raf.length()}")
+      //System.out.println(s"Copying $lenHere bytes from plainBytes (${plainBytes().length} at $srcOffset) to bytes (${bytes.length} at $destOffset), at pos $filePos/${raf.length()}")
       System.arraycopy(plainBytes(), srcOffset, bytes, destOffset, lenHere)
       lenHere
     }
@@ -269,11 +268,18 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
 
   override def getFilePos() = currentPos
 
+  override def getFileLength() = {
+    val o = blockCache.lastOption.map{ case (_, b) => b.endOfBlock + b.startOfBlockPos}
+    (List(super.getFileLength()) ++ o.iterator).max
+  }
+
   def truncateRestOfFile() = {
     raf.setLength(currentPos)
-    val block = getBlock()
-    block.truncateTo(currentPos)
-    blockCache = blockCache.to(block.blockNum)
+    if (encryptedFrom <= currentPos) {
+      val block = getBlock()
+      block.truncateTo(currentPos)
+      blockCache = blockCache.to(block.blockNum)
+    }
     fsync()
   }
 }
