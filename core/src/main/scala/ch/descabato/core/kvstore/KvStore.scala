@@ -7,6 +7,7 @@ import java.io.DataOutputStream
 import java.util.Arrays
 import javax.crypto.Mac
 import ch.descabato.core.BaWrapper
+import ch.descabato.utils.Utils
 
 object KvStore {
   def makeWriterType0(file: File) = {
@@ -53,14 +54,16 @@ class KeyDerivationInfo (
 object EntryTypes {
   val simple = new EntryType(0, 1)
   val keyValue = new EntryType(1, 2)
+  val endOfFile = new EntryType(255.toByte, 0)
   def getTypeForByte(byte: Byte) = {
     byte match {
       case 0 => simple
       case 1 => keyValue
+      case -1 => endOfFile
       case e => throw new IllegalArgumentException("Not a valid value for entrytype")
     }
   }
-  
+
 }
 
 trait EntryPart {
@@ -83,7 +86,17 @@ class EntryPartW(val array: Array[Byte], val hasCrc: Boolean = true) extends Ent
 }
 
 case class Entry(typ: EntryType, parts: Iterable[EntryPart]) {
-  var startPos: Long = 0L
+  def this(typ: EntryType, parts: Iterable[EntryPart], startPosIn: Long) {
+    this(typ, parts)
+    startPos = startPosIn
+  }
+  def getEndOfEntryPos(): Long = {
+    parts match {
+      case Nil => startPos + 1
+      case list => list.last.endPos
+    }
+  }
+  var startPos: Long = -2
 }
 
 trait KvStoreWriter extends AutoCloseable {
@@ -175,7 +188,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	
 	var lastSync = 0L
 	
-	def writeEntry(entry: Entry): Unit = {
+	def writeEntry(entry: Entry) {
     writer.writeByte(entry.typ.markerByte)
     for (part <- entry.parts) {
       writeEntryPart(part)
@@ -195,11 +208,12 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	}
 	
   def close() {
+    writer.writeByte(255.toByte)
     writer.close()
   }
 }
 
-class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGiven: Array[Byte] = null) extends KvStoreReader {
+class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGiven: Array[Byte] = null) extends KvStoreReader with Utils {
   val maxSupportedVersion = 0
   private var startOfEntries = 0L
   private var encryptionInfo: EncryptionInfo = null
@@ -268,10 +282,59 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
       def hasNext = pos < file.length
       def next = {
         val out = readEntryAt(pos).get
-        pos = out.parts.last.endPos
+        pos = out.getEndOfEntryPos()
         out
       }
     }
+  }
+
+  def checkAndFixFile(): Boolean = {
+    var success = true
+    val backup = reader.getFilePos()
+    var continue = true
+    val it = iterator()
+    var lastGoodPos = getPosOfFirstEntry()
+    var seenEndMarker = false
+    while (it.hasNext && continue) {
+      var delete = false
+      var e: Entry = null
+      try {
+        e = it.next
+        if (e.typ == EntryTypes.endOfFile) {
+          seenEndMarker = true
+        }
+      } catch {
+        case e: Exception =>
+          l.warn(s"Exception happened while trying to read entry at offset $lastGoodPos in file $file", e)
+        delete = true
+      }
+      if (e != null && e.getEndOfEntryPos() >= reader.getFileLength()) {
+        l.warn(s"Entry at $lastGoodPos is longer than file $file")
+        delete = true
+      } else {
+        lastGoodPos = e.getEndOfEntryPos()
+      }
+      if (delete) {
+        continue = false
+        try {
+          reader.seek(lastGoodPos)
+          reader.writeByte(255.toByte)
+          reader.truncateRestOfFile()
+          seenEndMarker = true
+          l.warn(s"Truncated file $file to $lastGoodPos bytes")
+        } catch {
+          case e: Exception => l.error(s"Exception while fixing $file", e)
+            success = false
+        }
+      }
+    }
+    if (!seenEndMarker) {
+      l.warn(s"File $file has not been closed properly")
+      reader.writeByte(255.toByte)
+      reader.fsync()
+    }
+    reader.seek(backup)
+    success
   }
   
   def close(): Unit = {
@@ -294,7 +357,6 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
   }
   
   def readPlainValue(startPosOfEntry: Long, hasCrcIn: Boolean) = {
-    
     val length = reader.readVLong()
     val offset = if (hasCrcIn) 4 else 0
     new EntryPart() {
@@ -322,12 +384,16 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     }
     reader.seek(pos)
     val typ = EntryTypes.getTypeForByte(reader.readByte())
-    if (typ != EntryTypes.keyValue) {
-      throw new IllegalArgumentException("Expected key value entry type at "+pos)
+    typ match {
+      case EntryTypes.keyValue =>
+        val key = readEntryPartAt(reader.getFilePos())
+        val value = readEntryPartAt(reader.getFilePos())
+        Some(new Entry(typ, key::value::Nil, pos))
+      case EntryTypes.endOfFile =>
+        Some(new Entry(typ, Nil, pos))
+      case _ =>
+        throw new IllegalArgumentException("Expected key value entry type at "+pos)
     }
-    val key = readEntryPartAt(reader.getFilePos())
-    val value = readEntryPartAt(reader.getFilePos())
-    Some(new Entry(typ, key::value::Nil))
   }
   
 }

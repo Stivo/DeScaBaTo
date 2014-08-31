@@ -1,11 +1,11 @@
 /* Enter on http://bottlecaps.de/rr/ui */
 
-KVStore ::= 'KVStore' 'Version_0' ('0' NormalEntry+ | ('1' | '2' KeyDerivationInfo ) EncryptionInfo EncryptedFileContent)
+KVStore ::= 'KVStore' 'Version_0' ('0' NormalEntry+ | ('1' | '2' KeyDerivationInfo ) EncryptionInfo EncryptedFileContent) '255'
 KeyDerivationInfo ::= Algorithm Iterations KeyLength SaltLength Salt
 EncryptionInfo ::= Algorithm MacAlgorithm IvLength Iv
-EncryptedFileContent ::= EncryptionStart HeaderHmac NormalEntry+ ('255' HmacOfFile)?
+EncryptedFileContent ::= EncryptionStart HeaderHmac NormalEntry+ ('250' HmacOfFile)?
 EncryptionStart ::= "Start of encrypted part, no byte, just a marker"
-NormalEntry ::= ('0' Entry | '1' Entry Entry)
+NormalEntry ::= ('0' Entry | '1' Entry Entry | '254' SkipBytesLength RandomSkipBytes)
 Entry ::= ('0' PlainValue | '1' CrcType PlainValue Crc | '2' WithCompression PlainValue | '3' WithCompression CrcType PlainValue Crc)
 PlainValue ::= Length Value
 Length ::= VBitEncodedLength

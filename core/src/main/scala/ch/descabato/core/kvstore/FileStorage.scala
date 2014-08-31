@@ -16,9 +16,10 @@ import java.io.DataOutputStream
 import java.security.SecureRandom
 import java.io.EOFException
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Utils
 import scala.collection.mutable
 
-import scala.collection.immutable.HashMap
+import scala.collection.immutable.{TreeMap, HashMap}
 
 class KeyInfo(val key: Array[Byte]) {
   def ivSize = 16
@@ -93,14 +94,16 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
 
 }
 
-class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAccessFileHelpers {
+class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAccessFileHelpers with Utils {
   var encryptedFrom = Long.MaxValue
+
   var keyInfo: KeyInfo = null
   var cipher: Cipher = null
   var currentPos = 0L
-  def blockSize = cipher.getBlockSize
 
+  def blockSize = cipher.getBlockSize
   class Block(val blockNum: Int) {
+
     val startOfBlockPos = blockNum * cipher.getBlockSize + encryptedFrom
     var _cipherBytes: Array[Byte] = null
     var _plainBytes: Array[Byte] = null
@@ -151,6 +154,9 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       System.arraycopy(plainBytes(), srcOffset, bytes, destOffset, lenHere)
       lenHere
     }
+    def truncateTo(filePos: Long) = {
+      endOfBlock = (filePos - startOfBlockPos).toInt
+    }
     def write(): Unit = {
       if (!_plainCipherSynced) {
         val iv = CryptoUtils.deriveIv(keyInfo.iv, blockNum)
@@ -166,20 +172,21 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     }
   }
 
-  val blockCache = mutable.HashMap[Int, Block]()
+  var blockCache = TreeMap[Int, Block]()
 
   def getBlock() = {
     val encryptedStreamPos = currentPos - encryptedFrom
     // find involved blocks
     val startBlock = (encryptedStreamPos / blockSize).toInt
-    blockCache.getOrElseUpdate(startBlock, {
-      new Block(startBlock)
-    })
+    if (!(blockCache safeContains startBlock)) {
+      blockCache += startBlock -> new Block(startBlock)
+    }
+    blockCache(startBlock)
   }
-  
+
   override def fsync(): BlockingOperation = {
     blockCache.values.foreach(_.write())
-    blockCache.clear()
+    blockCache = TreeMap.empty
     raf.getChannel.force(false)
     new BlockingOperation()
   }
@@ -203,6 +210,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
   }
 
   override def writeImpl(bytes: Array[Byte], offset: Int, len: Int) {
+    l.debug(s"Writing bytes from $file from $offset to $len")
     boundaryCheck(len, false)
     raf.seek(currentPos)
     if (getFilePos() < encryptedFrom) {
@@ -224,6 +232,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
   }
 
   override def readImpl(bytes: Array[Byte], offset: Int, len: Int): Unit = {
+    l.debug(s"Reading bytes from $file from $offset to $len")
     boundaryCheck(len, true)
     raf.seek(currentPos)
     if (getFilePos() < encryptedFrom) {
@@ -234,6 +243,10 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       var offsetNow = 0
       while (bytesLeft > 0) {
         val readingNow = getBlock().readBytes(bytes, offsetNow, currentPos, bytesLeft)
+        if (readingNow == 0) {
+          //l.warn("Did not read any bytes")
+          throw new IllegalStateException("Internal problem")
+        }
         currentPos += readingNow
         bytesLeft -= readingNow
         offsetNow += readingNow
@@ -256,9 +269,16 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
 
   override def getFilePos() = currentPos
 
+  def truncateRestOfFile() = {
+    raf.setLength(currentPos)
+    val block = getBlock()
+    block.truncateTo(currentPos)
+    blockCache = blockCache.to(block.blockNum)
+    fsync()
+  }
 }
 /**
- * Zig-zag encoder used to write object sizes to serialization streams.
+  * Zig-zag encoder used to write object sizes to serialization streams.
  * Based on Kryo's integer encoder.
  */
 object ZigZag {

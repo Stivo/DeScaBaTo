@@ -2,6 +2,7 @@ package ch.descabato.core
 
 import java.io.RandomAccessFile
 import java.io.File
+import ch.descabato.core.kvstore.KvStoreReaderImpl
 import ch.descabato.utils.{ZipFileWriter, ZipFileHandlerFactory, Utils}
 import ch.descabato.utils.Implicits._
 import scala.collection.immutable.HashSet
@@ -61,8 +62,8 @@ class SimpleJournalHandler extends JournalHandler with Utils {
                 val reader = ZipFileHandlerFactory.reader(file, config)
                 val s = new String(reader.getStream(journalInZipFile).readFully(), "UTF-8")
                 _usedIdentifiers ++= s.lines
-                s.lines.foreach {
-                  new File(config.folder, _).delete()
+                s.lines.foreach { f =>
+                  new File(config.folder, f).delete()
                 }
               }
               // TODO some kind of publish/subscriber mechanism should be used instead of this
@@ -78,7 +79,20 @@ class SimpleJournalHandler extends JournalHandler with Utils {
       }
       files.foreach { f =>
         l.debug(s"Deleting file $f because Journal does not mention it")
-        new File(config.folder, f).delete()
+        val file = new File(config.folder, f)
+        var shouldDelete = true
+        if (file.getName.endsWith(".zip.raes") || file.getName.endsWith(".zip")) {
+          val kvStore = new KvStoreReaderImpl(file, config.passphrase.getOrElse(null))
+          val success = kvStore.checkAndFixFile()
+          kvStore.close()
+          if (success) {
+            shouldDelete = false
+            finishedFile(file, universe.fileManager().volumes)
+          }
+        }
+        if (shouldDelete) {
+          new File(config.folder, f).delete()
+        }
       }
       new BlockingOperation()
     }

@@ -27,6 +27,7 @@ trait KvStoreHandler[T, K] extends UniversePart {
   def load() {
     for (file <- fileType.getFiles(config.folder)) {
       val reader = getReaderForLocation(file)
+      reader.kvstoreReader.checkAndFixFile()
       persistedEntries ++= reader.iterator.map {
         case (k, v) => (storageToKey(k), v)
       }
