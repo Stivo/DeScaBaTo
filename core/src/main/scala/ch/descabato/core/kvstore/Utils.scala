@@ -4,20 +4,38 @@ import javax.crypto.spec.IvParameterSpec
 import java.math.BigInteger
 import java.util.Arrays
 import javax.crypto.spec.SecretKeySpec
-import java.security.SecureRandom
+import java.security.{MessageDigest, SecureRandom}
 import javax.crypto.Mac
-import org.bouncycastle.crypto.generators.SCrypt
+import ch.descabato.utils.Utils
+import org.bouncycastle.util.encoders.Base64
+import scala.util.Random
+
+//import org.bouncycastle.crypto.generators.SCrypt
 import java.util.zip.CRC32
 
-object CryptoUtils {
+object CryptoUtils extends Utils {
   def deriveIv(iv: Array[Byte], offset: Int) = {
     var bigInt = new BigInteger(iv)
     bigInt = bigInt.add(new BigInteger(offset+""))
-    new IvParameterSpec(bigInt.toByteArray())
+    var bytes = bigInt.toByteArray()
+    if (bytes.length != iv.length) {
+      l.warn(s"Have to update length for the iv ${bytes.length} vs ${iv.length}")
+      while (bytes.length < iv.length) {
+        bytes = Array(0.toByte) ++ bytes
+      }
+      while (bytes.length > iv.length) {
+        bytes = bytes.drop(1)
+      }
+      l.warn("Iv in "+Base64.encode(iv))
+      l.warn("offset "+offset)
+      l.warn("Iv out "+Base64.encode(bytes))
+    }
+    new IvParameterSpec(bytes)
   }
   def newStrongRandomByteArray(ivLength: Short) = {
     val iv = Array.ofDim[Byte](ivLength)
-    SecureRandom.getInstance("PKCS11").nextBytes(iv)
+    //SecureRandom.getInstance("PKCS11").nextBytes(iv)
+    new Random().nextBytes(iv)
     iv
   }
   
@@ -39,7 +57,11 @@ object CryptoUtils {
   }
   
   def keyDerive(passphrase: String, salt: Array[Byte], keyLength: Byte = 16, iterationsPower: Int = 16, memoryFactor: Int = 8) = {
-    SCrypt.generate(passphrase.getBytes("UTF-8"), salt, 2**iterationsPower, memoryFactor, 4, keyLength)
+    val md = MessageDigest.getInstance("MD5")
+    md.update(salt)
+    md.update(passphrase.getBytes("UTF-8"))
+    md.digest()
+    //SCrypt.generate(passphrase.getBytes("UTF-8"), salt, 2**iterationsPower, memoryFactor, 4, keyLength)
   }
   
 }

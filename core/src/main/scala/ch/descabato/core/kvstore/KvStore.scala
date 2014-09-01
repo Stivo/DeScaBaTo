@@ -220,63 +220,66 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
   val maxSupportedVersion = 0
   private var startOfEntries = 0L
   private var encryptionInfo: EncryptionInfo = null
-  lazy val reader = {
-    val out = new EncryptedRandomAccessFileImpl(file)
-    val marker = Array.ofDim[Byte](7)
-    out.read(marker)
-    if (!new String(marker).equals("KvStore")) {
-      throw new IllegalStateException("File is not a valid kvstore file")
-    }
-    val version = out.readByte()
-    if (version > maxSupportedVersion) {
-      throw new IllegalStateException("This file was written with an incompatible version")
-    }
-    def readEncryptionInfo(key: Array[Byte]) {
-      val algorithm = out.readByte()
-      if (algorithm != 0) {
-        throw new IllegalArgumentException(s"algorithm $algorithm is not implemented")
+  var _reader: EncryptedRandomAccessFileImpl = null
+  def reader() = {
+    if (_reader == null) {
+      _reader = new EncryptedRandomAccessFileImpl(file)
+      val marker = Array.ofDim[Byte](7)
+      _reader.read(marker)
+      if (!new String(marker).equals("KvStore")) {
+        throw new IllegalStateException("File is not a valid kvstore file")
       }
-      val macAlgorithm = out.readByte()
-      if (macAlgorithm != 0) {
-        throw new IllegalArgumentException(s"macAlgorithm $macAlgorithm is not implemented")
+      val version = _reader.readByte()
+      if (version > maxSupportedVersion) {
+        throw new IllegalStateException("This file was written with an incompatible version")
       }
-      val ivLength = out.readVLong().toByte
-      val iv = out.readBytes(ivLength)
-      encryptionInfo = new EncryptionInfo(algorithm, macAlgorithm, ivLength, iv)
-      val keyInfo = new KeyInfo(key)
-      keyInfo.iv = encryptionInfo.iv
-      val backup = out.getFilePos()
-      out.setEncryptionBoundary(keyInfo)
-      val hmacInFile = out.readBytes(32)
-      out.seek(0)
-      val bytesToHmac = out.readBytes(backup.toInt)
-      val hmacComputed = CryptoUtils.hmac(bytesToHmac, keyInfo)
-      if (!Arrays.equals(hmacInFile, hmacComputed)) {
-        throw new IllegalStateException("Hmac verification failed")
-      }
-      out.skip(32)
-    }
-    val filetype = out.readByte()
-    filetype match {
-      case 0 => // unencrypted file, we are done
-      case 1 => // initialize encryption
-        readEncryptionInfo(keyGiven)        
-      case 2 => // file with passphrase
-        val algorithm = out.readByte()
+      def readEncryptionInfo(key: Array[Byte]) {
+        val algorithm = _reader.readByte()
         if (algorithm != 0) {
-          throw new IllegalArgumentException(s"algorihtm $algorithm is not implemented")
+          throw new IllegalArgumentException(s"algorithm $algorithm is not implemented")
         }
-        val iterationsPower = out.readByte()
-        val memoryFactor = out.readByte()
-        val keyLength = out.readByte()
-        val saltLength = out.readByte()
-        val salt = out.readBytes(saltLength)
-        val key = CryptoUtils.keyDerive(passphrase, salt, keyLength, iterationsPower, memoryFactor)
-        readEncryptionInfo(key)
-      case e => throw new IllegalArgumentException(s"Filetype $e is not implemented")
+        val macAlgorithm = _reader.readByte()
+        if (macAlgorithm != 0) {
+          throw new IllegalArgumentException(s"macAlgorithm $macAlgorithm is not implemented")
+        }
+        val ivLength = _reader.readVLong().toByte
+        val iv = _reader.readBytes(ivLength)
+        encryptionInfo = new EncryptionInfo(algorithm, macAlgorithm, ivLength, iv)
+        val keyInfo = new KeyInfo(key)
+        keyInfo.iv = encryptionInfo.iv
+        val backup = _reader.getFilePos()
+        _reader.setEncryptionBoundary(keyInfo)
+        val hmacInFile = _reader.readBytes(32)
+        _reader.seek(0)
+        val bytesToHmac = _reader.readBytes(backup.toInt)
+        val hmacComputed = CryptoUtils.hmac(bytesToHmac, keyInfo)
+        if (!Arrays.equals(hmacInFile, hmacComputed)) {
+          throw new IllegalStateException("Hmac verification failed")
+        }
+        _reader.skip(32)
+      }
+      val filetype = _reader.readByte()
+      filetype match {
+        case 0 => // unencrypted file, we are done
+        case 1 => // initialize encryption
+          readEncryptionInfo(keyGiven)
+        case 2 => // file with passphrase
+          val algorithm = _reader.readByte()
+          if (algorithm != 0) {
+            throw new IllegalArgumentException(s"algorihtm $algorithm is not implemented")
+          }
+          val iterationsPower = _reader.readByte()
+          val memoryFactor = _reader.readByte()
+          val keyLength = _reader.readByte()
+          val saltLength = _reader.readByte()
+          val salt = _reader.readBytes(saltLength)
+          val key = CryptoUtils.keyDerive(passphrase, salt, keyLength, iterationsPower, memoryFactor)
+          readEncryptionInfo(key)
+        case e => throw new IllegalArgumentException(s"Filetype $e is not implemented")
+      }
+      startOfEntries = _reader.getFilePos()
     }
-    startOfEntries = out.getFilePos()
-    out
+    _reader
   }
 
   def iterator() = {

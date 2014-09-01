@@ -97,19 +97,28 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
 class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAccessFileHelpers with Utils {
   var encryptedFrom = Long.MaxValue
 
+  var noException = true
   var keyInfo: KeyInfo = null
   var cipher: Cipher = null
-  var currentPos = 0L
+  var _currentPos = 0L
+  def currentPos = {
+    l.trace("Getting currentpos") // "+Thread.currentThread().getStackTrace.mkString("\n"))
+    _currentPos
+  }
+  def currentPos_=(newValue: Long) {
+    l.trace(s"Setting currentpos to $newValue" ) //+Thread.currentThread().getStackTrace.mkString("\n"))
+    _currentPos = newValue
+  }
 
   def blockSize = cipher.getBlockSize
-  class Block(val blockNum: Int) {
+  class Block(val blockNum: Int, val size: Int) {
 
     val startOfBlockPos = blockNum * cipher.getBlockSize + encryptedFrom
     var _cipherBytes: Array[Byte] = null
     var _plainBytes: Array[Byte] = null
     var _diskCipherSynced = true
     var _plainCipherSynced = true
-    var endOfBlock = Math.min(blockSize, Math.max(currentPos, getFileLength()) - startOfBlockPos).toInt
+    var endOfBlock = Math.min(size, Math.max(currentPos, getFileLength()) - startOfBlockPos).toInt
     def cipherBytes() = {
       if (_cipherBytes == null && raf.length() >= startOfBlockPos + endOfBlock) {
         raf.seek(startOfBlockPos)
@@ -133,11 +142,11 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     }
     def updateBytes(x: Array[Byte], xOffset: Int, filePos: Long, len: Int) = {
       val destOffset = (filePos - startOfBlockPos).toInt
-      val lenHere = List(len, blockSize - destOffset).min
+      val lenHere = List(len, size - destOffset).min
       plainBytes()
 //      System.out.println(s"destOffset is $destOffset, lenHere $lenHere, xOffset $xOffset, length ${_plainBytes.length}")
-      if (_plainBytes.length < blockSize) {
-        val rest = blockSize - _plainBytes.length
+      if (_plainBytes.length < size) {
+        val rest = size - _plainBytes.length
         _plainBytes = _plainBytes ++ Array.ofDim[Byte](rest)
       }
       System.arraycopy(x, xOffset, _plainBytes, destOffset, lenHere)
@@ -155,6 +164,8 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     }
     def truncateTo(filePos: Long) = {
       endOfBlock = (filePos - startOfBlockPos).toInt
+      _plainCipherSynced = false
+      _diskCipherSynced = false
     }
     def write(): Unit = {
       if (!_plainCipherSynced) {
@@ -173,20 +184,29 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
 
   var blockCache = TreeMap[Int, Block]()
 
-  def getBlock() = {
+  def getBlock(): Block = {
     val encryptedStreamPos = currentPos - encryptedFrom
     // find involved blocks
     val startBlock = (encryptedStreamPos / blockSize).toInt
-    if (!(blockCache safeContains startBlock)) {
-      blockCache += startBlock -> new Block(startBlock)
+    val partialTreeMap = blockCache.to(startBlock)
+    val option = partialTreeMap.lastOption.filter {
+      case (num, b) =>
+        b.startOfBlockPos + b.size > currentPos
+    }
+    if (option.isDefined) {
+      return option.get._2
+    } else {
+      blockCache += startBlock -> new Block(startBlock, blockSize * 128)
     }
     blockCache(startBlock)
   }
 
   override def fsync(): BlockingOperation = {
-    blockCache.values.foreach(_.write())
-    blockCache = TreeMap.empty
-    raf.getChannel.force(false)
+    if (noException) {
+      blockCache.values.foreach(_.write())
+      blockCache = TreeMap.empty
+      raf.getChannel.force(false)
+    }
     new BlockingOperation()
   }
 
@@ -200,10 +220,12 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
   private def boundaryCheck(len: Int, read: Boolean) {
     if (getFilePos() < encryptedFrom) {
       if (getFilePos() + len > encryptedFrom) {
+        noException = false
         throw new IllegalArgumentException("May not read or write across encryption boundary")
       }
     }
     if (read && getFilePos() + len > getFileLength()) {
+      noException = false
       throw new IllegalArgumentException("May not read after end of file")
     }
   }
@@ -230,7 +252,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
 
   }
 
-  override def readImpl(bytes: Array[Byte], offset: Int, len: Int): Unit = {
+  override def readImpl(bytes: Array[Byte], offset: Int, len: Int) {
     l.debug(s"Reading bytes from $file from $offset to $len")
     boundaryCheck(len, true)
     raf.seek(currentPos)
@@ -244,6 +266,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
         val readingNow = getBlock().readBytes(bytes, offsetNow, currentPos, bytesLeft)
         if (readingNow == 0) {
           //l.warn("Did not read any bytes")
+          noException = false
           throw new IllegalStateException("Internal problem")
         }
         currentPos += readingNow
@@ -253,8 +276,10 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     }
   }
 
-  override def close(): Unit = {
-    fsync()
+  override def close() {
+    if (noException) {
+      fsync()
+    }
     raf.close()
   }
 
@@ -268,7 +293,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
 
   override def getFilePos() = currentPos
 
-  override def getFileLength() = {
+  override def getFileLength(): Long = {
     val o = blockCache.lastOption.map{ case (_, b) => b.endOfBlock + b.startOfBlockPos}
     (List(super.getFileLength()) ++ o.iterator).max
   }
