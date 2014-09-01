@@ -26,9 +26,9 @@ object CryptoUtils extends Utils {
       while (bytes.length > iv.length) {
         bytes = bytes.drop(1)
       }
-      l.warn("Iv in "+Base64.encode(iv))
+      l.warn("Iv in "+new String(Base64.encode(iv)))
       l.warn("offset "+offset)
-      l.warn("Iv out "+Base64.encode(bytes))
+      l.warn("Iv out "+new String(Base64.encode(bytes)))
     }
     new IvParameterSpec(bytes)
   }

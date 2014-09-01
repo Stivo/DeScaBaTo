@@ -3,6 +3,7 @@ package ch.descabato.utils
 import java.io.PrintStream
 import javax.xml.bind.DatatypeConverter
 import java.text.DecimalFormat
+import com.typesafe.scalalogging.LazyLogging
 import net.java.truevfs.access.TFile
 import net.java.truevfs.access.TVFS
 import java.io.File
@@ -14,7 +15,6 @@ import ch.descabato.ByteArrayOutputStream
 import scala.collection.mutable
 import java.io.InputStream
 import scala.language.implicitConversions
-import com.typesafe.scalalogging.slf4j.LazyLogging
 import ch.descabato.core.BaWrapper
 
 object Utils extends LazyLogging {
