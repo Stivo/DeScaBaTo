@@ -95,22 +95,7 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
 }
 
 class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAccessFileHelpers with Utils {
-  var encryptedFrom = Long.MaxValue
 
-  var noException = true
-  var keyInfo: KeyInfo = null
-  var cipher: Cipher = null
-  var _currentPos = 0L
-  def currentPos = {
-    l.trace("Getting currentpos") // "+Thread.currentThread().getStackTrace.mkString("\n"))
-    _currentPos
-  }
-  def currentPos_=(newValue: Long) {
-    l.trace(s"Setting currentpos to $newValue" ) //+Thread.currentThread().getStackTrace.mkString("\n"))
-    _currentPos = newValue
-  }
-
-  def blockSize = cipher.getBlockSize
   class Block(val blockNum: Int, val size: Int) {
 
     val startOfBlockPos = blockNum * cipher.getBlockSize + encryptedFrom
@@ -144,7 +129,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       val destOffset = (filePos - startOfBlockPos).toInt
       val lenHere = List(len, size - destOffset).min
       plainBytes()
-//      System.out.println(s"destOffset is $destOffset, lenHere $lenHere, xOffset $xOffset, length ${_plainBytes.length}")
+      //      System.out.println(s"destOffset is $destOffset, lenHere $lenHere, xOffset $xOffset, length ${_plainBytes.length}")
       val backup = _plainBytes
       if (_plainBytes.length < size) {
         _plainBytes = Array.ofDim[Byte](size)
@@ -185,32 +170,83 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     }
   }
 
-  var blockCache = TreeMap[Int, Block]()
+  class BlockCache(val maxMemory: Int = 5*1024*1024) {
+    private var cache = TreeMap[Int, Block]()
+    var currentSize = 0
 
-  def getBlock(length: Int = 0): Block = {
-    val encryptedStreamPos = currentPos - encryptedFrom
-    // find involved blocks
-    val startBlock = (encryptedStreamPos / blockSize).toInt
-    val partialTreeMap = blockCache.to(startBlock)
-    val option = partialTreeMap.lastOption.filter {
-      case (num, b) =>
-        b.startOfBlockPos + b.size > currentPos
+    def dropEntriesRightOf(i: Int) {
+      cache = cache.to(i)
+      recalcCurrentSize()
     }
-    if (option.isDefined) {
-      return option.get._2
-    } else {
-      var l = length >> 5
-      l += 1
-      val blockSize = l << 5
-      blockCache += startBlock -> new Block(startBlock, blockSize)
+
+    def recalcCurrentSize() {
+      currentSize = cache.map(_._2.size).sum
     }
-    blockCache(startBlock)
+
+    def getBlock(length: Int = 0): Block = {
+      val encryptedStreamPos = currentPos - encryptedFrom
+      val startBlock = (encryptedStreamPos / blockSize).toInt
+      val partialTreeMap = cache.to(startBlock)
+      val option = partialTreeMap.lastOption.filter {
+        case (num, b) =>
+          b.startOfBlockPos + b.size > currentPos
+      }
+      if (option.isDefined) {
+        return option.get._2
+      } else {
+        var len = length >> 5
+        len += 1
+        val blockSize = len << 5
+        cache += startBlock -> new Block(startBlock, blockSize)
+        currentSize += blockSize
+        while (currentSize > maxMemory) {
+          l.trace(s"Removing an entry from cache because $currentSize > $maxMemory")
+          val option = (cache - (startBlock)).headOption
+          option.foreach { case (k, v) =>
+            l.trace(s"Removed entry is ${v.blockNum} with size ${v.size}")
+            v.write()
+            cache = cache - k
+            currentSize -= v.size
+          }
+        }
+      }
+      cache(startBlock)
+    }
+
+    def flushWrites() {
+      cache.values.foreach(_.write)
+    }
+
+    def getLastPos(): Long = cache.lastOption.map{ case (_, b) => b.endOfBlock + b.startOfBlockPos}.getOrElse(0L)
+
+    def clear() = {
+      currentSize = 0
+      cache = TreeMap.empty
+    }
   }
+
+  var encryptedFrom = Long.MaxValue
+
+  var noException = true
+  var keyInfo: KeyInfo = null
+  var cipher: Cipher = null
+  var _currentPos = 0L
+  def currentPos = {
+    l.trace("Getting currentpos") // "+Thread.currentThread().getStackTrace.mkString("\n"))
+    _currentPos
+  }
+  def currentPos_=(newValue: Long) {
+    l.trace(s"Setting currentpos to $newValue" ) //+Thread.currentThread().getStackTrace.mkString("\n"))
+    _currentPos = newValue
+  }
+
+  def blockSize = cipher.getBlockSize
+
+  val blockCache = new BlockCache()
 
   override def fsync(): BlockingOperation = {
     if (noException) {
-      blockCache.values.foreach(_.write())
-      blockCache = TreeMap.empty
+      blockCache.flushWrites()
       raf.getChannel.force(false)
     }
     new BlockingOperation()
@@ -249,7 +285,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       var offsetNow = 0
       while (bytesLeft > 0) {
         // load cipher text for block
-        val block = getBlock(bytesLeft)
+        val block = blockCache.getBlock(bytesLeft)
         val writingNow = block.updateBytes(bytes, offsetNow, currentPos, bytesLeft)
         bytesLeft -= writingNow
         offsetNow += writingNow
@@ -269,7 +305,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       var bytesLeft = len
       var offsetNow = 0
       while (bytesLeft > 0) {
-        val readingNow = getBlock(bytesLeft).readBytes(bytes, offsetNow, currentPos, bytesLeft)
+        val readingNow = blockCache.getBlock(bytesLeft).readBytes(bytes, offsetNow, currentPos, bytesLeft)
         if (readingNow == 0) {
           //l.warn("Did not read any bytes")
           noException = false
@@ -285,6 +321,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
   override def close() {
     if (noException) {
       fsync()
+      blockCache.clear()
     }
     raf.close()
   }
@@ -300,46 +337,17 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
   override def getFilePos() = currentPos
 
   override def getFileLength(): Long = {
-    val o = blockCache.lastOption.map{ case (_, b) => b.endOfBlock + b.startOfBlockPos}
-    (List(super.getFileLength()) ++ o.iterator).max
+    val o = blockCache.getLastPos()
+    List(super.getFileLength(), o).max
   }
 
   def truncateRestOfFile() = {
     raf.setLength(currentPos)
     if (encryptedFrom <= currentPos) {
-      val block = getBlock()
+      val block = blockCache.getBlock()
       block.truncateTo(currentPos)
-      blockCache = blockCache.to(block.blockNum)
+      blockCache.dropEntriesRightOf(block.blockNum)
     }
     fsync()
-  }
-}
-/**
-  * Zig-zag encoder used to write object sizes to serialization streams.
- * Based on Kryo's integer encoder.
- */
-object ZigZag {
-
-  def writeLong(n: Long, out: EncryptedRandomAccessFileHelpers) {
-    var value = n
-    while((value & ~0x7F) != 0) {
-      out.writeByte(((value & 0x7F) | 0x80).toByte)
-      value >>>= 7
-    }
-    out.writeByte(value.toByte)
-  }
-
-  def readLong(in: EncryptedRandomAccessFileHelpers): Long = {
-    var offset = 0
-    var result = 0L
-    while (offset < 32) {
-      val b = in.readByte()
-      result |= ((b & 0x7F) << offset)
-      if ((b & 0x80) == 0) {
-        return result
-      }
-      offset += 7
-    }
-    throw new Exception("Malformed zigzag-encoded integer")
   }
 }

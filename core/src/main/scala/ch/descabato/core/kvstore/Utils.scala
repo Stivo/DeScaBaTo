@@ -8,6 +8,7 @@ import java.security.{MessageDigest, SecureRandom}
 import javax.crypto.Mac
 import ch.descabato.utils.Utils
 import org.bouncycastle.util.encoders.Base64
+import scala.collection.immutable.TreeMap
 import scala.util.Random
 
 //import org.bouncycastle.crypto.generators.SCrypt
@@ -78,4 +79,35 @@ object CrcUtil {
     }
   }
 }
+
+/**
+ * Zig-zag encoder used to write object sizes to serialization streams.
+ * Based on Kryo's integer encoder.
+ */
+object ZigZag {
+
+  def writeLong(n: Long, out: EncryptedRandomAccessFileHelpers) {
+    var value = n
+    while((value & ~0x7F) != 0) {
+      out.writeByte(((value & 0x7F) | 0x80).toByte)
+      value >>>= 7
+    }
+    out.writeByte(value.toByte)
+  }
+
+  def readLong(in: EncryptedRandomAccessFileHelpers): Long = {
+    var offset = 0
+    var result = 0L
+    while (offset < 32) {
+      val b = in.readByte()
+      result |= ((b & 0x7F) << offset)
+      if ((b & 0x80) == 0) {
+        return result
+      }
+      offset += 7
+    }
+    throw new Exception("Malformed zigzag-encoded integer")
+  }
+}
+
 
