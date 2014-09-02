@@ -3,6 +3,7 @@ package ch.descabato.core.kvstore
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
+import ch.descabato.akka.ActorStats
 import ch.descabato.core.BlockingOperation
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.Security
@@ -18,8 +19,11 @@ import java.io.EOFException
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 import scala.collection.mutable
+import scala.concurrent._
+import scala.concurrent.duration._
 
 import scala.collection.immutable.{TreeMap, HashMap}
+import scala.concurrent.ExecutionContext
 
 class KeyInfo(val key: Array[Byte]) {
   def ivSize = 16
@@ -95,15 +99,23 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
 }
 
 class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAccessFileHelpers with Utils {
+  implicit val context = ExecutionContext.fromExecutor(ActorStats.tpe)
+
+  var futureFailed = 0
+  var futureWorked = 0
+  var futuresWaitedFor = 0L
+  var waitedForFutures = 0L
 
   class Block(val blockNum: Int, val size: Int) {
 
     val startOfBlockPos = blockNum * cipher.getBlockSize + encryptedFrom
     var _cipherBytes: Array[Byte] = null
     var _plainBytes: Array[Byte] = null
+    var _future: Future[(Array[Byte], Array[Byte])] = null
     var _diskCipherSynced = true
     var _plainCipherSynced = true
     var endOfBlock = Math.min(size, Math.max(currentPos, getFileLength()) - startOfBlockPos).toInt
+
     def cipherBytes() = {
       if (_cipherBytes == null && raf.length() >= startOfBlockPos + endOfBlock) {
         raf.seek(startOfBlockPos)
@@ -112,6 +124,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       }
       _cipherBytes
     }
+
     def plainBytes() = {
       if (_plainBytes == null) {
         val cipherBytes2 = cipherBytes()
@@ -125,6 +138,19 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       }
       _plainBytes
     }
+
+    def spawnFuture() {
+      _future = Future {
+        try {
+          encryptBytes(_plainBytes)
+        } catch {
+          case e: Exception =>
+            l.warn("Future evaluation failed ", e)
+            (null, null)
+        }
+      }
+    }
+
     def updateBytes(x: Array[Byte], xOffset: Int, filePos: Long, len: Int) = {
       val destOffset = (filePos - startOfBlockPos).toInt
       val lenHere = List(len, size - destOffset).min
@@ -141,8 +167,13 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       endOfBlock = Math.max(destOffset + lenHere, endOfBlock)
       _plainCipherSynced = false
       _diskCipherSynced = false
+
+      if (endOfBlock == size) {
+        spawnFuture()
+      }
       lenHere
     }
+
     def readBytes(bytes: Array[Byte], destOffset: Int, filePos: Long, len: Int) = {
       val srcOffset = (filePos - startOfBlockPos).toInt
       val lenHere = List(len, endOfBlock - srcOffset).min
@@ -150,16 +181,35 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
       System.arraycopy(plainBytes(), srcOffset, bytes, destOffset, lenHere)
       lenHere
     }
+
     def truncateTo(filePos: Long) = {
       endOfBlock = (filePos - startOfBlockPos).toInt
+      spawnFuture()
       _plainCipherSynced = false
       _diskCipherSynced = false
     }
+
+    def encryptBytes(plainBytes: Array[Byte]) = {
+      val endHere = endOfBlock
+      val iv = CryptoUtils.deriveIv(keyInfo.iv, blockNum)
+      val cipherHere = Cipher.getInstance("AES/CTR/NoPadding", "BC")
+      cipherHere.init(Cipher.ENCRYPT_MODE, CryptoUtils.keySpec(keyInfo), iv)
+      val cipherBytes = cipherHere.doFinal(plainBytes, 0, endHere)
+      (cipherBytes, plainBytes)
+    }
     def write(): Unit = {
       if (!_plainCipherSynced) {
-        val iv = CryptoUtils.deriveIv(keyInfo.iv, blockNum)
-        cipher.init(Cipher.ENCRYPT_MODE, CryptoUtils.keySpec(keyInfo), iv)
-        _cipherBytes = cipher.doFinal(_plainBytes, 0, endOfBlock)
+        var result: (Array[Byte], Array[Byte]) = null
+        if (_future != null) {
+          val startedWaiting = System.currentTimeMillis()
+          result = Await.result(_future, 10 minutes)
+          futuresWaitedFor += 1
+          waitedForFutures += System.currentTimeMillis() - startedWaiting
+        }
+        if (result == null || result._1 == null || !java.util.Arrays.equals(result._2, _plainBytes)) {
+          result = encryptBytes(_plainBytes)
+        }
+        _cipherBytes = result._1
         _plainCipherSynced = true
       }
       if (!_diskCipherSynced) {
@@ -263,12 +313,12 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     if (getFilePos() < encryptedFrom) {
       if (getFilePos() + len > encryptedFrom) {
         noException = false
-        throw new IllegalArgumentException("May not read or write across encryption boundary")
+        throw new IllegalArgumentException(s"May not read or write across encryption boundary of file $file")
       }
     }
     if (read && getFilePos() + len > getFileLength()) {
       noException = false
-      throw new IllegalArgumentException("May not read after end of file")
+      throw new IllegalArgumentException(s"May not read after end of file $file")
     }
   }
 
@@ -322,6 +372,9 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     if (noException) {
       fsync()
       blockCache.clear()
+    }
+    if (futuresWaitedFor != 0) {
+      l.info(s"Waited for $futuresWaitedFor a total of $waitedForFutures")
     }
     raf.close()
   }

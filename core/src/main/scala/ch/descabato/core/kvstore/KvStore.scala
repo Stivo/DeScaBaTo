@@ -102,7 +102,7 @@ case class Entry(typ: EntryType, parts: Iterable[EntryPart]) {
 trait KvStoreWriter extends AutoCloseable {
   def writeEntry(entry: Entry)
   def writeKeyValue(key: Array[Byte], value: Array[Byte]) = {
-    writeEntry(new Entry(EntryTypes.keyValue, newEntryPart(key, false) :: newEntryPart(value, true) :: Nil))
+    writeEntry(new Entry(EntryTypes.keyValue, newEntryPart(key, false) :: newEntryPart(value, false) :: Nil))
   }
   def newEntryPart(array: Array[Byte], hasCrc: Boolean = false) = {
     new EntryPartW(array, hasCrc)
@@ -128,7 +128,7 @@ trait IndexedKvStoreReader extends KvStoreReader {
   }
 }
 
-class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: Array[Byte] = null, val fsyncThreshold: Long = 1024*1024) extends KvStoreWriter {
+class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: Array[Byte] = null, val fsyncThreshold: Long = 100*1024*1024) extends KvStoreWriter {
   lazy val encryptionInfo = new EncryptionInfo()
   lazy val keyDerivationInfo = new KeyDerivationInfo()
 	lazy val writer = {

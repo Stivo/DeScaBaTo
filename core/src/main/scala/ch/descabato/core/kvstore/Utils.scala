@@ -20,16 +20,12 @@ object CryptoUtils extends Utils {
     bigInt = bigInt.add(new BigInteger(offset+""))
     var bytes = bigInt.toByteArray()
     if (bytes.length != iv.length) {
-      l.warn(s"Have to update length for the iv ${bytes.length} vs ${iv.length}")
       while (bytes.length < iv.length) {
         bytes = Array(0.toByte) ++ bytes
       }
       while (bytes.length > iv.length) {
         bytes = bytes.drop(1)
       }
-      l.warn("Iv in "+new String(Base64.encode(iv)))
-      l.warn("offset "+offset)
-      l.warn("Iv out "+new String(Base64.encode(bytes)))
     }
     new IvParameterSpec(bytes)
   }

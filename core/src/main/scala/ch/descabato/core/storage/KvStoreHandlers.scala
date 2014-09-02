@@ -76,7 +76,7 @@ trait KvStoreHandler[T, K] extends UniversePart {
     persistedEntries += key -> null
     currentlyWritingFile.add(keyToStorage(key), value)
     entries += 1
-    if (entries % 10 == 0)
+    if (entries % 1000 == 0)
       currentlyWritingFile.checkpoint()
   }
 
@@ -208,9 +208,14 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
 
   val js = new JsonSerialization()
 
+  var i = 0
   def writeBackupPart(fd: BackupPart) {
     val json = js.write(fd)
     writeEntry(fd.path, json)
+    if (i % 10 == 0) {
+      currentlyWritingFile.checkpoint()
+    }
+    i += 1
   }
 
   protected def getUnfinished(fd: FileDescription) =
@@ -235,11 +240,17 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
 class KvStoreHashListHandler extends KvStoreHandler[Vector[(BaWrapper, Array[Byte])], BaWrapper] with HashListHandler {
   lazy val fileType = fileManager.hashlists
 
+  var i = 0
+
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte]): Unit = {
     ensureLoaded()
     if (persistedEntries safeContains fileHash)
       return
     writeEntry(fileHash, hashList)
+    if (i % 10 == 0) {
+      currentlyWritingFile.checkpoint()
+    }
+    i += 1
   }
 
   def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]] = {
