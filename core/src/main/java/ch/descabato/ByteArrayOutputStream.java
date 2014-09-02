@@ -16,7 +16,7 @@ import java.nio.ByteBuffer;
  */
 
 public class ByteArrayOutputStream extends OutputStream {
-	private final static Logger log = LoggerFactory.getLogger(TrueVfs.class);
+	private final static Logger log = LoggerFactory.getLogger(ByteArrayOutputStream.class);
 	
     /**
      * The buffer where data is stored.

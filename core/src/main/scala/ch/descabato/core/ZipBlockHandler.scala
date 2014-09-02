@@ -3,8 +3,6 @@ package ch.descabato.core
 import java.io.File
 import java.io.InputStream
 import java.nio.file.Files
-import net.java.truevfs.access.TFile
-import net.java.truevfs.access.TFileInputStream
 import java.nio.ByteBuffer
 import ch.descabato.utils.Utils
 import ch.descabato.utils.Streams._

@@ -81,11 +81,13 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
 
   // reads all the backup parts for the given date
   def loadBackup(date: Option[Date]): BackupDescription = {
-    val filesToLoad: Seq[File] = fileManager.getLastBackup(temp = true) 
-    current = filesToLoad
-      .flatMap(fileManager.backup.read(_, OnFailureTryRepair))
-      .fold(new BackupDescription())((x, y) => x.merge(y))
-    current
+    // TODO delete
+//    val filesToLoad: Seq[File] = fileManager.getLastBackup(temp = true)
+//    current = filesToLoad
+//      .flatMap(fileManager.backup.read(_, OnFailureTryRepair))
+//      .fold(new BackupDescription())((x, y) => x.merge(y))
+//    current
+    null
   }
 
   // add files to the current backup description
@@ -149,7 +151,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
     val toSave = new BackupDescription(filesToSave, toCheckpoint.folders, toCheckpoint.symlinks, toCheckpoint.deleted)
     toCheckpoint = new BackupDescription(files = filesToKeep)
     if (!toSave.isEmpty) {
-      fileManager.backup.write(toSave, true, true)
+//      fileManager.backup.write(toSave, true, true)
       l.info(s"Checkpointed ${toSave.size} items in file "+(fileManager.backup.nextNum(true) - 1))
     }
   }
@@ -165,7 +167,7 @@ class ZipBackupPartHandler extends BackupPartHandler with UniversePart with Util
       throw new IllegalStateException("Backup Part Handler must be finished before finish may be called")
     }
     checkpoint(None)
-    fileManager.backup.mergeTempFilesIntoNew()
+//    fileManager.backup.mergeTempFilesIntoNew()
     if (!toCheckpoint.isEmpty()) {
       for (x <- toCheckpoint.asMap) {
         l.info("Still contains "+x)

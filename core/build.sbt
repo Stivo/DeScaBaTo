@@ -26,14 +26,15 @@ libraryDependencies ++= Seq(
     "org.fusesource.jansi" % "jansi" % "1.11",
     "org.iq80.leveldb" % "leveldb" % "0.7",
     "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.7",
-    "org.bouncycastle" % "bcprov-jdk16" % "1.46"
-    //"org.bouncycastle" % "bcprov-jdk15on" % "1.51"
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.51"
 )
 
 // compressors
 libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.3",
-  "net.jpountz.lz4" % "lz4" % "1.2.0"
+  "net.jpountz.lz4" % "lz4" % "1.2.0",
+  "org.tukaani" % "xz" % "1.5",
+  "org.apache.commons" % "commons-compress" % "1.8.1"
 )
 
 // Logging
@@ -48,13 +49,6 @@ libraryDependencies ++= Seq(
 	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.4.1",
 	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.4.1",
     "de.undercouch" % "bson4jackson" % "2.4.0"
-)
-
-// truevfs
-libraryDependencies ++= Seq(
-    "javax.inject" % "javax.inject" % "1",
-    "com.google.code.findbugs" % "annotations" % "3.0.0",
-	"org.apache.commons" % "commons-compress" % "1.8.1"
 )
 
 // Test dependencies

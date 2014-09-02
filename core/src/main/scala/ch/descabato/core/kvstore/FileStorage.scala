@@ -202,7 +202,7 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
         var result: (Array[Byte], Array[Byte]) = null
         if (_future != null) {
           val startedWaiting = System.currentTimeMillis()
-          result = Await.result(_future, 10 minutes)
+          result = Await.result(_future, 10.minutes)
           futuresWaitedFor += 1
           waitedForFutures += System.currentTimeMillis() - startedWaiting
         }

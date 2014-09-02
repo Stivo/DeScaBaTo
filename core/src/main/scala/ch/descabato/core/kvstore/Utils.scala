@@ -2,16 +2,11 @@ package ch.descabato.core.kvstore
 
 import javax.crypto.spec.IvParameterSpec
 import java.math.BigInteger
-import java.util.Arrays
 import javax.crypto.spec.SecretKeySpec
-import java.security.{MessageDigest, SecureRandom}
+import java.security.SecureRandom
 import javax.crypto.Mac
 import ch.descabato.utils.Utils
-import org.bouncycastle.util.encoders.Base64
-import scala.collection.immutable.TreeMap
-import scala.util.Random
-
-//import org.bouncycastle.crypto.generators.SCrypt
+import org.bouncycastle.crypto.generators.SCrypt
 import java.util.zip.CRC32
 
 object CryptoUtils extends Utils {
@@ -31,8 +26,7 @@ object CryptoUtils extends Utils {
   }
   def newStrongRandomByteArray(ivLength: Short) = {
     val iv = Array.ofDim[Byte](ivLength)
-    //SecureRandom.getInstance("PKCS11").nextBytes(iv)
-    new Random().nextBytes(iv)
+    SecureRandom.getInstance("PKCS11").nextBytes(iv)
     iv
   }
   
@@ -54,11 +48,7 @@ object CryptoUtils extends Utils {
   }
   
   def keyDerive(passphrase: String, salt: Array[Byte], keyLength: Byte = 16, iterationsPower: Int = 16, memoryFactor: Int = 8) = {
-    val md = MessageDigest.getInstance("MD5")
-    md.update(salt)
-    md.update(passphrase.getBytes("UTF-8"))
-    md.digest()
-    //SCrypt.generate(passphrase.getBytes("UTF-8"), salt, 2**iterationsPower, memoryFactor, 4, keyLength)
+    SCrypt.generate(passphrase.getBytes("UTF-8"), salt, 2**iterationsPower, memoryFactor, 4, keyLength)
   }
   
 }

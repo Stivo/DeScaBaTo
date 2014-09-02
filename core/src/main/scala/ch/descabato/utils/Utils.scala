@@ -4,8 +4,6 @@ import java.io.PrintStream
 import javax.xml.bind.DatatypeConverter
 import java.text.DecimalFormat
 import com.typesafe.scalalogging.LazyLogging
-import net.java.truevfs.access.TFile
-import net.java.truevfs.access.TVFS
 import java.io.File
 import java.nio.file.Files
 import java.nio.ByteBuffer
@@ -50,10 +48,6 @@ object Utils extends LazyLogging {
     print(t)
     logger.debug(baos.toString())
     baos.recycle()
-  }
-
-  def closeTFile(x: TFile) {
-    TVFS.umount(x.getMountPoint())
   }
 
 }

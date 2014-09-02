@@ -61,12 +61,13 @@ class SimpleJournalHandler extends JournalHandler with Utils {
               val file = new File(config.folder, parts(2))
               // Read the journal update. A file within a zip file that tells which files should be deleted
               if (file.exists() && parts(0).endsWith(updateMarker)) {
-                val reader = ZipFileHandlerFactory.reader(file, config)
-                val s = new String(reader.getStream(journalInZipFile).readFully(), "UTF-8")
-                _usedIdentifiers ++= s.lines
-                s.lines.foreach { f =>
-                  new File(config.folder, f).delete()
-                }
+                // TODO updatemarker
+//                val reader = ZipFileHandlerFactory.reader(file, config)
+//                val s = new String(reader.getStream(journalInZipFile).readFully(), "UTF-8")
+//                _usedIdentifiers ++= s.lines
+//                s.lines.foreach { f =>
+//                  new File(config.folder, f).delete()
+//                }
               }
               // TODO some kind of publish/subscriber mechanism should be used instead of this
 //              val filetype = fileManager.getFileType(file)

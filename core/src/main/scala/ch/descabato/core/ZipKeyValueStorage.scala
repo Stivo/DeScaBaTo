@@ -3,7 +3,6 @@ package ch.descabato.core
 import ch.descabato.utils._
 import ch.descabato.utils.Implicits._
 import java.io.File
-import net.java.truevfs.access.{TVFS, TFile}
 import com.google.common.cache.{CacheLoader, RemovalNotification, RemovalListener, CacheBuilder}
 
 // Threadsafe when reading, not when writing.
@@ -48,20 +47,20 @@ trait ZipKeyValueStorage[K, V] extends UniversePart {
     this.synchronized {
       files.foreach {
         f =>
-          val num = filetype.numberOf(f)
-          val reader = ZipFileHandlerFactory.reader(f, config)
-          reader.names.foreach {
-            name =>
-              if (name.startsWith(folder)) {
-                val keyname = name.substring(folder.length())
-                val key = convertStringToKey(keyname)
-                if (keepValuesInMemory) {
-                  inMemoryCache += (key -> readValue(name, reader))
-                }
-                inCurrentWriterKeys += key
-              }
-          }
-          reader.close()
+//          val num = filetype.numberOf(f)
+//          val reader = ZipFileHandlerFactory.reader(f, config)
+//          reader.names.foreach {
+//            name =>
+//              if (name.startsWith(folder)) {
+//                val keyname = name.substring(folder.length())
+//                val key = convertStringToKey(keyname)
+//                if (keepValuesInMemory) {
+//                  inMemoryCache += (key -> readValue(name, reader))
+//                }
+//                inCurrentWriterKeys += key
+//              }
+//          }
+//          reader.close()
           addKeysToIndex(f)
       }
     }
@@ -107,7 +106,7 @@ trait ZipKeyValueStorage[K, V] extends UniversePart {
 
   protected def openZipFileWriter() {
     if (currentWriter == null) {
-      currentWriter = ZipFileHandlerFactory.writer(filetype.nextFile(temp = writeTempFiles), config)
+//      currentWriter = ZipFileHandlerFactory.writer(filetype.nextFile(temp = writeTempFiles), config)
       currentWriter.writeManifest(fileManager)
     }
   }
@@ -152,23 +151,7 @@ trait ZipKeyValueStorage[K, V] extends UniversePart {
     throw new NoSuchElementException("Value is not in backup")
   }
 
-  class CacheRemovalListener extends RemovalListener[File, ZipFileReader] {
-    def onRemoval(notification: RemovalNotification[File, ZipFileReader]) {
-      notification.getValue.close
-    }
-  }
-
-  class ReaderCacheLoader extends CacheLoader[File, ZipFileReader] {
-    def load(file: File) = {
-      ZipFileHandlerFactory.reader(file, config)
-    }
-  }
-
-  val cache = CacheBuilder.newBuilder().concurrencyLevel(5).maximumSize(20)
-    .removalListener(new CacheRemovalListener)
-    .build[File, ZipFileReader](new ReaderCacheLoader())
-
-  protected def getZipFileReader(file: File) = cache.get(file)
+  protected def getZipFileReader(file: File): ZipFileReader = null // TODO delete cache.get(file)
 
   def exists(k: K): Boolean = {
     ensureLoaded()
@@ -184,19 +167,7 @@ trait ZipKeyValueStorage[K, V] extends UniversePart {
 
   def finish(): Boolean = {
     endZipFile()
-    cache.invalidateAll()
-    true
-  }
-
-  protected def mergeFiles(from: Seq[File], to: File): Boolean = {
-    val writer = ZipFileHandlerFactory.complexWriter(to)
-    universe.journalHandler().createMarkerFile(writer, from)
-    writer.writeManifest(fileManager)
-    for (fromFile <- from) {
-      writer.writeIntoFrom(fromFile, folder)
-    }
-    writer.close()
-    universe.journalHandler().finishedFile(to, filetype, true)
+//    cache.invalidateAll()
     true
   }
 
@@ -205,43 +176,11 @@ trait ZipKeyValueStorage[K, V] extends UniversePart {
 trait IndexedKeyValueStorage[K, V] extends ZipKeyValueStorage[K, V] {
   
   def indexFileType: IndexFileType
-  
-  class IndexWriter(x: File) {
-    val zipWriter = ZipFileHandlerFactory.writer(x, config)
-    zipWriter.enableCompression
-    zipWriter.writeManifest(universe.fileManager)
-    val bos = zipWriter.newOutputStream("index")
-    def close() {
-      bos.close()
-      zipWriter.close
-    }
-  }
-  
+
   protected def convertKeyToBytes(x: K): Array[Byte]
 
   protected def convertBytesToKey(x: Array[Byte]): Iterator[K]
-  
-  override def load() {
-    this.synchronized {
-      if (useIndexFiles) {
-        val indexes = indexFileType.getFiles()
-        indexes.foreach { index =>
-          val reader = ZipFileHandlerFactory.reader(index, config)
-          val bytes = reader.getStream("index").readFully()
-          inBackupIndex ++= convertBytesToKey(bytes).map(k => (k, indexFileType.fileForIndex(index)))
-          reader.close
-        }
-        val indexNums = indexes.map(indexFileType.numberOf).toSet
-        val volumeNums = filetype.getFiles().map(filetype.numberOf).toSet
-        val volumesWithoutIndexes = volumeNums -- indexNums
-        super.load(volumesWithoutIndexes.flatMap(filetype.fileForNumber(_, false)))
-        _loaded = true
-      } else {
-        super.load()
-      }
-    }
-  }
-  
+
   def useIndexFiles = true
 
   override def addKeysToIndex(file: File) {
@@ -252,11 +191,12 @@ trait IndexedKeyValueStorage[K, V] extends ZipKeyValueStorage[K, V] {
   
   def writeIndex(file: File) {
     var dest = indexFileType.indexForFile(file)
-    val writer = new IndexWriter(dest)
-    for (k <- inCurrentWriterKeys) {
-      writer.bos.write(convertKeyToBytes(k))
-    }
-    writer.close
+    // TODO index
+//    val writer = new IndexWriter(dest)
+//    for (k <- inCurrentWriterKeys) {
+//      writer.bos.write(convertKeyToBytes(k))
+//    }
+//    writer.close
     universe.journalHandler.finishedFile(dest, indexFileType, false)
   }
   

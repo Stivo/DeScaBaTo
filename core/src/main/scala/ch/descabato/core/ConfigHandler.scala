@@ -1,17 +1,13 @@
 package ch.descabato.core
 
-import net.java.truevfs.access.TConfig
 import ch.descabato.utils.JsonSerialization
 import java.io.File
 import ch.descabato.utils.Utils
 import java.io.FileInputStream
-import net.java.truevfs.kernel.spec.FsAccessOption
-import ch.descabato.TrueVfs
 import ch.descabato.frontend.ChangeableBackupOptions
 import ch.descabato.frontend.BackupFolderOption
 import ch.descabato.frontend.CreateBackupOptions
 import java.io.FileOutputStream
-import net.java.truevfs.kernel.spec.sl.FsDriverMapLocator
 
 
 object InitBackupFolderConfiguration extends Utils {
@@ -153,15 +149,6 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 //    if (conf.redundancyEnabled && CommandLineToolSearcher.lookUpName("par2").isEmpty) {
 //      throw ExceptionFactory.newPar2Missing
 //    }
-    def initTrueVfs(conf: BackupFolderConfiguration) {
-      for (p <- conf.passphrase) {
-        TConfig.current().setArchiveDetector(TrueVfs.newArchiveDetector1(FsDriverMapLocator.SINGLETON, ".zip.raes", p.toCharArray(), conf.keyLength))
-      }
-      TConfig.current().setAccessPreference(FsAccessOption.STORE, true)
-      // Disabled to distinguish files being changed and completed files
-      //TConfig.current().setAccessPreference(FsAccessOption.GROW, true)
-    }
-    initTrueVfs(conf)
   }
 
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {

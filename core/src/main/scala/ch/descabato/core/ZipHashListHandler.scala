@@ -31,13 +31,13 @@ class ZipHashListHandler extends HashListHandler with Utils {
   
   def oldBackupHashLists: Map[BaWrapper, Array[Byte]] = {
     def loadFor(x: Iterable[File], failureOption: ReadFailureOption) = {
-      x.flatMap(x => fileManager.hashlists.read(x, failureOption)).fold(Vector())(_ ++ _)
+//      x.flatMap(x => fileManager.hashlists.read(x, failureOption)).fold(Vector())(_ ++ _)
     }
     val temps = loadFor(fileManager.hashlists.getTempFiles(), OnFailureDelete)
     val list = loadFor(fileManager.hashlists.getFiles(), OnFailureTryRepair)
     var map: HashListMap = Map.empty
-    map ++= list
-    map ++= temps
+//    map ++= list
+//    map ++= temps
     map
   }
 
@@ -61,7 +61,7 @@ class ZipHashListHandler extends HashListHandler with Utils {
   def finish() = {
     if (!hashListsToWrite.isEmpty)
       checkpoint(None)
-    fileManager.hashlists.mergeTempFilesIntoNew()
+//    fileManager.hashlists.mergeTempFilesIntoNew()
     true
   }
 
@@ -79,7 +79,7 @@ class ZipHashListHandler extends HashListHandler with Utils {
     val (toWrite, toKeep) = hashListsToWrite.partition{case (_, value) => allBlocksExist(value)}
     if (!toWrite.isEmpty) {
       val num = fileManager.hashlists.nextNum(true)
-      fileManager.hashlists.write(toWrite.toVector, true)
+//      fileManager.hashlists.write(toWrite.toVector, true)
       l.info("Wrote temp hashlist "+num)
       hashListsPersisted ++= toWrite
       hashListsToWrite = toKeep
@@ -166,7 +166,7 @@ class NewZipHashListHandler extends StandardZipKeyValueStorage with HashListHand
     super.finish()
     val temps = filetype.getTempFiles()
     if (!temps.isEmpty) {
-      super.mergeFiles(temps, filetype.nextFile(temp = false))
+//      super.mergeFiles(temps, filetype.nextFile(temp = false))
       filetype.deleteTempFiles()
     }
     true
