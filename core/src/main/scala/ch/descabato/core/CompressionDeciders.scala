@@ -8,7 +8,7 @@ import ch.descabato.utils.Utils
 
 class SimpleCompressionDecider extends CompressionDecider with UniversePart {
   def blockCompressed(block: Block, nanoTime: Long) {
-    universe.cpuTaskHandler.makeZipEntry(block)
+    universe.blockHandler.writeCompressedBlock(block)
   }
   def compressBlock(block: Block): Unit = {
     block.mode = universe.config.compressor
@@ -187,7 +187,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
       toSave += block
     }
     toSave.foreach { block =>
-      universe.cpuTaskHandler.makeZipEntry(block)
+      universe.blockHandler.writeCompressedBlock(block)
     }
   }
   

@@ -88,7 +88,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
 
   mapper.registerModule(testModule)
   // TODO disable before a release
-  mapper.enable(SerializationFeature.INDENT_OUTPUT);
+  mapper.enable(SerializationFeature.INDENT_OUTPUT)
   mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {

@@ -1,10 +1,11 @@
 package ch.descabato.core
 
-import java.io.RandomAccessFile
-import java.io.File
-import ch.descabato.core.kvstore.KvStoreReaderImpl
-import ch.descabato.utils.{ZipFileWriter, ZipFileHandlerFactory, Utils}
+import java.io.{File, RandomAccessFile}
+
+import ch.descabato.core.kvstore.{KvStoreWriter, KvStoreReaderImpl}
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Utils
+
 import scala.collection.immutable.HashSet
 
 class BlockingOperation
@@ -141,10 +142,11 @@ class SimpleJournalHandler extends JournalHandler with Utils {
     true
   }
   
-  def createMarkerFile(writer: ZipFileWriter, filesToDelete: Seq[File]): BlockingOperation = {
-    writer.writeEntry(journalInZipFile) { out =>
-      out.write(filesToDelete.map(_.getName).mkString("\r\n").getBytes("UTF-8"))
-    }
+  def createMarkerFile(writer: KvStoreWriter, filesToDelete: Seq[File]): BlockingOperation = {
+    // TODO
+//    writer.writeEntry(journalInZipFile) { out =>
+//      out.write(filesToDelete.map(_.getName).mkString("\r\n").getBytes("UTF-8"))
+//    }
     new BlockingOperation()
   }
 

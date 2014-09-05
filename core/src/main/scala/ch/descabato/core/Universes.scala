@@ -10,7 +10,6 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import akka.event.Logging
 import akka.actor.TypedActor.PostRestart
-import ch.descabato.utils.ZipFileHandlerFactory
 import com.typesafe.config.Config
 import akka.dispatch.DispatcherPrerequisites
 import java.util.concurrent.ThreadFactory
@@ -104,11 +103,9 @@ class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
     universe.compressionDecider.blockCompressed(block, duration)
   }
   
-  def makeZipEntry(block: Block) {
-    val name = Utils.encodeBase64Url(block.hash)
-    val entry = ZipFileHandlerFactory.createZipEntry("blocks/"+name, block.header, block.compressed)
-    universe.blockHandler.writeCompressedBlock(block, entry)
-  }
+//  def makeZipEntry(block: Block) {
+
+//  }
 
 }
 

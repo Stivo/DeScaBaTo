@@ -5,6 +5,7 @@ import java.util.BitSet
 import java.util.zip.ZipEntry
 
 import ch.descabato.core._
+import ch.descabato.frontend.{ProgressReporters, MaxValueCounter}
 import ch.descabato.utils.{JsonSerialization, ObjectPools, CompressedStream, Utils}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.{VerifyInputStream, ExceptionCatchingInputStream}
@@ -68,15 +69,20 @@ trait KvStoreHandler[T, K] extends UniversePart {
 
   var entries = 0
 
+  def checkIfCheckpoint(): Boolean = {
+    entries += 1
+    entries % 10 == 0
+  }
+
   def writeEntry(key: K, value: Array[Byte]): Unit = {
     if (currentlyWritingFile == null) {
       currentlyWritingFile =
         new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, false), config.passphrase)
+      currentlyWritingFile.writeManifest()
     }
     persistedEntries += key -> null
     currentlyWritingFile.add(keyToStorage(key), value)
-    entries += 1
-    if (entries % 1000 == 0)
+    if (checkIfCheckpoint())
       currentlyWritingFile.checkpoint()
   }
 
@@ -97,7 +103,11 @@ trait KvStoreHandler[T, K] extends UniversePart {
 }
 
 
-class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String] with BackupPartHandler with Utils {
+class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String] with BackupPartHandler with Utils with BackupProgressReporting {
+
+  override val filecountername = "Files hashed"
+  override val bytecountername = "Data hashed"
+  override def nameOfOperation: String = "Should not be shown, is a bug"
 
   var current: BackupDescription = new BackupDescription()
   var failedObjects = new BackupDescription()
@@ -136,7 +146,7 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
         writeBackupPart(fd)
         if (hashList.length > fd.hash.length)
           universe.hashListHandler.addHashlist(fd.hash, hashList)
-        // TODO fileCounter += 1
+        fileCounter += 1
         unfinished -= fd.path
       }
     }
@@ -165,7 +175,7 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
 
   def hashComputed(block: Block): Unit = {
     universe.blockHandler.writeBlockIfNotExists(block)
-    // TODO byteCounter += block.content.length
+    byteCounter += block.content.length
     getUnfinished(block.id.file).blockHashArrived(block.id, block.hash)
   }
 
@@ -201,21 +211,16 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
     val toCheckpoint = finished
     toCheckpoint.allParts.foreach(writeBackupPart)
     unfinished.folders.foreach(writeBackupPart)
-    // TODO setMaximums(bd)
+    setMaximums(current)
     //toCheckpoint = current.copy(files = current.files.filter(_.hash != null))
     l.info("After setCurrent " + remaining + " remaining")
   }
 
   val js = new JsonSerialization()
 
-  var i = 0
   def writeBackupPart(fd: BackupPart) {
     val json = js.write(fd)
     writeEntry(fd.path, json)
-    if (i % 10 == 0) {
-      currentlyWritingFile.checkpoint()
-    }
-    i += 1
   }
 
   protected def getUnfinished(fd: FileDescription) =
@@ -235,22 +240,17 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
 
   override def keyToStorage(k: String) = k.getBytes("UTF-8")
   override def storageToKey(k: Array[Byte]) = new String(k, "UTF-8")
+
 }
 
 class KvStoreHashListHandler extends KvStoreHandler[Vector[(BaWrapper, Array[Byte])], BaWrapper] with HashListHandler {
   lazy val fileType = fileManager.hashlists
-
-  var i = 0
 
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte]): Unit = {
     ensureLoaded()
     if (persistedEntries safeContains fileHash)
       return
     writeEntry(fileHash, hashList)
-    if (i % 10 == 0) {
-      currentlyWritingFile.checkpoint()
-    }
-    i += 1
   }
 
   def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]] = {
@@ -269,6 +269,20 @@ class KvStoreHashListHandler extends KvStoreHandler[Vector[(BaWrapper, Array[Byt
 
 class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockHandler with Utils {
   lazy val fileType = fileManager.volumes
+
+  private val byteCounter = new MaxValueCounter() {
+    var compressedBytes = 0
+    def name: String = "Blocks written"
+    def r(x: Long) = Utils.readableFileSize(x)
+    override def formatted = s"${r(current)}/${r(maxValue)} (compressed ${r(compressedBytes)})"
+  }
+
+  private val compressionRatioCounter = new MaxValueCounter() {
+    def name: String = "Compression Ratio"
+    override def formatted = percent + "%"
+  }
+
+  ProgressReporters.addCounter(byteCounter, compressionRatioCounter)
 
   override def keyToStorage(k: BaWrapper): Array[Byte] = k.data
   override def storageToKey(k: Array[Byte]) = new BaWrapper(k)
@@ -289,12 +303,14 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
     }
   }
 
+  override def checkIfCheckpoint() = false
+
   def remaining: Int = {
     outstandingRequests.size
   }
 
   def setTotalSize(size: Long): Unit = {
-    // TODO
+    byteCounter.maxValue = size
   }
 
   def verify(counter: ProblemCounter): Boolean = {
@@ -307,7 +323,7 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
   def writeBlockIfNotExists(block: Block) {
     val hash = block.hash
     if (isPersisted(hash) || (outstandingRequests safeContains hash)) {
-      //byteCounter.maxValue -= block.content.length
+      byteCounter.maxValue -= block.content.length
       return
     }
     block.mode = config.compressor
@@ -315,7 +331,7 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
     universe.compressionDecider().compressBlock(block)
    }
 
-  def writeCompressedBlock(block: Block, zipEntry: ZipEntry) {
+  def writeCompressedBlock(block: Block) {
 
     if (currentlyWritingFile != null) {
       val currentSize = currentlyWritingFile.length() + block.compressed.remaining() + config.hashLength + 50
@@ -327,11 +343,9 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
     }
     writeEntry(block.hash, Array.apply(block.header) ++ block.compressed.toArray())
     outstandingRequests -= block.hash
-  // TODO counters
-//    byteCounter.compressedBytes += block.compressed.remaining()
-//    compressionRatioCounter += block.compressed.remaining()
-//    byteCounter += outstandingRequests(hash)
-//    compressionRatioCounter.maxValue += outstandingRequests(hash)
-//    outstandingRequests -= hash
+    byteCounter.compressedBytes += block.compressed.remaining()
+    compressionRatioCounter += block.compressed.remaining()
+    byteCounter += outstandingRequests(block.hash)
+    compressionRatioCounter.maxValue += outstandingRequests(block.hash)
   }
 }

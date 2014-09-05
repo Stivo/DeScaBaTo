@@ -5,7 +5,7 @@ import java.io.{File, InputStream}
 import java.util.Date
 import java.nio.ByteBuffer
 import java.util.zip.ZipEntry
-import ch.descabato.utils.{ZipFileWriter, Streams}
+import ch.descabato.utils.Streams
 import java.security.MessageDigest
 import scala.collection.mutable
 import ch.descabato.utils.Implicits._
@@ -85,8 +85,6 @@ trait JournalHandler extends UniversePart with LifeCycle {
   def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false): BlockingOperation
   // Removes all files not mentioned in the journal
   def cleanUnfinishedFiles(): BlockingOperation
-  // Adds a marker file to this writer to tell the journal which zip files this one replaces
-  def createMarkerFile(writer: ZipFileWriter, filesToDelete: Seq[File]): BlockingOperation
   // All the identifiers that were once used and are now unsafe to use again
   def usedIdentifiers(): Set[String]
 
@@ -177,7 +175,7 @@ trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def getAllPersistedKeys(): Set[BaWrapper]
   def isPersisted(hash: Array[Byte]): Boolean
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
-  def writeCompressedBlock(blockWrapper: Block, zipEntry: ZipEntry)
+  def writeCompressedBlock(blockWrapper: Block)
   def remaining: Int
   def setTotalSize(size: Long)
 }
@@ -187,8 +185,6 @@ trait CpuTaskHandler extends PureLifeCycle {
   def computeHash(block: Block)
   // Calls then compressionDecider#compressedBlock
   def compress(block: Block)
-  // Calls then blockhandler#writeBlockIfNotExists
-  def makeZipEntry(block: Block)
 }
 
 trait HashHandler extends LifeCycle with UniversePart {

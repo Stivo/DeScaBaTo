@@ -286,3 +286,5 @@ object Size {
 }
 
 case class ZipEntryDescription(filename: String, serializerType: String, objectType: String)
+
+case class MetaInfo(date: String, writingVersion: String)

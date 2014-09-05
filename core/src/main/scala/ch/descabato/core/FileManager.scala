@@ -25,12 +25,6 @@ object Constants {
   }
 }
 
-trait ReadFailureOption
-
-case object OnFailureTryRepair extends ReadFailureOption
-case object OnFailureDelete extends ReadFailureOption
-case object OnFailureAbort extends ReadFailureOption
-
 /**
  * Describes the file patterns for a certain kind of file.
  * Supports a global prefix from the BackupFolderConfiguration,

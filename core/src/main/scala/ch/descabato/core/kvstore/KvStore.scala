@@ -1,34 +1,15 @@
 package ch.descabato.core.kvstore
 
 import java.io.File
+import ch.descabato.version.BuildInfo
+
 import scala.collection.immutable.HashMap
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.util.Arrays
 import javax.crypto.Mac
-import ch.descabato.core.BaWrapper
-import ch.descabato.utils.Utils
-
-object KvStore {
-  def makeWriterType0(file: File) = {
-    new KvStoreWriterImpl(file)    
-  }
-  def makeWriterType1(file: File, key: Array[Byte]) = {
-    new KvStoreWriterImpl(file, key = key)
-  }
-  def makeWriterType2(file: File, passphrase: String) = {
-    new KvStoreWriterImpl(file, passphrase)
-  }
-  def makeReader(file: File) = {
-    new KvStoreReaderImpl(file) with IndexedKvStoreReader
-  }
-  def makeReaderWithKey(file: File, key: Array[Byte] = null) = {
-    new KvStoreReaderImpl(file, keyGiven = key) with IndexedKvStoreReader
-  }
-  def makeReaderWithPassphrase(file: File, passphrase: String) = {
-    new KvStoreReaderImpl(file, passphrase) with IndexedKvStoreReader
-  }
-}
+import ch.descabato.core.{UniversePart, BaWrapper}
+import ch.descabato.utils.{JsonSerialization, MetaInfo, Utils}
 
 case class EntryType(val markerByte: Byte, val parts: Int)
 
@@ -107,7 +88,6 @@ trait KvStoreWriter extends AutoCloseable {
   def newEntryPart(array: Array[Byte], hasCrc: Boolean = false) = {
     new EntryPartW(array, hasCrc)
   }
-
 }
 
 trait KvStoreReader extends AutoCloseable with Iterable[Entry] {
