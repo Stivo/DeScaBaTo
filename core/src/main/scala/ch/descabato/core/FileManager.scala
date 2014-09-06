@@ -145,8 +145,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   def filenameForNumber(number: Int, tempFile: Boolean = false): String = {
     val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    val raes = if (m.runtimeClass == classOf[Parity]) "" else s"${config.raes}"
-    s"$globalPrefix$temp$prefix$date$number$suffix$raes"
+    s"$globalPrefix$temp$prefix$date$number$suffix"
   }
 
   def fileForNumber(number: Int, temp: Boolean = false): Option[File] = {
@@ -186,12 +185,12 @@ class FileManager(override val universe: Universe) extends UniversePart {
 
   def getDateFormatted = dateFormat.format(startDate)
 
-  val volumes = new FileType[Volume]("volume_", false, ".zip", localC = false)
+  val volumes = new FileType[Volume]("volume_", false, ".kvs", localC = false)
   val volumeIndex = new IndexFileType(volumes)
-  val hashlists = new FileType[Vector[(BaWrapper, Array[Byte])]]("hashlists_", false, ".zip")
-  val files = new FileType[Buffer[BackupPart]]("files_", true, ".zip", hasDateC = true)
-  val backup = new FileType[BackupDescription]("backup_", true, ".zip", hasDateC = true)
-  val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".zip", hasDateC = true)
+  val hashlists = new FileType[Vector[(BaWrapper, Array[Byte])]]("hashlists_", false, ".kvs")
+  val files = new FileType[Buffer[BackupPart]]("files_", true, ".kvs", hasDateC = true)
+  val backup = new FileType[BackupDescription]("backup_", true, ".kvs", hasDateC = true)
+  val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
   val par2ForVolumes = new FileType[Parity]("par_volume_", true, ".par2", localC = false, redundantC = true)

@@ -89,6 +89,8 @@ trait JournalHandler extends UniversePart with LifeCycle {
   override val mayUseNonBlockingLoad = false
   override def load() = new IllegalAccessException("Journal handler must be loaded synchronously")
   override def loadBlocking() = cleanUnfinishedFiles
+  def startWriting(): BlockingOperation
+  def stopWriting(): BlockingOperation
 }
 
 case class BlockId(file: FileDescription, part: Int)

@@ -25,7 +25,7 @@ class EncryptionInfo (
 class KeyDerivationInfo (
   // algorithm 0 is for scrypt with 4 14 2 keyLength
   val algorithm: Byte = 0,
-  val iterationsPower: Byte = 14,
+  val iterationsPower: Byte = 12,
   val memoryFactor: Byte = 8,
   val keyLength: Byte = 16,
   val saltLength: Byte = 20,
@@ -301,14 +301,12 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
         }
       } catch {
         case e: Exception =>
-          l.warn(s"Exception ${e.getMessage} happened while trying to read entry at offset $lastGoodPos in file $file")
+          l.warn(s"""Exception "${e.getMessage}" happened while trying to read entry at offset $lastGoodPos in file $file""")
         delete = true
       }
       if (e != null && e.getEndOfEntryPos() > reader.getFileLength()) {
         l.warn(s"Entry at $lastGoodPos is longer than file $file")
         delete = true
-      } else if (e != null) {
-        lastGoodPos = e.getEndOfEntryPos()
       }
       if (e == null || delete) {
         continue = false
@@ -317,12 +315,19 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
           reader.writeByte(255.toByte)
           reader.truncateRestOfFile()
           seenEndMarker = true
-          l.warn(s"Truncated file $file to $lastGoodPos bytes")
         } catch {
           case e: Exception => l.error(s"Exception while fixing $file", e)
             success = false
         }
+      } else {
+        lastGoodPos = e.getEndOfEntryPos()
       }
+    }
+    if (lastGoodPos == getPosOfFirstEntry()) {
+      l.warn(s"No entries left in $file, deleting it")
+      reader().raf.close()
+      reader().file.delete()
+      return false
     }
     if (!seenEndMarker) {
       l.warn(s"File $file has not been closed properly")

@@ -10,15 +10,48 @@ import scala.collection.immutable.HashSet
 
 class BlockingOperation
 
+class JournalEntry(val typ: String) {
+  override def toString = (typ.length + 1) + s" $typ"
+}
+
+class FileFinishedJournalEntry(typ: String, val file: String) extends JournalEntry(typ) {
+  override def toString = (typ.length + 1 + file.length + 1) + s" $typ $file"
+}
+
+object JournalEntries {
+  val fileFinishedTyp = "File_Finished"
+  val startWritingTyp = "Start_Writing"
+  val stopWritingTyp = "Stop_Writing"
+  def fileFinished(file: String) = new FileFinishedJournalEntry(fileFinishedTyp, file: String)
+  val startWriting = new JournalEntry(startWritingTyp)
+  val stopWriting = new JournalEntry(stopWritingTyp)
+  def parseLine(line: String): Option[JournalEntry] = {
+    val num::rest::Nil = line.split(" ", 2).toList
+    if (num.toInt == rest.length + 1) {
+      rest.takeWhile(_!=' ') match {
+        case x if x == startWritingTyp =>
+          return Some(startWriting)
+        case x if x == stopWritingTyp =>
+          return Some(stopWriting)
+        case x if x == fileFinishedTyp =>
+          val _::filename::Nil = rest.split(" ", 2).toList
+          return Some(fileFinished(filename))
+      }
+    }
+    None
+  }
+
+}
+
 // TODO some javadoc here
 class SimpleJournalHandler extends JournalHandler with Utils {
-
-  private var _incosistentBackup = false
 
   val journalInZipFile = "journalUpdates.txt"
   val updateMarker = "_withUpdate"
 
   lazy val journalName = config.prefix + "files-journal.txt"
+
+  var backupClean = true
 
   private var _usedIdentifiers = HashSet[String]()
 
@@ -50,43 +83,34 @@ class SimpleJournalHandler extends JournalHandler with Utils {
     randomAccessFile.synchronized {
       randomAccessFile.seek(0)
       var line: String = null
+      var backup = randomAccessFile.getFilePointer
       while ({ line = randomAccessFile.readLine(); line != null }) {
         if (line != null) {
-          val parts = line.split(" ", 3)
-          if (parts(2).length() == parts(1).toInt) {
-            _usedIdentifiers += parts(2)
-            if (!(files safeContains parts(2))) {
-              if (!(parts(2) contains "temp."))
-            	  l.warn("File is in journal, but not on disk "+parts(2))
-            } else {
-              val file = new File(config.folder, parts(2))
-              // Read the journal update. A file within a zip file that tells which files should be deleted
-              if (file.exists() && parts(0).endsWith(updateMarker)) {
-                // TODO updatemarker
-//                val reader = ZipFileHandlerFactory.reader(file, config)
-//                val s = new String(reader.getStream(journalInZipFile).readFully(), "UTF-8")
-//                _usedIdentifiers ++= s.lines
-//                s.lines.foreach { f =>
-//                  new File(config.folder, f).delete()
-//                }
+          JournalEntries.parseLine(line) match {
+            case Some(x: FileFinishedJournalEntry) =>
+              val f = x.file
+              _usedIdentifiers += f
+              if (!(files safeContains f)) {
+                if (!(f contains "temp."))
+                  l.warn("File is in journal, but not on disk " + f)
+              } else {
+                files -= f
               }
-              // TODO some kind of publish/subscriber mechanism should be used instead of this
-//              val filetype = fileManager.getFileType(file)
-//              if (!filetype.isTemp(file) && !filetype.redundant) {
-//                universe.redundancyHandler.createPar2(file)
-//              }
-            }
-            // Line has been written completely, is valid
-            files -= parts(2)
+            case Some(x) if x.typ == JournalEntries.startWritingTyp =>
+              backupClean = false
+            case Some(x) if x.typ == JournalEntries.stopWritingTyp =>
+              backupClean = true
+            case None =>
+              randomAccessFile.setLength(backup)
           }
+          backup = randomAccessFile.getFilePointer
         }
       }
       files.foreach { f =>
         l.debug(s"Checking file $f because Journal does not mention it")
-        _incosistentBackup = true
         val file = new File(config.folder, f)
         var shouldDelete = true
-        if (file.getName.endsWith(".zip.raes") || file.getName.endsWith(".zip")) {
+        if (file.getName.endsWith(".kvs")) {
           val kvStore = new KvStoreReaderImpl(file, config.passphrase.getOrElse(null), readOnly = false)
           val success = kvStore.checkAndFixFile()
           kvStore.close()
@@ -105,24 +129,36 @@ class SimpleJournalHandler extends JournalHandler with Utils {
   }
 
   def usedIdentifiers(): Set[String] = {
-//    randomAccessFile.synchronized {
       _usedIdentifiers
-//    }
   }
 
-  def isInconsistentBackup() = true
+  def isInconsistentBackup() = !backupClean
+
+  def startWriting(): BlockingOperation = {
+    if (backupClean) {
+      backupClean = false
+      writeEntrySynchronized(JournalEntries.startWriting)
+    }
+    new BlockingOperation()
+  }
+  def stopWriting(): BlockingOperation = {
+    backupClean = true
+    writeEntrySynchronized(JournalEntries.stopWriting)
+    new BlockingOperation()
+  }
+
+  def writeEntrySynchronized(entry: JournalEntry) {
+    randomAccessFile.synchronized {
+      randomAccessFile.seek(randomAccessFile.length())
+      randomAccessFile.writeBytes(entry.toString+"\r\n")
+      randomAccessFile.getFD().sync()
+    }
+  }
 
   def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false): BlockingOperation = {
     checkLock()
-    randomAccessFile.synchronized {
-      val name = file.getName()
-      randomAccessFile.seek(randomAccessFile.length())
-      val command = "Finished"+(if (journalUpdate == true) updateMarker else "")+" "
-      val line = command + name.length() + " " + name + "\r\n"
-      _usedIdentifiers += name
-      randomAccessFile.writeBytes(line)
-      randomAccessFile.getFD().sync()
-    }
+    val entry = JournalEntries.fileFinished(file.getName)
+    writeEntrySynchronized(entry)
     if (!filetype.isTemp(file) && !filetype.redundant) {
       universe.redundancyHandler.createPar2(file)
     }

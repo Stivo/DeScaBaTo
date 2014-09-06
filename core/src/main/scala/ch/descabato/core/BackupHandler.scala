@@ -148,6 +148,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       l.info("No files have been changed, aborting backup")
       return
     }
+    journalHandler().startWriting()
     backupPartHandler.setFiles(unchangedDesc, newDesc)
 
     // Backup files 
@@ -168,6 +169,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     val r = new Random()
     val (success, failed) = r.shuffle(newDesc.files).partition(backupFileDesc)
     universe.finish()
+    journalHandler().stopWriting()
     ProgressReporters.activeCounters = Nil
     l.info("Successfully backed up " + success.size + ", failed " + failed.size)
     // Clean up, handle failed entries
