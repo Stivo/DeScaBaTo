@@ -1,5 +1,8 @@
 package ch.descabato.frontend
 
+import java.security.Security
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.rogach.scallop._
 import scala.reflect.runtime.universe.TypeTag
 import java.io.PrintStream
@@ -54,6 +57,7 @@ object CLI extends Utils {
     if (System.getProperty("logname") == null)
       System.setProperty("logname", "backup.log")
     try {
+      Security.addProvider(new BouncyCastleProvider())
       if (runsInJar) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
@@ -249,7 +253,6 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
   val volumeSize = opt[Size](default = Some(Size("100Mb")))
   val threads = opt[Int](default = Some(2))
   val noScriptCreation = opt[Boolean](default = Some(false))
-//  val checkpointEvery = opt[Size](default = Some(Size("100Mb")))
 //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks = opt[Boolean](default = Some(false))
   val compression = opt[CompressionMode](default = Some(CompressionMode.smart))

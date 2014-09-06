@@ -13,7 +13,6 @@ import ch.descabato.utils.Utils._
 import ch.descabato.utils.{Streams, Utils}
 import java.io.FileInputStream
 import java.io.RandomAccessFile
-import net.java.truevfs.access.TVFS
 import org.apache.commons.exec.CommandLine
 import org.apache.commons.exec.DefaultExecutor
 import org.apache.commons.exec.ExecuteWatchdog
@@ -114,7 +113,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 //  "plain backup" should "work" in {
 //    testWith(" --threads 1", "", 2, "100Mb")
 //  }
-//
+
 //  "encrypted backup" should "work" in {
 //    testWith(" --threads 5 --compression none --volume-size 20Mb --passphrase mypassword", " --passphrase mypassword", 2, "20Mb")
 //  }
@@ -122,7 +121,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 //  "low volumesize backup with prefix" should "work" in {
 //    testWith(" --threads 5 --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
 //  }
-//
+
 //  "backup with multiple threads" should "work" in {
 //    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 2, "50Mb", false)
 //  }
@@ -131,12 +130,12 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 ////      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
 ////    }
 //
-//  "backup with crashes" should "work" in {
-//    testWith(" --compression deflate --volume-size 10Mb", "", 5, "300Mb", true, false)
-//  }
+  "backup with crashes" should "work" in {
+    testWith(" --compression deflate --volume-size 10Mb", "", 2, "300Mb", true, false)
+  }
 
   "backup with crashes, encryption and multiple threads" should "work" in {
-    testWith(" --threads 10 --passphrase testpass --volume-size 10Mb", "--passphrase testpass", 2, "600mb", true, false)
+    testWith(" --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", true, false)
   }
 
   def numberOfCheckpoints(): Int = {
@@ -246,19 +245,6 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
       raf.write(("\0" * 100).getBytes)
       raf.close()
     }
-  }
-
-  after {
-    try {
-      TVFS.umount()
-    } catch {
-      case e: Exception =>
-        l.warn("Exception while unmounting truevfs ")
-        logException(e)
-    }
-//    deleteAll(input)
-//    deleteAll(backup1)
-//    deleteAll(restore1)
   }
 
   def getFile(s1: Iterable[File], file: File) = s1.find(_.getName() == file.getName()).get
