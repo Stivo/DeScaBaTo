@@ -21,8 +21,13 @@ trait KvStoreHandler[T, K] extends UniversePart {
 
   var _loaded = false
 
+  var readers: HashMap[File, KvStoreStorageMechanismReader] = HashMap.empty
+
   protected def getReaderForLocation(file: File) = {
-    new KvStoreStorageMechanismReader(file, config.passphrase)
+    if (!readers.safeContains(file)) {
+      readers += file -> new KvStoreStorageMechanismReader(file, config.passphrase)
+    }
+    readers(file)
   }
 
   def load() {
@@ -31,7 +36,6 @@ trait KvStoreHandler[T, K] extends UniversePart {
       persistedEntries ++= reader.iterator.map {
         case (k, v) => (storageToKey(k), v)
       }
-      reader.close()
     }
   }
 
@@ -41,12 +45,6 @@ trait KvStoreHandler[T, K] extends UniversePart {
       _loaded = true
     }
   }
-
-//  def checkpoint(t: Option[Set[ch.descabato.core.BaWrapper]]): Unit = {
-//    if (currentlyWritingFile != null) {
-//      currentlyWritingFile.checkpoint()
-//    }
-//  }
 
   def getAllPersistedKeys(): Set[K] = {
     ensureLoaded()
@@ -59,6 +57,8 @@ trait KvStoreHandler[T, K] extends UniversePart {
   }
 
   def finish(): Boolean = {
+    readers.values.foreach(_.close)
+    readers = HashMap.empty
     if (currentlyWritingFile != null) {
       currentlyWritingFile.close()
       fileFinished()
@@ -78,6 +78,7 @@ trait KvStoreHandler[T, K] extends UniversePart {
     if (currentlyWritingFile == null) {
       currentlyWritingFile =
         new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, false), config.passphrase)
+      currentlyWritingFile.setup(universe)
       currentlyWritingFile.writeManifest()
     }
     persistedEntries += key -> null
@@ -95,7 +96,6 @@ trait KvStoreHandler[T, K] extends UniversePart {
     val pos = persistedEntries(key)
     val reader = getReaderForLocation(pos.file)
     val out = reader.get(pos)
-    reader.close()
     (out, pos)
   }
 
@@ -160,11 +160,6 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
     }
   }
 
-
-  def checkpoint(t: Option[(Set[BaWrapper], Set[BaWrapper])]): Unit = {
-
-  }
-
   def fileFailed(fd: FileDescription): Unit = {
     getUnfinished(fd).setFailed()
   }
@@ -212,7 +207,6 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
     toCheckpoint.allParts.foreach(writeBackupPart)
     unfinished.folders.foreach(writeBackupPart)
     setMaximums(current)
-    //toCheckpoint = current.copy(files = current.files.filter(_.hash != null))
     l.info("After setCurrent " + remaining + " remaining")
   }
 
@@ -264,7 +258,6 @@ class KvStoreHashListHandler extends KvStoreHandler[Vector[(BaWrapper, Array[Byt
   override def keyToStorage(k: BaWrapper): Array[Byte] = k.data
   override def storageToKey(k: Array[Byte]) = new BaWrapper(k)
 
-  override def checkpoint(t: Option[Set[BaWrapper]]): Unit = {}
 }
 
 class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockHandler with Utils {
@@ -342,10 +335,10 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
       }
     }
     writeEntry(block.hash, Array.apply(block.header) ++ block.compressed.toArray())
+    byteCounter += outstandingRequests(block.hash)
+    compressionRatioCounter.maxValue += outstandingRequests(block.hash)
     outstandingRequests -= block.hash
     byteCounter.compressedBytes += block.compressed.remaining()
     compressionRatioCounter += block.compressed.remaining()
-    byteCounter += outstandingRequests(block.hash)
-    compressionRatioCounter.maxValue += outstandingRequests(block.hash)
   }
 }

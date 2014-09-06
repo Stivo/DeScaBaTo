@@ -9,7 +9,7 @@ import java.io.DataOutputStream
 import java.util.Arrays
 import javax.crypto.Mac
 import ch.descabato.core.{UniversePart, BaWrapper}
-import ch.descabato.utils.{JsonSerialization, MetaInfo, Utils}
+import ch.descabato.utils.{JsonSerialization, Utils}
 
 case class EntryType(val markerByte: Byte, val parts: Int)
 
@@ -23,9 +23,9 @@ class EncryptionInfo (
 )
 
 class KeyDerivationInfo (
-  // algorithm 0 is for scrypt with 4 16 2 keyLength
+  // algorithm 0 is for scrypt with 4 14 2 keyLength
   val algorithm: Byte = 0,
-  val iterationsPower: Byte = 16,
+  val iterationsPower: Byte = 14,
   val memoryFactor: Byte = 8,
   val keyLength: Byte = 16,
   val saltLength: Byte = 20,
@@ -196,14 +196,14 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
   def length() = writer.getFileLength()
 }
 
-class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGiven: Array[Byte] = null) extends KvStoreReader with Utils {
+class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGiven: Array[Byte] = null, val readOnly: Boolean = true) extends KvStoreReader with Utils {
   val maxSupportedVersion = 0
   private var startOfEntries = 0L
   private var encryptionInfo: EncryptionInfo = null
   var _reader: EncryptedRandomAccessFileImpl = null
   def reader() = {
     if (_reader == null) {
-      _reader = new EncryptedRandomAccessFileImpl(file)
+      _reader = new EncryptedRandomAccessFileImpl(file, readOnly = readOnly)
       val marker = Array.ofDim[Byte](7)
       _reader.read(marker)
       if (!new String(marker).equals("KvStore")) {
@@ -387,8 +387,8 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
         Some(new Entry(typ, key::value::Nil, pos))
       case EntryTypes.endOfFile =>
         Some(new Entry(typ, Nil, pos))
-      case _ =>
-        throw new IllegalArgumentException("Expected key value entry type at "+pos)
+      case t =>
+        throw new IllegalArgumentException(s"Expected key value entry type instead of $t at $pos")
     }
   }
   

@@ -87,7 +87,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
         val file = new File(config.folder, f)
         var shouldDelete = true
         if (file.getName.endsWith(".zip.raes") || file.getName.endsWith(".zip")) {
-          val kvStore = new KvStoreReaderImpl(file, config.passphrase.getOrElse(null))
+          val kvStore = new KvStoreReaderImpl(file, config.passphrase.getOrElse(null), readOnly = false)
           val success = kvStore.checkAndFixFile()
           kvStore.close()
           if (success) {

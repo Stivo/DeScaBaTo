@@ -6,7 +6,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import ch.descabato.utils.Utils
-import ch.descabato.utils.ZipFileHandlerFactory
 import scala.collection.mutable
 
 class VolumeIndex extends mutable.HashMap[String, Int]

@@ -45,7 +45,6 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var blockSize: Size = Size("16Kb")
   var volumeSize: Size = Size("100Mb")
   var threads: Int = 1
-//  var checkPointEvery: Size = volumeSize
   val useDeltas = false
   var hasPassword = passphrase.isDefined
   var renameDetection = true

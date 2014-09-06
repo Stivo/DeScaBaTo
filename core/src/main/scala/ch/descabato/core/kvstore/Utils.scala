@@ -26,7 +26,7 @@ object CryptoUtils extends Utils {
   }
   def newStrongRandomByteArray(ivLength: Short) = {
     val iv = Array.ofDim[Byte](ivLength)
-    SecureRandom.getInstance("PKCS11").nextBytes(iv)
+    new SecureRandom().nextBytes(iv)
     iv
   }
   
@@ -47,7 +47,7 @@ object CryptoUtils extends Utils {
     def ** (exp:Int):Int = Math.pow(i,exp).toInt
   }
   
-  def keyDerive(passphrase: String, salt: Array[Byte], keyLength: Byte = 16, iterationsPower: Int = 16, memoryFactor: Int = 8) = {
+  def keyDerive(passphrase: String, salt: Array[Byte], keyLength: Byte = 16, iterationsPower: Int = 12, memoryFactor: Int = 8) = {
     SCrypt.generate(passphrase.getBytes("UTF-8"), salt, 2**iterationsPower, memoryFactor, 4, keyLength)
   }
   

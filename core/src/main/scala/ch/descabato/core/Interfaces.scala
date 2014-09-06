@@ -21,11 +21,6 @@ trait CanVerify {
   def verify(counter: ProblemCounter): Boolean
 }
 
-trait CanCheckpoint[T] {
-  // Checkpointing with an optional argument
-  def checkpoint(t: Option[T])
-}
-
 trait LifeCycle extends MustFinish {
   def ret = new BlockingOperation
   def mayUseNonBlockingLoad = true
@@ -142,7 +137,7 @@ trait CompressionDecider extends UniversePart {
   def report()
 }
 
-trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BaWrapper], Set[BaWrapper])] {
+trait BackupPartHandler extends BackupActor {
 
   // reads all the backup parts for the given date
   def loadBackup(date: Option[Date] = None): BackupDescription
@@ -163,7 +158,7 @@ trait BackupPartHandler extends BackupActor with CanCheckpoint[(Set[BaWrapper], 
   def remaining(): Int
 }
 
-trait HashListHandler extends BackupActor with UniversePart with CanCheckpoint[Set[BaWrapper]] {
+trait HashListHandler extends BackupActor with UniversePart {
   def addHashlist(fileHash: Array[Byte], hashList: Array[Byte])
   def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]]
   def getAllPersistedKeys(): Set[BaWrapper]

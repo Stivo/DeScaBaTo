@@ -3,6 +3,7 @@ package ch.descabato.core.kvstore
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
+import java.util
 import ch.descabato.akka.ActorStats
 import ch.descabato.core.BlockingOperation
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -58,7 +59,7 @@ trait EncryptedRandomAccessFile extends AutoCloseable {
 }
 
 trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with RandomAccessFileUser {
-  val mode = "rw"
+
   def writeInt(value: Int) = {
     val buffer = ByteBuffer.allocate(4).putInt(value)
     val intArray = buffer.array()
@@ -98,8 +99,10 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
 
 }
 
-class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAccessFileHelpers with Utils {
+class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = false) extends EncryptedRandomAccessFileHelpers with Utils {
   implicit val context = ExecutionContext.fromExecutor(ActorStats.tpe)
+
+  val mode = if (readOnly) "r" else "rw"
 
   var futureFailed = 0
   var futureWorked = 0
@@ -140,9 +143,10 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
     }
 
     def spawnFuture() {
+      val copy = util.Arrays.copyOf(_plainBytes, _plainBytes.length)
       _future = Future {
         try {
-          encryptBytes(_plainBytes)
+          encryptBytes(copy)
         } catch {
           case e: Exception =>
             l.warn("Future evaluation failed ", e)
@@ -184,7 +188,6 @@ class EncryptedRandomAccessFileImpl(val file: File) extends EncryptedRandomAcces
 
     def truncateTo(filePos: Long) = {
       endOfBlock = (filePos - startOfBlockPos).toInt
-      spawnFuture()
       _plainCipherSynced = false
       _diskCipherSynced = false
     }
