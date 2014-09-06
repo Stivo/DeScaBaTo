@@ -13,8 +13,8 @@ import scala.util.Random
 
 class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAfter with BeforeAndAfterAll with ShouldMatchers with Utils {
 
-  val testFile1 = new File("H:/test1.kvs")
-  val testFile2 = new File("H:/test2.kvs")
+  val testFile1 = new File("test1.kvs")
+  val testFile2 = new File("test2.kvs")
 
   val maxEntries = 10000
 
