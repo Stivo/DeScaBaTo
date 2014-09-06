@@ -16,7 +16,7 @@ class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAft
   val testFile1 = new File("test1.kvs")
   val testFile2 = new File("test2.kvs")
 
-  val maxEntries = 10000
+  val maxEntries = 1000
 
   def makeKey(i: Int) = ("key" + i).getBytes()
   def makeValue(i: Int) = (("value"*5) + i).getBytes()
@@ -52,7 +52,7 @@ class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAft
     }
 
     val r = new Random()
-    for (i <- 1 to 50) {
+    for (i <- 1 to 30) {
       it should s"read normally $i" in {
         partOfTest1 {
           val reader = new KvStoreReaderImpl(testFile, passphrase)

@@ -59,33 +59,35 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
   def createHandlerJava(args: Seq[String], redirect: Boolean = true, maxSeconds: Int = 600) = {
-    val cmdLine = new CommandLine("java");
+    val friendlyTestName = currentTestName.replace("/", "_")
+    val cmdLine = new CommandLine("java")
     val libFolder = new File(packFolder, "lib")
     cmdLine.addArgument(s"-cp")
     cmdLine.addArgument(s"$libFolder/*")
     cmdLine.addArgument("ch.descabato.frontend.CLI")
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
-    cmdLine.addArgument(currentTestName + ".log")
+    cmdLine.addArgument(friendlyTestName + ".log")
     cmdLine.addArgument("--no-ansi")
     cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
-    new BackupExecutionHandler(cmdLine, packFolder, currentTestName, maxSeconds)
+    new BackupExecutionHandler(cmdLine, packFolder, friendlyTestName, maxSeconds)
   }
 
   def createHandlerScript(args: Seq[String], redirect: Boolean = true, maxSeconds: Int = 600) = {
-    val cmdLine = new CommandLine(batchfile);
+    val friendlyTestName = currentTestName.replace("/", "_")
+    val cmdLine = new CommandLine(batchfile)
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
-    cmdLine.addArgument(currentTestName + ".log")
+    cmdLine.addArgument(friendlyTestName + ".log")
     cmdLine.addArgument("--no-ansi")
     cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
-    new BackupExecutionHandler(cmdLine, packFolder, currentTestName, maxSeconds)
+    new BackupExecutionHandler(cmdLine, packFolder, friendlyTestName, maxSeconds)
   }
 
   def startAndWait(args: Seq[String], redirect: Boolean = true) = {
@@ -105,9 +107,6 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
   }
 
   before {
-    deleteAll(input)
-    deleteAll(backup1)
-    deleteAll(restore1)
   }
 
 //  "plain backup" should "work" in {
@@ -129,14 +128,11 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 ////    "backup with redundancy" should "recover" in {
 ////      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
 ////    }
-//
-  "backup with crashes" should "work" in {
-    testWith(" --compression deflate --volume-size 10Mb", "", 2, "300Mb", true, false)
-  }
 
-  "backup with crashes, encryption and multiple threads" should "work" in {
-    testWith(" --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", true, false)
-  }
+  testWith("backup with crashes", " --compression deflate --volume-size 10Mb", "", 2, "100Mb", true, false)
+
+  testWith("backup with crashes, encryption and multiple threads",
+    " --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", true, false)
 
   def numberOfCheckpoints(): Int = {
     if (backup1.exists) {
@@ -146,84 +142,98 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     }
   }
 
-  def testWith(config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false) {
+  def testWith(testName: String, config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false) {
     val hasPassword = configRestore.contains("--passphrase")
-    l.info("")
-    l.info("")
-    l.info("")
-    l.info(s"Testing with $config and $configRestore, $iterations iterations with $maxSize, crashes: $crash, redundancy: $redundancy")
-    baseFolder.mkdirs()
-    assume(baseFolder.getCanonicalFile().exists())
-    deleteAll(backup1)
-    deleteAll(restore1)
-    // create some files
     val fg = new FileGen(input, maxSize)
-    fg.generateFiles
-    fg.rescan()
+    testName should "setup" in {
+      deleteAll(input)
+      deleteAll(backup1)
+      deleteAll(restore1)
+      l.info(s"Testing with $config and $configRestore, $iterations iterations with $maxSize, crashes: $crash, redundancy: $redundancy")
+      baseFolder.mkdirs()
+      assume(baseFolder.getCanonicalFile().exists())
+      // create some files
+      fg.rescan()
+      fg.generateFiles
+      fg.rescan()
+    }
     val maxCrashes = 3
     for (i <- 1 to iterations) {
-      l.info(s"Iteration $i of $iterations")
       if (crash) {
-        var crashes = 0
-        while (crashes < maxCrashes) {
-          val checkpoints = numberOfCheckpoints()
-          // crash process sometimes
-          val proc = createHandler(s"backup$config $backup1 $input".split(" "))
-          proc.start()
-          if (Random.nextBoolean) {
-            val secs = Random.nextInt(10) + 5
-            l.info(s"Waiting for $secs seconds before destroying process")
-            var waited = 0
-            while (waited < secs && !proc.finished) {
+        it should s"backup while crashing $i/$iterations" in {
+          var crashes = 0
+          while (crashes < maxCrashes) {
+            val checkpoints = numberOfCheckpoints()
+            // crash process sometimes
+            val proc = createHandler(s"backup$config $backup1 $input".split(" "))
+            proc.start()
+            if (Random.nextBoolean) {
+              val secs = Random.nextInt(10) + 5
+              l.info(s"Waiting for $secs seconds before destroying process")
+              var waited = 0
+              while (waited < secs && !proc.finished) {
+                Thread.sleep(1000)
+                waited += 1
+              }
+            } else {
+              l.info("Waiting for 2 new volume before destroying process")
               Thread.sleep(1000)
-              waited += 1
+              while ((numberOfCheckpoints() <= checkpoints + 1) && !proc.finished) {
+                Thread.sleep(100)
+              }
             }
-          } else {
-            l.info("Waiting for 2 new volume before destroying process")
-            Thread.sleep(1000)
-            while ((numberOfCheckpoints() <= checkpoints + 1) && !proc.finished) {
-              Thread.sleep(100)
+            crashes += 1
+            if (proc.finished) {
+              crashes = 10
             }
+            proc.destroyProcess()
           }
-          crashes += 1
-          if (proc.finished) {
-            crashes = 10
-          }
-          proc.destroyProcess()
+          l.info("Crashes done, letting process finish now")
         }
-        l.info("Crashes done, letting process finish now")
       }
-      // let backup finish
-      startAndWait(s"backup$config $backup1 $input".split(" ")) should be(0)
-      // no temp files in backup
-      input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
-      // verify backup
-      startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
+      it should s"backup normally $i/$iterations" in {
+        // let backup finish
+        startAndWait(s"backup$config $backup1 $input".split(" ")) should be(0)
+        // no temp files in backup
+        input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
+      }
+      it should s"verify correctly $i/$iterations" in {
+        // verify backup
+        startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
+      }
 
       if (hasPassword) {
-        startAndWait(s"verify${configRestore}a --percent-of-files-to-check 50 $backup1".split(" ")) should not be (0)
+        it should s"not verify correctly with a wrong password $i/$iterations" in {
+          startAndWait(s"verify${configRestore}a --percent-of-files-to-check 50 $backup1".split(" ")) should not be (0)
+        }
       }
 
       if (redundancy) {
         // Testing what happens when messing with the files
         messupBackupFiles()
       }
-      // restore backup to folder, folder already contains old restored files.
-      startAndWait(s"restore$configRestore --restore-to-folder $restore1 $backup1".split(" ")) should be(0)
-      // compare files
-      compareBackups(input, restore1)
+
+      it should s"restore correctly $i/$iterations" in {
+        // restore backup to folder, folder already contains old restored files.
+        startAndWait(s"restore$configRestore --restore-to-folder $restore1 $backup1".split(" ")) should be(0)
+        // compare files
+        compareBackups(input, restore1)
+      }
       // delete some files
-      if (i != iterations) {
-        l.info("Changing files")
-        fg.changeSome
-        l.info("Changing files done")
+      it should s"setup next iteration $i/$iterations" in {
+        if (i != iterations) {
+          l.info("Changing files")
+          fg.changeSome
+          l.info("Changing files done")
+        }
       }
     }
     if (!redundancy) {
-      messupBackupFiles
-      l.info("Verification should fail after files have been messed up")
-      startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" "), false) should not be (0)
-      l.info("Verification failed as expected")
+      it should s"fail to verify if files are messed up" in {
+        messupBackupFiles
+        l.info("Verification should fail after files have been messed up")
+        startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" "), false) should not be (0)
+      }
     }
   }
 
