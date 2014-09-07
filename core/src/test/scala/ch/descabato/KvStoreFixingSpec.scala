@@ -34,9 +34,9 @@ class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAft
     def partOfTest1(f: => Unit) {
       if (testFile.exists()) {
         if (!test1Ok) pending
-        test1Ok = (false)
+        test1Ok = false
         f
-        test1Ok = (true)
+        test1Ok = true
       }
     }
 
@@ -44,7 +44,7 @@ class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAft
       "write normally" in {
       testFile.delete()
       testFile.createNewFile()
-      test1Ok =(true)
+      test1Ok = true
       partOfTest1 {
         val writer = new KvStoreWriterImpl(testFile, passphrase)
         for (i <- 1 to maxEntries) {
@@ -59,7 +59,7 @@ class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAft
       it should s"read normally $i" in {
         partOfTest1 {
           val reader = new KvStoreReaderImpl(testFile, passphrase)
-          val entries = reader.iterator().toList
+          val entries = reader.iterator.toList
           var kvEntries = 0
           var seenEOF = false
           for (entry <- entries) {

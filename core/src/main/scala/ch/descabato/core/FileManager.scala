@@ -7,7 +7,6 @@ import java.util.Date
 import ch.descabato.utils.Utils
 
 import scala.collection.mutable
-import scala.collection.mutable.Buffer
 
 class VolumeIndex extends mutable.HashMap[String, Int]
 
@@ -150,7 +149,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   }
 
   def fileForNumber(number: Int, temp: Boolean = false): Option[File] = {
-    getFiles().filter(x => numberOf(x) == number).headOption
+    getFiles().find(x => numberOf(x) == number)
   }
   
   def isTemp(file: File) = {
@@ -189,9 +188,9 @@ class FileManager(override val universe: Universe) extends UniversePart {
   val volumes = new FileType[Volume]("volume_", false, ".kvs", localC = false)
   val volumeIndex = new IndexFileType(volumes)
   val hashlists = new FileType[Vector[(BaWrapper, Array[Byte])]]("hashlists_", false, ".kvs")
-  val files = new FileType[Buffer[BackupPart]]("files_", true, ".kvs", hasDateC = true)
+  val files = new FileType[mutable.Buffer[BackupPart]]("files_", true, ".kvs", hasDateC = true)
   val backup = new FileType[BackupDescription]("backup_", true, ".kvs", hasDateC = true)
-  val filesDelta = new FileType[Buffer[UpdatePart]]("filesdelta_", true, ".kvs", hasDateC = true)
+  val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta_", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
   val par2ForVolumes = new FileType[Parity]("par_volume_", true, ".par2", localC = false, redundantC = true)

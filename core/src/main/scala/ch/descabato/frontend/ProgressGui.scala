@@ -11,7 +11,7 @@ import org.bridj.cpp.com.COMRuntime
 import org.bridj.cpp.com.shell.ITaskbarList3
 import org.bridj.jawt.JAWTUtils
 
-import scala.collection.mutable.Buffer
+import scala.collection.mutable
 
 object CreateProgressGui {
   def apply(threads: Int, nameOfOp: String, sliderDisabled: Boolean) = {
@@ -32,14 +32,14 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
     var name = ""
     for (info <- UIManager.getInstalledLookAndFeels()) {
       if ("Nimbus".equals(info.getName())) {
-        name = info.getClassName();
+        name = info.getClassName()
       }
     }
     if (name != "")
       UIManager.setLookAndFeel(name)
     mon.pack()
     mon.setVisible(true)
-    timer.start();
+    timer.start()
   }
 
   def actionPerformed(e: ActionEvent) {
@@ -65,23 +65,23 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
     }
   }
 
-  var counters = Buffer[Counter]()
+  var counters = mutable.Buffer[Counter]()
 
   def pause(pausing: Boolean) {
-    CLI.paused = pausing;
+    CLI.paused = pausing
   }
 
-  val slices = Buffer[ProgressSlice]();
+  val slices = mutable.Buffer[ProgressSlice]()
 
-  def getSlice(x: Counter) = {
-    slices.find(x.name == _.getName()) match {
+  def getSlice(counter: Counter) = {
+    slices.find(counter.name == _.getName()) match {
       case Some(x) => x
       case None =>
-        val s = new ProgressSlice(x.isInstanceOf[MaxValueCounter])
+        val s = new ProgressSlice(counter.isInstanceOf[MaxValueCounter])
         mon.getSlices().add(s)
         mon.pack()
         slices += s
-        s.setName(x.name)
+        s.setName(counter.name)
         s
     }
   }
@@ -100,9 +100,9 @@ class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: 
   var list: ITaskbarList3 = null
   var hwnd: Pointer[Integer] = null
   try {
-    list = COMRuntime.newInstance(classOf[ITaskbarList3]);
-    val hwndVal = JAWTUtils.getNativePeerHandle(mon);
-    hwnd = Pointer.pointerToAddress(hwndVal).asInstanceOf[Pointer[Integer]];
+    list = COMRuntime.newInstance(classOf[ITaskbarList3])
+    val hwndVal = JAWTUtils.getNativePeerHandle(mon)
+    hwnd = Pointer.pointerToAddress(hwndVal).asInstanceOf[Pointer[Integer]]
 
   } catch {
     case x: Throwable =>
@@ -110,13 +110,13 @@ class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: 
 
   override def setValue(value: Int, max: Int) {
     if (list != null && hwnd != null)
-      list.SetProgressValue(hwnd, value, max);
+      list.SetProgressValue(hwnd, value, max)
   }
 
   override def pause(pausing: Boolean) {
     super.pause(pausing)
     val flag = if (pausing) ITaskbarList3.TbpFlag.TBPF_PAUSED else ITaskbarList3.TbpFlag.TBPF_NORMAL
-    list.SetProgressState(hwnd, flag);
+    list.SetProgressState(hwnd, flag)
   }
 
 }

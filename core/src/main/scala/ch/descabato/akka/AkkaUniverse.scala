@@ -79,7 +79,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     val name = s"Queue $queueName"
     maxValue = 500
 
-    override def update {
+    override def update() {
       queueInfo(ref) match {
         case Some((cur, max)) => current = cur; maxValue = max
         case _ =>
@@ -192,9 +192,9 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     while (wait) {
       wait = queueInfo(x) match {
         case Some((cur, _)) if cur > limit =>
-          Thread.sleep(50);
+          Thread.sleep(50)
           if (shouldPrint)
-            l.info(s"Waiting for queue ${name} with $cur queued items")
+            l.info(s"Waiting for queue $name with $cur queued items")
           true
         case _ => false
       }
@@ -314,7 +314,7 @@ class Resizer(name: String) extends DefaultResizer(messagesPerResize = 100) with
     var endResult = requestedCapacity + currentRoutees.size
     val newThreads = Math.min(requestedCapacity + currentRoutees.size, maxThreads)
     requestedCapacity = newThreads - currentRoutees.size
-    return requestedCapacity
+    requestedCapacity
   }
 
 }
@@ -336,7 +336,7 @@ class AkkaHasher extends HashHandler with UniversePart with PureLifeCycle with A
     add1
     val s = block.id.file.path
     if (map.get(s).isEmpty) {
-      val actor = uni.actorOf[HashHandler, AkkaSingleThreadHasher]("hasher for " + s, false)
+      val actor = uni.actorOf[HashHandler, AkkaSingleThreadHasher]("hasher for " + s, withCounter = false)
       map += s -> actor
     }
     map(s).hash(block)

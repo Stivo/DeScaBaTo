@@ -14,7 +14,7 @@ object CryptoUtils extends Utils {
   def deriveIv(iv: Array[Byte], offset: Int) = {
     var bigInt = new BigInteger(iv)
     bigInt = bigInt.add(new BigInteger(offset+""))
-    var bytes = bigInt.toByteArray()
+    var bytes = bigInt.toByteArray
     if (bytes.length != iv.length) {
       while (bytes.length < iv.length) {
         bytes = Array(0.toByte) ++ bytes

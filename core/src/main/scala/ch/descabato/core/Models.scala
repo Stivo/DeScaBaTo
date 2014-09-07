@@ -13,8 +13,7 @@ import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.attribute.PosixFilePermissions
 import java.security.MessageDigest
 import java.security.Principal
-import java.util.Arrays
-import java.util.HashMap
+import java.util
 import java.util.regex.Pattern
 
 import ch.descabato.CompressionMode
@@ -60,7 +59,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
 }
 
 
-class FileAttributes extends HashMap[String, Any] with Utils {
+class FileAttributes extends util.HashMap[String, Any] with Utils {
 
   def hasBeenModified(file: File): Boolean = {
     val fromMap = get("lastModifiedTime")
@@ -137,7 +136,7 @@ object FileAttributes extends Utils {
       try {
         val name = if (dosOnes.safeContains(k)) "dos:" + k else k
         val toSet: Option[Any] = (k, o) match {
-          case (k, time) if k.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
+          case (key, time) if key.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
           case (s, group) if s == posixGroup =>
             val g = lookupService.lookupPrincipalByGroupName(group.toString)
             posix.setGroup(g)
@@ -184,7 +183,7 @@ object FileDeleted {
 case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Array[Byte] = null) extends BackupPart {
   @JsonIgnore def isFolder = false
   override def equals(x: Any) = x match {
-    case FileDescription(p, s, attrs, h) if p == path && s == size && attrs == attrs => Arrays.equals(hash, h)
+    case FileDescription(p, s, attributes, h) if p == path && s == size && attributes == attrs => util.Arrays.equals(hash, h)
     case _ => false
   }
 
@@ -253,13 +252,13 @@ case class BackupDescription(val files: Vector[FileDescription] = Vector.empty,
  */
 class BaWrapper(ba: Array[Byte]) {
   val data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
-  def equals(other: BaWrapper): Boolean = Arrays.equals(data, other.data)
+  def equals(other: BaWrapper): Boolean = util.Arrays.equals(data, other.data)
   override def equals(obj: Any): Boolean =
     obj match {
       case other: BaWrapper => equals(other)
       case _ => false
     }
-  override def hashCode: Int = Arrays.hashCode(data)
+  override def hashCode: Int = util.Arrays.hashCode(data)
   override def toString() = data.length + ": " + new String(data)
 }
 

@@ -109,9 +109,6 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
     logFolder.mkdirs()
   }
 
-  before {
-  }
-
 //  "plain backup" should "work" in {
 //    testWith(" --threads 1", "", 2, "100Mb")
 //  }
@@ -130,10 +127,10 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 
   testWith("backup with smart compression", " --compression smart --threads 8 --volume-size 20Mb", "", 1, "200Mb", crash = false)
 
-//  testWith("backup with crashes", " --compression deflate --volume-size 10Mb", "", 2, "100Mb", crash = true, redundancy = false)
-//
-//  testWith("backup with crashes, encryption and multiple threads",
-//    " --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", crash = true, redundancy = false)
+  testWith("backup with crashes", " --compression deflate --volume-size 10Mb", "", 2, "100Mb", crash = true, redundancy = false)
+
+  testWith("backup with crashes, encryption and multiple threads",
+    " --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", crash = true, redundancy = false)
 
   def numberOfCheckpoints(): Int = {
     if (backup1.exists) {
@@ -279,7 +276,7 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 
   def hash(f: File) = {
     val hos = new HashingOutputStream("md5")
-    val buf = Streams.copy(new FileInputStream(f), hos)
+    Streams.copy(new FileInputStream(f), hos)
     Utils.encodeBase64Url(hos.out.get)
   }
 

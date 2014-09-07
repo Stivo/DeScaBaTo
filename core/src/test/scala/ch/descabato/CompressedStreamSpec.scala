@@ -1,7 +1,7 @@
 package ch.descabato
 
 import java.io.File
-import java.util.Arrays
+import java.util
 import java.util.{List => JList}
 
 import ch.descabato.core.BackupFolderConfiguration
@@ -33,7 +33,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
       val compressed = CompressedStream.compress(toEncode, compressor)
 
       val read = CompressedStream.decompress(compressed.toArray()).readFully
-      assert(Arrays.equals(read, toEncode))
+      assert(util.Arrays.equals(read, toEncode))
     }
     }
   }

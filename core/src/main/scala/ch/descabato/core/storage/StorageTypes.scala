@@ -9,10 +9,9 @@ import ch.descabato.core.kvstore.Entry
 import ch.descabato.core.kvstore.KvStoreReaderImpl
 import ch.descabato.core.kvstore.KvStoreWriterImpl
 import ch.descabato.utils.JsonSerialization
-import ch.descabato.version.BuildInfo
 
 object StorageMechanismConstants {
-  val manifestName = "manifest.txt".getBytes()
+  val manifestName = "manifest.txt".getBytes
 }
 
 trait IndexMechanism[K, L <: Location] {
@@ -54,7 +53,7 @@ class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[Strin
   }
 
   def writeManifest() {
-    val versionNumber: String = BuildInfo.version
+    val versionNumber: String = ch.descabato.version.BuildInfo.version
     val m = new MetaInfo(universe.fileManager().getDateFormatted, versionNumber)
     val json = new JsonSerialization()
     val value = json.write(m)
@@ -72,15 +71,15 @@ class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[Strin
   private var _manifestReadFailed = false
 
   def iterator = {
-    kvstoreReader.iterator().collect {
-      case Entry(_, k::v::Nil) if (!util.Arrays.equals(k.array, StorageMechanismConstants.manifestName)) => (k.array, new KvStoreLocation(file, v.startPos))
+    kvstoreReader.iterator.collect {
+      case Entry(_, k::v::Nil) if !util.Arrays.equals(k.array, StorageMechanismConstants.manifestName) => (k.array, new KvStoreLocation(file, v.startPos))
     }
   }
 
   def manifest() = {
     if (_manifest == null && !_manifestReadFailed) {
-      kvstoreReader.iterator().find {
-        case Entry(_, k :: v :: Nil) if (util.Arrays.equals(k.array, StorageMechanismConstants.manifestName)) =>
+      kvstoreReader.iterator.find {
+        case Entry(_, k :: v :: Nil) if util.Arrays.equals(k.array, StorageMechanismConstants.manifestName) =>
           true
       }.foreach { e =>
         val json = new JsonSerialization()

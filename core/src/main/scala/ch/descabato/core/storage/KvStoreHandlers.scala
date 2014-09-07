@@ -2,7 +2,7 @@ package ch.descabato.core.storage
 
 import java.io.File
 import java.io.InputStream
-import java.util.BitSet
+import java.util
 
 import ch.descabato.CompressionMode
 import ch.descabato.core._
@@ -84,7 +84,7 @@ trait KvStoreHandler[T, K] extends UniversePart {
   def writeEntry(key: K, value: Array[Byte]): Unit = {
     if (currentlyWritingFile == null) {
       currentlyWritingFile =
-        new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, false), config.passphrase)
+        new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, temp = false), config.passphrase)
       currentlyWritingFile.setup(universe)
       currentlyWritingFile.writeManifest()
     }
@@ -127,8 +127,8 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
   }
 
   class FileDescriptionWrapper(var fd: FileDescription) {
-    lazy val blocks: BitSet = {
-      val out = new BitSet(blocksFor(fd))
+    lazy val blocks: util.BitSet = {
+      val out = new util.BitSet(blocksFor(fd))
       out.set(0, blocksFor(fd), true)
       out
     }
@@ -202,7 +202,7 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
   }
 
   def remaining(): Int = {
-    unfinished.filter(!_._2.failed).size
+    unfinished.count(!_._2.failed)
   }
 
   def setFiles(finished: BackupDescription, unfinished: BackupDescription) {

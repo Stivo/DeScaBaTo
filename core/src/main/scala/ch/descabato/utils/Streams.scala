@@ -5,7 +5,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.MessageDigest
-import java.util.Arrays
+import java.util
 import java.util.zip.ZipException
 
 import ch.descabato.ByteArrayOutputStream
@@ -14,7 +14,7 @@ import ch.descabato.frontend.ProgressReporters
 import org.apache.commons.compress.compressors.CompressorException
 import org.tukaani.xz.XZIOException
 
-import scala.collection.mutable.Buffer
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.ref.WeakReference
 
@@ -33,11 +33,11 @@ object ObjectPools extends Utils {
   
   class ByteArrayObjectPool {
     type T = Array[Byte]
-    val local = new ThreadLocal[Buffer[WeakReference[T]]]
+    val local = new ThreadLocal[mutable.Buffer[WeakReference[T]]]
     def getStack() = {
       val out = local.get()
       if (out == null) {
-        val n = Buffer[WeakReference[T]]()
+        val n = mutable.Buffer[WeakReference[T]]()
         local.set(n)
         n
       } else {
@@ -58,7 +58,7 @@ object ObjectPools extends Utils {
       if (foundMinimumRequests % 1000 == 0) {
         printStatistics(getStack.size)
       }
-      found getOrElse (makeNew(arg))
+      found getOrElse makeNew(arg)
     }
 
     final def getExactly(arg: Int): T = {
@@ -72,19 +72,19 @@ object ObjectPools extends Utils {
         foundExactCounter += 1
       }
       foundExactRequests += 1
-      found getOrElse (makeNew(arg))
+      found getOrElse makeNew(arg)
     }
 
     private def get(f: T => Boolean): Option[T] = {
       val stack = getStack()
       var strongRef: Option[T] = None
-      while (!stack.isEmpty) {
-        val toRemove = Buffer[WeakReference[T]]()
+      while (stack.nonEmpty) {
+        val toRemove = mutable.Buffer[WeakReference[T]]()
         val result = stack.find {
-          case wr@WeakReference(x) if (f(x)) =>
+          case wr@WeakReference(x) if f(x) =>
             // before x is garbage collected, save it to a strong reference
             strongRef = Some(x)
-            toRemove += wr;
+            toRemove += wr
             true
           case WeakReference(x) => false // continue searching
           case wr => // This is an empty reference now, we might as well delete it
@@ -207,7 +207,7 @@ object Streams extends Utils {
   class VerifyInputStream(in: InputStream, messageDigest: MessageDigest, hash: Array[Byte], file: File)
     extends HashingInputStream(in, messageDigest) {
     final def hashComputed(hash2: Array[Byte]) {
-      if (!Arrays.equals(hash, hash2)) {
+      if (!util.Arrays.equals(hash, hash2)) {
         verificationFailed(hash2)
       }
     }
@@ -224,7 +224,7 @@ object Streams extends Utils {
       } catch {
         case z @ (_: ZipException | _: XZIOException | _: CompressorException) => 
         	throw new BackupCorruptedException(file, false).initCause(z)
-        case z: IOException if (z.getStackTrace().head.getClassName().contains("bzip")) => throw new BackupCorruptedException(file, false).initCause(z)
+        case z: IOException if z.getStackTrace().head.getClassName().contains("bzip") => throw new BackupCorruptedException(file, false).initCause(z)
       }
     }
   }
@@ -235,11 +235,11 @@ object Streams extends Utils {
     var out: Option[Array[Byte]] = None
 
     def write(b: Int) {
-      md.update(b.toByte);
+      md.update(b.toByte)
     }
 
     override def write(buf: Array[Byte], start: Int, len: Int) {
-      md.update(buf, start, len);
+      md.update(buf, start, len)
     }
 
     override def close() {

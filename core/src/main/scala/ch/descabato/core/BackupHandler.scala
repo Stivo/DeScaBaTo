@@ -7,7 +7,6 @@ import java.nio.file.NoSuchFileException
 import java.security.DigestOutputStream
 import java.util
 import java.util.Date
-import java.util.Enumeration
 
 import ch.descabato.frontend._
 import ch.descabato.utils.FileUtils
@@ -15,7 +14,7 @@ import ch.descabato.utils.Streams._
 import ch.descabato.utils.Utils
 
 import scala.collection.mutable
-import scala.collection.parallel.ThreadPoolTaskSupport
+import scala.collection.parallel.ForkJoinTaskSupport
 import scala.language.reflectiveCalls
 import scala.util.Random
 
@@ -66,12 +65,12 @@ trait BackupRelatedHandler {
 
   def getInputStream(fd: FileDescription): InputStream = {
     val hashes = getHashlistForFile(fd)
-    val enumeration = new Enumeration[InputStream]() {
+    val enumeration = new util.Enumeration[InputStream]() {
       val hashIterator = hashes.iterator
       def hasMoreElements = hashIterator.hasNext
       def nextElement = {
         try {
-          readBlock(hashIterator.next, true)
+          readBlock(hashIterator.next, verify = true)
         } catch {
           case x: Exception =>
             l.info("Exception while getting next element in stream",x)
@@ -156,14 +155,14 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     backupPartHandler.setFiles(unchangedDesc, newDesc)
 
     // Backup files 
-    setMaximums(newDesc, true)
+    setMaximums(newDesc, withGui = true)
     ProgressReporters.activeCounters = List(fileCounter, byteCounter, failureCounter)
     universe.blockHandler.setTotalSize(byteCounter.maxValue)
 
     val coll = if (true) newDesc.files
     else {
       val out = newDesc.files.par
-      val tp = new ThreadPoolTaskSupport() {
+      val tp = new ForkJoinTaskSupport() {
         override def parallelismLevel = 2
       }
       out.tasksupport = tp
@@ -345,7 +344,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     description.folders.foreach(restoreFolderDesc(_))
     description.files.foreach(restoreFileDesc)
     description.symlinks.foreach(restoreLink)
-    description.folders.foreach(restoreFolderDesc(_, false))
+    description.folders.foreach(restoreFolderDesc(_, count = false))
     universe.finish()
     ProgressReporters.activeCounters = Nil
     println("Finished restoring "+measuredTime())
@@ -379,7 +378,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
       val path = makePath(link.path)
       if (Files.exists(path.toPath(), LinkOption.NOFOLLOW_LINKS))
         return
-      val linkTarget = makePath(link.linkTarget, true)
+      val linkTarget = makePath(link.linkTarget, maybeOutside = true)
       //println("Creating link from " + path + " to " + linkTarget)
       Files.createSymbolicLink(path.toPath(), linkTarget.getCanonicalFile().toPath())
       link.applyAttrsTo(path)
@@ -487,7 +486,7 @@ class VerifyHandler(val universe: Universe)
         case f: FileDescription =>
           val chain = getHashlistForFile(f)
           val missing = chain.filterNot { universe.blockHandler().isPersisted }
-          if (!missing.isEmpty) {
+          if (missing.nonEmpty) {
             problemCounter += missing.size
             l.warn(s"Missing ${missing.size} blocks for $f")
           }
@@ -522,7 +521,7 @@ class VerifyHandler(val universe: Universe)
     if (probes <= 0)
       return
     val tests = getRandomXElements(probes, files)
-    setMaximums(tests, true)
+    setMaximums(tests, withGui = true)
     tests.foreach { file =>
       val in = getInputStream(file)
       val hos = new HashingOutputStream(config.hashAlgorithm)

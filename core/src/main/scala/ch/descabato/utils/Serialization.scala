@@ -42,15 +42,15 @@ trait Serialization {
 abstract class AbstractJacksonSerialization extends Serialization {
   class UpdatePartDeserializer extends StdDeserializer[UpdatePart](classOf[UpdatePart]) {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
-      val mapper = jp.getCodec().asInstanceOf[ObjectMapper];
-      val root = mapper.readTree(jp).asInstanceOf[ObjectNode];
+      val mapper = jp.getCodec().asInstanceOf[ObjectMapper]
+      val root = mapper.readTree(jp).asInstanceOf[ObjectNode]
       val fields = root.fieldNames().asScala.toSet
       if (fields.find(_=="attrs").isEmpty) {
         mapper.convertValue(root, classOf[FileDeleted])
       } else if (fields.safeContains("hash")) {
-        mapper.convertValue(root, classOf[FileDescription]);
+        mapper.convertValue(root, classOf[FileDescription])
       } else if (fields.safeContains("linkTarget")) {
-        mapper.convertValue(root, classOf[SymbolicLink]);
+        mapper.convertValue(root, classOf[SymbolicLink])
       } else {
         mapper.convertValue(root, classOf[FolderDescription])
       }
@@ -59,10 +59,10 @@ abstract class AbstractJacksonSerialization extends Serialization {
 
   class BackupPartDeserializer extends StdDeserializer[BackupPart](classOf[BackupPart]) {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
-      val mapper = jp.getCodec().asInstanceOf[ObjectMapper];
-      val root = mapper.readTree(jp).asInstanceOf[ObjectNode];
+      val mapper = jp.getCodec().asInstanceOf[ObjectMapper]
+      val root = mapper.readTree(jp).asInstanceOf[ObjectNode]
       if (root.fieldNames().asScala.contains("hash")) {
-        mapper.convertValue(root, classOf[FileDescription]);
+        mapper.convertValue(root, classOf[FileDescription])
       } else {
         mapper.convertValue(root, classOf[FolderDescription])
       }
@@ -80,7 +80,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
     }
   }
 
-  val testModule = new SimpleModule("MyModule", new Version(1, 0, 0, null));
+  val testModule = new SimpleModule("DeScaBaTo", new Version(0, 4, 0, null, "ch.descabato", "core"))
   testModule.addDeserializer(classOf[UpdatePart], new UpdatePartDeserializer())
   testModule.addDeserializer(classOf[BackupPart], new BackupPartDeserializer())
   testModule.addDeserializer(classOf[BaWrapper], new BaWrapperDeserializer())
@@ -138,7 +138,7 @@ class BsonSerialization extends AbstractJacksonSerialization {
 
   lazy val fac = {
     val out = new BsonFactory
-    out.enable(BsonGenerator.Feature.ENABLE_STREAMING);
+    out.enable(BsonGenerator.Feature.ENABLE_STREAMING)
     out
   }
 

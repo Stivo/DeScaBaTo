@@ -93,7 +93,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
     def sampleFile(block: Block) = {
       // create new blocks with each algorithm
       val samples = algos.map(x => new SamplingBlock(x, block)).sortBy(_.mode.getByte())
-      samplingBlocks += (idForBlock(block)) -> samples
+      samplingBlocks += idForBlock(block) -> samples
       samples.map(_.block)
     }
     
@@ -129,7 +129,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
         var candidates = algos.zip(speeds.map(_.median(config.blockSize.bytes * 10))).sortBy(_._2).drop(1)
         winner = CompressionMode.none
         val medians = algos.map(x => ratioSamples(x.getByte).median(100.0f))
-        while (!candidates.isEmpty) {
+        while (candidates.nonEmpty) {
           val next = candidates.head._1
           candidates = candidates.tail
           if (medians(next.getByte) < medians(winner.getByte) - 0.03) {

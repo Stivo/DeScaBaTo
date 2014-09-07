@@ -1,7 +1,7 @@
 package ch.descabato
 
 import java.io.File
-import java.util.Arrays
+import java.util
 
 import ch.descabato.core.BackupDescription
 import ch.descabato.core.FileDescription
@@ -51,7 +51,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     import f._
     val fidAfter = writeAndRead(ser, fid)
     assert(fid === fidAfter)
-    assert(Arrays.equals(fid.hash, fidAfter.hash))
+    assert(util.Arrays.equals(fid.hash, fidAfter.hash))
     assert(fid.attrs.keys === fidAfter.attrs.keys)
     fidAfter.attrs.keys should contain ("lastModifiedTime")
     chainMap.map(_._1) should equal (writeAndRead(ser, chainMap).map(_._1))
@@ -62,7 +62,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     assert(bd === writeAndRead(ser, bd))
     (list.head, listAfter.head) match {
       case (x: FileDescription, y: FileDescription) => 
-        assert(Arrays.equals(x.hash, y.hash))
+        assert(util.Arrays.equals(x.hash, y.hash))
       case _ => fail
     }
   }

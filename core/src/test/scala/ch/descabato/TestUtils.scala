@@ -23,7 +23,7 @@ trait TestUtils extends Utils {
     def walk(f: File) {
       f.isDirectory() match {
         case true =>
-          f.listFiles().toList.foreach(walk); 
+          f.listFiles().toList.foreach(walk)
           f.delete()
         case false => 
           f.delete()

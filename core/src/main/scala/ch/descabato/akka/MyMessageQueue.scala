@@ -23,7 +23,7 @@ object Queues {
     map(x) = WeakReference(queue)
   }
 
-  def apply(x: Option[ActorRef]): Option[Queue] = map.get(x).map{case WeakReference(x) => x}
+  def apply(actorRef: Option[ActorRef]): Option[Queue] = map.get(actorRef).map{case WeakReference(x) => x}
 }
 
 /**

@@ -27,7 +27,7 @@ trait RandomAccessFileUser extends AutoCloseable {
   def mode: String
   def file: File
   def getFileLength() = raf.length()
-  def close() = raf.close
+  def close() = raf.close()
   def seek(pos: Long) = raf.seek(pos)
   def skip(skip: Long) = raf.seek(raf.getFilePointer()+skip)
   def getFilePos() = raf.getFilePointer()
@@ -253,7 +253,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
         currentSize += blockSize
         while (currentSize > maxMemory) {
           l.trace(s"Removing an entry from cache because $currentSize > $maxMemory")
-          val option = (cache - (startBlock)).headOption
+          val option = (cache - startBlock).headOption
           option.foreach { case (k, v) =>
             l.trace(s"Removed entry is ${v.blockNum} with size ${v.size}")
             v.write()
@@ -266,7 +266,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
     }
 
     def flushWrites() {
-      cache.valuesIterator.foreach(_.write)
+      cache.valuesIterator.foreach(_.write())
     }
 
     def getLastPos(): Long = cache.lastOption.map{ case (_, b) => b.endOfBlock + b.startOfBlockPos}.getOrElse(0L)
@@ -328,7 +328,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
 
   override def writeImpl(bytes: Array[Byte], offset: Int, len: Int) {
     l.trace(s"Writing bytes from $file from $offset to $len")
-    boundaryCheck(len, false)
+    boundaryCheck(len, read = false)
     if (raf.getFilePointer != currentPos)
       raf.seek(currentPos)
     if (getFilePos() < encryptedFrom) {
@@ -350,7 +350,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
 
   override def readImpl(bytes: Array[Byte], offset: Int, len: Int) {
     l.trace(s"Reading bytes from $file from $offset to $len")
-    boundaryCheck(len, true)
+    boundaryCheck(len, read = true)
     raf.seek(currentPos)
     if (getFilePos() < encryptedFrom) {
       raf.read(bytes, offset, len)

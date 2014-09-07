@@ -17,7 +17,7 @@ import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.Buffer
+import scala.collection.mutable
 
 object ProgressReporters {
 
@@ -158,7 +158,7 @@ class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxVal
 object AnsiUtil {
   var ansiDisabled = false
   lazy val initAnsi = if (!ansiDisabled && CLI.runsInJar && System.getProperty("user.name").toLowerCase() != "travis") {
-    AnsiConsole.systemInstall();
+    AnsiConsole.systemInstall()
   } else {
     deleteLinesEnabled = false
   }
@@ -166,8 +166,8 @@ object AnsiUtil {
   var deleteLinesEnabled = true
 
   def mark(s: String, pattern: String, color: AnsiColor = red) = {
-    var stringParts = Buffer[String]()
-    var args = Buffer[Any]()
+    var stringParts = mutable.Buffer[String]()
+    var args = mutable.Buffer[Any]()
     var todo = s
     while (todo.contains(pattern)) {
       val start = todo.indexOf(pattern)
@@ -216,7 +216,7 @@ object AnsiUtil {
       var wasAnsi = false
       while (s.hasNext) {
         val arg = as.next
-        wasAnsi = true;
+        wasAnsi = true
         arg match {
           case c: AnsiColor =>
             out = out.fg(c.c)
@@ -246,7 +246,7 @@ object ConsoleManager extends ProgressReporting with Utils {
   var appender: ConsoleAppenderWithDeleteSupport = null
 
   def ephemeralMessage(message: => String) {
-    appender.writeDeleteLine(message, true)
+    appender.writeDeleteLine(message, delete = true)
   }
 
   lazy val timer = new java.util.Timer()
@@ -261,13 +261,13 @@ object ConsoleManager extends ProgressReporting with Utils {
   def startConsoleUpdater() {
     if (AnsiUtil.deleteLinesEnabled) {
       timer.schedule(new RepeatingWithTimeDelayTask({
-        val status = updateConsoleStatus(false)
+        val status = updateConsoleStatus(names = false)
         if (status != "")
           ephemeralMessage(status)
       }, 100), 1000)
     }
     timer.schedule(new RepeatingWithTimeDelayTask({
-      val status = updateConsoleStatus(true)
+      val status = updateConsoleStatus(names = true)
       if (status != "")
         l.info(status)
     }, 10000), 1000)

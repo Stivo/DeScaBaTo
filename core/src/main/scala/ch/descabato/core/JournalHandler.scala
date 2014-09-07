@@ -113,7 +113,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
         val file = new File(config.folder, f)
         var shouldDelete = true
         if (file.getName.endsWith(".kvs")) {
-          val kvStore = new KvStoreReaderImpl(file, config.passphrase.getOrElse(null), readOnly = false)
+          val kvStore = new KvStoreReaderImpl(file, config.passphrase.orNull, readOnly = false)
           val success = kvStore.checkAndFixFile()
           kvStore.close()
           if (success) {

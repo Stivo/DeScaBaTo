@@ -18,20 +18,20 @@ import scala.language.implicitConversions
 
 object Utils extends LazyLogging {
   
-  private val units = Array[String]("B", "KB", "MB", "GB", "TB");
+  private val units = Array[String]("B", "KB", "MB", "GB", "TB")
   def isWindows = System.getProperty("os.name").contains("indows")
   def readableFileSize(size: Long, afterDot: Int = 1): String = {
-    if (size <= 0) return "0";
-    val digitGroups = (Math.log10(size) / Math.log10(1024)).toInt;
+    if (size <= 0) return "0"
+    val digitGroups = (Math.log10(size) / Math.log10(1024)).toInt
     val afterDotPart = if (afterDot == 0) "#" else "0" * afterDot
-    return new DecimalFormat("#,##0." + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups);
+    new DecimalFormat("#,##0." + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups)
   }
 
-  private def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes);
-  private def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s);
+  private def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes)
+  private def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s)
 
   def encodeBase64Url(bytes: Array[Byte]) = encodeBase64(bytes).replace('+', '-').replace('/', '_')
-  def decodeBase64Url(s: String) = decodeBase64(s.replace('-', '+').replace('_', '/'));
+  def decodeBase64Url(s: String) = decodeBase64(s.replace('-', '+').replace('_', '/'))
 
   def normalizePath(x: String) = x.replace('\\', '/')
 
@@ -131,7 +131,7 @@ object FileUtils extends Utils {
     def walk(f: File) {
       f.isDirectory() match {
         case true =>
-          f.listFiles().toList.foreach(walk);
+          f.listFiles().toList.foreach(walk)
           f.delete()
         case false =>
           f.delete()

@@ -3,7 +3,7 @@ package ch.descabato.core.kvstore
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.io.File
-import java.util.Arrays
+import java.util
 
 import ch.descabato.core.BaWrapper
 import ch.descabato.utils.Utils
@@ -80,7 +80,7 @@ case class Entry(typ: EntryType, parts: Iterable[EntryPart]) {
 trait KvStoreWriter extends AutoCloseable {
   def writeEntry(entry: Entry)
   def writeKeyValue(key: Array[Byte], value: Array[Byte]) = {
-    writeEntry(new Entry(EntryTypes.keyValue, newEntryPart(key, false) :: newEntryPart(value, false) :: Nil))
+    writeEntry(new Entry(EntryTypes.keyValue, newEntryPart(key, hasCrc = false) :: newEntryPart(value, hasCrc = false) :: Nil))
   }
   def newEntryPart(array: Array[Byte], hasCrc: Boolean = false) = {
     new EntryPartW(array, hasCrc)
@@ -147,10 +147,10 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	    case (null, null) => // Type 0
   	    tempOut.writeByte(0)
   	    copyTempOutToOut()
-	    case (null, key) => // Type 1
+	    case (null, k) => // Type 1
   	    tempOut.writeByte(1)
   	    writeEncryptionInfo()
-  	    startEncryptedPart(key)
+  	    startEncryptedPart(k)
  	    case (pass, null) => // Type 2
   	    tempOut.writeByte(2)
   	    writeKeyDerivationInfo()
@@ -158,7 +158,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
   	         keyDerivationInfo.keyLength, keyDerivationInfo.iterationsPower, keyDerivationInfo.memoryFactor)
   	    writeEncryptionInfo()
   	    startEncryptedPart(keyHere)
-	    case (pass, key) => throw new IllegalArgumentException("Just supply either key or passphrase")
+	    case (pass, k) => throw new IllegalArgumentException("Just supply either key or passphrase")
 	  }
 	  out
 	}
@@ -230,7 +230,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
         _reader.seek(0)
         val bytesToHmac = _reader.readBytes(backup.toInt)
         val hmacComputed = CryptoUtils.hmac(bytesToHmac, keyInfo)
-        if (!Arrays.equals(hmacInFile, hmacComputed)) {
+        if (!util.Arrays.equals(hmacInFile, hmacComputed)) {
           throw new IllegalStateException("Hmac verification failed")
         }
         _reader.skip(32)
@@ -259,11 +259,11 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     _reader
   }
 
-  def iterator() = {
+  def iterator = {
     new Iterator[Entry]() {
       var pos = getPosOfFirstEntry()
       def hasNext = pos < file.length
-      def next = {
+      def next() = {
         val out = readEntryAt(pos).get
         pos = out.getEndOfEntryPos()
         out
@@ -285,7 +285,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     }
     val backup = reader.getFilePos()
     var continue = true
-    val it = iterator()
+    val it = iterator
     var lastGoodPos = getPosOfFirstEntry()
     var seenEndMarker = false
     while (it.hasNext && continue) {
@@ -348,8 +348,8 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     reader.seek(pos)
     val entryType = reader.readByte()
     entryType match {
-      case 0 => readPlainValue(pos, false)
-      case 1 => readPlainValue(pos, true)
+      case 0 => readPlainValue(pos, hasCrcIn = false)
+      case 1 => readPlainValue(pos, hasCrcIn = true)
       case e => throw new IllegalArgumentException("Expected type of entrypart to be 0, was "+e)
     }
   }

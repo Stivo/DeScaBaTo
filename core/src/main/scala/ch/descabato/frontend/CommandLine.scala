@@ -81,11 +81,11 @@ object CLI extends Utils {
       }
     } catch {
       case e@PasswordWrongException(m, cause) =>
-        l.warn(m);
+        l.warn(m)
         logException(e)
         exit(-1)
       case e@BackupVerification.BackupDoesntExist =>
-        l.warn(e.getMessage);
+        l.warn(e.getMessage)
         logException(e)
         exit(-2)
       case e: Error =>
@@ -223,7 +223,7 @@ trait BackupRelatedCommand extends Command with Utils {
     var passphrase = t.passphrase.get
     confHandler.verify(needsExistingBackup) match {
       case b@BackupDoesntExist => throw b
-      case PasswordNeeded => passphrase = Some(askUser("This backup is passphrase protected. Please type your passphrase.", true))
+      case PasswordNeeded => passphrase = Some(askUser("This backup is passphrase protected. Please type your passphrase.", mask = true))
       case OK =>
     }
     val conf = confHandler.configure(passphrase)
@@ -338,7 +338,7 @@ object RestoreRunners extends Utils {
         f()
         return
       } catch {
-        case e@BackupCorruptedException(f, false) =>
+        case e@BackupCorruptedException(file, false) =>
           logException(e)
         //          Par2Handler.tryRepair(f, conf)
       }
@@ -353,7 +353,7 @@ class RestoreCommand extends BackupRelatedCommand {
 
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
-    withUniverse(conf, false) {
+    withUniverse(conf, akkaAllowed = false) {
       universe =>
         if (t.chooseDate()) {
           val fm = new FileManager(universe)
@@ -383,7 +383,7 @@ class VerifyCommand extends BackupRelatedCommand {
 
   def start(t: T, conf: BackupFolderConfiguration) = {
     println(t.summary)
-    val count = withUniverse(conf, false) {
+    val count = withUniverse(conf, akkaAllowed = false) {
       u =>
         val rh = new VerifyHandler(u)
         rh.verify(t)
@@ -412,8 +412,8 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
   val percentOfFilesToCheck = opt[Int](default = Some(5))
   validate(percentOfFilesToCheck) {
-    x: Int =>
-      x match {
+    xIn: Int =>
+      xIn match {
         case x if x > 0 && x <= 100 => Right(Unit)
         case _ => Left("Needs to be percent")
       }
