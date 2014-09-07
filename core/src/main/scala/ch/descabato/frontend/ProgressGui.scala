@@ -1,13 +1,17 @@
 package ch.descabato.frontend
 
-import javax.swing.{Timer, UIManager}
-import scala.collection.mutable.Buffer
-import org.bridj.cpp.com.shell.ITaskbarList3
-import org.bridj.cpp.com.COMRuntime
-import org.bridj.Pointer
-import org.bridj.jawt.JAWTUtils
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
+import javax.swing.Timer
+import javax.swing.UIManager
+
 import ch.descabato.utils.Utils
-import java.awt.event.{ActionEvent, ActionListener}
+import org.bridj.Pointer
+import org.bridj.cpp.com.COMRuntime
+import org.bridj.cpp.com.shell.ITaskbarList3
+import org.bridj.jawt.JAWTUtils
+
+import scala.collection.mutable.Buffer
 
 object CreateProgressGui {
   def apply(threads: Int, nameOfOp: String, sliderDisabled: Boolean) = {

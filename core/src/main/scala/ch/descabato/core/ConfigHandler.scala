@@ -1,13 +1,14 @@
 package ch.descabato.core
 
-import ch.descabato.utils.JsonSerialization
 import java.io.File
-import ch.descabato.utils.Utils
 import java.io.FileInputStream
-import ch.descabato.frontend.ChangeableBackupOptions
-import ch.descabato.frontend.BackupFolderOption
-import ch.descabato.frontend.CreateBackupOptions
 import java.io.FileOutputStream
+
+import ch.descabato.frontend.BackupFolderOption
+import ch.descabato.frontend.ChangeableBackupOptions
+import ch.descabato.frontend.CreateBackupOptions
+import ch.descabato.utils.JsonSerialization
+import ch.descabato.utils.Utils
 
 
 object InitBackupFolderConfiguration extends Utils {
@@ -128,7 +129,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   }
 
   def verify(existing: Boolean): BackupVerification.VerificationResult = {
-    import BackupVerification._
+    import ch.descabato.core.BackupVerification._
     if (existing && !hasOld) {
       return BackupDoesntExist
     }

@@ -2,9 +2,10 @@ package ch.descabato.core
 
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Utils
+
 import scala.collection.mutable
 import scala.language.implicitConversions
-import ch.descabato.utils.Utils
 
 class SimpleCompressionDecider extends CompressionDecider with UniversePart {
   def blockCompressed(block: Block, nanoTime: Long) {
@@ -69,7 +70,7 @@ object StatisticHelper {
 }
 
 class SmartCompressionDecider extends CompressionDecider with UniversePart with Utils {
-  import StatisticHelper._
+  import ch.descabato.core.StatisticHelper._
 
   val samples = 31
 

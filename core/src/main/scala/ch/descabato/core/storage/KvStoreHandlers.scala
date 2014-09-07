@@ -1,15 +1,20 @@
 package ch.descabato.core.storage
 
-import java.io.{ByteArrayInputStream, File, InputStream}
+import java.io.File
+import java.io.InputStream
 import java.util.BitSet
-import java.util.zip.ZipEntry
 
 import ch.descabato.CompressionMode
 import ch.descabato.core._
-import ch.descabato.frontend.{ProgressReporters, MaxValueCounter}
-import ch.descabato.utils.{JsonSerialization, ObjectPools, CompressedStream, Utils}
+import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.frontend.ProgressReporters
+import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Streams.{VerifyInputStream, ExceptionCatchingInputStream}
+import ch.descabato.utils.JsonSerialization
+import ch.descabato.utils.ObjectPools
+import ch.descabato.utils.Streams.ExceptionCatchingInputStream
+import ch.descabato.utils.Streams.VerifyInputStream
+import ch.descabato.utils.Utils
 
 import scala.collection.immutable.HashMap
 import scala.language.reflectiveCalls

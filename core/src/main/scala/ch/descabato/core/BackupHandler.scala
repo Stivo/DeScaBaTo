@@ -1,19 +1,23 @@
 package ch.descabato.core
 
 import java.io._
-import ch.descabato.utils.{FileUtils, Utils}
-import ch.descabato.utils.Streams._
-import ch.descabato.frontend._
-import scala.collection.parallel.ThreadPoolTaskSupport
-import scala.collection.mutable
-import java.util.Date
-import java.nio.file.{NoSuchFileException, LinkOption, Files}
+import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.NoSuchFileException
 import java.security.DigestOutputStream
 import java.util
+import java.util.Date
 import java.util.Enumeration
-import scala.Some
-import scala.util.Random
+
+import ch.descabato.frontend._
+import ch.descabato.utils.FileUtils
+import ch.descabato.utils.Streams._
+import ch.descabato.utils.Utils
+
+import scala.collection.mutable
+import scala.collection.parallel.ThreadPoolTaskSupport
 import scala.language.reflectiveCalls
+import scala.util.Random
 
 trait MeasureTime {
   var startTime = 0L

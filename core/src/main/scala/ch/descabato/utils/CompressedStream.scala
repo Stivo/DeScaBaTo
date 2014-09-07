@@ -1,17 +1,23 @@
 package ch.descabato.utils
 
-import java.io.{ByteArrayInputStream, OutputStream, InputStream}
-import org.tukaani.xz.{XZOutputStream, LZMA2Options, XZInputStream}
-import java.util.zip._
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
+import java.io.ByteArrayInputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
+import java.util.zip._
+
 import ch.descabato.ByteArrayOutputStream
 import ch.descabato.CompressionMode
-import org.iq80.snappy.{SnappyInputStream, SnappyOutputStream}
-import scala.Some
-import org.apache.commons.compress.compressors.pack200.{Pack200CompressorOutputStream, Pack200CompressorInputStream}
-import net.jpountz.lz4.{LZ4Compressor, LZ4Factory, LZ4BlockOutputStream, LZ4BlockInputStream}
+import net.jpountz.lz4.LZ4BlockInputStream
+import net.jpountz.lz4.LZ4BlockOutputStream
+import net.jpountz.lz4.LZ4Factory
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
+import org.iq80.snappy.SnappyInputStream
+import org.iq80.snappy.SnappyOutputStream
+import org.tukaani.xz.LZMA2Options
+import org.tukaani.xz.XZInputStream
+import org.tukaani.xz.XZOutputStream
 
 /**
  * Adds compressors and decompressors

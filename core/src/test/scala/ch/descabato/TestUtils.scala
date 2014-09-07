@@ -3,8 +3,7 @@ package ch.descabato
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.file.Files
-import org.scalatest.FreeSpec
-import org.scalatest.FlatSpec
+
 import ch.descabato.utils.Utils
 import org.scalatest.FlatSpecLike
 

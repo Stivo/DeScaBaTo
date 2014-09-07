@@ -1,8 +1,8 @@
 package ch.descabato.core
 
-import scala.collection.mutable
-import java.io.File
 import ch.descabato.utils.Utils
+
+import scala.collection.mutable
 
 trait EventBus[Event] extends LifeCycle {
   type Subscriber = PartialFunction[Event, Unit]

@@ -1,14 +1,17 @@
 package ch.descabato
 
-import java.io.{RandomAccessFile, File}
+import java.io.File
+import java.io.RandomAccessFile
 
-import ch.descabato.core.BaWrapper
-import ch.descabato.core.kvstore.{EntryTypes, KvStoreReader, KvStoreWriterImpl, KvStoreReaderImpl}
-import org.scalatest.ShouldMatchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FlatSpec}
+import ch.descabato.core.kvstore.EntryTypes
+import ch.descabato.core.kvstore.KvStoreReaderImpl
+import ch.descabato.core.kvstore.KvStoreWriterImpl
 import ch.descabato.utils.Utils
+import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.FlatSpec
+import org.scalatest.ShouldMatchers
 
-import scala.collection.immutable.HashMap
 import scala.util.Random
 
 class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAfter with BeforeAndAfterAll with ShouldMatchers with Utils {

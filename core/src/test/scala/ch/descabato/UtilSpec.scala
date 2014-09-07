@@ -1,30 +1,13 @@
 package ch.descabato
 
-import org.scalatest._
 import java.io.File
-import org.scalatest.Matchers._
-import java.util.Arrays
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.Buffer
-import scala.collection.mutable.Set
-import scala.collection.mutable.ArrayBuffer
-import java.util.{ List => JList }
-import java.util.ArrayList
-import scala.collection.convert.DecorateAsScala
-import scala.collection.JavaConversions._
-import java.io.ByteArrayInputStream
-import java.io.InputStream
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import org.scalacheck.Gen
-import scala.util.Random
-import org.scalacheck.Arbitrary
-import org.scalacheck._
-import Arbitrary.arbitrary
-import ch.descabato.utils.Utils
+import java.util.{List => JList}
+
 import ch.descabato.core.Size
+import org.scalatest._
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 class UtilSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
-  import org.scalacheck.Gen._
   
   //ConsoleManager.testSetup
   
@@ -41,7 +24,6 @@ class UtilSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPrope
   }
 
   def test(s: String, l: Long) {
-    import Utils._
     val size: Size = Size(s)
     assert(size.bytes === l)
   }

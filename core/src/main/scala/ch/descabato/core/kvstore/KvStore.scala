@@ -1,15 +1,12 @@
 package ch.descabato.core.kvstore
 
-import java.io.File
-import ch.descabato.version.BuildInfo
-
-import scala.collection.immutable.HashMap
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
+import java.io.File
 import java.util.Arrays
-import javax.crypto.Mac
-import ch.descabato.core.{UniversePart, BaWrapper}
-import ch.descabato.utils.{JsonSerialization, Utils}
+
+import ch.descabato.core.BaWrapper
+import ch.descabato.utils.Utils
 
 case class EntryType(val markerByte: Byte, val parts: Int)
 

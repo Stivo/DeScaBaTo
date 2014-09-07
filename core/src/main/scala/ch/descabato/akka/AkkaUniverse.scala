@@ -1,28 +1,32 @@
 package ch.descabato.akka
 
-import akka.routing.{RoundRobinPool, DefaultResizer}
-import ch.descabato.utils.Utils
-import scala.collection.immutable
-import com.typesafe.config.Config
-import akka.dispatch.{ExecutorServiceFactory, ExecutorServiceConfigurator, DispatcherPrerequisites}
-import java.util.concurrent._
-import scala.concurrent.duration._
-import ch.descabato.core._
-import akka.actor._
-import scala.collection.mutable
-import scala.reflect.ClassTag
-import ch.descabato.frontend.{ProgressReporters, MaxValueCounter}
-import java.util.concurrent.atomic.AtomicInteger
-import akka.event.Logging
-import ch.descabato.CompressionMode
-import ch.descabato.core.BlockId
-import ch.descabato.core.BackupFolderConfiguration
-import akka.pattern.AskTimeoutException
 import java.lang.reflect.UndeclaredThrowableException
-import java.security.MessageDigest
-import scala.collection.immutable.HashMap
+import java.util.concurrent._
+import java.util.concurrent.atomic.AtomicInteger
+
+import akka.actor._
+import akka.dispatch.DispatcherPrerequisites
+import akka.dispatch.ExecutorServiceConfigurator
+import akka.dispatch.ExecutorServiceFactory
+import akka.event.Logging
+import akka.pattern.AskTimeoutException
+import akka.routing.DefaultResizer
+import akka.routing.RoundRobinPool
 import akka.routing.Routee
-import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreHashListHandler, KvStoreBlockHandler}
+import ch.descabato.core.BackupFolderConfiguration
+import ch.descabato.core._
+import ch.descabato.core.storage.KvStoreBackupPartHandler
+import ch.descabato.core.storage.KvStoreBlockHandler
+import ch.descabato.core.storage.KvStoreHashListHandler
+import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.frontend.ProgressReporters
+import ch.descabato.utils.Utils
+import com.typesafe.config.Config
+
+import scala.collection.immutable
+import scala.collection.immutable.HashMap
+import scala.collection.mutable
+import scala.concurrent.duration._
 
 object Counter {
   var i = 0

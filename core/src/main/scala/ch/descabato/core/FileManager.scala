@@ -1,12 +1,13 @@
 package ch.descabato.core
 
-import scala.collection.mutable.Buffer
-import scala.collection.mutable.HashMap
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
+
 import ch.descabato.utils.Utils
+
 import scala.collection.mutable
+import scala.collection.mutable.Buffer
 
 class VolumeIndex extends mutable.HashMap[String, Int]
 
@@ -32,7 +33,7 @@ object Constants {
  * read and write objects using serialization.
  */
 case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
-  import Constants._
+  import ch.descabato.core.Constants._
 
   def globalPrefix = config.prefix
 

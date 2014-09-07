@@ -1,15 +1,15 @@
 package ch.descabato.core
 
-import ch.descabato.CompressionMode
-import java.io.{File, InputStream}
-import java.util.Date
+import java.io.File
+import java.io.InputStream
 import java.nio.ByteBuffer
-import java.util.zip.ZipEntry
-import ch.descabato.utils.Streams
 import java.security.MessageDigest
-import scala.collection.mutable
+import java.util.Date
+
+import ch.descabato.CompressionMode
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.ObjectPools
+import ch.descabato.utils.Streams
 
 trait MustFinish {
   // Finishes writing, so the backup can be completed

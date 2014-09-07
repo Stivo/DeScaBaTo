@@ -3,28 +3,19 @@ package ch.descabato.core.kvstore
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
+import java.security.Security
 import java.util
+import javax.crypto.Cipher
+
 import ch.descabato.akka.ActorStats
 import ch.descabato.core.BlockingOperation
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import java.security.Security
-import javax.crypto.Cipher
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
-import java.io.FileOutputStream
-import java.io.BufferedOutputStream
-import javax.crypto.CipherOutputStream
-import java.io.DataOutputStream
-import java.security.SecureRandom
-import java.io.EOFException
-import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
-import scala.collection.mutable
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+
+import scala.collection.immutable.TreeMap
+import scala.concurrent.ExecutionContext
 import scala.concurrent._
 import scala.concurrent.duration._
-
-import scala.collection.immutable.{TreeMap, HashMap}
-import scala.concurrent.ExecutionContext
 
 class KeyInfo(val key: Array[Byte]) {
   def ivSize = 16

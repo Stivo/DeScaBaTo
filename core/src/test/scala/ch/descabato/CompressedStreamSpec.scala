@@ -1,32 +1,15 @@
 package ch.descabato
 
-import org.scalatest._
 import java.io.File
-import org.scalatest.Matchers._
 import java.util.Arrays
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.Buffer
-import scala.collection.mutable.Set
-import scala.collection.mutable.ArrayBuffer
-import java.util.{ List => JList }
-import java.util.ArrayList
-import scala.collection.convert.DecorateAsScala
-import scala.collection.JavaConversions._
-import java.io.ByteArrayInputStream
-import java.io.InputStream
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import org.scalacheck.Gen
-import scala.util.Random
-import org.scalacheck.Arbitrary
-import org.scalacheck._
-import Arbitrary.arbitrary
-import utils.Implicits._
+import java.util.{List => JList}
+
 import ch.descabato.core.BackupFolderConfiguration
 import ch.descabato.utils.CompressedStream
-import ch.descabato.utils.ObjectPools
-import ch.descabato.utils.Streams
-import ch.descabato.utils.Utils
-import ch.descabato.core.Block
+import ch.descabato.utils.Implicits._
+import org.scalacheck.Arbitrary
+import org.scalatest._
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll 
 	with GeneratorDrivenPropertyChecks with TestUtils {
@@ -58,7 +41,10 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   override val invokeBeforeAllAndAfterAllEvenIfNoTestsAreExpected = true
   
   override def afterAll() {
-    import ObjectPools.{foundExactCounter, foundExactRequests, foundMinimumCounter, foundMinimumRequests}
+    import ch.descabato.utils.ObjectPools.foundExactCounter
+    import ch.descabato.utils.ObjectPools.foundExactRequests
+    import ch.descabato.utils.ObjectPools.foundMinimumCounter
+    import ch.descabato.utils.ObjectPools.foundMinimumRequests
     l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
     l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
   }

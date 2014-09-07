@@ -1,18 +1,20 @@
 package ch.descabato.it
 
 import java.io.File
-import scala.util.Random
-import scala.collection.mutable.Buffer
 import java.io.FileOutputStream
-import java.nio.file.Files
 import java.io.IOException
-import ch.descabato.core.{Size, OldIndexVisitor}
-import scala.collection.mutable
-import java.io.RandomAccessFile
-import ch.descabato.TestUtils
-import ch.descabato.utils.Utils
 import java.io.OutputStream
+import java.io.RandomAccessFile
+import java.nio.file.Files
+
+import ch.descabato.TestUtils
+import ch.descabato.core.OldIndexVisitor
+import ch.descabato.core.Size
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Utils
+
+import scala.collection.mutable.Buffer
+import scala.util.Random
 
 class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) extends TestUtils {
 

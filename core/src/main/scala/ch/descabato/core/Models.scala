@@ -1,29 +1,32 @@
 package ch.descabato.core
 
 import java.io.File
-import java.util.HashMap
-import scala.collection.JavaConverters._
+import java.io.IOException
+import java.math.{BigDecimal => JBigDecimal}
 import java.nio.file.Files
-import java.nio.file.attribute.FileTime
-import java.util.Arrays
-import java.nio.file.attribute.BasicFileAttributes
-import com.fasterxml.jackson.annotation.JsonIgnore
-import java.util.regex.Pattern
-import java.math.{ BigDecimal => JBigDecimal }
 import java.nio.file.LinkOption
 import java.nio.file.Path
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.FileTime
+import java.nio.file.attribute.PosixFileAttributeView
 import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.attribute.PosixFilePermissions
-import java.security.Principal
-import java.nio.file.attribute.PosixFileAttributeView
-import java.io.IOException
-import ch.descabato.utils.{BsonSerialization, SmileSerialization, JsonSerialization, Utils}
 import java.security.MessageDigest
+import java.security.Principal
+import java.util.Arrays
+import java.util.HashMap
+import java.util.regex.Pattern
+
 import ch.descabato.CompressionMode
+import ch.descabato.utils.BsonSerialization
 import ch.descabato.utils.Implicits._
-import scala.collection.mutable.Buffer
-import scala.collection.mutable
+import ch.descabato.utils.JsonSerialization
+import ch.descabato.utils.SmileSerialization
+import ch.descabato.utils.Utils
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.common.base.Objects
+
+import scala.collection.JavaConverters._
 
 case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
   def this() = this(null)

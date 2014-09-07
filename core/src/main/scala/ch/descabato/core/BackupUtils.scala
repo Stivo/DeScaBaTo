@@ -1,12 +1,12 @@
 package ch.descabato.core
 
-import scala.collection.mutable
 import java.io.File
-import ch.descabato.utils.Utils
-import ch.descabato.frontend.StandardCounter
-import ch.descabato.frontend.StandardMaxValueCounter
+
 import ch.descabato.frontend.ETACounter
 import ch.descabato.frontend.ProgressReporters
+import ch.descabato.frontend.StandardCounter
+import ch.descabato.frontend.StandardMaxValueCounter
+import ch.descabato.utils.Utils
 
 object BackupUtils {
   def findOld[T <: BackupPart](file: File, oldMap: Map[String, BackupPart])(implicit manifest: Manifest[T]): (Map[String, BackupPart], Option[T]) = {

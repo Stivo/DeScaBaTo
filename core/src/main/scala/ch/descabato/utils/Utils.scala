@@ -1,19 +1,20 @@
 package ch.descabato.utils
 
-import java.io.PrintStream
-import javax.xml.bind.DatatypeConverter
-import java.text.DecimalFormat
-import com.typesafe.scalalogging.LazyLogging
 import java.io.File
-import java.nio.file.Files
-import java.nio.ByteBuffer
-import java.io.OutputStream
-import sun.nio.ch.DirectBuffer
-import ch.descabato.ByteArrayOutputStream
-import scala.collection.mutable
 import java.io.InputStream
-import scala.language.implicitConversions
+import java.io.OutputStream
+import java.io.PrintStream
+import java.nio.ByteBuffer
+import java.nio.file.Files
+import java.text.DecimalFormat
+import javax.xml.bind.DatatypeConverter
+
+import ch.descabato.ByteArrayOutputStream
 import ch.descabato.core.BaWrapper
+import com.typesafe.scalalogging.LazyLogging
+import sun.nio.ch.DirectBuffer
+
+import scala.language.implicitConversions
 
 object Utils extends LazyLogging {
   

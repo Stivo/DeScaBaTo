@@ -1,13 +1,14 @@
 package ch.descabato.core.kvstore
 
-import javax.crypto.spec.IvParameterSpec
 import java.math.BigInteger
-import javax.crypto.spec.SecretKeySpec
 import java.security.SecureRandom
+import java.util.zip.CRC32
 import javax.crypto.Mac
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
 import ch.descabato.utils.Utils
 import org.bouncycastle.crypto.generators.SCrypt
-import java.util.zip.CRC32
 
 object CryptoUtils extends Utils {
   def deriveIv(iv: Array[Byte], offset: Int) = {

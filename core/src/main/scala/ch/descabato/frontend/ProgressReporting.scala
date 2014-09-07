@@ -1,21 +1,23 @@
 package ch.descabato.frontend
 
-import org.fusesource.jansi.AnsiConsole
-import org.fusesource.jansi.Ansi._
-import org.fusesource.jansi.Ansi
-import java.util.{TimerTask, Date}
-import scala.collection.mutable.Buffer
-import ch.qos.logback.core.ConsoleAppender
+import java.util.Date
+import java.util.TimerTask
+import javax.swing.SwingUtilities
+
+import ch.descabato.akka.ActorStats
+import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Utils
 import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.ConsoleAppender
+import org.fusesource.jansi.Ansi
+import org.fusesource.jansi.Ansi._
+import org.fusesource.jansi.AnsiConsole
 import org.ocpsoft.prettytime.PrettyTime
-import scala.collection.JavaConverters._
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow
-import ch.descabato.utils.Utils
-import ch.descabato.utils.Implicits._
-import javax.swing.SwingUtilities
-import ch.descabato.akka.ActorStats
-import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.Buffer
 
 object ProgressReporters {
 
@@ -186,7 +188,7 @@ object AnsiUtil {
     new ConsoleAppenderWithDeleteSupport()
   }
 
-  import Color._
+  import org.fusesource.jansi.Ansi.Color._
 
   trait AnsiCharacter
   case object Up extends AnsiCharacter

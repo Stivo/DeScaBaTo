@@ -1,28 +1,31 @@
 package ch.descabato.it
 
-import org.scalatest._
 import java.io.File
-import org.scalatest.Matchers._
-import scala.collection.mutable.Set
-import java.util.{ List => JList }
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import scala.util.Random
-import ch.descabato._
-import ch.descabato.utils.Streams.{DelegatingOutputStream, HashingOutputStream}
-import ch.descabato.utils.Utils._
-import ch.descabato.utils.{Streams, Utils}
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.RandomAccessFile
+import java.nio.file.Paths
+import java.util.{List => JList}
+
+import ch.descabato._
+import ch.descabato.frontend.CLI
+import ch.descabato.utils.Streams
+import ch.descabato.utils.Streams.DelegatingOutputStream
+import ch.descabato.utils.Streams.HashingOutputStream
+import ch.descabato.utils.Utils
 import org.apache.commons.exec.CommandLine
 import org.apache.commons.exec.DefaultExecutor
-import org.apache.commons.exec.ExecuteWatchdog
-import org.apache.commons.exec.ExecuteResultHandler
 import org.apache.commons.exec.ExecuteException
+import org.apache.commons.exec.ExecuteResultHandler
+import org.apache.commons.exec.ExecuteWatchdog
 import org.apache.commons.exec.PumpStreamHandler
-import java.io.FileOutputStream
-import java.nio.file.Paths
 import org.apache.commons.exec.environment.EnvironmentUtils
-import ch.descabato.frontend.CLI
+import org.scalatest.Matchers._
+import org.scalatest._
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
+
+import scala.collection.mutable.Set
+import scala.util.Random
 
 class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
 

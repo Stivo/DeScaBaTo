@@ -1,16 +1,15 @@
 package ch.descabato.core
 
 import java.io.File
-import java.nio.file.attribute.BasicFileAttributes
-import scala.collection.mutable
 import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
-import java.nio.file.Path
-import ch.descabato.FileVisitorHelper
-import ch.descabato.frontend.ProgressReporters
-import ch.descabato.frontend.Counter
 import java.nio.file.LinkOption
+import java.nio.file.Path
+import java.nio.file.attribute.BasicFileAttributes
+
+import ch.descabato.FileVisitorHelper
+import ch.descabato.frontend.Counter
 
 class OldIndexVisitor(var oldMap: Map[String, BackupPart],
   recordNew: Boolean = false, recordAll: Boolean = false, recordUnchanged: Boolean = false,

@@ -1,26 +1,20 @@
 package ch.descabato.frontend
 
+import java.io.File
+import java.io.FileOutputStream
+import java.io.PrintStream
+import java.lang.reflect.InvocationTargetException
 import java.security.Security
 
+import ch.descabato.CompressionMode
+import ch.descabato.core._
+import ch.descabato.frontend.ScallopConverters._
+import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Utils
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.rogach.scallop._
+
 import scala.reflect.runtime.universe.TypeTag
-import java.io.PrintStream
-import java.io.File
-import ScallopConverters._
-import ch.descabato.utils.Utils
-import ch.descabato.utils.FileUtils
-import ch.descabato.utils.Implicits._
-import ch.descabato.core._
-import ch.descabato.CompressionMode
-import ch.descabato.utils.Streams
-import scala.Some
-import ch.descabato.core.PasswordWrongException
-import ch.descabato.core.MisconfigurationException
-import ch.descabato.core.BackupCorruptedException
-import ch.descabato.core.BackupFolderConfiguration
-import ch.descabato.akka.AkkaUniverse
-import java.lang.reflect.InvocationTargetException
 
 object CLI extends Utils {
 
@@ -224,7 +218,7 @@ trait BackupRelatedCommand extends Command with Utils {
   }
 
   def start(t: T) {
-    import BackupVerification._
+    import ch.descabato.core.BackupVerification._
     val confHandler = new BackupConfigurationHandler(t)
     var passphrase = t.passphrase.get
     confHandler.verify(needsExistingBackup) match {

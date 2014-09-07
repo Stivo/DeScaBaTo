@@ -1,20 +1,21 @@
 package ch.descabato
 
-import org.scalatest._
 import java.io.File
-import org.scalatest.Matchers._
 import java.util.Arrays
 
-import scala.collection.JavaConversions._
-import ch.descabato.core._
-import ch.descabato.utils._
-import ch.descabato.utils.Implicits._
-import scala.language.implicitConversions
+import ch.descabato.core.BackupDescription
 import ch.descabato.core.FileDescription
 import ch.descabato.core.FolderDescription
-import ch.descabato.core.BackupDescription
 import ch.descabato.core.SymbolicLink
+import ch.descabato.core._
+import ch.descabato.utils.Implicits._
+import ch.descabato.utils._
+import org.scalatest.Matchers._
+import org.scalatest._
+
+import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
+import scala.language.implicitConversions
 
 class SerializationSpec extends FlatSpec with TestUtils {
 

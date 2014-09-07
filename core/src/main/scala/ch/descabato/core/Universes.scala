@@ -1,24 +1,13 @@
 package ch.descabato.core
 
-import java.security.MessageDigest
-import ch.descabato.{TimingUtil, CompressionMode}
+import akka.actor.TypedActor.PostRestart
+import ch.descabato.TimingUtil
+import ch.descabato.akka.AkkaUniverse
+import ch.descabato.core.storage.KvStoreBackupPartHandler
+import ch.descabato.core.storage.KvStoreBlockHandler
+import ch.descabato.core.storage.KvStoreHashListHandler
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Utils
-import akka.actor._
-import scala.concurrent.future
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import akka.event.Logging
-import akka.actor.TypedActor.PostRestart
-import com.typesafe.config.Config
-import akka.dispatch.DispatcherPrerequisites
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
-import ch.descabato.akka.AkkaUniverse
-import scala.collection.mutable
-import ch.descabato.frontend.MaxValueCounter
-import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreHashListHandler, KvStoreBlockHandler}
 
 object Universes {
   def makeUniverse(config: BackupFolderConfiguration) = {

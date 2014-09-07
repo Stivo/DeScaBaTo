@@ -1,23 +1,22 @@
 package ch.descabato.utils
 
+import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.MessageDigest
-import scala.collection.mutable.Buffer
 import java.util.Arrays
-import java.io.File
-import scala.ref.WeakReference
-import scala.concurrent.duration._
-import scala.collection.mutable.SynchronizedSet
-import scala.collection.mutable.HashSet
-import java.io.FileOutputStream
 import java.util.zip.ZipException
-import org.tukaani.xz.XZIOException
-import org.apache.commons.compress.compressors.CompressorException
-import java.io.IOException
-import ch.descabato.core.BackupCorruptedException
+
 import ch.descabato.ByteArrayOutputStream
+import ch.descabato.core.BackupCorruptedException
 import ch.descabato.frontend.ProgressReporters
+import org.apache.commons.compress.compressors.CompressorException
+import org.tukaani.xz.XZIOException
+
+import scala.collection.mutable.Buffer
+import scala.concurrent.duration._
+import scala.ref.WeakReference
 
 object ObjectPools extends Utils {
 
