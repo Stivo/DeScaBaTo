@@ -11,7 +11,7 @@ As of now, it has these features:
 - Backup and restore files and folders, including metadata (lastModifiedTime, posix owner and access rights)
 - A deduplicating storage mechanism. Parts of a file that are the same are only saved once. 
 - Supports 8 different compression algorithms and chooses [automatically](https://github.com/Stivo/DeScaBaTo/wiki/Smart-Compression-Decider) the best one for each file type
-- Supports fully encrypted backups (based on custom KvStore archive format)
+- Supports fully encrypted backups (based on custom [KvStore archive format](https://github.com/Stivo/DeScaBaTo/wiki/KvStore-archive-format))
 - Command line interface
 - Fully multithreaded backup process
 - GUI to show progress and to control number of threads
