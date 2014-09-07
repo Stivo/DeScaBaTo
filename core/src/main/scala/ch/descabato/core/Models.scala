@@ -55,9 +55,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var volumeRedundancy: Int = 5
   var saveSymlinks: Boolean = true
   var createIndexes: Boolean = false
-  @JsonIgnore def raes = if (hasPassword) ".raes" else ""
 }
-
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {
 
