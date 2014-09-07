@@ -94,18 +94,11 @@ class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
 
   def compress(block: Block) {
     val startAt = TimingUtil.getCpuTime
-    val (header, compressed) = CompressedStream.compress(block.content, block.mode)
-	  block.header = header
+    val compressed = CompressedStream.compress(block.content, block.mode)
 	  block.compressed = compressed
     val duration = TimingUtil.getCpuTime - startAt
-//    universe.compressionStatistics().
-//    	blockStatistics(blockId, compressed.remaining(), content.size, method, duration)
     universe.compressionDecider.blockCompressed(block, duration)
   }
-  
-//  def makeZipEntry(block: Block) {
-
-//  }
 
 }
 

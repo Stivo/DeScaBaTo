@@ -176,7 +176,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
   def blockCompressed(block: Block, nanoTime: Long) {
     val toSave = mutable.Buffer[Block]()
     if (block.uncompressedLength == config.blockSize.bytes) {
-      val set = speeds(block.header)
+      val set = speeds(block.compressed.get(0))
       set insertSorted (nanoTime)
     }
     val ext = extension(block)

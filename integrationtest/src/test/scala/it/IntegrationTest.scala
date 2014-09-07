@@ -120,19 +120,17 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
 //  "low volumesize backup with prefix" should "work" in {
 //    testWith(" --threads 5 --prefix testprefix --volume-size 1Mb --block-size 2Kb", " --prefix testprefix", 1, "20Mb")
 //  }
-
-//  "backup with multiple threads" should "work" in {
-//    testWith(" --compression bzip2 --threads 8 --volume-size 20Mb", "", 2, "50Mb", false)
-//  }
 //
 ////    "backup with redundancy" should "recover" in {
 ////      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
 ////    }
 
-  testWith("backup with crashes", " --compression deflate --volume-size 10Mb", "", 2, "100Mb", true, false)
+  testWith("backup with smart compression", " --compression smart --threads 8 --volume-size 20Mb", "", 1, "200Mb", crash = false)
 
-  testWith("backup with crashes, encryption and multiple threads",
-    " --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", true, false)
+//  testWith("backup with crashes", " --compression deflate --volume-size 10Mb", "", 2, "100Mb", crash = true, redundancy = false)
+//
+//  testWith("backup with crashes, encryption and multiple threads",
+//    " --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", crash = true, redundancy = false)
 
   def numberOfCheckpoints(): Int = {
     if (backup1.exists) {
@@ -191,13 +189,13 @@ class IntegrationTest extends FlatSpec with RichFlatSpecLike with BeforeAndAfter
           l.info("Crashes done, letting process finish now")
         }
       }
-      it should s"backup normally $i/$iterations" in {
+      it should s"backup $i/$iterations" in {
         // let backup finish
         startAndWait(s"backup$config $backup1 $input".split(" ")) should be(0)
         // no temp files in backup
         input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
       }
-      it should s"verify correctly $i/$iterations" in {
+      it should s"verify $i/$iterations" in {
         // verify backup
         startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
       }

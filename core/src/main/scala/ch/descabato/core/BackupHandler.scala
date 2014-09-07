@@ -410,7 +410,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
       }
       if (!restoredFile.getParentFile().exists())
         restoredFile.getParentFile().mkdirs()
-      val fos = new UnclosedFileOutputStream(restoredFile)
+      val fos = new FileOutputStream(restoredFile)
       closeAbles += fos
       val dos = new DigestOutputStream(fos, config.getMessageDigest)
       closeAbles += dos

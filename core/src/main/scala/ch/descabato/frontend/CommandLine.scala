@@ -302,7 +302,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     val line = s"$path backup "+args.mkString(" ")
     def writeTo(bat: File) {
       if (!bat.exists) {
-        val ps = new PrintStream(new Streams.UnclosedFileOutputStream(bat))
+        val ps = new PrintStream(new FileOutputStream(bat))
         ps.print(line)
         ps.close()
         l.info("A file " + bat + " has been written to execute this backup again")

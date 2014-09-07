@@ -100,7 +100,6 @@ class Block(val id: BlockId, val content: Array[Byte]) {
   @volatile var hash: Array[Byte] = null
   @volatile var mode: CompressionMode = null
   @volatile var compressed: ByteBuffer = null
-  @volatile var header: Byte = -1
   def recycle() {
     if (compressed != null && compressed.array() != content)
       compressed.recycle()

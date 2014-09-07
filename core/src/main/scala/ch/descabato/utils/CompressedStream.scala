@@ -1,7 +1,6 @@
 package ch.descabato.utils
 
-import java.io.OutputStream
-import java.io.InputStream
+import java.io.{ByteArrayInputStream, OutputStream, InputStream}
 import org.tukaani.xz.{XZOutputStream, LZMA2Options, XZInputStream}
 import java.util.zip._
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
@@ -19,17 +18,14 @@ import net.jpountz.lz4.{LZ4Compressor, LZ4Factory, LZ4BlockOutputStream, LZ4Bloc
  */
 object CompressedStream extends Utils {
   
-  def compress(content: Array[Byte], compressor: CompressionMode) : (Byte, ByteBuffer) = {
-    val write = compressor.getByte()
-    if (write == 0) {
-      return (0, ByteBuffer.wrap(content))
-    }
-    var baos = new ByteArrayOutputStream(content.length+16)
-    val wrapped = getCompressor(write, baos, Some(content.length))
+  def compress(content: Array[Byte], compressor: CompressionMode) : ByteBuffer = {
+    val byte = compressor.getByte()
+    val baos = new ByteArrayOutputStream(content.length+16)
+    baos.write(byte)
+    val wrapped = getCompressor(byte, baos, Some(content.length))
     wrapped.write(content)
     wrapped.close()
-    val out = baos.toByteBuffer()
-    (write.toByte, out)
+    baos.toByteBuffer()
   }
 
   def roundUp(x: Int) = {
@@ -56,10 +52,12 @@ object CompressedStream extends Utils {
       case CompressionMode.lz4 => new LZ4BlockOutputStream(out, 1<<12, LZ4Factory.fastestJavaInstance().fastCompressor())
       case CompressionMode.lz4hc => new LZ4BlockOutputStream(out, 1<<12, LZ4Factory.fastestJavaInstance().highCompressor())
       case CompressionMode.none => out
+      case CompressionMode.smart => throw new IllegalArgumentException("Choose a concrete implementation")
     }
   }
   
-  def readStream(in: InputStream): InputStream = {
+  def decompress(input: Array[Byte]): InputStream = {
+    val in = new ByteArrayInputStream(input)
     val byte = in.read()
 
     CompressionMode.getByByte(byte) match {
@@ -73,10 +71,5 @@ object CompressedStream extends Utils {
       case _ => in
     }
   }
-  
-  def wrapStream(out: OutputStream, compressor: CompressionMode) = {
-    val write = compressor.getByte()
-    out.write(write)
-    getCompressor(write, out)
-  }
+
 }

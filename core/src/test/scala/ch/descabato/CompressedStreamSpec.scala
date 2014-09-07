@@ -42,30 +42,16 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, "", passphrase) {
     override def toString = s"Compression mode is $compressor, keylength is $keyLength, passphrase is $passphrase"
   }
-  
-  forAll(minSize(0), maxSize(1000000), minSuccessful(50)) 
-  		{ (compressor: CompressionMode, toEncode: Array[Byte]) => {
-    val baosOriginal = new ByteArrayOutputStream()
-    val wrapped = CompressedStream.wrapStream(baosOriginal, compressor)
-    wrapped.write(toEncode)
-    wrapped.close()
-    
-    val (header, compressed) = CompressedStream.compress(toEncode, compressor) 
-    
-    val encoded = baosOriginal.toByteArray(true)
-    encoded(0) should be (header)
-    // LZMA and Bzip2 can set smaller dictionary size if the input size is known
-    if (CompressionMode.lzma != compressor && CompressionMode.bzip2 != compressor)
-      assert(Arrays.equals(encoded.tail,compressed.toArray()))
-    else {
-      l.info(compressor+": "+encoded.tail.length+" without dict size set and "+compressed.remaining()+" with dict size set")
-      val in = new ByteArrayInputStream(Array(header)++compressed.toArray())
-      val read = CompressedStream.readStream(in).readFully
+
+  "Compressed Streams" should "compress and decompress random bytes" in {
+    forAll(minSize(0), maxSize(1000000), minSuccessful(50)) { (compressor: CompressionMode, toEncode: Array[Byte]) => {
+
+      val baosOriginal = new ByteArrayOutputStream()
+      val compressed = CompressedStream.compress(toEncode, compressor)
+
+      val read = CompressedStream.decompress(compressed.toArray()).readFully
       assert(Arrays.equals(read, toEncode))
     }
-    val in = new ByteArrayInputStream(encoded)
-    val read = CompressedStream.readStream(in).readFully
-    assert(Arrays.equals(read, toEncode))
     }
   }
   

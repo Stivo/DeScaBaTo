@@ -4,6 +4,7 @@ import java.io.{ByteArrayInputStream, File, InputStream}
 import java.util.BitSet
 import java.util.zip.ZipEntry
 
+import ch.descabato.CompressionMode
 import ch.descabato.core._
 import ch.descabato.frontend.{ProgressReporters, MaxValueCounter}
 import ch.descabato.utils.{JsonSerialization, ObjectPools, CompressedStream, Utils}
@@ -11,6 +12,7 @@ import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.{VerifyInputStream, ExceptionCatchingInputStream}
 
 import scala.collection.immutable.HashMap
+import scala.language.reflectiveCalls
 
 trait KvStoreHandler[T, K] extends UniversePart {
   def fileType: FileType[T]
@@ -184,7 +186,8 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
           case (entry, pos) =>
             persistedEntries += storageToKey(entry) -> pos
             val value = kvstore.get(pos)
-            js.read[BackupPart](value) match {
+            val decompressed = CompressedStream.decompress(value).readFully()
+            js.read[BackupPart](decompressed) match {
               case Left(x: UpdatePart) => current += x
               case x => throw new IllegalArgumentException("Not implemented for object "+x)
             }
@@ -214,7 +217,8 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
 
   def writeBackupPart(fd: BackupPart) {
     val json = js.write(fd)
-    writeEntry(fd.path, json)
+    val compressed = CompressedStream.compress(json, CompressionMode.deflate)
+    writeEntry(fd.path, compressed.toArray())
   }
 
   protected def getUnfinished(fd: FileDescription) =
@@ -288,7 +292,7 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
 
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream = {
     val (entry, pos) = readEntry(hash)
-    val out2 = new ExceptionCatchingInputStream(CompressedStream.readStream(new ByteArrayInputStream(entry)), pos.file)
+    val out2 = new ExceptionCatchingInputStream(CompressedStream.decompress(entry), pos.file)
     if (verify) {
       new VerifyInputStream(out2, config.getMessageDigest(), hash, pos.file)
     } else {
@@ -334,7 +338,7 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
         currentlyWritingFile = null
       }
     }
-    writeEntry(block.hash, Array.apply(block.header) ++ block.compressed.toArray())
+    writeEntry(block.hash, block.compressed.toArray())
     byteCounter += outstandingRequests(block.hash)
     compressionRatioCounter.maxValue += outstandingRequests(block.hash)
     outstandingRequests -= block.hash

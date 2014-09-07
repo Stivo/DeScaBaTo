@@ -319,32 +319,4 @@ object Streams extends Utils {
     }
   }
 
-  class UnclosedFileOutputStream(f: File) extends FileOutputStream(f) {
-    unclosedStreams += this
-    override def close() {
-      super.close()
-      unclosedStreams -= this
-    }
-
-    override def equals(other: Any) = {
-      other match {
-        case x: UnclosedFileOutputStream => x eq this
-        case _ => false
-      }
-    }
-
-    override def hashCode() = {
-      f.hashCode()
-    }
-
-  }
-
-  val unclosedStreams = new HashSet[UnclosedFileOutputStream] with SynchronizedSet[UnclosedFileOutputStream]
-
-  def closeAll() {
-    l.info("Closing " + unclosedStreams.size + " outputstreams")
-    while (!unclosedStreams.isEmpty)
-      unclosedStreams.head.close
-  }
-
 }
