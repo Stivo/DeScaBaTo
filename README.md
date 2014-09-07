@@ -1,6 +1,9 @@
 DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
 =========
 
+#####Info: The upcoming version 0.4.0 will be incompatible with the storage format of 0.3.0
+
+
 The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups and is in alpha stage, the program's internals are still heavily changing as I am figuring stuff out. The version 0.3.0, while rough around the edges, seems reliable for backups and restores even with simulated crashes.
 
 As of now, it has these features:
@@ -8,7 +11,7 @@ As of now, it has these features:
 - Backup and restore files and folders, including metadata (lastModifiedTime, posix owner and access rights)
 - A deduplicating storage mechanism. Parts of a file that are the same are only saved once. 
 - Supports 8 different compression algorithms and chooses [automatically](https://github.com/Stivo/DeScaBaTo/wiki/Smart-Compression-Decider) the best one for each file type
-- Supports fully encrypted backups (based on [TrueVFS](https://truezip.java.net/truezip-driver/truezip-driver-tzp/))
+- Supports fully encrypted backups (based on custom [KvStore archive format](https://github.com/Stivo/DeScaBaTo/wiki/KvStore-archive-format))
 - Command line interface
 - Fully multithreaded backup process
 - GUI to show progress and to control number of threads
@@ -19,8 +22,9 @@ Compared to duplicati:
 
 - Duplicati is a mature program with a long history and a userbase, DeScaBaTo is very new
 - DeScaBaTo is faster
-- By using md5 (other hashes supported as well) there is less space required for metadata
+- By using md5 (other hashes supported as well) and a custom archive format there is less space required
 - The design is simpler (no database to keep synchronized), and should be more robust
+- It can automatically choose for each filetype which compression method to use. Duplicati either disables or enables based on a static list.
 
 I plan to support these features:
 
@@ -90,4 +94,4 @@ The project is split up into three parts:
 
 ### Implementation idea
 The current implementation finds all the files in a directory and hashes them block wise. A block contains a fixed number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used. 
-The blocks are then not needed until the data should be restored and can go on a external medium. Blocks are bundled into zip volumes, so that they can easily be uploaded to remote storage (cloud, ftp etc). 
+The blocks are then not needed until the data should be restored and can go on a external medium. Blocks are bundled into archives, so that they can easily be uploaded to remote storage (cloud, ftp etc). 
