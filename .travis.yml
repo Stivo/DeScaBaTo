@@ -6,9 +6,9 @@ branches:
   only:
     - master
 jdk:
-  - openjdk7
-  - openjdk8
-  - oraclejdk7
-  - oraclejdk8
+  - openjdk5
+  - openjdk6
+  - oraclejdk5
+  - oraclejdk6
 #before_script:
 #   - sudo apt-get install par2
