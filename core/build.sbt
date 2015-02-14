@@ -8,10 +8,6 @@ scalaVersion := Common.scalaVersion
 
 mainClass := Some("ch.descabato.CLI")
 
-packageArchetype.java_application
-
-normalizedName in Universal := "descabato"
-
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
     base / "src/main/resources"
@@ -20,21 +16,19 @@ unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
 
 // Core dependencies
 libraryDependencies ++= Seq(
-    "com.typesafe.akka" % "akka-actor_2.11" % "2.3.4",
+    "com.typesafe.akka" % "akka-actor_2.11" % "2.3.9",
     "org.rogach" %% "scallop" % "0.9.5",
-    "org.ocpsoft.prettytime" % "prettytime" % "3.2.5.Final",
+    "org.ocpsoft.prettytime" % "prettytime" % "3.2.7.Final",
     "org.fusesource.jansi" % "jansi" % "1.11",
-    "org.iq80.leveldb" % "leveldb" % "0.7",
-    "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.7",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.51"
 )
 
 // compressors
 libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.3",
-  "net.jpountz.lz4" % "lz4" % "1.2.0",
+  "net.jpountz.lz4" % "lz4" % "1.3.0",
   "org.tukaani" % "xz" % "1.5",
-  "org.apache.commons" % "commons-compress" % "1.8.1"
+  "org.apache.commons" % "commons-compress" % "1.9"
 )
 
 // Logging
@@ -46,15 +40,14 @@ libraryDependencies ++= Seq(
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.4.1",
-	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.4.1",
-    "de.undercouch" % "bson4jackson" % "2.4.0"
+	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.5.1",
+	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.5.1"
 )
 
 // Test dependencies
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "2.2.1" % "test->*",
-  "org.scalacheck" %% "scalacheck" % "1.11.5" % "test"
+  "org.scalatest" %% "scalatest" % "2.2.4" % "test->*",
+  "org.scalacheck" %% "scalacheck" % "1.12.2" % "test"
 )
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
@@ -65,7 +58,7 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
 libraryDependencies += "com.nativelibs4java" % "bridj" % "0.6.2" exclude("com.google.android.tools", "dx")
 
-libraryDependencies += "com.miglayout" % "miglayout-swing" % "4.2"
+libraryDependencies += "com.miglayout" % "miglayout-swing" % "5.0"
 
 packSettings
 
@@ -73,7 +66,7 @@ packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
 
 packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m", "-XX:NewRatio=1","-XX:+UseParNewGC"))
 
-packPreserveOriginalJarName := true
+packJarNameConvention := "original"
 
 buildInfoSettings
 

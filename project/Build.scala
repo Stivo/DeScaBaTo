@@ -1,10 +1,10 @@
+import sbt.Keys._
 import sbt._
-import Keys._
 //import com.typesafe.sbtscalariform.ScalariformPlugin
 //import scalariform.formatter.preferences._
 
 object DeScaBaToBuild extends Build {
-  scalaVersion in ThisBuild := "2.11.2"
+  scalaVersion in ThisBuild := Common.scalaVersion
   
   val core = Project(id = "core", base = file("core"), 
       settings = Project.defaultSettings ++ commonSettings)

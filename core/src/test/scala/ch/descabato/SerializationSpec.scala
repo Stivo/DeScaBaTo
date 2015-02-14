@@ -3,11 +3,7 @@ package ch.descabato
 import java.io.File
 import java.util
 
-import ch.descabato.core.BackupDescription
-import ch.descabato.core.FileDescription
-import ch.descabato.core.FolderDescription
-import ch.descabato.core.SymbolicLink
-import ch.descabato.core._
+import ch.descabato.core.{BackupDescription, FileDescription, FolderDescription, SymbolicLink, _}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 import org.scalatest.Matchers._
@@ -75,11 +71,6 @@ class SerializationSpec extends FlatSpec with TestUtils {
   "smile" should "serialize backubparts" in {
     val smile = new SmileSerialization()
     testSerializer(smile)
-  }
-
-  "bson" should "serialize backubparts" in {
-    val ser = new BsonSerialization()
-    testSerializer(ser)
   }
 
 }

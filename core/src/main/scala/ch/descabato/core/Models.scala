@@ -1,29 +1,17 @@
 package ch.descabato.core
 
-import java.io.File
-import java.io.IOException
+import java.io.{File, IOException}
 import java.math.{BigDecimal => JBigDecimal}
-import java.nio.file.Files
-import java.nio.file.LinkOption
-import java.nio.file.Path
-import java.nio.file.attribute.BasicFileAttributes
-import java.nio.file.attribute.FileTime
-import java.nio.file.attribute.PosixFileAttributeView
-import java.nio.file.attribute.PosixFileAttributes
-import java.nio.file.attribute.PosixFilePermissions
-import java.security.MessageDigest
-import java.security.Principal
+import java.nio.file.{Files, LinkOption, Path}
+import java.nio.file.attribute.{BasicFileAttributes, FileTime, PosixFileAttributeView, PosixFileAttributes, PosixFilePermissions}
+import java.security.{MessageDigest, Principal}
 import java.util
 import java.util.regex.Pattern
 
 import ch.descabato.CompressionMode
-import ch.descabato.utils.BsonSerialization
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.JsonSerialization
-import ch.descabato.utils.SmileSerialization
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{JsonSerialization, SmileSerialization, Utils}
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.google.common.base.Objects
 
 import scala.collection.JavaConverters._
 
@@ -37,7 +25,6 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   def serialization(typ: String = serializerType) = typ match {
     case "smile" => new SmileSerialization
     case "json" => new JsonSerialization
-    case "bson" => new BsonSerialization
   }
   var keyLength = 128
   var compressor = CompressionMode.smart
@@ -186,7 +173,7 @@ case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash
   }
 
   override def hashCode(): Int = {
-    Objects.hashCode(path)
+    path.hashCode
   }
 }
 

@@ -1,5 +1,4 @@
-import de.johoop.jacoco4sbt._
-import JacocoPlugin._
+
 
 name := "browser"
 
@@ -10,8 +9,6 @@ version := Common.version
 scalaVersion := Common.scalaVersion
 
 mainClass := Some("ch.descabato.browser.Main")
-
-packageArchetype.java_application
 
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
   Seq(
@@ -29,15 +26,15 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
 // Dependencies for the otros vfs browser
 libraryDependencies ++= Seq(
-	"commons-configuration" % "commons-configuration" % "1.8",
-	"commons-io" % "commons-io" % "2.1",
+	"commons-configuration" % "commons-configuration" % "1.10",
+	"commons-io" % "commons-io" % "2.4",
 //	"com.google.guava" % "guava" % "15.0",
-	"com.miglayout" % "miglayout-swing" % "4.2",
+	"com.miglayout" % "miglayout-swing" % "5.0",
 	"org.swinglabs.swingx" % "swingx-all" % "1.6.5-1",
 	"net.java.dev.jgoodies" % "looks" % "2.1.4",
-	"com.intellij" % "annotations" % "9.0.4",
-	"org.ocpsoft.prettytime" % "prettytime" % "3.1.0.Final",
-	"com.github.insubstantial" % "substance" % "7.2.1"
+	"com.intellij" % "annotations" % "12.0",
+	"org.ocpsoft.prettytime" % "prettytime" % "3.2.7.Final",
+	"com.github.insubstantial" % "substance" % "7.3"
 )
 
 packSettings
@@ -46,6 +43,6 @@ packMain := Map("descabato" -> "ch.descabato.browser.Main")
 
 packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m", "-XX:NewRatio=1","-XX:+UseParNewGC"))
 
-packPreserveOriginalJarName := true
+packJarNameConvention := "original"
 
-packResourceDir := "../releases/0.3.0"
+packResourceDir := List("../releases/0.3.0")

@@ -1,20 +1,14 @@
 package ch.descabato.core.storage
 
-import java.io.File
-import java.io.InputStream
+import java.io.{File, InputStream}
 import java.util
 
 import ch.descabato.CompressionMode
 import ch.descabato.core._
-import ch.descabato.frontend.MaxValueCounter
-import ch.descabato.frontend.ProgressReporters
-import ch.descabato.utils.CompressedStream
+import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.JsonSerialization
-import ch.descabato.utils.ObjectPools
-import ch.descabato.utils.Streams.ExceptionCatchingInputStream
-import ch.descabato.utils.Streams.VerifyInputStream
-import ch.descabato.utils.Utils
+import ch.descabato.utils.Streams.{ExceptionCatchingInputStream, VerifyInputStream}
+import ch.descabato.utils.{CompressedStream, JsonSerialization, ObjectPools, Utils}
 
 import scala.collection.immutable.HashMap
 import scala.language.reflectiveCalls
@@ -273,7 +267,7 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
   lazy val fileType = fileManager.volumes
 
   private val byteCounter = new MaxValueCounter() {
-    var compressedBytes = 0
+    var compressedBytes = 0L
     def name: String = "Blocks written"
     def r(x: Long) = Utils.readableFileSize(x)
     override def formatted = s"${r(current)}/${r(maxValue)} (compressed ${r(compressedBytes)})"

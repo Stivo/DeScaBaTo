@@ -1,14 +1,14 @@
 package ch.descabato;
 
 public enum CompressionMode {
-	none(0, 366),
-	gzip(1, 5682770),
-	bzip2(2, 27457575),
-	lzma(3, 31656340),
-    snappy(4, 185912),
-    deflate(5, 5549557),
-    lz4(6, 412813),
-    lz4hc(7, 3673233),
+	none(0, 		366),
+	gzip(1,		5682770),
+	bzip2(2,   27457575),
+	lzma(3,    31656340),
+    snappy(4,    185912),
+    deflate(5,  5549557),
+    lz4(6,       412813),
+    lz4hc(7,    3673233),
     smart;
 
 	private final int val;

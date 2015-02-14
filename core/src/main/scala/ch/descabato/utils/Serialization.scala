@@ -1,35 +1,18 @@
 package ch.descabato.utils
 
-import java.io.InputStream
-import java.io.OutputStream
+import java.io.{InputStream, OutputStream}
 
-import ch.descabato.core.BaWrapper
-import ch.descabato.core.BackupPart
-import ch.descabato.core.FileDeleted
-import ch.descabato.core.FileDescription
-import ch.descabato.core.FolderDescription
-import ch.descabato.core.SymbolicLink
-import ch.descabato.core.UpdatePart
+import ch.descabato.core.{BaWrapper, BackupPart, FileDeleted, FileDescription, FolderDescription, SymbolicLink, UpdatePart}
 import ch.descabato.utils.Implicits._
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.Version
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.databind.SerializerProvider
+import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, Version}
+import com.fasterxml.jackson.databind.{DeserializationContext, DeserializationFeature, ObjectMapper, SerializationFeature, SerializerProvider}
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
-import com.fasterxml.jackson.dataformat.smile.SmileFactory
-import com.fasterxml.jackson.dataformat.smile.SmileGenerator
-import com.fasterxml.jackson.dataformat.smile.SmileParser
+import com.fasterxml.jackson.dataformat.smile.{SmileFactory, SmileGenerator, SmileParser}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
-import de.undercouch.bson4jackson.BsonFactory
-import de.undercouch.bson4jackson.BsonGenerator
 
 import scala.collection.JavaConverters._
 
@@ -128,17 +111,6 @@ class SmileSerialization extends AbstractJacksonSerialization {
     val out = new SmileFactory
     out.disable(SmileParser.Feature.REQUIRE_HEADER)
     out.disable(SmileGenerator.Feature.WRITE_HEADER)
-    out
-  }
-
-  lazy val mapper = new ObjectMapper(fac) with ScalaObjectMapper
-}
-
-class BsonSerialization extends AbstractJacksonSerialization {
-
-  lazy val fac = {
-    val out = new BsonFactory
-    out.enable(BsonGenerator.Feature.ENABLE_STREAMING)
     out
   }
 

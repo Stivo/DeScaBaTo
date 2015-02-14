@@ -1,5 +1,5 @@
+import de.johoop.jacoco4sbt.JacocoPlugin._
 import de.johoop.jacoco4sbt._
-import JacocoPlugin._
 
 version := Common.version
 
@@ -7,8 +7,8 @@ scalaVersion := Common.scalaVersion
 
 // Test dependencies
 libraryDependencies ++= Seq(
-	"org.scalatest" %% "scalatest" % "2.2.1" % "test->*",
-	"org.scalacheck" %% "scalacheck" % "1.11.5" % "test"
+	"org.scalatest" %% "scalatest" % "2.2.4" % "test->*",
+	"org.scalacheck" %% "scalacheck" % "1.12.2" % "test"
 )
 
 parallelExecution in Test := false
@@ -21,4 +21,4 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "tar
 
 test in Test <<= (test in Test).dependsOn(pack in core)
 
-libraryDependencies += "org.apache.commons" % "commons-exec" % "1.2" % "test"
+libraryDependencies += "org.apache.commons" % "commons-exec" % "1.3" % "test"
