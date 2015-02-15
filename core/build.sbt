@@ -44,6 +44,12 @@ libraryDependencies ++= Seq(
 	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.4.5"
 )
 
+// UI Dependencies
+libraryDependencies ++= Seq(
+  "com.nativelibs4java" % "bridj" % "0.6.2" exclude("com.google.android.tools", "dx"),
+  "com.miglayout" % "miglayout-swing" % "5.0"
+)
+
 // Test dependencies
 libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "2.2.4" % "test->*"
@@ -63,10 +69,6 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "tar
 parallelExecution in Test := false
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
-
-libraryDependencies += "com.nativelibs4java" % "bridj" % "0.6.2" exclude("com.google.android.tools", "dx")
-
-libraryDependencies += "com.miglayout" % "miglayout-swing" % "5.0"
 
 packSettings
 

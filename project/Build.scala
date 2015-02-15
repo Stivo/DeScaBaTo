@@ -7,13 +7,13 @@ object DeScaBaToBuild extends Build {
   scalaVersion in ThisBuild := Common.scalaVersion
   
   val core = Project(id = "core", base = file("core"), 
-      settings = Project.defaultSettings ++ commonSettings)
+      settings = Defaults.defaultSettings ++ commonSettings)
   
   val browser = Project(id = "browser", base = file("browser"),
-      settings = Project.defaultSettings ++ commonSettings) dependsOn(core)
+      settings = Defaults.defaultSettings ++ commonSettings) dependsOn(core)
   
   val it = Project(id = "it", base = file("integrationtest"),
-      settings = Project.defaultSettings ++ commonSettings) dependsOn(core % "test->test")
+      settings = Defaults.defaultSettings ++ commonSettings) dependsOn(core % "test->test")
   
   val commonSettings = {
     net.virtualvoid.sbt.graph.Plugin.graphSettings ++ org.scalastyle.sbt.ScalastylePlugin.Settings
