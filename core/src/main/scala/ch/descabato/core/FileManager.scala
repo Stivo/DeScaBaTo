@@ -188,7 +188,6 @@ class FileManager(override val universe: Universe) extends UniversePart {
   val volumes = new FileType[Volume]("volume_", false, ".kvs", localC = false)
   val volumeIndex = new IndexFileType(volumes)
   val hashlists = new FileType[Vector[(BaWrapper, Array[Byte])]]("hashlists_", false, ".kvs")
-  val files = new FileType[mutable.Buffer[BackupPart]]("files_", true, ".kvs", hasDateC = true)
   val backup = new FileType[BackupDescription]("backup_", true, ".kvs", hasDateC = true)
   val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta_", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
@@ -198,7 +197,7 @@ class FileManager(override val universe: Universe) extends UniversePart {
   val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
   val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
 
-  private val types = List(volumes, volumeIndex, hashlists, files, filesDelta, 
+  private val types = List(volumes, volumeIndex, hashlists, filesDelta,
       backup, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
   def allFiles(temp: Boolean = true) = types.flatMap(ft => ft.getFiles()++(if(temp) ft.getTempFiles() else Nil))
@@ -228,11 +227,11 @@ class FileManager(override val universe: Universe) extends UniversePart {
   }
   
   def getBackupDates(): Seq[Date] = {
-    files.getFiles().map(files.date).toList.distinct.sorted
+    backup.getFiles().map(backup.date).toList.distinct.sorted
   }
 
   def getBackupForDate(d: Date): Seq[File] = {
-    files.getFiles().filter(f => files.date(f) == d)
+    backup.getFiles().filter(f => backup.date(f) == d)
   }
 
 }

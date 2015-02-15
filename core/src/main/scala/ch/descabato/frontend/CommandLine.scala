@@ -69,13 +69,15 @@ object CLI extends Utils {
         //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-512 --compression gzip --volume-size 50mb f:/desca8 d:/pics/tosort/bilder".split(" "))
         // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
         //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
-//        parseCommandLine("backup --passphrase testasdf --threads 1 --serializer-type json --volume-size 10mb H:/desca8 H:/tmp".split(" "))
-        parseCommandLine("verify --passphrase testasdf --percent-of-files-to-check 100 H:\\desca8".split(" "))
+
+//        parseCommandLine("backup --passphrase testasdf --threads 10 --serializer-type json --compression lz4 --volume-size 100mb L:/desca8 L:/tmp".split(" "))
+
+//        parseCommandLine("verify --passphrase testasdf --percent-of-files-to-check 100 L:\\desca8".split(" "))
 //        parseCommandLine("restore --restore-to-folder F:/restore f:/desca8".split(" "))
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))
-        //              parseCommandLine("browse -p asdf backups".split(" "))
+                      parseCommandLine("browse -p testasdf L:/desca8".split(" "))
         //        parseCommandLine("restore --passphrase mypasshere --restore-to-folder restore --relative-to-folder . backups".split(" "))
         exit(0)
       }
@@ -406,7 +408,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   val restoreToFolder = opt[String]()
   //  val overwriteExisting = toggle(default = Some(false))
 //  val pattern = opt[String]()
-  mutuallyExclusive(restoreToOriginalPath, restoreToFolder)
+  requireOne(restoreToOriginalPath, restoreToFolder)
 }
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {

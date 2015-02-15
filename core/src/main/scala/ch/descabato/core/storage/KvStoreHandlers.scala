@@ -176,7 +176,10 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
   }
 
   def loadBackup(date: Option[java.util.Date]): ch.descabato.core.BackupDescription = {
-    val filesToLoad: Seq[File] = fileManager.getLastBackup(temp = true)
+    val filesToLoad: Seq[File] = date match {
+      case Some(d) => fileManager.getBackupForDate(d)
+      case None => fileManager.getLastBackup(temp = true)
+    }
     current = new BackupDescription()
     val kvstores = filesToLoad.view.map(getReaderForLocation)
     kvstores.foreach {
