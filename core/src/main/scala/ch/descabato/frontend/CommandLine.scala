@@ -368,7 +368,23 @@ class RestoreCommand extends BackupRelatedCommand {
               val rh = new RestoreHandler(universe)
               rh.restoreFromDate(t, options.find(_._2 == option).get._1)
           }
-        } else {
+        } else if (t.restoreBackup.isSupplied) {
+          val fm = new FileManager(universe)
+          RestoreRunners.run(conf) { () =>
+            val rh = new RestoreHandler(universe)
+            val backupsFound = fm.backup.getFiles().filter(_.getName.equals(t.restoreBackup()))
+            if (backupsFound.isEmpty) {
+              println("Could not find described backup, these are your choices:")
+              fm.backup.getFiles().foreach { f =>
+                println(f)
+              }
+              throw new IllegalArgumentException("Backup not found")
+            }
+            rh.restoreFromDate(t, fm.backup.date(backupsFound.head))
+          }
+
+        }
+        else {
           RestoreRunners.run(conf) { () =>
               val rh = new RestoreHandler(universe)
               rh.restore(t)
@@ -406,9 +422,11 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   val restoreToOriginalPath = opt[Boolean]()
   val chooseDate = opt[Boolean]()
   val restoreToFolder = opt[String]()
+  val restoreBackup = opt[String]()
   //  val overwriteExisting = toggle(default = Some(false))
 //  val pattern = opt[String]()
   requireOne(restoreToOriginalPath, restoreToFolder)
+  mutuallyExclusive(restoreBackup, chooseDate)
 }
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
