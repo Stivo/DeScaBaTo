@@ -23,13 +23,13 @@ class RestoreOlderTest extends IntegrationTestBase {
     fg.rescan()
 
     startAndWait(s"backup --compression gzip $backup1 $input3".split(" ")) should be(0)
-    FileUtils.copyDirectory(input3, input1)
+    FileUtils.copyDirectory(input3, input1, true)
     fg.changeSome()
     startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
-    FileUtils.copyDirectory(input3, input2)
+    FileUtils.copyDirectory(input3, input2, true)
     fg.changeSome()
     startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
-    val backupFiles = backup1.listFiles().filter(_.getName.startsWith("backup_")).map(_.getName()).toList
+    val backupFiles = backup1.listFiles().filter(_.getName.startsWith("backup_")).map(_.getName()).toList.sorted
     startAndWait(s"restore --restore-backup ${backupFiles(0)} --restore-to-folder $restore1 $backup1".split(" ")) should be(0)
     compareBackups(input1, restore1)
     startAndWait(s"restore --restore-backup ${backupFiles(1)} --restore-to-folder $restore2 $backup1".split(" ")) should be(0)
