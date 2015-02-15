@@ -33,7 +33,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
 
   def generateFiles() {
     deleteAll(folder)
-    folder.mkdir()
+    folder.mkdirs()
     folderList += folder
     times(25) { newFolder() }
     var bigFiles = 4
