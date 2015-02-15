@@ -1,5 +1,3 @@
-import de.johoop.jacoco4sbt.JacocoPlugin._
-import de.johoop.jacoco4sbt._
 
 version := Common.version
 
@@ -7,15 +5,20 @@ scalaVersion := Common.scalaVersion
 
 // Test dependencies
 libraryDependencies ++= Seq(
-	"org.scalatest" %% "scalatest" % "2.2.4" % "test->*",
+  "org.scalatest" %% "scalatest" % "2.2.4" % "test->*"
+    excludeAll(
+    ExclusionRule(organization = "org.seleniumhq.selenium"),
+    ExclusionRule(organization = "org.eclipse.jetty"),
+    ExclusionRule(organization = "org.testng"),
+    ExclusionRule(organization = "org.jmock"),
+    ExclusionRule(organization = "org.easymock"),
+    ExclusionRule(organization = "org.mockito"),
+    ExclusionRule(organization = "org.apache.ant")
+    ),
 	"org.scalacheck" %% "scalacheck" % "1.12.2" % "test"
 )
 
 parallelExecution in Test := false
-
-parallelExecution in jacoco.Config := false
-
-jacoco.settings
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
 

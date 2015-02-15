@@ -46,7 +46,15 @@ libraryDependencies ++= Seq(
 
 // Test dependencies
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test->*",
+  "org.scalatest" %% "scalatest" % "2.2.4" % "test->*"
+    excludeAll(
+    ExclusionRule(organization = "org.seleniumhq.selenium"),
+    ExclusionRule(organization = "org.eclipse.jetty"),
+    ExclusionRule(organization = "org.testng"),
+    ExclusionRule(organization = "org.jmock"),
+    ExclusionRule(organization = "org.easymock"),
+    ExclusionRule(organization = "org.mockito")
+    ),
   "org.scalacheck" %% "scalacheck" % "1.12.2" % "test"
 )
 
@@ -75,5 +83,3 @@ sourceGenerators in Compile <+= buildInfo
 buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
 
 buildInfoPackage := "ch.descabato.version"
-
-EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Managed
