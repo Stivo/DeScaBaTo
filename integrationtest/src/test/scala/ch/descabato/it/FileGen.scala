@@ -1,15 +1,10 @@
 package ch.descabato.it
 
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.OutputStream
-import java.io.RandomAccessFile
+import java.io.{File, FileOutputStream, IOException, OutputStream, RandomAccessFile}
 import java.nio.file.Files
 
 import ch.descabato.TestUtils
-import ch.descabato.core.OldIndexVisitor
-import ch.descabato.core.Size
+import ch.descabato.core.{OldIndexVisitor, Size}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 

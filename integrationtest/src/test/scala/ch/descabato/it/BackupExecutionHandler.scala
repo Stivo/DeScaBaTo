@@ -1,13 +1,11 @@
 package ch.descabato.it
 
-import java.io.{ByteArrayInputStream, InputStream, FileOutputStream, File}
+import java.io.{File, FileOutputStream}
 
-import ch.descabato.ByteArrayOutputStream
 import ch.descabato.utils.Streams.DelegatingOutputStream
 import ch.descabato.utils.Utils
 import org.apache.commons.exec._
 import org.apache.commons.exec.environment.EnvironmentUtils
-import org.apache.commons.lang3.StringUtils
 
 class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String,
                              val secs: Int = 600)

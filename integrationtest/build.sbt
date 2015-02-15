@@ -15,7 +15,8 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.mockito"),
     ExclusionRule(organization = "org.apache.ant")
     ),
-	"org.scalacheck" %% "scalacheck" % "1.12.2" % "test"
+	"org.scalacheck" %% "scalacheck" % "1.12.2" % "test",
+  "commons-io" % "commons-io" % "2.4" % "test"
 )
 
 parallelExecution in Test := false

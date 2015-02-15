@@ -22,9 +22,7 @@ object CLI extends Utils {
 
   var lastErrors: Long = 0L
 
-  var _overrideRunsInJar = false
-
-  def runsInJar = _overrideRunsInJar || classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
+  def runsInJar = classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
 
   def getCommands() = List(
     new BackupCommand(),

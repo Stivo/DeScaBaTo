@@ -3,7 +3,6 @@ package ch.descabato.it
 import java.io.File
 import java.util.{List => JList}
 
-import ch.descabato._
 import org.scalatest.Matchers._
 import org.scalatest._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks

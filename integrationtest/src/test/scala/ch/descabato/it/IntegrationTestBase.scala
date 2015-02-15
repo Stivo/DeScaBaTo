@@ -1,21 +1,18 @@
 package ch.descabato.it
 
-import java.io.{FileInputStream, RandomAccessFile, File}
+import java.io.{File, FileInputStream, RandomAccessFile}
 import java.nio.file.Paths
 
-import ch.descabato.{TestUtils, RichFlatSpecLike}
-import ch.descabato.frontend.CLI
 import ch.descabato.utils.Streams.HashingOutputStream
 import ch.descabato.utils.{Streams, Utils}
-import org.apache.commons.exec.{ExecuteException, CommandLine}
+import ch.descabato.{RichFlatSpecLike, TestUtils}
+import org.apache.commons.exec.{CommandLine, ExecuteException}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
+
 import scala.collection.mutable.Set
-import scala.collection.JavaConverters.asScalaIteratorConverter
 
 class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
-
-  CLI._overrideRunsInJar = true
 
   val suffix = if (Utils.isWindows) ".bat" else ""
 

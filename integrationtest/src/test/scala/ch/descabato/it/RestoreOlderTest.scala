@@ -1,7 +1,5 @@
 package ch.descabato.it
 
-import ch.descabato.core.{SingleThreadUniverse, FileManager}
-import ch.descabato.it.{BackupExecutionHandler, FileGen, IntegrationTestBase}
 import org.apache.commons.io.FileUtils
 import org.scalatest.Matchers._
 
