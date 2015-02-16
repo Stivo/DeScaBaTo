@@ -11,6 +11,8 @@ import ch.descabato.utils.Implicits._
 import ch.descabato.utils.ObjectPools
 import ch.descabato.utils.Streams
 
+import scala.concurrent.Future
+
 trait MustFinish {
   // Finishes writing, so the backup can be completed
   // Resources for reading are still kept
@@ -44,7 +46,6 @@ trait Universe extends LifeCycle {
   def config(): BackupFolderConfiguration
   def eventBus(): EventBus[BackupEvent]
   def backupPartHandler(): BackupPartHandler
-  def cpuTaskHandler(): CpuTaskHandler
   def hashListHandler(): HashListHandler
   def blockHandler(): BlockHandler
   def hashHandler(): HashHandler
@@ -54,17 +55,19 @@ trait Universe extends LifeCycle {
   }
   def compressionDecider(): CompressionDecider
 
-  lazy val startUpOrder: List[LifeCycle] = List(journalHandler(), eventBus, cpuTaskHandler, 
+  lazy val startUpOrder: List[LifeCycle] = List(journalHandler(), eventBus,
       hashHandler, blockHandler, hashListHandler, backupPartHandler)
 
   lazy val finishOrder = List(blockHandler, hashListHandler, backupPartHandler,
-    eventBus, cpuTaskHandler, hashHandler, journalHandler)
+    eventBus, hashHandler, journalHandler)
 
   // Doesn't really matter
   lazy val shutdownOrder = startUpOrder.reverse
       
   lazy val _fileManager = new FileManager(this)
   def fileManager() = _fileManager
+
+  def scheduleTask[T](f: () => T): Future[T]
 
   def waitForQueues() {}
   def finish(): Boolean
@@ -174,13 +177,6 @@ trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def writeCompressedBlock(blockWrapper: Block)
   def remaining: Int
   def setTotalSize(size: Long)
-}
-
-trait CpuTaskHandler extends PureLifeCycle {
-  // calls then hashComputed on metadatawriter
-  def computeHash(block: Block)
-  // Calls then compressionDecider#compressedBlock
-  def compress(block: Block)
 }
 
 trait HashHandler extends LifeCycle with UniversePart {

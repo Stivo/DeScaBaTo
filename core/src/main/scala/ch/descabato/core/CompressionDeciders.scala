@@ -1,8 +1,8 @@
 package ch.descabato.core
 
-import ch.descabato.CompressionMode
+import ch.descabato.{TimingUtil, CompressionMode}
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{CompressedStream, Utils}
 
 import scala.collection.mutable
 import scala.language.implicitConversions
@@ -12,8 +12,12 @@ class SimpleCompressionDecider extends CompressionDecider with UniversePart {
     universe.blockHandler.writeCompressedBlock(block)
   }
   def compressBlock(block: Block): Unit = {
-    block.mode = universe.config.compressor
-    universe.cpuTaskHandler.compress(block)
+    universe.scheduleTask { () =>
+        block.mode = universe.config.compressor
+        val compressed = CompressedStream.compress(block.content, block.mode)
+        block.compressed = compressed
+        universe.blockHandler().writeCompressedBlock(block)
+    }
   }
   def report() {
     
@@ -191,17 +195,25 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
       universe.blockHandler.writeCompressedBlock(block)
     }
   }
-  
+
+  def compressBlockAsync(block: Block) {
+    val startAt = TimingUtil.getCpuTime
+    val compressed = CompressedStream.compress(block.content, block.mode)
+    block.compressed = compressed
+    val duration = TimingUtil.getCpuTime - startAt
+    universe.compressionDecider.blockCompressed(block, duration)
+  }
+
   def compressBlock(block: Block): Unit = {
     decideMode(block) match {
       case Some(mode) =>
         block.mode = mode
-        universe.cpuTaskHandler.compress(block)
+        compressBlockAsync(block)
       case None =>
         // Needs to be sampled
         getSamplingData(extension(block).get).sampleFile(block).foreach { 
           block =>
-          	universe.cpuTaskHandler.compress(block)
+            compressBlockAsync(block)
         }
     }
   }

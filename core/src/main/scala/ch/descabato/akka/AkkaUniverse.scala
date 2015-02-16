@@ -2,7 +2,7 @@ package ch.descabato.akka
 
 import java.lang.reflect.UndeclaredThrowableException
 import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicLong, AtomicInteger}
 
 import akka.actor._
 import akka.dispatch.DispatcherPrerequisites
@@ -26,6 +26,7 @@ import com.typesafe.config.Config
 import scala.collection.immutable
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 object Counter {
@@ -51,8 +52,6 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   lazy val hashers = system.actorOf(Props(classOf[MyActor], this)
     .withDispatcher(dispatcher).withRouter(RoundRobinPool(nrOfInstances = taskers).withResizer(new Resizer("hasher"))))
-  lazy val compressors = system.actorOf(Props(classOf[MyActor], this).withDispatcher(dispatcher)
-    .withRouter(RoundRobinPool(4).withResizer(new Resizer("compressor"))))
 
   val dispatch = system.dispatchers.lookup(dispatcher)
 
@@ -87,7 +86,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     }
   }
 
-  class CompressionTasksQueueCounter(name: String, getValue: => Long) extends QueueCounter(name, compressors) {
+  class CompressionTasksQueueCounter(name: String, getValue: => Long) extends QueueCounter(name, null) {
     maxValue = queueLimit * 4
 
     override def update {
@@ -100,14 +99,13 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     }
   }
 
-  counters += new CompressionTasksQueueCounter("CPU Tasks", cpuTaskCounter.get())
+  counters += new CompressionTasksQueueCounter("CPU Tasks", futureCounter.get())
 
   val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer", dispatcher = "single-dispatcher")
   journalHandler.cleanUnfinishedFiles()
   val backupPartHandler = actorOf[BackupPartHandler, KvStoreBackupPartHandler]("Backup Parts")
   val hashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
   lazy val eventBus = actorOf[EventBus[BackupEvent], SimpleEventBus[BackupEvent]]("Event Bus")
-  lazy val cpuTaskHandler = new AkkaCpuTaskHandler(this)
   val blockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
   lazy val compressionDecider = config.compressor match {
@@ -129,15 +127,28 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     case Subtract1CpuTask => cpuTaskCounter.decrementAndGet()
     case Add1CpuTask => cpuTaskCounter.incrementAndGet()
   }
+  implicit val context = ExecutionContext.fromExecutor(ActorStats.tpe)
+
+  val futureCounter = new AtomicLong(0)
+
+  def scheduleTask[T](f: () => T) = {
+    futureCounter.getAndIncrement
+    Future {
+      val ret = f()
+      futureCounter.getAndDecrement
+      ret
+    }
+  }
   
   override def finish() = {
-    var count = 0
+    var count = 0L
     do {
       if (count != 0) {
         Thread.sleep(100)
       }
       count = 0
       count += cpuTaskCounter.get
+      count += futureCounter.get
       count += List(hashHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
                 .map(queueLength).sum
       count += blockHandler.remaining + hashHandler.remaining() + backupPartHandler.remaining()
@@ -234,31 +245,6 @@ trait AkkaUniversePart extends UniversePart {
   def uni = universe.asInstanceOf[AkkaUniverse]
   def add1 = uni.cpuTaskCounter.incrementAndGet()
   def subtract1 = uni.cpuTaskCounter.decrementAndGet()
-}
-
-class AkkaCpuTaskHandler(universe: AkkaUniverse) extends SingleThreadCpuTaskHandler(universe) with AkkaUniversePart {
-
-  setup(universe)
-
-  override def computeHash(block: Block) {
-    add1
-    universe.hashers ! (() => {
-      super.computeHash(block)
-      subtract1
-    })
-  }
-
-  override def compress(block: Block) {
-    add1
-    universe.compressors ! (() => {
-      super.compress(block)
-      subtract1
-    })
-  }
-
-  override def finish() = {
-    true
-  }
 }
 
 object ActorStats {

@@ -9,6 +9,8 @@ import ch.descabato.core.storage.KvStoreHashListHandler
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Utils
 
+import scala.concurrent.Future
+
 object Universes {
   def makeUniverse(config: BackupFolderConfiguration) = {
     if (config.threads == 1)
@@ -42,7 +44,6 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val journalHandler = make(new SimpleJournalHandler())
   val backupPartHandler = make(new KvStoreBackupPartHandler())
   val hashListHandler = make(new KvStoreHashListHandler())
-  val cpuTaskHandler = new SingleThreadCpuTaskHandler(this)
   val blockHandler = make(new KvStoreBlockHandler())
   val hashHandler = make(new SingleThreadHasher())
   val compressionDecider = make(config.compressor match {
@@ -71,24 +72,10 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
     }
     ret
   }
-}
 
-class SingleThreadCpuTaskHandler(universe: Universe) extends CpuTaskHandler {
-  
-  def computeHash(blockWrapper: Block) {
-    val md = universe.config.getMessageDigest
-    blockWrapper.hash = md.digest(blockWrapper.content)
-    universe.backupPartHandler.hashComputed(blockWrapper)
+  override def scheduleTask[T](f: () => T): Future[T] = {
+    Future.successful(f())
   }
-
-  def compress(block: Block) {
-    val startAt = TimingUtil.getCpuTime
-    val compressed = CompressedStream.compress(block.content, block.mode)
-	  block.compressed = compressed
-    val duration = TimingUtil.getCpuTime - startAt
-    universe.compressionDecider.blockCompressed(block, duration)
-  }
-
 }
 
 class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycle {
