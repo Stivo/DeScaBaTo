@@ -50,7 +50,6 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
     case x if x.isCompressionAlgorithm => new SimpleCompressionDecider()
     case smart => new SmartCompressionDecider()
   })
-  lazy val eventBus = new SimpleEventBus[BackupEvent]()
 
   load()
 

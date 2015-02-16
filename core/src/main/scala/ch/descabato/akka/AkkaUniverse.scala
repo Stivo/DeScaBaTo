@@ -105,7 +105,6 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   journalHandler.cleanUnfinishedFiles()
   val backupPartHandler = actorOf[BackupPartHandler, KvStoreBackupPartHandler]("Backup Parts")
   val hashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
-  lazy val eventBus = actorOf[EventBus[BackupEvent], SimpleEventBus[BackupEvent]]("Event Bus")
   val blockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
   lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
   lazy val compressionDecider = config.compressor match {
@@ -120,13 +119,8 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       else
      	  a.loadBlocking
     }
-    eventBus.subscribe(counterUpdater)
   }
 
-  val counterUpdater: PartialFunction[BackupEvent, Unit] = {
-    case Subtract1CpuTask => cpuTaskCounter.decrementAndGet()
-    case Add1CpuTask => cpuTaskCounter.incrementAndGet()
-  }
   implicit val context = ExecutionContext.fromExecutor(ActorStats.tpe)
 
   val futureCounter = new AtomicLong(0)
@@ -220,7 +214,6 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     ProgressReporters.addCounter(counters: _*)
     checkQueueWithFunction(cpuTaskCounter.get(), "CPU Tasks")
     checkQueue(hashHandler, "hash handler")
-    checkQueue(eventBus, "event bus")
     checkQueue(blockHandler, "writer")
     checkQueue(compressionDecider, "compression decider")
     //if (blockHandler.remaining > queueLimit*2)
@@ -348,8 +341,6 @@ class AkkaHasher extends HashHandler with UniversePart with PureLifeCycle with A
 
   override def remaining(): Int = map.size
 }
-
-class AkkaEventBus extends SimpleEventBus with UniversePart
 
 class AkkaSingleThreadHasher extends SingleThreadHasher with AkkaUniversePart {
   override def hash(block: Block) {

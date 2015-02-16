@@ -44,7 +44,6 @@ trait PureLifeCycle extends LifeCycle {
 
 trait Universe extends LifeCycle {
   def config(): BackupFolderConfiguration
-  def eventBus(): EventBus[BackupEvent]
   def backupPartHandler(): BackupPartHandler
   def hashListHandler(): HashListHandler
   def blockHandler(): BlockHandler
@@ -55,11 +54,11 @@ trait Universe extends LifeCycle {
   }
   def compressionDecider(): CompressionDecider
 
-  lazy val startUpOrder: List[LifeCycle] = List(journalHandler(), eventBus,
+  lazy val startUpOrder: List[LifeCycle] = List(journalHandler(),
       hashHandler, blockHandler, hashListHandler, backupPartHandler)
 
   lazy val finishOrder = List(blockHandler, hashListHandler, backupPartHandler,
-    eventBus, hashHandler, journalHandler)
+    hashHandler, journalHandler)
 
   // Doesn't really matter
   lazy val shutdownOrder = startUpOrder.reverse
