@@ -41,10 +41,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   override val invokeBeforeAllAndAfterAllEvenIfNoTestsAreExpected = true
   
   override def afterAll() {
-    import ch.descabato.utils.ObjectPools.foundExactCounter
-    import ch.descabato.utils.ObjectPools.foundExactRequests
-    import ch.descabato.utils.ObjectPools.foundMinimumCounter
-    import ch.descabato.utils.ObjectPools.foundMinimumRequests
+    import ch.descabato.utils.ObjectPools.{foundExactCounter, foundExactRequests, foundMinimumCounter, foundMinimumRequests}
     l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
     l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
   }

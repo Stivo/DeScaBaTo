@@ -2,8 +2,8 @@ package ch.descabato.core
 
 import java.io.{File, IOException}
 import java.math.{BigDecimal => JBigDecimal}
-import java.nio.file.{Files, LinkOption, Path}
 import java.nio.file.attribute.{BasicFileAttributes, FileTime, PosixFileAttributeView, PosixFileAttributes, PosixFilePermissions}
+import java.nio.file.{Files, LinkOption, Path}
 import java.security.{MessageDigest, Principal}
 import java.util
 import java.util.regex.Pattern

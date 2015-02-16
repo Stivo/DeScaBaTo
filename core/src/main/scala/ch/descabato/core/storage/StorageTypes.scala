@@ -3,11 +3,8 @@ package ch.descabato.core.storage
 import java.io.File
 import java.util
 
-import ch.descabato.core.MetaInfo
-import ch.descabato.core.UniversePart
-import ch.descabato.core.kvstore.Entry
-import ch.descabato.core.kvstore.KvStoreReaderImpl
-import ch.descabato.core.kvstore.KvStoreWriterImpl
+import ch.descabato.core.{MetaInfo, UniversePart}
+import ch.descabato.core.kvstore.{Entry, KvStoreReaderImpl, KvStoreWriterImpl}
 import ch.descabato.utils.JsonSerialization
 
 object StorageMechanismConstants {

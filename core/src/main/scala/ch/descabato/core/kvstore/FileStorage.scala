@@ -1,7 +1,6 @@
 package ch.descabato.core.kvstore
 
-import java.io.File
-import java.io.RandomAccessFile
+import java.io.{File, RandomAccessFile}
 import java.nio.ByteBuffer
 import java.security.Security
 import java.util
@@ -13,8 +12,7 @@ import ch.descabato.utils.Utils
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 import scala.collection.immutable.TreeMap
-import scala.concurrent.ExecutionContext
-import scala.concurrent._
+import scala.concurrent.{ExecutionContext, _}
 import scala.concurrent.duration._
 
 class KeyInfo(val key: Array[Byte]) {

@@ -2,10 +2,7 @@ package ch.descabato.core
 
 import java.io.File
 
-import ch.descabato.frontend.ETACounter
-import ch.descabato.frontend.ProgressReporters
-import ch.descabato.frontend.StandardCounter
-import ch.descabato.frontend.StandardMaxValueCounter
+import ch.descabato.frontend.{ETACounter, ProgressReporters, StandardCounter, StandardMaxValueCounter}
 import ch.descabato.utils.Utils
 
 object BackupUtils {

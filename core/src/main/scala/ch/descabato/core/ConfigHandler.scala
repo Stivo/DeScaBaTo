@@ -1,14 +1,9 @@
 package ch.descabato.core
 
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
+import java.io.{File, FileInputStream, FileOutputStream}
 
-import ch.descabato.frontend.BackupFolderOption
-import ch.descabato.frontend.ChangeableBackupOptions
-import ch.descabato.frontend.CreateBackupOptions
-import ch.descabato.utils.JsonSerialization
-import ch.descabato.utils.Utils
+import ch.descabato.frontend.{BackupFolderOption, ChangeableBackupOptions, CreateBackupOptions}
+import ch.descabato.utils.{JsonSerialization, Utils}
 
 
 object InitBackupFolderConfiguration extends Utils {

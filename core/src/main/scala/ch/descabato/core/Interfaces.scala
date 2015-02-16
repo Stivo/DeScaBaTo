@@ -1,15 +1,13 @@
 package ch.descabato.core
 
-import java.io.File
-import java.io.InputStream
+import java.io.{File, InputStream}
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.Date
 
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.ObjectPools
-import ch.descabato.utils.Streams
+import ch.descabato.utils.{ObjectPools, Streams}
 
 import scala.concurrent.Future
 

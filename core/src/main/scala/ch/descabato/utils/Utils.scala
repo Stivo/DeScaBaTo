@@ -1,9 +1,6 @@
 package ch.descabato.utils
 
-import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
-import java.io.PrintStream
+import java.io.{File, InputStream, OutputStream, PrintStream}
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.text.DecimalFormat

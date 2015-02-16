@@ -1,29 +1,15 @@
 package ch.descabato.browser
 
-import org.apache.commons.vfs2.Capability
-import org.apache.commons.vfs2.FileSystemOptions
-import org.apache.commons.vfs2.FileName
-import java.util.Collection
-import java.util.ArrayList
-import org.apache.commons.vfs2.provider.FileProvider
-import org.apache.commons.vfs2.provider.AbstractFileSystem
-import org.apache.commons.vfs2.provider.AbstractFileName
-import org.apache.commons.vfs2.FileObject
-import org.apache.commons.vfs2.provider.AbstractLayeredFileProvider
-import org.apache.commons.vfs2.provider.AbstractFileObject
-import org.apache.commons.vfs2.{ FileType => VfsFileType }
-import org.apache.commons.vfs2.provider.LayeredFileName
-import java.util.Date
-import org.apache.commons.vfs2.{FileType => VfsFileType}
-import ch.descabato.core._
+import java.util.{ArrayList, Collection, Date}
+
+import ch.descabato.core.{FileDescription, FolderDescription, _}
 import ch.descabato.utils.Utils
-import scala.Some
-import ch.descabato.core.FileDescription
-import ch.descabato.core.FolderDescription
+import org.apache.commons.vfs2.provider.{AbstractFileName, AbstractFileObject, AbstractFileSystem, AbstractLayeredFileProvider, FileProvider, LayeredFileName}
+import org.apache.commons.vfs2.{Capability, FileName, FileObject, FileSystemOptions, FileType => VfsFileType}
 
 object BackupVfsProvider {
 
-  import Capability._
+  import org.apache.commons.vfs2.Capability._
   val capabilities = List(
     GET_TYPE,
     LIST_CHILDREN,

@@ -1,10 +1,8 @@
 package ch.descabato.core
 
-import java.io.File
-import java.io.RandomAccessFile
+import java.io.{File, RandomAccessFile}
 
-import ch.descabato.core.kvstore.KvStoreReaderImpl
-import ch.descabato.core.kvstore.KvStoreWriter
+import ch.descabato.core.kvstore.{KvStoreReaderImpl, KvStoreWriter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 

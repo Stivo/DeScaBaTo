@@ -4,8 +4,7 @@ import java.math.BigInteger
 import java.security.SecureRandom
 import java.util.zip.CRC32
 import javax.crypto.Mac
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
+import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
 
 import ch.descabato.utils.Utils
 import org.bouncycastle.crypto.generators.SCrypt

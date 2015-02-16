@@ -1,16 +1,10 @@
 package ch.descabato
 
-import java.io.File
-import java.io.RandomAccessFile
+import java.io.{File, RandomAccessFile}
 
-import ch.descabato.core.kvstore.EntryTypes
-import ch.descabato.core.kvstore.KvStoreReaderImpl
-import ch.descabato.core.kvstore.KvStoreWriterImpl
+import ch.descabato.core.kvstore.{EntryTypes, KvStoreReaderImpl, KvStoreWriterImpl}
 import ch.descabato.utils.Utils
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.ShouldMatchers
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpec, ShouldMatchers}
 
 import scala.util.Random
 

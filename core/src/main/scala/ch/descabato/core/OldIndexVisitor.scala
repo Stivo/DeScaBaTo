@@ -1,11 +1,7 @@
 package ch.descabato.core
 
-import java.io.File
-import java.io.IOException
-import java.nio.file.FileVisitResult
-import java.nio.file.Files
-import java.nio.file.LinkOption
-import java.nio.file.Path
+import java.io.{File, IOException}
+import java.nio.file.{FileVisitResult, Files, LinkOption, Path}
 import java.nio.file.attribute.BasicFileAttributes
 
 import ch.descabato.FileVisitorHelper

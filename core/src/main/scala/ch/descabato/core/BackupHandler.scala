@@ -1,24 +1,17 @@
 package ch.descabato.core
 
 import java.io._
-import java.nio.channels.FileChannel
-import java.nio.file.Files
-import java.nio.file.LinkOption
-import java.nio.file.NoSuchFileException
-import java.security.{MessageDigest, DigestOutputStream}
+import java.nio.file.{Files, LinkOption, NoSuchFileException}
+import java.security.DigestOutputStream
 import java.util
 import java.util.Date
 
-import akka.actor.Actor
-import ch.descabato.akka.ActorStats
 import ch.descabato.frontend._
-import ch.descabato.utils.FileUtils
 import ch.descabato.utils.Streams._
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{FileUtils, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.ForkJoinTaskSupport
-import scala.concurrent.{ExecutionContext, Future}
 import scala.language.reflectiveCalls
 import scala.util.Random
 

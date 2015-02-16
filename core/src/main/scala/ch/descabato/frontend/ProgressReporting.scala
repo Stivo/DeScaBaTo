@@ -1,7 +1,6 @@
 package ch.descabato.frontend
 
-import java.util.Date
-import java.util.TimerTask
+import java.util.{Date, TimerTask}
 import javax.swing.SwingUtilities
 
 import ch.descabato.akka.ActorStats
@@ -9,9 +8,8 @@ import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.ConsoleAppender
-import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi._
-import org.fusesource.jansi.AnsiConsole
+import org.fusesource.jansi.{Ansi, AnsiConsole}
 import org.ocpsoft.prettytime.PrettyTime
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow

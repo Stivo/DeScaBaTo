@@ -1,9 +1,6 @@
 package ch.descabato.utils
 
-import java.io.File
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
+import java.io.{File, IOException, InputStream, OutputStream}
 import java.security.MessageDigest
 import java.util
 import java.util.zip.ZipException

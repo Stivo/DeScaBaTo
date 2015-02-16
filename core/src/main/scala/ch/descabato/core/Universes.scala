@@ -1,12 +1,8 @@
 package ch.descabato.core
 
 import akka.actor.TypedActor.PostRestart
-import ch.descabato.TimingUtil
 import ch.descabato.akka.AkkaUniverse
-import ch.descabato.core.storage.KvStoreBackupPartHandler
-import ch.descabato.core.storage.KvStoreBlockHandler
-import ch.descabato.core.storage.KvStoreHashListHandler
-import ch.descabato.utils.CompressedStream
+import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.utils.Utils
 
 import scala.concurrent.Future

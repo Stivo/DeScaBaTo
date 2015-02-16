@@ -2,15 +2,12 @@ package ch.descabato.akka
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.dispatch.UnboundedMailbox
-import akka.dispatch._
+import akka.actor.{ActorRef, ActorSystem}
+import akka.dispatch.{UnboundedMailbox, _}
 import com.typesafe.config.Config
 
 import scala.collection.mutable
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.ref.WeakReference
 
 object Queues {

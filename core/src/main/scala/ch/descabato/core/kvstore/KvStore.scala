@@ -1,8 +1,6 @@
 package ch.descabato.core.kvstore
 
-import java.io.ByteArrayOutputStream
-import java.io.DataOutputStream
-import java.io.File
+import java.io.{ByteArrayOutputStream, DataOutputStream, File}
 import java.util
 
 import ch.descabato.core.BaWrapper

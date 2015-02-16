@@ -1,9 +1,7 @@
 package ch.descabato.frontend
 
-import java.awt.event.ActionEvent
-import java.awt.event.ActionListener
-import javax.swing.Timer
-import javax.swing.UIManager
+import java.awt.event.{ActionEvent, ActionListener}
+import javax.swing.{Timer, UIManager}
 
 import ch.descabato.utils.Utils
 import org.bridj.Pointer

@@ -2,32 +2,23 @@ package ch.descabato.akka
 
 import java.lang.reflect.UndeclaredThrowableException
 import java.util.concurrent._
-import java.util.concurrent.atomic.{AtomicLong, AtomicInteger}
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 import akka.actor._
-import akka.dispatch.DispatcherPrerequisites
-import akka.dispatch.ExecutorServiceConfigurator
-import akka.dispatch.ExecutorServiceFactory
+import akka.dispatch.{DispatcherPrerequisites, ExecutorServiceConfigurator, ExecutorServiceFactory}
 import akka.event.Logging
 import akka.pattern.AskTimeoutException
-import akka.routing.DefaultResizer
-import akka.routing.RoundRobinPool
-import akka.routing.Routee
-import ch.descabato.core.BackupFolderConfiguration
-import ch.descabato.core._
-import ch.descabato.core.storage.KvStoreBackupPartHandler
-import ch.descabato.core.storage.KvStoreBlockHandler
-import ch.descabato.core.storage.KvStoreHashListHandler
-import ch.descabato.frontend.MaxValueCounter
-import ch.descabato.frontend.ProgressReporters
+import akka.routing.{DefaultResizer, RoundRobinPool, Routee}
+import ch.descabato.core.{BackupFolderConfiguration, _}
+import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
+import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.utils.Utils
 import com.typesafe.config.Config
 
-import scala.collection.immutable
 import scala.collection.immutable.HashMap
-import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, Future}
+import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 object Counter {
   var i = 0

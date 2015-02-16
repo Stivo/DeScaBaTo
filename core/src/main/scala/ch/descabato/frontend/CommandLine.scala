@@ -1,8 +1,6 @@
 package ch.descabato.frontend
 
-import java.io.File
-import java.io.FileOutputStream
-import java.io.PrintStream
+import java.io.{File, FileOutputStream, PrintStream}
 import java.lang.reflect.InvocationTargetException
 import java.security.Security
 

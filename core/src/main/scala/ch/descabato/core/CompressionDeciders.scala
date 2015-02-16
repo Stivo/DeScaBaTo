@@ -1,8 +1,8 @@
 package ch.descabato.core
 
-import ch.descabato.{TimingUtil, CompressionMode}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{CompressedStream, Utils}
+import ch.descabato.{CompressionMode, TimingUtil}
 
 import scala.collection.mutable
 import scala.language.implicitConversions

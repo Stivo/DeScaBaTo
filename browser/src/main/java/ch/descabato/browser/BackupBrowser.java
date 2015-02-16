@@ -23,14 +23,12 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.vfs2.FileObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import pl.otros.vfs.browser.SelectionMode;
 import pl.otros.vfs.browser.VfsBrowser;
 import pl.otros.vfs.browser.i18n.Messages;
 import pl.otros.vfs.browser.table.FileSize;
 
 import javax.swing.*;
-
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
