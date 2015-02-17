@@ -11,6 +11,7 @@ import ch.descabato.utils.Streams.{ExceptionCatchingInputStream, VerifyInputStre
 import ch.descabato.utils.{CompressedStream, JsonSerialization, ObjectPools, Utils}
 
 import scala.collection.immutable.HashMap
+import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 trait KvStoreHandler[T, K] extends UniversePart {
@@ -301,6 +302,11 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
       out2
     }
   }
+  override def readBlockRaw(hash: Array[Byte]): Future[Array[Byte]] = {
+    Future.successful {
+      readEntry(hash)._1
+    }
+  }
 
   override def checkIfCheckpoint() = false
 
@@ -347,4 +353,5 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
     byteCounter.compressedBytes += block.compressed.remaining()
     compressionRatioCounter += block.compressed.remaining()
   }
+
 }

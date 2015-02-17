@@ -60,9 +60,13 @@ object CLI extends Utils {
           case x: Exception =>
         }
 //        parseCommandLine("backup --threads 1 --serializer-type json --hash-algorithm md5 --compression none --volume-size 10mb C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/input".split(" "))
-        //parseCommandLine("restore --restore-to-folder H:/testdata/restore1 H:/testdata/backup1".split(" "))
+
+        parseCommandLine("restore --restore-to-folder L:/testdata/restore1 L:/testdata/backup1".split(" "))
+
         //parseCommandLine("restore --restore-to-folder C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/restore1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1".split(" "))
-        //        parseCommandLine("backup --serializer-type json --hash-algorithm sha-512 --compression gzip --volume-size 50mb f:/desca8 d:/pics/tosort/bilder".split(" "))
+
+//         parseCommandLine("backup --serializer-type json --compression gzip --volume-size 50mb l:/testdata/backup1 l:/testdata/input1".split(" "))
+
         // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
         //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
 
@@ -73,7 +77,7 @@ object CLI extends Utils {
         // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
         //        parseCommandLine("verify e:\\backups\\pics".split(" "))
         //              parseCommandLine("restore --help".split(" "))
-                      parseCommandLine("browse -p testasdf L:/desca8".split(" "))
+//                      parseCommandLine("browse -p testasdf L:/desca8".split(" "))
         //        parseCommandLine("restore --passphrase mypasshere --restore-to-folder restore --relative-to-folder . backups".split(" "))
         exit(0)
       }

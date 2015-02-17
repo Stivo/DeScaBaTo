@@ -69,4 +69,11 @@ object CompressedStream extends Utils {
     }
   }
 
+  def decompressToBytes(input: Array[Byte]): Array[Byte] = {
+    val stream = decompress(input)
+    val baos = new ByteArrayOutputStream()
+    Streams.copy(stream, baos)
+    baos.toByteArray
+  }
+
 }

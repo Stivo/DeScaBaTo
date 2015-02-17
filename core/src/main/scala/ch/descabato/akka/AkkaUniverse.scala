@@ -1,5 +1,6 @@
 package ch.descabato.akka
 
+import java.io.File
 import java.lang.reflect.UndeclaredThrowableException
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
@@ -49,7 +50,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   def actorOf[I <: AnyRef : Manifest, T <: I : Manifest](name: String, withCounter: Boolean = true, dispatcher: String = dispatcher) = {
     val classI = manifest[I].runtimeClass.asInstanceOf[Class[I]]
     val classT = manifest[T].runtimeClass.asInstanceOf[Class[T]]
-    val ref = TypedActor(system).typedActorOf(p(
+    val ref = TypedActor(system).typedActorOf(addDispatcher(
       TypedProps.apply[T](classI, classT), dispatcher = dispatcher))
     val out: I = ref
     out match {
@@ -63,7 +64,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     out
   }
 
-  def p[T <: AnyRef](props: TypedProps[T], dispatcher: String = dispatcher) = props.withDispatcher(dispatcher).withTimeout(1.day)
+  def addDispatcher[T <: AnyRef](props: TypedProps[T], dispatcher: String = dispatcher) = props.withDispatcher(dispatcher).withTimeout(1.day)
 
   class QueueCounter(queueName: String, ref: AnyRef) extends MaxValueCounter {
     val name = s"Queue $queueName"
@@ -222,6 +223,12 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     shutdownOrder.collect{ case x: ActorRef => x}.foreach(_ ! PoisonPill)
     system.shutdown()
     ret
+  }
+
+  override def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler = {
+    val ref = actorOf[AkkaRestoreFileHandler, RestoreFileActor]("restore " + file)
+    ref.setup(description, file, ref)
+    ref
   }
 }
 

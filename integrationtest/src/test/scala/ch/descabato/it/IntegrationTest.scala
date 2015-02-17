@@ -40,7 +40,7 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
 
   def numberOfCheckpoints(): Int = {
     if (backup1.exists) {
-      backup1.listFiles().filter(_.getName().contains("volume_")).size
+      backup1.listFiles().count(_.getName().contains("volume_"))
     } else {
       0
     }

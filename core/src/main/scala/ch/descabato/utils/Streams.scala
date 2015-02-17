@@ -125,7 +125,7 @@ object Streams extends Utils {
     }
   }
 
-  def copy(in: InputStream, out: OutputStream, progress: Option[Int => Unit] = None) {
+  def copy(in: InputStream, out: OutputStream, progress: Option[Int => Unit] = None, closeOutput: Boolean = true) {
     try {
       readFrom(in, { (x: Array[Byte], len: Int) =>
         out.write(x, 0, len)
@@ -134,7 +134,8 @@ object Streams extends Utils {
       })
     } finally {
       in.close()
-      out.close()
+      if (closeOutput)
+        out.close()
     }
   }
 

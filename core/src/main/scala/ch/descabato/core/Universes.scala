@@ -1,11 +1,14 @@
 package ch.descabato.core
 
-import akka.actor.TypedActor.PostRestart
-import ch.descabato.akka.AkkaUniverse
-import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
-import ch.descabato.utils.Utils
+import java.io.{FileOutputStream, File}
+import java.security.DigestOutputStream
 
-import scala.concurrent.Future
+import akka.actor.TypedActor.PostRestart
+import ch.descabato.akka.{ActorStats, AkkaUniverse}
+import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
+import ch.descabato.utils.{Streams, CompressedStream, Utils}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object Universes {
   def makeUniverse(config: BackupFolderConfiguration) = {
@@ -20,6 +23,7 @@ trait UniversePart extends AnyRef with PostRestart {
   protected def universe = _universe
   protected var _universe: Universe = null
   protected def fileManager = universe.fileManager
+  protected implicit val executionContext = ExecutionContext.fromExecutor(ActorStats.tpe)
 
   protected def config = universe.config
 
@@ -71,6 +75,12 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   override def scheduleTask[T](f: () => T): Future[T] = {
     Future.successful(f())
   }
+
+  override def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler = {
+    val out = new SingleThreadRestoreFileHandler(description, file)
+    out.setup(this)
+    out
+  }
 }
 
 class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycle {
@@ -91,4 +101,27 @@ class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycl
     md.reset()
   }
 
+}
+
+class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: File) extends RestoreFileHandler {
+
+  var hashList: Array[Array[Byte]] = null
+
+  override def restore(): Future[Boolean] = {
+    val hashList = if (fd.size > config.blockSize.bytes) {
+      universe.hashListHandler().getHashlist(fd.hash, fd.size).toArray
+    } else {
+      Array.apply(fd.hash)
+    }
+    destination.getParentFile.mkdirs()
+    val fos = new FileOutputStream(destination)
+    for (hash <- hashList) {
+      val in = universe.blockHandler().readBlock(hash, false)
+      Streams.copy(in, fos, closeOutput = false)
+    }
+    fos.close()
+    Future.successful(true)
+  }
+
+  override def blockDecompressed(block: Block): Unit = ???
 }

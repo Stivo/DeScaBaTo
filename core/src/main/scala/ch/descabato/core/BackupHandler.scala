@@ -6,14 +6,17 @@ import java.security.DigestOutputStream
 import java.util
 import java.util.Date
 
+import ch.descabato.akka.AkkaUniverse
 import ch.descabato.frontend._
 import ch.descabato.utils.Streams._
 import ch.descabato.utils.{FileUtils, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.ForkJoinTaskSupport
+import scala.concurrent.Await
 import scala.language.reflectiveCalls
 import scala.util.Random
+import scala.concurrent.duration._
 
 trait MeasureTime {
   var startTime = 0L
@@ -341,7 +344,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     l.info("Going to restore " + statistics(filtered))
     setMaximums(filtered)
     ProgressReporters.activeCounters = List(fileCounter, byteCounter)
-
+    universe.loadBlocking()
     description.folders.foreach(restoreFolderDesc(_))
     description.files.foreach(restoreFileDesc)
     description.symlinks.foreach(restoreLink)
@@ -399,7 +402,6 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
   }
 
   def restoreFileDesc(fd: FileDescription)(implicit options: RestoreConf) {
-    var closeAbles = mutable.Buffer[ {def close(): Unit}]()
     try {
       val restoredFile = makePath(fd.path)
       if (restoredFile.exists()) {
@@ -414,20 +416,18 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
       }
       if (!restoredFile.getParentFile().exists())
         restoredFile.getParentFile().mkdirs()
-      val fos = new FileOutputStream(restoredFile)
-      closeAbles += fos
-      val dos = new DigestOutputStream(fos, config.getMessageDigest)
-      closeAbles += dos
-      val in = getInputStream(fd)
-      closeAbles += in
-      copy(in, dos)
-      val hash = dos.getMessageDigest().digest()
-      if (!util.Arrays.equals(fd.hash, hash)) {
-        l.warn("Error while restoring file, hash is not correct")
-      }
-      if (restoredFile.length() != fd.size) {
-        l.warn(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
-      }
+
+      val actor = universe.createRestoreHandler(fd, restoredFile)
+      val future = actor.restore()
+      Await.result(future, 24.hours)
+      // TODO add these again
+//      val hash = dos.getMessageDigest().digest()
+//      if (!util.Arrays.equals(fd.hash, hash)) {
+//        l.warn("Error while restoring file, hash is not correct")
+//      }
+//      if (restoredFile.length() != fd.size) {
+//        l.warn(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
+//      }
       fd.applyAttrsTo(restoredFile)
     } catch {
       case e@BackupCorruptedException(f, false) =>
@@ -439,8 +439,6 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
         universe.finish()
         l.warn("Exception while restoring " + fd.path + " (" + e.getMessage() + ")")
         logException(e)
-    } finally {
-      closeAbles.reverse.foreach(_.close)
     }
     fileCounter += 1
     byteCounter += fd.size

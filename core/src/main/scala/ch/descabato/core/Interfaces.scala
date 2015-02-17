@@ -58,6 +58,8 @@ trait Universe extends LifeCycle {
   lazy val finishOrder = List(blockHandler, hashListHandler, backupPartHandler,
     hashHandler, journalHandler)
 
+  def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler
+  
   // Doesn't really matter
   lazy val shutdownOrder = startUpOrder.reverse
       
@@ -95,7 +97,7 @@ trait JournalHandler extends UniversePart with LifeCycle {
 
 case class BlockId(file: FileDescription, part: Int)
 
-class Block(val id: BlockId, val content: Array[Byte]) {
+class Block(val id: BlockId, var content: Array[Byte]) {
   val uncompressedLength = content.length 
   @volatile var hash: Array[Byte] = null
   @volatile var mode: CompressionMode = null
@@ -171,6 +173,7 @@ trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def getAllPersistedKeys(): Set[BaWrapper]
   def isPersisted(hash: Array[Byte]): Boolean
   def readBlock(hash: Array[Byte], verify: Boolean): InputStream
+  def readBlockRaw(hash: Array[Byte]): Future[Array[Byte]]
   def writeCompressedBlock(blockWrapper: Block)
   def remaining: Int
   def setTotalSize(size: Long)
@@ -185,4 +188,9 @@ trait HashHandler extends LifeCycle with UniversePart {
   def fileFailed(fd: FileDescription)
 
   def remaining(): Int = 0
+}
+
+trait RestoreFileHandler extends UniversePart {
+  def restore(): Future[Boolean]
+  def blockDecompressed(block: Block)
 }
