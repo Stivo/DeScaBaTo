@@ -208,7 +208,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
             persistedEntries += storageToKeyMem(entry) -> pos
             val value = kvstore.get(pos)
             val decompressed = CompressedStream.decompressToBytes(value)
-            js.read[BackupPart](decompressed.asArray()) match {
+            js.read[BackupPart](decompressed) match {
               case Left(x: UpdatePart) => current += x
               case x => throw new IllegalArgumentException("Not implemented for object "+x)
             }
@@ -238,7 +238,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   def writeBackupPart(fd: BackupPart) {
     val json = js.write(fd)
-    val compressed = CompressedStream.compress(json, CompressionMode.deflate)
+    val compressed = CompressedStream.compress(json.wrap(), CompressionMode.deflate)
     writeEntry(fd.path, compressed.asArray())
   }
 
@@ -273,7 +273,7 @@ class KvStoreHashListHandler extends HashKvStoreHandler[Vector[(Hash, Array[Byte
   }
 
   def getHashlist(fileHash: Hash, size: Long): Seq[Hash] = {
-    readEntry(fileHash)._1.grouped(config.hashLength).toSeq.map(new Hash(_))
+    readEntry(fileHash)._1.asArray().grouped(config.hashLength).toSeq.map(new Hash(_))
   }
 
   def fileFinished() {
@@ -305,13 +305,13 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
     universe.journalHandler.finishedFile(currentlyWritingFile.file, fileType)
   }
 
-  override def readBlockAsync(hash: Hash): Future[Array[Byte]] = {
+  override def readBlockAsync(hash: Hash): Future[BytesWrapper] = {
     Future.successful {
       readBlock(hash)
     }
   }
 
-  override def readBlock(hash: Hash): Array[Byte] = {
+  override def readBlock(hash: Hash): BytesWrapper = {
       readEntry(hash)._1
   }
 

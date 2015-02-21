@@ -55,8 +55,8 @@ object CompressedStream extends Utils {
     }
   }
   
-  def decompress(input: Array[Byte]): InputStream = {
-    val in = new ByteArrayInputStream(input)
+  def decompress(input: BytesWrapper): InputStream = {
+    val in = input.asInputStream()
     val byte = in.read()
 
     CompressionMode.getByByte(byte) match {
@@ -71,7 +71,7 @@ object CompressedStream extends Utils {
     }
   }
 
-  def decompressToBytes(input: Array[Byte]): BytesWrapper = {
+  def decompressToBytes(input: BytesWrapper): BytesWrapper = {
     val stream = decompress(input)
     val baos = new ByteArrayOutputStream()
     IOUtils.copy(stream, baos)

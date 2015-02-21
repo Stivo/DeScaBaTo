@@ -71,7 +71,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
           if (!(hash safeEquals blockHash)) {
             l.warn("Could not reconstruct block "+id+" of file "+destination+" correctly, hash was incorrect")
           }
-          ownRef.blockDecompressed(new Block(id, decomp.asArray()))
+          ownRef.blockDecompressed(new Block(id, decomp))
         }
       })
       nextBlockToRequest += 1

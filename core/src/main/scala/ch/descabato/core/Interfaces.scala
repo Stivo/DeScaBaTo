@@ -155,8 +155,8 @@ trait HashListHandler extends BackupActor {
 trait BlockHandler extends BackupActor with CanVerify {
   def writeBlockIfNotExists(blockWrapper: Block)
   def isPersisted(hash: Hash): Boolean
-  def readBlockAsync(hash: Hash): Future[Array[Byte]]
-  def readBlock(hash: Hash): Array[Byte]
+  def readBlockAsync(hash: Hash): Future[BytesWrapper]
+  def readBlock(hash: Hash): BytesWrapper
   def writeCompressedBlock(blockWrapper: Block)
   def remaining: Int
   def setTotalSize(size: Long)

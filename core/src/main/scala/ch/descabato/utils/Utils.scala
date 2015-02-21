@@ -1,6 +1,6 @@
 package ch.descabato.utils
 
-import java.io.{File, InputStream, OutputStream, PrintStream}
+import java.io._
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.security.MessageDigest
@@ -22,6 +22,7 @@ class Hash(val bytes: Array[Byte]) extends AnyVal {
   // minimal size of hash is 16
   def isNotNull = !isNull
   def safeEquals(other: Hash) = java.util.Arrays.equals(bytes, other.bytes)
+  def wrap(): BytesWrapper = new BytesWrapper(bytes)
 }
 
 object NullHash {
@@ -29,6 +30,8 @@ object NullHash {
 }
 
 class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {
+  def asInputStream() = new ByteArrayInputStream(array, offset, length)
+
   if (length == -1) {
     length = array.length
   }
@@ -122,7 +125,6 @@ object Utils extends LazyLogging {
 
 object Implicits {
   import scala.language.higherKinds
-  implicit def byteArrayToWrapper(a: Array[Byte]): BytesWrapper = new BytesWrapper(a)
   implicit def hashToWrapper(a: Hash): BytesWrapper = new BytesWrapper(a.bytes)
   implicit class AwareMessageDigest(md: MessageDigest) {
     def update(bytesWrapper: BytesWrapper): Unit = {

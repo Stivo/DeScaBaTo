@@ -39,10 +39,11 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
     forAll(minSize(0), maxSize(1000000), minSuccessful(50)) { (compressor: CompressionMode, toEncode: Array[Byte]) => {
 
       val baosOriginal = new ByteArrayOutputStream()
-      val compressed = CompressedStream.compress(toEncode, compressor)
+      val toEncodeWrapped = toEncode.wrap()
+      val compressed = CompressedStream.compress(toEncodeWrapped, compressor)
 
-      val read = CompressedStream.decompress(compressed.asArray()).readFully
-      assert(util.Arrays.equals(read, toEncode))
+      val read = CompressedStream.decompressToBytes(compressed)
+      assert(toEncodeWrapped equals read)
     }
     }
   }

@@ -2,7 +2,7 @@ package ch.descabato.utils
 
 import java.io.{InputStream, OutputStream}
 
-import ch.descabato.core.{BaWrapper, BackupPart, FileDeleted, FileDescription, FolderDescription, SymbolicLink, UpdatePart}
+import ch.descabato.core.{BackupPart, FileDeleted, FileDescription, FolderDescription, SymbolicLink, UpdatePart}
 import ch.descabato.utils.Implicits._
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, Version}
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
@@ -87,8 +87,8 @@ abstract class AbstractJacksonSerialization extends Serialization {
     mapper.writeValueAsBytes(t)
   }
 
-  def read[T](in: Array[Byte])(implicit m: Manifest[T]) = {
-    Left(mapper.readValue(in))
+  def read[T](in: BytesWrapper)(implicit m: Manifest[T]) = {
+    Left(mapper.readValue(in.array, in.offset, in.length))
   }
 
   def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Either[T, Exception] = {

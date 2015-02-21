@@ -1,8 +1,9 @@
 package ch.descabato.core.kvstore
 
-import java.io.{ByteArrayOutputStream, DataOutputStream, File}
+import java.io.{DataOutputStream, File}
 import java.util
 
+import ch.descabato.ByteArrayOutputStream
 import ch.descabato.utils.{BytesWrapper, Utils}
 import ch.descabato.utils.Implicits._
 
@@ -92,7 +93,7 @@ trait KvStoreReader extends AutoCloseable with Iterable[Entry] {
 }
 
 trait IndexedKvStoreReader extends KvStoreReader {
-  lazy val index =  iterator.flatMap {
+  lazy val index = iterator.flatMap {
       case Entry(e, key::value::Nil) => Some((key.bytes, value.startPos))
       case _ => None
     }.toMap
@@ -112,7 +113,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	  val out = new EncryptedRandomAccessFileImpl(file)
     def copyTempOutToOut() = {
       tempOut.flush()
-      val bytes = baos.toByteArray()
+      val bytes = baos.toBytesWrapper()
       out.write(bytes)
       bytes
     }
@@ -127,7 +128,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
   	    val keyInfo = new KeyInfo(key)
   	    keyInfo.iv = encryptionInfo.iv
   	    out.setEncryptionBoundary(keyInfo)
-  	    out.write(CryptoUtils.hmac(array, keyInfo))
+  	    out.write(CryptoUtils.hmac(array.asArray(), keyInfo).wrap())
     }
     def writeKeyDerivationInfo() {
   	    tempOut.writeByte(keyDerivationInfo.algorithm)
@@ -364,7 +365,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
         reader.read(array)
         if (hasCrcIn) {
           val crc = reader.readInt()
-          CrcUtil.checkCrc(array, crc, "Crc failed while reading plain value at "+startPosOfEntry)
+          CrcUtil.checkCrc(array.wrap(), crc, "Crc failed while reading plain value at "+startPosOfEntry)
         }
         array.wrap()
       }

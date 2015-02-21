@@ -63,7 +63,7 @@ class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[Strin
 
 case class KvStoreLocation(file: File, pos: Long) extends Location
 
-class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[String] = None) extends StorageMechanismReader[KvStoreLocation, Array[Byte], Array[Byte]] {
+class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[String] = None) extends StorageMechanismReader[KvStoreLocation, Array[Byte], BytesWrapper] {
   lazy val kvstoreReader = new KvStoreReaderImpl(file, if (passphrase.isDefined) passphrase.get else null)
 
   private var _manifest: MetaInfo = null
@@ -85,7 +85,7 @@ class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[Strin
             true
       }.foreach { e =>
         val json = new JsonSerialization()
-        json.read[MetaInfo](e.parts.last.bytes.asArray()) match {
+        json.read[MetaInfo](e.parts.last.bytes) match {
           case Left(m) => _manifest = m
           case _ => _manifestReadFailed = true
         }
@@ -95,7 +95,7 @@ class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[Strin
   }
   
   def get(loc: KvStoreLocation) = {
-    kvstoreReader.readEntryPartAt(loc.pos).bytes.asArray()
+    kvstoreReader.readEntryPartAt(loc.pos).bytes
   } 
 
   def close(): Unit = {

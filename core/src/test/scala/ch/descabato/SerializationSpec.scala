@@ -21,7 +21,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     new {
 	    type ChainMap = ArrayBuffer[(BytesWrapper, Array[Byte])]
 	    var chainMap : ChainMap = new ChainMap()
-	    chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
+	    chainMap += (("asdf".getBytes.wrap(),"agadfgdsfg".getBytes))
 	    val f = List("README.md", "../README.md").map(new File(_)).filter(_.exists).head
       val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()), new Hash("adsfasdfasdf".getBytes()))
       val fod = new FolderDescription("test.txt", new FileAttributes())
