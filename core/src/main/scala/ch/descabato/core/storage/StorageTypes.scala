@@ -59,7 +59,7 @@ class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[Strin
 
 }
 
-case class KvStoreLocation(val file: File, val pos: Long) extends Location
+case class KvStoreLocation(file: File, pos: Long) extends Location
 
 class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[String] = None) extends StorageMechanismReader[KvStoreLocation, Array[Byte], Array[Byte]] {
   lazy val kvstoreReader = new KvStoreReaderImpl(file, if (passphrase.isDefined) passphrase.get else null)

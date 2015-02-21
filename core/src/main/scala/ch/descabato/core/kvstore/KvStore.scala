@@ -6,7 +6,7 @@ import java.util
 import ch.descabato.core.BaWrapper
 import ch.descabato.utils.Utils
 
-case class EntryType(val markerByte: Byte, val parts: Int)
+case class EntryType(markerByte: Byte, parts: Int)
 
 class EncryptionInfo (
   // algorithm 0 is for AES/CTR/NoPadding

@@ -69,7 +69,7 @@ class FileAttributes extends util.HashMap[String, Any] with Utils {
 
 }
 
-case class MetadataOptions(val saveMetadata: Boolean = false)
+case class MetadataOptions(saveMetadata: Boolean = false)
 
 object FileAttributes extends Utils {
 
@@ -214,9 +214,9 @@ case class SymbolicLink(path: String, linkTarget: String, attrs: FileAttributes)
   def isFolder = false
 }
 
-case class BackupDescription(val files: Vector[FileDescription] = Vector.empty,
-                             val folders: Vector[FolderDescription] = Vector.empty,
-  val symlinks: Vector[SymbolicLink] = Vector.empty, val deleted: Vector[FileDeleted] = Vector.empty) {
+case class BackupDescription(files: Vector[FileDescription] = Vector.empty,
+                             folders: Vector[FolderDescription] = Vector.empty,
+                             symlinks: Vector[SymbolicLink] = Vector.empty, deleted: Vector[FileDeleted] = Vector.empty) {
   def merge(later: BackupDescription) = {
     val set = later.deleted.map(_.path).toSet ++ later.asMap.keySet
     def remove[T <: BackupPart](x: Vector[T]) = {

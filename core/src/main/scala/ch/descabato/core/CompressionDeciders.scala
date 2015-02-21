@@ -28,11 +28,11 @@ object StatisticHelper {
 
   var defaultLimit = 101
 
-  implicit def longbuf2sortedbuf(buf: mutable.Buffer[Long]) = {
+  implicit def longbuf2sortedbuf(buf: mutable.Buffer[Long]): SortedBuffer[Long] = {
     new SortedBuffer[Long](buf)
   }
 
-  implicit def floatbuf2sortedbuf(buf: mutable.Buffer[Float]) = {
+  implicit def floatbuf2sortedbuf(buf: mutable.Buffer[Float]): SortedBuffer[Float] = {
     new SortedBuffer[Float](buf)
   }
 

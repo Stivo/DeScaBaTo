@@ -140,7 +140,7 @@ trait ETACounter extends MaxValueCounter with Utils {
     val last = snapshots.last
     val first = snapshots.head
     val rate = (last.l - first.l) / (last.time - first.time)
-    val remaining = (maxValue - last.l).toDouble
+    val remaining: Double = maxValue - last.l
     val ms = remaining / rate
     readableFileSize((1000 * rate).toLong) + "/s, ETF: " +
       p.format(new Date(System.currentTimeMillis() + ms.toLong))

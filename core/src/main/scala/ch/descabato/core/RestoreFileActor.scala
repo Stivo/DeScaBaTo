@@ -103,7 +103,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
 
   def writeReadyBlocks() {
     // if block can be written, write it
-    while (!unwrittenBlocks.isEmpty && unwrittenBlocks.keySet.min == blockToBeWritten) {
+    while (unwrittenBlocks.nonEmpty && unwrittenBlocks.keySet.min == blockToBeWritten) {
       val array = unwrittenBlocks.head._2
       unwrittenBlocks = unwrittenBlocks.tail
       blockToBeWritten += 1

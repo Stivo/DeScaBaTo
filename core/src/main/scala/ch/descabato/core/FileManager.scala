@@ -78,7 +78,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     name = name.drop(globalPrefix.length)
     if (name.startsWith(tempPrefix))
       name = name.drop(tempPrefix.length)
-    if (!(name.startsWith(prefix)))
+    if (!name.startsWith(prefix))
       return false
     name = name.drop(prefix.length)
     if (hasDate) {

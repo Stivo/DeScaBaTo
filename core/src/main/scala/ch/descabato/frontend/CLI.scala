@@ -1,10 +1,10 @@
 package ch.descabato.frontend
 
-import java.io.PrintStream
+import java.io.{File, PrintStream}
 import java.security.Security
 
 import ch.descabato.core._
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{FileUtils, Utils}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 object CLI extends Utils {
@@ -48,14 +48,21 @@ object CLI extends Utils {
       } else {
         //Thread.sleep(10000)
         try {
-//          FileUtils.deleteAll(new File("L:/testdata/restore1"))
+//          FileUtils.deleteAll(new File("L:/testdata/restore_old1"))
+//            FileUtils.deleteAll(new File("L:/asdf2"))
         } catch {
           case x: Exception =>
         }
 //        parseCommandLine("backup --threads 1 --serializer-type json --hash-algorithm md5 --compression none --volume-size 10mb C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/input".split(" "))
-//
-//        parseCommandLine("backup --threads 40 --compression gzip D:/temp/backupasdf C:/Users/Stivo/Downloads".split(" "))
-//          parseCommandLine("restore --restore-to-folder C:/temp/asdf2 D:/temp/backupasdf".split(" "))
+        //
+        //        parseCommandLine("backup --threads 1 L:\\testdata\\backup1 L:\\testdata\\input1".split(" "))
+        //        parseCommandLine("verify --percent-of-files-to-check 100 L:\\testdata\\backup1".split(" "))
+                parseCommandLine("restore --restore-to-folder L:\\testdata\\restore1 L:\\testdata\\backup1".split(" "))
+
+        //        parseCommandLine("backup --threads 1 --compression gzip L:/asdf2 l:/testdata".split(" "))
+        //        parseCommandLine("restore --no-ansi --no-gui --restore-backup backup_2015-02-21.070952.095_0.kvs --restore-to-folder L:\\testdata\\restore_old1 L:\\testdata\\backup_old1".split(" "))
+//          parseCommandLine("restore --restore-to-folder L:/asdf2 D:/temp/backupasdf".split(" "))
+
 //        parseCommandLine("backup --threads 40 --compression gzip D:/testdata/backup1 L:/testdata/input1".split(" "))
 //        parseCommandLine("restore --restore-to-folder L:/testdata/restore1 L:/testdata/backup1".split(" "))
 

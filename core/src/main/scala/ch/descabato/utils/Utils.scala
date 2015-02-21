@@ -65,8 +65,8 @@ object Utils extends LazyLogging {
 
 object Implicits {
   import scala.language.higherKinds
-  implicit def byteArrayToWrapper(a: Array[Byte]) = new BaWrapper(a)
-  implicit def hashToWrapper(a: Hash) = new BaWrapper(a.bytes)
+  implicit def byteArrayToWrapper(a: Array[Byte]): BaWrapper = new BaWrapper(a)
+  implicit def hashToWrapper(a: Hash): BaWrapper = new BaWrapper(a.bytes)
 
   implicit class ByteBufferUtils(buf: ByteBuffer) {
     def writeTo(out: OutputStream) {

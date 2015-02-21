@@ -82,7 +82,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   class CompressionTasksQueueCounter(name: String, getValue: => Long) extends QueueCounter(name, null) {
     maxValue = queueLimit * 4
 
-    override def update {
+    override def update() {
       try {
         current = getValue
       } catch {
