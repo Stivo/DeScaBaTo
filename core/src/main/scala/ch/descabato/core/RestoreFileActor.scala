@@ -10,6 +10,7 @@ import ch.descabato.utils.{Hash, CompressedStream, Utils}
 import scala.collection.{SortedMap, mutable}
 import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._
+import ch.descabato.utils.Implicits._
 
 trait AkkaRestoreFileHandler extends RestoreFileHandler {
   def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler)
@@ -66,11 +67,11 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
       universe.blockHandler().readBlockAsync(blockHash).map({ bytes =>
         universe.scheduleTask { () =>
           val decomp = CompressedStream.decompressToBytes(bytes)
-          val hash = new Hash(universe.config().createMessageDigest().digest(decomp))
+          val hash = universe.config().createMessageDigest().finish(decomp)
           if (!(hash safeEquals blockHash)) {
             l.warn("Could not reconstruct block "+id+" of file "+destination+" correctly, hash was incorrect")
           }
-          ownRef.blockDecompressed(new Block(id, decomp))
+          ownRef.blockDecompressed(new Block(id, decomp.asArray()))
         }
       })
       nextBlockToRequest += 1

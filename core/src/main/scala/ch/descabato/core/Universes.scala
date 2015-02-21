@@ -6,7 +6,8 @@ import java.security.DigestOutputStream
 import akka.actor.TypedActor.PostRestart
 import ch.descabato.akka.{ActorStats, AkkaUniverse}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
-import ch.descabato.utils.{Hash, Streams, CompressedStream, Utils}
+import ch.descabato.utils._
+import ch.descabato.utils.Implicits._
 import org.apache.commons.compress.utils.IOUtils
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -92,7 +93,7 @@ class SingleThreadHasher extends HashHandler {
     md.reset()
   }
 
-  override def hash(bytes: Array[Byte]) {
+  override def hash(bytes: BytesWrapper) {
     md.update(bytes)
   }
 }

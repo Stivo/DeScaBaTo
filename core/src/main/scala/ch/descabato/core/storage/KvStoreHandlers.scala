@@ -110,15 +110,14 @@ trait SimpleKvStoreHandler[K, V] extends KvStoreHandler[K, K, V] {
   def keyMemToKeyInterface(k: K) = k
 }
 
-trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, BaWrapper, V] {
-  def keyInterfaceToKeyMem(k: Hash): BaWrapper = new BaWrapper(k.bytes)
-  def keyMemToKeyInterface(k: BaWrapper) = new Hash(k.data)
-  def keyMemToStorage(k: BaWrapper): Array[Byte] = k.data
-  def storageToKeyMem(k: Array[Byte]) = new BaWrapper(k)
+trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, BytesWrapper, V] {
+  def keyInterfaceToKeyMem(k: Hash): BytesWrapper = k
+  def keyMemToKeyInterface(k: BytesWrapper) = new Hash(k.asArray())
+  def keyMemToStorage(k: BytesWrapper): Array[Byte] = k.asArray()
+  def storageToKeyMem(k: Array[Byte]) = new BytesWrapper(k)
   def isPersisted(fileHash: Hash): Boolean = {
     ensureLoaded()
-    val mapKey = keyInterfaceToKeyMem(fileHash)
-    persistedEntries safeContains(mapKey)
+    persistedEntries safeContains (fileHash)
   }
 }
 
@@ -206,8 +205,8 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
           case (entry, pos) =>
             persistedEntries += storageToKeyMem(entry) -> pos
             val value = kvstore.get(pos)
-            val decompressed = CompressedStream.decompress(value).readFully()
-            js.read[BackupPart](decompressed) match {
+            val decompressed = CompressedStream.decompressToBytes(value)
+            js.read[BackupPart](decompressed.asArray()) match {
               case Left(x: UpdatePart) => current += x
               case x => throw new IllegalArgumentException("Not implemented for object "+x)
             }
@@ -238,7 +237,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
   def writeBackupPart(fd: BackupPart) {
     val json = js.write(fd)
     val compressed = CompressedStream.compress(json, CompressionMode.deflate)
-    writeEntry(fd.path, compressed.toArray())
+    writeEntry(fd.path, compressed.asArray())
   }
 
   protected def getUnfinished(fd: FileDescription) =
@@ -297,8 +296,8 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
 
   ProgressReporters.addCounter(byteCounter, compressionRatioCounter)
 
-  override def keyMemToStorage(k: BaWrapper): Array[Byte] = k.data
-  override def storageToKeyMem(k: Array[Byte]) = new BaWrapper(k)
+  override def keyMemToStorage(k: BytesWrapper): Array[Byte] = k.asArray()
+  override def storageToKeyMem(k: Array[Byte]) = new BytesWrapper(k)
 
   def fileFinished() {
     universe.journalHandler.finishedFile(currentlyWritingFile.file, fileType)
@@ -339,7 +338,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
     true
   }
 
-  protected var outstandingRequests: HashMap[BaWrapper, Int] = HashMap()
+  protected var outstandingRequests: HashMap[BytesWrapper, Int] = HashMap()
 
   def writeBlockIfNotExists(block: Block) {
     val hash = block.hash
@@ -355,19 +354,19 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
   def writeCompressedBlock(block: Block) {
 
     if (currentlyWritingFile != null) {
-      val currentSize = currentlyWritingFile.length() + block.compressed.remaining() + config.hashLength + 50
+      val currentSize = currentlyWritingFile.length() + block.compressed.length + config.hashLength + 50
       if (currentSize > config.volumeSize.bytes) {
         currentlyWritingFile.close()
         fileFinished()
         currentlyWritingFile = null
       }
     }
-    writeEntry(block.hash, block.compressed.toArray())
+    writeEntry(block.hash, block.compressed.asArray())
     byteCounter += outstandingRequests(block.hash)
     compressionRatioCounter.maxValue += outstandingRequests(block.hash)
     outstandingRequests -= block.hash
-    byteCounter.compressedBytes += block.compressed.remaining()
-    compressionRatioCounter += block.compressed.remaining()
+    byteCounter.compressedBytes += block.compressed.length
+    compressionRatioCounter += block.compressed.length
   }
 
 }

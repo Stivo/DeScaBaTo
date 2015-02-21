@@ -3,7 +3,9 @@ package ch.descabato.utils
 import java.io.{File, InputStream, OutputStream, PrintStream}
 import java.nio.ByteBuffer
 import java.nio.file.Files
+import java.security.MessageDigest
 import java.text.DecimalFormat
+import java.util
 import javax.xml.bind.DatatypeConverter
 
 import ch.descabato.ByteArrayOutputStream
@@ -24,6 +26,62 @@ class Hash(val bytes: Array[Byte]) extends AnyVal {
 
 object NullHash {
   val nul = new Hash(Array.ofDim[Byte](0))
+}
+
+class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {
+  if (length == -1) {
+    length = array.length
+  }
+  def apply(i: Int) = array(i + offset)
+  def asArray(): Array[Byte] = {
+    if (array == null) {
+      Array.empty[Byte]
+    } else {
+      if (offset == 0 && length == array.length) {
+        array
+      } else {
+        val out = Array.ofDim[Byte](length)
+        System.arraycopy(array, offset, out, 0, length)
+        out
+      }
+    }
+  }
+  def equals(other: BytesWrapper): Boolean = {
+    if (this.length != other.length) {
+      return false
+    }
+    var o1 = this.offset
+    var o2 = other.offset
+    val end1 = this.offset + this.length
+    while (o1 < end1) {
+      if (array(o1) != other.array(o2)) {
+        return false
+      }
+      o1 += 1
+      o2 += 1
+    }
+    return true
+  }
+  override def equals(obj: Any): Boolean =
+    obj match {
+      case other: BytesWrapper => equals(other)
+      case _ => false
+    }
+
+  override def hashCode: Int = {
+    if (array == null)
+      return 0
+    var result: Int = 1
+    var i = offset
+    var end = offset + length
+    while (i < end) {
+     result = 31 * result + array(i)
+      i += 1
+    }
+    return result
+  }
+  override def toString() = array.length + ": " + new String(array)
+  def toByteBuffer(): ByteBuffer = ByteBuffer.wrap(array, offset, length)
 }
 
 object Utils extends LazyLogging {
@@ -65,8 +123,28 @@ object Utils extends LazyLogging {
 
 object Implicits {
   import scala.language.higherKinds
-  implicit def byteArrayToWrapper(a: Array[Byte]): BaWrapper = new BaWrapper(a)
-  implicit def hashToWrapper(a: Hash): BaWrapper = new BaWrapper(a.bytes)
+  implicit def byteArrayToWrapper(a: Array[Byte]): BytesWrapper = new BytesWrapper(a)
+  implicit def hashToWrapper(a: Hash): BytesWrapper = new BytesWrapper(a.bytes)
+  implicit class AwareMessageDigest(md: MessageDigest) {
+    def update(bytesWrapper: BytesWrapper): Unit = {
+      md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
+    }
+    def finish(bytesWrapper: BytesWrapper): Hash = {
+      md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
+      new Hash(md.digest())
+    }
+    def finish(): Hash = {
+      new Hash(md.digest())
+    }
+  }
+  implicit class AwareOutputStream(os: OutputStream) {
+    def write(bytesWrapper: BytesWrapper) {
+      os.write(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
+    }
+  }
+  implicit class AwareByteArray(array: Array[Byte]) {
+    def wrap(): BytesWrapper = new BytesWrapper(array)
+  }
 
   implicit class ByteBufferUtils(buf: ByteBuffer) {
     def writeTo(out: OutputStream) {

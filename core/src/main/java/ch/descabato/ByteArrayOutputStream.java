@@ -1,5 +1,6 @@
 package ch.descabato;
 
+import ch.descabato.utils.BytesWrapper;
 import ch.descabato.utils.ObjectPools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,6 +184,9 @@ public class ByteArrayOutputStream extends OutputStream {
 		return ByteBuffer.wrap(buf, 0, count);
     }
 
+    public BytesWrapper toBytesWrapper() {
+        return new BytesWrapper(buf, 0, count);
+    }
     /**
      * Returns the current size of the buffer.
      *

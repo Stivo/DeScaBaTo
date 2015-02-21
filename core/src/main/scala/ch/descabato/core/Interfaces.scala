@@ -7,7 +7,7 @@ import java.util.Date
 
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{NullHash, Hash, ObjectPools, Streams}
+import ch.descabato.utils._
 
 import scala.concurrent.Future
 
@@ -163,7 +163,7 @@ trait BlockHandler extends BackupActor with CanVerify {
 }
 
 trait HashHandler extends BackupActor with PureLifeCycle {
-  def hash(bytes: Array[Byte])
+  def hash(bytes: BytesWrapper)
   def finish(f: Hash => Unit)
 }
 

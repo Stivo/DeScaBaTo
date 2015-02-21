@@ -15,14 +15,14 @@ import org.tukaani.xz.{LZMA2Options, XZInputStream, XZOutputStream}
  */
 object CompressedStream extends Utils {
   
-  def compress(content: Array[Byte], compressor: CompressionMode) : ByteBuffer = {
+  def compress(content: Array[Byte], compressor: CompressionMode) : BytesWrapper = {
     val byte = compressor.getByte()
     val baos = new ByteArrayOutputStream(content.length+16)
     baos.write(byte)
     val wrapped = getCompressor(byte, baos, Some(content.length))
     wrapped.write(content)
     wrapped.close()
-    baos.toByteBuffer()
+    baos.toBytesWrapper()
   }
 
   def roundUp(x: Int) = {
@@ -69,11 +69,11 @@ object CompressedStream extends Utils {
     }
   }
 
-  def decompressToBytes(input: Array[Byte]): Array[Byte] = {
+  def decompressToBytes(input: Array[Byte]): BytesWrapper = {
     val stream = decompress(input)
     val baos = new ByteArrayOutputStream()
     Streams.copy(stream, baos)
-    baos.toByteArray
+    baos.toBytesWrapper
   }
 
 }

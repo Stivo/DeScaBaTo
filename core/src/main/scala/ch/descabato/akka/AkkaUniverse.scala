@@ -13,7 +13,8 @@ import akka.routing.{DefaultResizer, RoundRobinPool, Routee}
 import ch.descabato.core.{BackupFolderConfiguration, _}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
-import ch.descabato.utils.{Hash, Utils}
+import ch.descabato.utils.{BytesWrapper, Hash, Utils}
+import ch.descabato.utils.Implicits._
 import com.typesafe.config.Config
 
 import scala.collection.immutable.HashMap
@@ -328,7 +329,7 @@ class AkkaHasher extends HashFileHandler with UniversePart with PureLifeCycle wi
       val actor = uni.actorOf[HashHandler, AkkaHashActor]("hasher for " + s, withCounter = false)
       map += s -> actor
     }
-    map(s).hash(block.content)
+    map(s).hash(block.content.wrap())
   }
 
   def finish(fd: FileDescription) {
@@ -359,7 +360,7 @@ class AkkaHashActor extends SingleThreadHasher with AkkaUniversePart {
     subtract1
   }
 
-  override def hash(bytes: Array[Byte]) {
+  override def hash(bytes: BytesWrapper) {
     super.hash(bytes)
     subtract1
   }

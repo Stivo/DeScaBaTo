@@ -161,7 +161,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
         b
     }
     var resultArrived = false
-    def ratio = 1.0f * block.compressed.remaining() / block.content.length
+    def ratio = 1.0f * block.compressed.length / block.content.length
   }
   
   val extensions = mutable.HashMap[String, SamplingData]() 
@@ -181,7 +181,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
   def blockCompressed(block: Block, nanoTime: Long) {
     val toSave = mutable.Buffer[Block]()
     if (block.uncompressedLength == config.blockSize.bytes) {
-      val set = speeds(block.compressed.get(0))
+      val set = speeds(block.compressed(0))
       set insertSorted (nanoTime)
     }
     val ext = extension(block)

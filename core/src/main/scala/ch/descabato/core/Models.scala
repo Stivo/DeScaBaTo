@@ -184,12 +184,7 @@ class Block(val id: BlockId, var content: Array[Byte]) {
   val uncompressedLength = content.length
   @volatile var hash: Hash = NullHash.nul
   @volatile var mode: CompressionMode = null
-  @volatile var compressed: ByteBuffer = null
-  def recycle() {
-    if (compressed != null && compressed.array() != content)
-      compressed.recycle()
-    ObjectPools.byteArrayPool.recycle(content)
-  }
+  @volatile var compressed: BytesWrapper = null
 }
 
 case class FolderDescription(path: String, attrs: FileAttributes) extends BackupPart {

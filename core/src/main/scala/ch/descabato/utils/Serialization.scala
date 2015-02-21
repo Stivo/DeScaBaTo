@@ -51,23 +51,23 @@ abstract class AbstractJacksonSerialization extends Serialization {
       }
     }
   }
-  class BaWrapperDeserializer extends StdDeserializer[BaWrapper](classOf[BaWrapper]) {
+  class BaWrapperDeserializer extends StdDeserializer[BytesWrapper](classOf[BytesWrapper]) {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
       val bytes = jp.readValueAs(classOf[Array[Byte]])
       bytes
     }
   }
-  class BaWrapperSerializer extends StdSerializer[BaWrapper](classOf[BaWrapper]) {
-    def serialize(ba: BaWrapper, jg: JsonGenerator, prov: SerializerProvider): Unit = {
-      jg.writeBinary(ba.data)
+  class BaWrapperSerializer extends StdSerializer[BytesWrapper](classOf[BytesWrapper]) {
+    def serialize(ba: BytesWrapper, jg: JsonGenerator, prov: SerializerProvider): Unit = {
+      jg.writeBinary(ba.asArray())
     }
   }
 
   val testModule = new SimpleModule("DeScaBaTo", new Version(0, 4, 0, null, "ch.descabato", "core"))
   testModule.addDeserializer(classOf[UpdatePart], new UpdatePartDeserializer())
   testModule.addDeserializer(classOf[BackupPart], new BackupPartDeserializer())
-  testModule.addDeserializer(classOf[BaWrapper], new BaWrapperDeserializer())
-  testModule.addSerializer(classOf[BaWrapper], new BaWrapperSerializer())
+  testModule.addDeserializer(classOf[BytesWrapper], new BaWrapperDeserializer())
+  testModule.addSerializer(classOf[BytesWrapper], new BaWrapperSerializer())
 
   def mapper: ObjectMapper with ScalaObjectMapper
 
