@@ -1,15 +1,13 @@
 package ch.descabato.core
 
-import java.io.{OutputStream, FileOutputStream, File}
-import java.security.{DigestOutputStream, MessageDigest}
-import java.util
+import java.io.{File, FileOutputStream, OutputStream}
 
-import akka.actor.{TypedActor, PoisonPill, Props, Actor}
-import ch.descabato.akka.{AkkaUniversePart, AkkaUniverse, ActorStats}
-import ch.descabato.utils.{Utils, CompressedStream}
-import scala.concurrent.{Promise, future, promise, Future}
+import akka.actor.{PoisonPill, TypedActor}
+import ch.descabato.akka.AkkaUniversePart
+import ch.descabato.utils.{CompressedStream, Utils}
 
 import scala.collection.{SortedMap, mutable}
+import scala.concurrent.{Future, Promise}
 
 trait AkkaRestoreFileHandler extends RestoreFileHandler {
   def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler)
@@ -53,7 +51,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     while (unwrittenBlocks.size + pendingBlocks.size < maxPending && nextBlockToRequest < numberOfBlocks) {
       val id = new BlockId(fd, nextBlockToRequest)
       pendingBlocks += nextBlockToRequest
-      universe.blockHandler().readBlockRaw(hashList(nextBlockToRequest)).map({ bytes =>
+      universe.blockHandler().readBlockAsync(hashList(nextBlockToRequest)).map({ bytes =>
         universe.scheduleTask { () =>
           val decomp = CompressedStream.decompressToBytes(bytes)
           ownRef.blockDecompressed(new Block(id, decomp))

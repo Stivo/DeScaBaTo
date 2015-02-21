@@ -303,10 +303,14 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
     }
   }
 
-  override def readBlockRaw(hash: Array[Byte]): Future[Array[Byte]] = {
+  override def readBlockAsync(hash: Array[Byte]): Future[Array[Byte]] = {
     Future.successful {
-      readEntry(hash)._1
+      readBlock(hash)
     }
+  }
+
+  override def readBlock(hash: Array[Byte]): Array[Byte] = {
+      readEntry(hash)._1
   }
 
   override def checkIfCheckpoint() = false

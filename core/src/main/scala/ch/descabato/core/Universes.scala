@@ -119,14 +119,9 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
       destination.getParentFile.mkdirs()
       val os = new FileOutputStream(destination)
       for (hash <- hashList) {
-        val f = universe.blockHandler().readBlockRaw(hash)
-        f.onSuccess { case in =>
+        val in = universe.blockHandler().readBlock(hash)
           val decomp = CompressedStream.decompressToBytes(in)
           os.write(decomp)
-        }
-        f.onFailure { case e =>
-          return Future.failed(e)
-        }
       }
       Future.successful(true)
     } catch {

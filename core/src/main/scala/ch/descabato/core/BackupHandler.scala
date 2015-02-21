@@ -9,7 +9,7 @@ import java.util.Date
 import ch.descabato.akka.AkkaUniverse
 import ch.descabato.frontend._
 import ch.descabato.utils.Streams._
-import ch.descabato.utils.{FileUtils, Utils}
+import ch.descabato.utils.{CompressedStream, FileUtils, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.ForkJoinTaskSupport
@@ -61,25 +61,7 @@ trait BackupRelatedHandler {
       List(fd.hash)
   }
 
-  def readBlock(hash: Array[Byte], verify: Boolean = false) = universe.blockHandler().readBlock(hash, verify)
 
-  def getInputStream(fd: FileDescription): InputStream = {
-    val hashes = getHashlistForFile(fd)
-    val enumeration = new util.Enumeration[InputStream]() {
-      val hashIterator = hashes.iterator
-      def hasMoreElements = hashIterator.hasNext
-      def nextElement = {
-        try {
-          readBlock(hashIterator.next, verify = true)
-        } catch {
-          case x: Exception =>
-            l.info("Exception while getting next element in stream",x)
-          throw new Throwable()
-        }
-      }
-    }
-    new SequenceInputStream(enumeration)
-  }
 }
 
 class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {
@@ -522,18 +504,31 @@ class VerifyHandler(val universe: Universe)
     val tests = getRandomXElements(probes, files)
     setMaximums(tests, withGui = true)
     tests.foreach { file =>
-      val in = getInputStream(file)
-      val hos = new HashingOutputStream(config.hashAlgorithm)
-      def p(x: Int) { byteCounter += x }
-      copy(in, hos, Some(p))
-      if (!util.Arrays.equals(file.hash, hos.out.get)) {
+      val hashList = getHashlistForFile(file)
+      val md = config.getMessageDigest()
+      for (blockHash <- hashList) {
+        val bytes = getChunk(blockHash)
+        md.update(bytes)
+        byteCounter += bytes.length
+      }
+      val hash = md.digest()
+      if (!util.Arrays.equals(file.hash, hash)) {
         l.warn("File " + file + " is broken in backup")
-        l.warn(Utils.encodeBase64Url(file.hash) + " " + Utils.encodeBase64Url(hos.out.get))
+        l.warn(Utils.encodeBase64Url(file.hash) + " " + Utils.encodeBase64Url(hash))
         problemCounter += 1
       }
       fileCounter += 1
     }
     ProgressReporters.activeCounters = Nil
+  }
+
+  def getChunk(blockHash: Array[Byte]) = {
+    val compressed = universe.blockHandler().readBlock(blockHash)
+    val ret = CompressedStream.decompressToBytes(compressed)
+    // TODO fix this
+//    if (config.getMessageDigest().digest(ret) safeEquals blockHash) {
+//    }
+    ret
   }
 
 }

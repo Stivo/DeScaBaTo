@@ -172,8 +172,8 @@ trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def writeBlockIfNotExists(blockWrapper: Block)
   def getAllPersistedKeys(): Set[BaWrapper]
   def isPersisted(hash: Array[Byte]): Boolean
-  def readBlock(hash: Array[Byte], verify: Boolean): InputStream
-  def readBlockRaw(hash: Array[Byte]): Future[Array[Byte]]
+  def readBlockAsync(hash: Array[Byte]): Future[Array[Byte]]
+  def readBlock(hash: Array[Byte]): Array[Byte]
   def writeCompressedBlock(blockWrapper: Block)
   def remaining: Int
   def setTotalSize(size: Long)

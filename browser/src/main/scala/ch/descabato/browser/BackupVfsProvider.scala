@@ -1,9 +1,11 @@
 package ch.descabato.browser
 
+import java.io.{SequenceInputStream, InputStream}
+import java.util
 import java.util.{ArrayList, Collection, Date}
 
 import ch.descabato.core.{FileDescription, FolderDescription, _}
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{CompressedStream, Utils}
 import org.apache.commons.vfs2.provider.{AbstractFileName, AbstractFileObject, AbstractFileSystem, AbstractLayeredFileProvider, FileProvider, LayeredFileName}
 import org.apache.commons.vfs2.{Capability, FileName, FileObject, FileSystemOptions, FileType => VfsFileType}
 
@@ -159,4 +161,16 @@ class VfsIndex(universe: Universe)
     BackupVfsProvider.indexes += Utils.normalizePath(path) -> this
   }
 
+  def getInputStream(fd: FileDescription): InputStream = {
+    val e = new util.Enumeration[InputStream]() {
+      val it = getHashlistForFile(fd).iterator
+      override def hasMoreElements: Boolean = it.hasNext
+
+      override def nextElement(): InputStream = {
+        val b = universe.blockHandler().readBlock(it.next())
+        CompressedStream.decompress(b)
+      }
+    }
+    new SequenceInputStream(e)
+  }
 }
