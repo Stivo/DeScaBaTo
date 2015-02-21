@@ -194,7 +194,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
           val wrapper = new Block(bid, block)
           val wrapper2 = new Block(bid, block)
           universe.scheduleTask { () =>
-            val md = universe.config.getMessageDigest
+            val md = universe.config.createMessageDigest
             wrapper2.hash = new Hash(md.digest(wrapper2.content))
             universe.backupPartHandler.hashComputed(wrapper2)
           }
@@ -506,7 +506,7 @@ class VerifyHandler(val universe: Universe)
     setMaximums(tests, withGui = true)
     tests.foreach { file =>
       val hashList = getHashlistForFile(file)
-      val md = config.getMessageDigest()
+      val md = config.createMessageDigest()
       for (blockHash <- hashList) {
         val bytes = getChunk(blockHash)
         md.update(bytes)

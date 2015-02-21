@@ -85,7 +85,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
 }
 
 class SingleThreadHasher extends HashHandler {
-  lazy val md = universe.config.getMessageDigest
+  lazy val md = universe.config.createMessageDigest
 
   def finish(f: Hash => Unit) {
     f(new Hash(md.digest()))

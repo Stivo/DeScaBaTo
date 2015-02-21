@@ -19,20 +19,23 @@ trait AkkaRestoreFileHandler extends RestoreFileHandler {
 class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniversePart {
   val maxPending: Int = 100
   val p = Promise[Boolean]
-  lazy val digest = config.getMessageDigest
+  lazy val digest = config.createMessageDigest
 
+  // initialized in setup
   var hashHandler: HashHandler = null
   var writeFileHandler: WriteFileHandler = null
   var ownRef: AkkaRestoreFileHandler = null
   var fd: FileDescription = null
   var destination: File = null
 
+  // initialized in startRestore
+  var hashList: Array[Hash] = null
+  var outputStream: OutputStream = null
+  
   var unwrittenBlocks = SortedMap.empty[Int, Block]
   var pendingBlocks = mutable.Set.empty[Int]
-  var outputStream: OutputStream = null;
   var nextBlockToRequest: Int = 0
   var blockToBeWritten = 0
-  var hashList: Array[Hash] = null
   var numberOfBlocks = 0
 
   def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler): Unit = {
@@ -55,7 +58,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     }
   }
 
-  def fillUpQueue() {
+  def fillQueue() {
     while (unwrittenBlocks.size + pendingBlocks.size < maxPending && nextBlockToRequest < numberOfBlocks) {
       val id = new BlockId(fd, nextBlockToRequest)
       pendingBlocks += nextBlockToRequest
@@ -63,7 +66,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
       universe.blockHandler().readBlockAsync(blockHash).map({ bytes =>
         universe.scheduleTask { () =>
           val decomp = CompressedStream.decompressToBytes(bytes)
-          val hash = new Hash(universe.config().getMessageDigest().digest(decomp))
+          val hash = new Hash(universe.config().createMessageDigest().digest(decomp))
           if (!(hash safeEquals blockHash)) {
             l.warn("Could not reconstruct block "+id+" of file "+destination+" correctly, hash was incorrect")
           }
@@ -82,7 +85,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     }
     numberOfBlocks = hashList.length
 
-    fillUpQueue()
+    fillQueue()
   }
 
   override def blockDecompressed(block: Block): Unit = {
@@ -90,6 +93,15 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     pendingBlocks -= block.id.part
     unwrittenBlocks += (block.id.part -> block)
 
+    writeReadyBlocks()
+    fillQueue()
+
+    if (blockToBeWritten == numberOfBlocks) {
+      finish()
+    }
+  }
+
+  def writeReadyBlocks() {
     // if block can be written, write it
     while (!unwrittenBlocks.isEmpty && unwrittenBlocks.keySet.min == blockToBeWritten) {
       val array = unwrittenBlocks.head._2
@@ -99,28 +111,28 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
       add1
       hashHandler.hash(array.content)
     }
-    fillUpQueue()
-    if (blockToBeWritten == numberOfBlocks) {
-      // if finished: wait for write actor and kill it, wait for hash result, fulfill promise
-      val result = Await.result(writeFileHandler.finish(), 5.minutes)
-      TypedActor.get(uni.system).getActorRefFor(writeFileHandler) ! PoisonPill
-      val hashPromise = Promise[Hash]
-      hashHandler.finish{ hash =>
-        hashPromise.success(hash)
-      }
-      val computedHash = Await.result(hashPromise.future, 5.minutes)
-      TypedActor.get(uni.system).getActorRefFor(hashHandler) ! PoisonPill
-      //    fulfill the promise
-      if (! (fd.hash safeEquals computedHash)) {
-        l.warn("Could not reconstruct file exactly " + destination.getAbsolutePath)
-        p.success(false)
-      } else {
-        p.success(result)
-      }
-      TypedActor.get(uni.system).getActorRefFor(ownRef) ! PoisonPill
-    }
   }
 
+  def finish(): Unit = {
+    // if finished: wait for write actor and kill it, wait for hash result, fulfill promise
+    val result = Await.result(writeFileHandler.finish(), 5.minutes)
+    TypedActor.get(uni.system).getActorRefFor(writeFileHandler) ! PoisonPill
+    val hashPromise = Promise[Hash]
+    hashHandler.finish{ hash =>
+      hashPromise.success(hash)
+    }
+    val computedHash = Await.result(hashPromise.future, 5.minutes)
+    TypedActor.get(uni.system).getActorRefFor(hashHandler) ! PoisonPill
+    //    fulfill the promise
+    if (! (fd.hash safeEquals computedHash)) {
+      l.warn("Could not reconstruct file exactly " + destination.getAbsolutePath)
+      p.success(false)
+    } else {
+      p.success(result)
+    }
+    TypedActor.get(uni.system).getActorRefFor(ownRef) ! PoisonPill
+
+  }
 }
 
 trait WriteFileHandler {

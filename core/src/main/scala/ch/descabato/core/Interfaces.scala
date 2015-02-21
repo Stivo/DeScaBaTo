@@ -39,6 +39,7 @@ trait PureLifeCycle extends LifeCycle {
   def shutdown() = ret
   def finish() = true
 }
+trait BackupActor extends UniversePart with LifeCycle
 
 trait Universe extends LifeCycle {
   def config(): BackupFolderConfiguration
@@ -76,7 +77,7 @@ trait Universe extends LifeCycle {
   }
 }
 
-trait JournalHandler extends UniversePart with LifeCycle {
+trait JournalHandler extends BackupActor {
   // Saves this file in the journal as finished
   // Makes an effort to sync it to the file system
   def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false): BlockingOperation
@@ -94,22 +95,6 @@ trait JournalHandler extends UniversePart with LifeCycle {
   def startWriting(): BlockingOperation
   def stopWriting(): BlockingOperation
 }
-
-case class BlockId(file: FileDescription, part: Int)
-
-class Block(val id: BlockId, var content: Array[Byte]) {
-  val uncompressedLength = content.length 
-  @volatile var hash: Hash = NullHash.nul
-  @volatile var mode: CompressionMode = null
-  @volatile var compressed: ByteBuffer = null
-  def recycle() {
-    if (compressed != null && compressed.array() != content)
-      compressed.recycle()
-    ObjectPools.byteArrayPool.recycle(content)
-  }
-}
-
-trait BackupActor extends UniversePart with LifeCycle
 
 // TODO implement this again? or design it better?
 trait RedundancyHandler extends UniversePart with MustFinish {
@@ -161,13 +146,13 @@ trait BackupPartHandler extends BackupActor {
   def remaining(): Int
 }
 
-trait HashListHandler extends BackupActor with UniversePart {
+trait HashListHandler extends BackupActor {
   def addHashlist(fileHash: Hash, hashList: Array[Byte])
   def getHashlist(fileHash: Hash, size: Long): Seq[Hash]
   def isPersisted(fileHash: Hash): Boolean
 }
 
-trait BlockHandler extends BackupActor with UniversePart with CanVerify {
+trait BlockHandler extends BackupActor with CanVerify {
   def writeBlockIfNotExists(blockWrapper: Block)
   def isPersisted(hash: Hash): Boolean
   def readBlockAsync(hash: Hash): Future[Array[Byte]]
@@ -177,12 +162,12 @@ trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def setTotalSize(size: Long)
 }
 
-trait HashHandler extends UniversePart with PureLifeCycle {
+trait HashHandler extends BackupActor with PureLifeCycle {
   def hash(bytes: Array[Byte])
   def finish(f: Hash => Unit)
 }
 
-trait HashFileHandler extends LifeCycle with UniversePart {
+trait HashFileHandler extends BackupActor {
     // Hash this block of this file
   def hash(blockwrapper: Block)
   // Finish this file, call backupparthandler 

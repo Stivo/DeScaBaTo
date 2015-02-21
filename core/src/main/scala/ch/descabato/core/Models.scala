@@ -2,6 +2,7 @@ package ch.descabato.core
 
 import java.io.{File, IOException}
 import java.math.{BigDecimal => JBigDecimal}
+import java.nio.ByteBuffer
 import java.nio.file.attribute.{BasicFileAttributes, FileTime, PosixFileAttributeView, PosixFileAttributes, PosixFilePermissions}
 import java.nio.file.{Files, LinkOption, Path}
 import java.security.{MessageDigest, Principal}
@@ -10,9 +11,7 @@ import java.util.regex.Pattern
 
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Hash
-import ch.descabato.utils.NullHash
-import ch.descabato.utils.{JsonSerialization, SmileSerialization, Utils}
+import ch.descabato.utils._
 import com.fasterxml.jackson.annotation.JsonIgnore
 
 import scala.collection.JavaConverters._
@@ -30,9 +29,9 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   }
   var keyLength = 128
   var compressor = CompressionMode.smart
-  def hashLength = getMessageDigest().getDigestLength()
+  def hashLength = createMessageDigest().getDigestLength()
   var hashAlgorithm = "MD5"
-  @JsonIgnore def getMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
+  @JsonIgnore def createMessageDigest() = MessageDigest.getInstance(hashAlgorithm)
   var blockSize: Size = Size("16Kb")
   var volumeSize: Size = Size("100Mb")
   var threads: Int = 1
@@ -179,6 +178,20 @@ case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash
   }
 }
 
+case class BlockId(file: FileDescription, part: Int)
+
+class Block(val id: BlockId, var content: Array[Byte]) {
+  val uncompressedLength = content.length
+  @volatile var hash: Hash = NullHash.nul
+  @volatile var mode: CompressionMode = null
+  @volatile var compressed: ByteBuffer = null
+  def recycle() {
+    if (compressed != null && compressed.array() != content)
+      compressed.recycle()
+    ObjectPools.byteArrayPool.recycle(content)
+  }
+}
+
 case class FolderDescription(path: String, attrs: FileAttributes) extends BackupPart {
   @JsonIgnore val size = 0L
   @JsonIgnore def isFolder = true
@@ -272,7 +285,5 @@ object Size {
     new Size(out)
   }
 }
-
-case class ZipEntryDescription(filename: String, serializerType: String, objectType: String)
 
 case class MetaInfo(date: String, writingVersion: String)

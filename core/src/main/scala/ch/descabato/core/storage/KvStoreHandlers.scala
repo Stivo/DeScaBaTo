@@ -308,7 +308,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
     val (entry, pos) = readEntry(hash)
     val out2 = new ExceptionCatchingInputStream(CompressedStream.decompress(entry), pos.file)
     if (verify) {
-      new VerifyInputStream(out2, config.getMessageDigest(), hash.bytes, pos.file)
+      new VerifyInputStream(out2, config.createMessageDigest(), hash.bytes, pos.file)
     } else {
       out2
     }
