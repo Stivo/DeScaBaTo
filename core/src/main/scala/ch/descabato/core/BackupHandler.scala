@@ -9,7 +9,8 @@ import java.util.Date
 import ch.descabato.akka.AkkaUniverse
 import ch.descabato.frontend._
 import ch.descabato.utils.Streams._
-import ch.descabato.utils.{CompressedStream, FileUtils, Utils}
+import ch.descabato.utils.Implicits._
+import ch.descabato.utils.{Hash, CompressedStream, FileUtils, Utils}
 
 import scala.collection.mutable
 import scala.collection.parallel.ForkJoinTaskSupport
@@ -54,7 +55,7 @@ trait BackupRelatedHandler {
     out
   }
 
-  def getHashlistForFile(fd: FileDescription): Seq[Array[Byte]] = {
+  def getHashlistForFile(fd: FileDescription): Seq[Hash] = {
     if (fd.size > universe.config.blockSize.bytes) {
       universe.hashListHandler().getHashlist(fd.hash, fd.size)
     } else
@@ -105,9 +106,9 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     l.info("Deleted files  : " + statistics(deletedDesc))
     if (universe.journalHandler().isInconsistentBackup()) {
       def finished(fileDesc: FileDescription): Boolean = {
-        if (fileDesc.hash == null)
+        if (fileDesc.hash.isNull)
           return false
-        var blocks: Iterable[Array[Byte]] = List(fileDesc.hash)
+        var blocks: Iterable[Hash] = List(fileDesc.hash)
         if (fileDesc.size > config.blockSize.bytes) {
           if (!universe.hashListHandler().isPersisted(fileDesc.hash)) {
             return false
@@ -194,7 +195,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
           val wrapper2 = new Block(bid, block)
           universe.scheduleTask { () =>
             val md = universe.config.getMessageDigest
-            wrapper2.hash = md.digest(wrapper2.content)
+            wrapper2.hash = new Hash(md.digest(wrapper2.content))
             universe.backupPartHandler.hashComputed(wrapper2)
           }
           universe.hashHandler.hash(wrapper2)
@@ -511,10 +512,10 @@ class VerifyHandler(val universe: Universe)
         md.update(bytes)
         byteCounter += bytes.length
       }
-      val hash = md.digest()
-      if (!util.Arrays.equals(file.hash, hash)) {
+      val hash = new Hash(md.digest())
+      if (!(file.hash safeEquals hash)) {
         l.warn("File " + file + " is broken in backup")
-        l.warn(Utils.encodeBase64Url(file.hash) + " " + Utils.encodeBase64Url(hash))
+        l.warn(file.hash.base64 + " " + hash.base64)
         problemCounter += 1
       }
       fileCounter += 1
@@ -522,7 +523,7 @@ class VerifyHandler(val universe: Universe)
     ProgressReporters.activeCounters = Nil
   }
 
-  def getChunk(blockHash: Array[Byte]) = {
+  def getChunk(blockHash: Hash) = {
     val compressed = universe.blockHandler().readBlock(blockHash)
     val ret = CompressedStream.decompressToBytes(compressed)
     // TODO fix this

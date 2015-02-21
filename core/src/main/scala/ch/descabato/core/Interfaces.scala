@@ -7,7 +7,7 @@ import java.util.Date
 
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{ObjectPools, Streams}
+import ch.descabato.utils.{NullHash, Hash, ObjectPools, Streams}
 
 import scala.concurrent.Future
 
@@ -45,7 +45,7 @@ trait Universe extends LifeCycle {
   def backupPartHandler(): BackupPartHandler
   def hashListHandler(): HashListHandler
   def blockHandler(): BlockHandler
-  def hashHandler(): HashHandler
+  def hashHandler(): HashFileHandler
   def journalHandler(): JournalHandler
   def redundancyHandler(): RedundancyHandler = {
       new NoOpRedundancyHandler()
@@ -99,7 +99,7 @@ case class BlockId(file: FileDescription, part: Int)
 
 class Block(val id: BlockId, var content: Array[Byte]) {
   val uncompressedLength = content.length 
-  @volatile var hash: Array[Byte] = null
+  @volatile var hash: Hash = NullHash.nul
   @volatile var mode: CompressionMode = null
   @volatile var compressed: ByteBuffer = null
   def recycle() {
@@ -149,7 +149,7 @@ trait BackupPartHandler extends BackupActor {
   def setFiles(finishedFiles: BackupDescription, unfinishedFiles: BackupDescription)
 
   // sets the hash for this file
-  def hashForFile(fd: FileDescription, hash: Array[Byte])
+  def hashForFile(fd: FileDescription, hash: Hash)
 
   // Sets this file as failed
   def fileFailed(fd: FileDescription)
@@ -162,24 +162,27 @@ trait BackupPartHandler extends BackupActor {
 }
 
 trait HashListHandler extends BackupActor with UniversePart {
-  def addHashlist(fileHash: Array[Byte], hashList: Array[Byte])
-  def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]]
-  def getAllPersistedKeys(): Set[BaWrapper]
-  def isPersisted(fileHash: Array[Byte]) = getAllPersistedKeys safeContains fileHash
+  def addHashlist(fileHash: Hash, hashList: Array[Byte])
+  def getHashlist(fileHash: Hash, size: Long): Seq[Hash]
+  def isPersisted(fileHash: Hash): Boolean
 }
 
 trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def writeBlockIfNotExists(blockWrapper: Block)
-  def getAllPersistedKeys(): Set[BaWrapper]
-  def isPersisted(hash: Array[Byte]): Boolean
-  def readBlockAsync(hash: Array[Byte]): Future[Array[Byte]]
-  def readBlock(hash: Array[Byte]): Array[Byte]
+  def isPersisted(hash: Hash): Boolean
+  def readBlockAsync(hash: Hash): Future[Array[Byte]]
+  def readBlock(hash: Hash): Array[Byte]
   def writeCompressedBlock(blockWrapper: Block)
   def remaining: Int
   def setTotalSize(size: Long)
 }
 
-trait HashHandler extends LifeCycle with UniversePart {
+trait HashHandler {
+  def hash(bytes: Array[Byte])
+  def finish(f: Hash => Unit)
+}
+
+trait HashFileHandler extends LifeCycle with UniversePart {
     // Hash this block of this file
   def hash(blockwrapper: Block)
   // Finish this file, call backupparthandler 

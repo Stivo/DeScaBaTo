@@ -4,7 +4,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{Hash, Utils}
 
 import scala.collection.mutable
 
@@ -187,7 +187,7 @@ class FileManager(override val universe: Universe) extends UniversePart {
 
   val volumes = new FileType[Volume]("volume_", false, ".kvs", localC = false)
   val volumeIndex = new IndexFileType(volumes)
-  val hashlists = new FileType[Vector[(BaWrapper, Array[Byte])]]("hashlists_", false, ".kvs")
+  val hashlists = new FileType[Vector[(Hash, Array[Byte])]]("hashlists_", false, ".kvs")
   val backup = new FileType[BackupDescription]("backup_", true, ".kvs", hasDateC = true)
   val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta_", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)

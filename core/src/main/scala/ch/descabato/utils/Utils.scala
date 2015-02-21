@@ -13,6 +13,19 @@ import sun.nio.ch.DirectBuffer
 
 import scala.language.implicitConversions
 
+class Hash(val bytes: Array[Byte]) extends AnyVal {
+  def length = bytes.length
+  def base64 = Utils.encodeBase64Url(bytes)
+  def isNull = length == 0
+  // minimal size of hash is 16
+  def isNotNull = !isNull
+  def safeEquals(other: Hash) = java.util.Arrays.equals(bytes, other.bytes)
+}
+
+object NullHash {
+  val nul = new Hash(Array.ofDim[Byte](0))
+}
+
 object Utils extends LazyLogging {
   
   private val units = Array[String]("B", "KB", "MB", "GB", "TB")
@@ -53,7 +66,8 @@ object Utils extends LazyLogging {
 object Implicits {
   import scala.language.higherKinds
   implicit def byteArrayToWrapper(a: Array[Byte]) = new BaWrapper(a)
-  
+  implicit def hashToWrapper(a: Hash) = new BaWrapper(a.bytes)
+
   implicit class ByteBufferUtils(buf: ByteBuffer) {
     def writeTo(out: OutputStream) {
       if (buf.hasArray()) {

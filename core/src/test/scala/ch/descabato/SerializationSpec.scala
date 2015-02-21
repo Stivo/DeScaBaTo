@@ -23,7 +23,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
 	    var chainMap : ChainMap = new ChainMap()
 	    chainMap += (("asdf".getBytes,"agadfgdsfg".getBytes))
 	    val f = List("README.md", "../README.md").map(new File(_)).filter(_.exists).head
-      val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()), "adsfasdfasdf".getBytes())
+      val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()), new Hash("adsfasdfasdf".getBytes()))
       val fod = new FolderDescription("test.txt", new FileAttributes())
       val fd = new FileDeleted("asdf")
 	    val symLink = new SymbolicLink("test", "asdf", new FileAttributes())
@@ -47,7 +47,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     import f._
     val fidAfter = writeAndRead(ser, fid)
     assert(fid === fidAfter)
-    assert(util.Arrays.equals(fid.hash, fidAfter.hash))
+    assert(fid.hash safeEquals fidAfter.hash)
     assert(fid.attrs.keys === fidAfter.attrs.keys)
     fidAfter.attrs.keys should contain ("lastModifiedTime")
     chainMap.map(_._1) should equal (writeAndRead(ser, chainMap).map(_._1))
@@ -58,7 +58,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     assert(bd === writeAndRead(ser, bd))
     (list.head, listAfter.head) match {
       case (x: FileDescription, y: FileDescription) => 
-        assert(util.Arrays.equals(x.hash, y.hash))
+        assert(x.hash safeEquals y.hash)
       case _ => fail
     }
   }

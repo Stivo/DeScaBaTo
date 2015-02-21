@@ -10,6 +10,8 @@ import java.util.regex.Pattern
 
 import ch.descabato.CompressionMode
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Hash
+import ch.descabato.utils.NullHash
 import ch.descabato.utils.{JsonSerialization, SmileSerialization, Utils}
 import com.fasterxml.jackson.annotation.JsonIgnore
 
@@ -165,10 +167,10 @@ object FileDeleted {
   }
 }
 
-case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Array[Byte] = null) extends BackupPart {
+case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Hash = NullHash.nul) extends BackupPart {
   @JsonIgnore def isFolder = false
   override def equals(x: Any) = x match {
-    case FileDescription(p, s, attributes, h) if p == path && s == size && attributes == attrs => util.Arrays.equals(hash, h)
+    case FileDescription(p, s, attributes, h) if p == path && s == size && attributes == attrs => hash safeEquals h
     case _ => false
   }
 

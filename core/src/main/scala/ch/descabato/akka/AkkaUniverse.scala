@@ -26,7 +26,7 @@ object Counter {
 }
 
 class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with Utils {
-  val reg = "[^a-zA-Z0-9-_.*$+:@&=,!~';.]"r
+  val reg = "[^a-zA-Z0-9-_.*$+:@&=,!~';.]".r
 
   val cpuTaskCounter = new AtomicInteger()
   
@@ -99,7 +99,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   val backupPartHandler = actorOf[BackupPartHandler, KvStoreBackupPartHandler]("Backup Parts")
   val hashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
   val blockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
-  lazy val hashHandler = actorOf[HashHandler, AkkaHasher]("Hasher")
+  lazy val hashHandler = actorOf[HashFileHandler, AkkaHasher]("Hasher")
   lazy val compressionDecider = config.compressor match {
     case x if x.isCompressionAlgorithm => actorOf[CompressionDecider, SimpleCompressionDecider]("Compression Decider")
     case smart => actorOf[CompressionDecider, SmartCompressionDecider]("Compression Decider")
@@ -319,14 +319,14 @@ class MyExecutorServiceFactory extends ExecutorServiceFactory {
   }
 }
 
-class AkkaHasher extends HashHandler with UniversePart with PureLifeCycle with AkkaUniversePart {
-  var map: Map[String, HashHandler] = new HashMap()
+class AkkaHasher extends HashFileHandler with UniversePart with PureLifeCycle with AkkaUniversePart {
+  var map: Map[String, HashFileHandler] = new HashMap()
 
   def hash(block: Block) {
     add1
     val s = block.id.file.path
     if (map.get(s).isEmpty) {
-      val actor = uni.actorOf[HashHandler, AkkaSingleThreadHasher]("hasher for " + s, withCounter = false)
+      val actor = uni.actorOf[HashFileHandler, AkkaSingleThreadHasher]("hasher for " + s, withCounter = false)
       map += s -> actor
     }
     map(s).hash(block)

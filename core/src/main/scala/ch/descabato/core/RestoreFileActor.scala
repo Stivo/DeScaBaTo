@@ -5,7 +5,7 @@ import java.io.{File, FileOutputStream, OutputStream}
 import akka.actor.{PoisonPill, TypedActor}
 import akka.io.Tcp.Write
 import ch.descabato.akka.AkkaUniversePart
-import ch.descabato.utils.{CompressedStream, Utils}
+import ch.descabato.utils.{Hash, CompressedStream, Utils}
 
 import scala.collection.{SortedMap, mutable}
 import scala.concurrent.{Await, Future, Promise}
@@ -29,7 +29,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
   var outputStream: OutputStream = null;
   var nextBlockToRequest: Int = 0
   var blockToBeWritten = 0
-  var hashList: Array[Array[Byte]] = null
+  var hashList: Array[Hash] = null
   var numberOfBlocks = 0
 
   def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler): Unit = {
@@ -45,7 +45,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
       p.future
     }
     catch {
-      case e =>
+      case e : Exception =>
         Future.failed(e)
     }
   }
@@ -124,7 +124,7 @@ class WriteActor extends WriteFileHandler with AkkaUniversePart {
       fos.close()
       Future.successful(true)
     } catch {
-      case e => Future.failed(e)
+      case e : Exception => Future.failed(e)
     }
   }
 

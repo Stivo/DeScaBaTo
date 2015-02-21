@@ -156,7 +156,7 @@ trait RedundancyOptions extends BackupFolderOption {
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {
   val keylength = opt[Int](default = Some(128))
   val volumeSize = opt[Size](default = Some(Size("100Mb")))
-  val threads = opt[Int](default = Some(2))
+  val threads = opt[Int](default = Some(4))
   val noScriptCreation = opt[Boolean](default = Some(false))
   //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks = opt[Boolean](default = Some(false))

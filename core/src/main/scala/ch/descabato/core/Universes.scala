@@ -6,7 +6,7 @@ import java.security.DigestOutputStream
 import akka.actor.TypedActor.PostRestart
 import ch.descabato.akka.{ActorStats, AkkaUniverse}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
-import ch.descabato.utils.{Streams, CompressedStream, Utils}
+import ch.descabato.utils.{Hash, Streams, CompressedStream, Utils}
 import org.apache.commons.compress.utils.IOUtils
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -84,7 +84,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   }
 }
 
-class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycle {
+class SingleThreadHasher extends HashFileHandler with UniversePart with PureLifeCycle {
   lazy val md = universe.config.getMessageDigest
 
   def hash(block: Block) {
@@ -92,7 +92,7 @@ class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycl
   }
 
   def finish(fd: FileDescription) {
-    val hash = md.digest()
+    val hash = new Hash(md.digest())
     universe.backupPartHandler.hashForFile(fd, hash)
   }
 
@@ -123,9 +123,10 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
           val decomp = CompressedStream.decompressToBytes(in)
           os.write(decomp)
       }
+      os.close()
       Future.successful(true)
     } catch {
-      case e =>
+      case e: Exception =>
         Future.failed(e)
     } finally {
       IOUtils.closeQuietly(os)

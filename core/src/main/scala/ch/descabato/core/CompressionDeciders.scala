@@ -9,7 +9,7 @@ import scala.language.implicitConversions
 
 class SimpleCompressionDecider extends CompressionDecider with UniversePart {
   def blockCompressed(block: Block, nanoTime: Long) {
-    universe.blockHandler.writeCompressedBlock(block)
+//    universe.blockHandler.writeCompressedBlock(block)
   }
   def compressBlock(block: Block): Unit = {
     universe.scheduleTask { () =>

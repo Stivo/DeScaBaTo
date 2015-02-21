@@ -8,16 +8,16 @@ import ch.descabato.core._
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.{ExceptionCatchingInputStream, VerifyInputStream}
-import ch.descabato.utils.{CompressedStream, JsonSerialization, ObjectPools, Utils}
+import ch.descabato.utils._
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
-trait KvStoreHandler[T, K] extends UniversePart {
+trait KvStoreHandler[KI, KM, T] extends UniversePart {
   def fileType: FileType[T]
 
-  var persistedEntries = Map.empty[K, KvStoreLocation]
+  var persistedEntries = Map.empty[KM, KvStoreLocation]
 
   var currentlyWritingFile: KvStoreStorageMechanismWriter = null
 
@@ -36,7 +36,7 @@ trait KvStoreHandler[T, K] extends UniversePart {
     for (file <- fileType.getFiles(config.folder)) {
       val reader = getReaderForLocation(file)
       persistedEntries ++= reader.iterator.map {
-        case (k, v) => (storageToKey(k), v)
+        case (k, v) => (storageToKeyMem(k), v)
       }
     }
   }
@@ -46,11 +46,6 @@ trait KvStoreHandler[T, K] extends UniversePart {
       load()
       _loaded = true
     }
-  }
-
-  def getAllPersistedKeys(): Set[K] = {
-    ensureLoaded()
-    persistedEntries.keySet
   }
 
   def shutdown(): ch.descabato.core.BlockingOperation = {
@@ -76,26 +71,31 @@ trait KvStoreHandler[T, K] extends UniversePart {
     entries % 10 == 0
   }
 
-  def writeEntry(key: K, value: Array[Byte]): Unit = {
+  def writeEntry(key: KI, value: Array[Byte]): Unit = {
     if (currentlyWritingFile == null) {
       currentlyWritingFile =
         new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, temp = false), config.passphrase)
       currentlyWritingFile.setup(universe)
       currentlyWritingFile.writeManifest()
     }
-    persistedEntries += key -> null
-    currentlyWritingFile.add(keyToStorage(key), value)
+    val memKey = keyInterfaceToKeyMem(key)
+    persistedEntries += memKey -> null
+    currentlyWritingFile.add(keyMemToStorage(memKey), value)
     if (checkIfCheckpoint())
       currentlyWritingFile.checkpoint()
   }
 
-  def keyToStorage(k: K): Array[Byte]
+  def keyMemToStorage(k: KM): Array[Byte]
 
-  def storageToKey(k: Array[Byte]): K
+  def storageToKeyMem(k: Array[Byte]): KM
 
-  def readEntry(key: K) = {
+  def keyInterfaceToKeyMem(k: KI): KM
+
+  def keyMemToKeyInterface(k: KM): KI
+
+  def readEntry(key: KI) = {
     ensureLoaded()
-    val pos = persistedEntries(key)
+    val pos = persistedEntries(keyInterfaceToKeyMem(key))
     val reader = getReaderForLocation(pos.file)
     val out = reader.get(pos)
     (out, pos)
@@ -104,8 +104,25 @@ trait KvStoreHandler[T, K] extends UniversePart {
   def fileFinished()
 }
 
+trait SimpleKvStoreHandler[K, V] extends KvStoreHandler[K, K, V] {
+  def keyInterfaceToKeyMem(k: K): K = k
 
-class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String] with BackupPartHandler with Utils with BackupProgressReporting {
+  def keyMemToKeyInterface(k: K) = k
+}
+
+trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, BaWrapper, V] {
+  def keyInterfaceToKeyMem(k: Hash): BaWrapper = new BaWrapper(k.bytes)
+  def keyMemToKeyInterface(k: BaWrapper) = new Hash(k.data)
+  def keyMemToStorage(k: BaWrapper): Array[Byte] = k.data
+  def storageToKeyMem(k: Array[Byte]) = new BaWrapper(k)
+  def isPersisted(fileHash: Hash): Boolean = {
+    ensureLoaded()
+    val mapKey = keyInterfaceToKeyMem(fileHash)
+    persistedEntries safeContains(mapKey)
+  }
+}
+
+class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescription] with BackupPartHandler with Utils with BackupProgressReporting {
 
   override val filecountername = "Files hashed"
   override val bytecountername = "Data hashed"
@@ -138,13 +155,13 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
       unfinished -= fd.path
     }
 
-    def fileHashArrived(hash: Array[Byte]) {
+    def fileHashArrived(hash: Hash) {
       fd = fd.copy(hash = hash)
       checkFinished()
     }
 
     private def checkFinished() {
-      if (blocks.isEmpty && fd.hash != null && !failed) {
+      if (blocks.isEmpty && fd.hash.isNotNull && !failed) {
         writeBackupPart(fd)
         if (hashList.length > fd.hash.length)
           universe.hashListHandler.addHashlist(fd.hash, hashList)
@@ -153,10 +170,10 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
       }
     }
 
-    def blockHashArrived(blockId: BlockId, hash: Array[Byte]) {
+    def blockHashArrived(blockId: BlockId, hash: Hash) {
       if (!failed) {
         blocks.clear(blockId.part)
-        System.arraycopy(hash, 0, hashList, blockId.part * config.hashLength, config.hashLength)
+        System.arraycopy(hash.bytes, 0, hashList, blockId.part * config.hashLength, config.hashLength)
         checkFinished()
       }
     }
@@ -166,7 +183,7 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
     getUnfinished(fd).setFailed()
   }
 
-  def hashForFile(fd: FileDescription, hash: Array[Byte]): Unit = {
+  def hashForFile(fd: FileDescription, hash: Hash): Unit = {
     getUnfinished(fd).fileHashArrived(hash)
   }
 
@@ -187,7 +204,7 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
       kvstore =>
         kvstore.iterator.foreach {
           case (entry, pos) =>
-            persistedEntries += storageToKey(entry) -> pos
+            persistedEntries += storageToKeyMem(entry) -> pos
             val value = kvstore.get(pos)
             val decompressed = CompressedStream.decompress(value).readFully()
             js.read[BackupPart](decompressed) match {
@@ -207,7 +224,7 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
     current = finished.merge(unfinished)
     unfinished.files.foreach {
       file =>
-        getUnfinished(file.copy(hash = null))
+        getUnfinished(file.copy(hash = NullHash.nul))
     }
     val toCheckpoint = finished
     toCheckpoint.allParts.foreach(writeBackupPart)
@@ -239,35 +256,31 @@ class KvStoreBackupPartHandler extends KvStoreHandler[BackupDescription, String]
     universe.journalHandler().finishedFile(currentlyWritingFile.file, fileType)    // TODO
   }
 
-  override def keyToStorage(k: String) = k.getBytes("UTF-8")
-  override def storageToKey(k: Array[Byte]) = new String(k, "UTF-8")
+  override def keyMemToStorage(k: String) = k.getBytes("UTF-8")
+  override def storageToKeyMem(k: Array[Byte]) = new String(k, "UTF-8")
 
 }
 
-class KvStoreHashListHandler extends KvStoreHandler[Vector[(BaWrapper, Array[Byte])], BaWrapper] with HashListHandler {
+class KvStoreHashListHandler extends HashKvStoreHandler[Vector[(Hash, Array[Byte])]] with HashListHandler {
   lazy val fileType = fileManager.hashlists
 
-  def addHashlist(fileHash: Array[Byte], hashList: Array[Byte]): Unit = {
+  def addHashlist(fileHash: Hash, hashList: Array[Byte]): Unit = {
     ensureLoaded()
-    if (persistedEntries safeContains fileHash)
+    if (isPersisted(fileHash))
       return
     writeEntry(fileHash, hashList)
   }
 
-  def getHashlist(fileHash: Array[Byte], size: Long): Seq[Array[Byte]] = {
-    readEntry(fileHash)._1.grouped(config.hashLength).toSeq
+  def getHashlist(fileHash: Hash, size: Long): Seq[Hash] = {
+    readEntry(fileHash)._1.grouped(config.hashLength).toSeq.map(new Hash(_))
   }
 
   def fileFinished() {
     universe.journalHandler().finishedFile(currentlyWritingFile.file, fileType)
   }
-
-  override def keyToStorage(k: BaWrapper): Array[Byte] = k.data
-  override def storageToKey(k: Array[Byte]) = new BaWrapper(k)
-
 }
 
-class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockHandler with Utils {
+class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler with Utils {
   lazy val fileType = fileManager.volumes
 
   private val byteCounter = new MaxValueCounter() {
@@ -284,32 +297,30 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
 
   ProgressReporters.addCounter(byteCounter, compressionRatioCounter)
 
-  override def keyToStorage(k: BaWrapper): Array[Byte] = k.data
-  override def storageToKey(k: Array[Byte]) = new BaWrapper(k)
+  override def keyMemToStorage(k: BaWrapper): Array[Byte] = k.data
+  override def storageToKeyMem(k: Array[Byte]) = new BaWrapper(k)
 
   def fileFinished() {
     universe.journalHandler.finishedFile(currentlyWritingFile.file, fileType)
   }
 
-  def isPersisted(hash: Array[Byte]): Boolean = getAllPersistedKeys() safeContains hash
-
-  def readBlock(hash: Array[Byte], verify: Boolean): InputStream = {
+  def readBlock(hash: Hash, verify: Boolean): InputStream = {
     val (entry, pos) = readEntry(hash)
     val out2 = new ExceptionCatchingInputStream(CompressedStream.decompress(entry), pos.file)
     if (verify) {
-      new VerifyInputStream(out2, config.getMessageDigest(), hash, pos.file)
+      new VerifyInputStream(out2, config.getMessageDigest(), hash.bytes, pos.file)
     } else {
       out2
     }
   }
 
-  override def readBlockAsync(hash: Array[Byte]): Future[Array[Byte]] = {
+  override def readBlockAsync(hash: Hash): Future[Array[Byte]] = {
     Future.successful {
       readBlock(hash)
     }
   }
 
-  override def readBlock(hash: Array[Byte]): Array[Byte] = {
+  override def readBlock(hash: Hash): Array[Byte] = {
       readEntry(hash)._1
   }
 

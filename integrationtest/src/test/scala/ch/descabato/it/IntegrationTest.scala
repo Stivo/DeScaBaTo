@@ -122,8 +122,8 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
         compareBackups(input, restore1)
       }
       // delete some files
-      it should s"setup next iteration $i/$iterations" in {
-        if (i != iterations) {
+      if (i != iterations) {
+        it should s"setup next iteration $i/$iterations" in {
           l.info("Changing files")
           fg.changeSome
           l.info("Changing files done")
