@@ -1,12 +1,13 @@
 package ch.descabato.core
 
-import java.io.{FileOutputStream, File}
+import java.io.{OutputStream, FileOutputStream, File}
 import java.security.DigestOutputStream
 
 import akka.actor.TypedActor.PostRestart
 import ch.descabato.akka.{ActorStats, AkkaUniverse}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.utils.{Streams, CompressedStream, Utils}
+import org.apache.commons.compress.utils.IOUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -108,20 +109,31 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
   var hashList: Array[Array[Byte]] = null
 
   override def restore(): Future[Boolean] = {
-    val hashList = if (fd.size > config.blockSize.bytes) {
-      universe.hashListHandler().getHashlist(fd.hash, fd.size).toArray
-    } else {
-      Array.apply(fd.hash)
+    val os: OutputStream = null
+    try {
+      val hashList = if (fd.size > config.blockSize.bytes) {
+        universe.hashListHandler().getHashlist(fd.hash, fd.size).toArray
+      } else {
+        Array.apply(fd.hash)
+      }
+      destination.getParentFile.mkdirs()
+      val os = new FileOutputStream(destination)
+      for (hash <- hashList) {
+        val f = universe.blockHandler().readBlockRaw(hash)
+        f.onSuccess { case in =>
+          val decomp = CompressedStream.decompressToBytes(in)
+          os.write(decomp)
+        }
+        f.onFailure { case e =>
+          return Future.failed(e)
+        }
+      }
+      Future.successful(true)
+    } catch {
+      case e =>
+        Future.failed(e)
+    } finally {
+      IOUtils.closeQuietly(os)
     }
-    destination.getParentFile.mkdirs()
-    val fos = new FileOutputStream(destination)
-    for (hash <- hashList) {
-      val in = universe.blockHandler().readBlock(hash, false)
-      Streams.copy(in, fos, closeOutput = false)
-    }
-    fos.close()
-    Future.successful(true)
   }
-
-  override def blockDecompressed(block: Block): Unit = ???
 }

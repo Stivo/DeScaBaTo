@@ -302,6 +302,7 @@ class KvStoreBlockHandler  extends KvStoreHandler[Volume, BaWrapper] with BlockH
       out2
     }
   }
+
   override def readBlockRaw(hash: Array[Byte]): Future[Array[Byte]] = {
     Future.successful {
       readEntry(hash)._1

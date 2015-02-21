@@ -4,8 +4,8 @@ import java.io.{OutputStream, FileOutputStream, File}
 import java.security.{DigestOutputStream, MessageDigest}
 import java.util
 
-import akka.actor.{Props, Actor}
-import ch.descabato.akka.{AkkaUniverse, ActorStats}
+import akka.actor.{TypedActor, PoisonPill, Props, Actor}
+import ch.descabato.akka.{AkkaUniversePart, AkkaUniverse, ActorStats}
 import ch.descabato.utils.{Utils, CompressedStream}
 import scala.concurrent.{Promise, future, promise, Future}
 
@@ -13,14 +13,14 @@ import scala.collection.{SortedMap, mutable}
 
 trait AkkaRestoreFileHandler extends RestoreFileHandler {
   def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler)
+  def blockDecompressed(block: Block)
 }
-
-class RestoreFileActor extends AkkaRestoreFileHandler with Utils {
+class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniversePart {
   val maxPending: Int = 100
   val p = Promise[Boolean]
   lazy val digest = config.getMessageDigest
 
-  var ownRef: RestoreFileHandler = null
+  var ownRef: AkkaRestoreFileHandler = null
   var fd: FileDescription = null
   var destination: File = null
 
@@ -30,7 +30,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils {
   var nextBlockToRequest: Int = 0
   var blockToBeWritten = 0
   var hashList: Array[Array[Byte]] = null
-  var numberOfBlocks = 0L
+  var numberOfBlocks = 0
 
   def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler): Unit = {
     this.fd = fd
@@ -39,8 +39,14 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils {
   }
 
   override def restore(): Future[Boolean] = {
-    startRestore()
-    p.future
+    try {
+      startRestore()
+      p.future
+    }
+    catch {
+      case e =>
+        Future.failed(e)
+    }
   }
 
   def fillUpQueue() {
@@ -66,7 +72,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils {
     numberOfBlocks = hashList.length
     destination.getParentFile.mkdirs()
     val fos = new FileOutputStream(destination)
-    outputStream = new DigestOutputStream(fos, digest)
+    outputStream = fos //new DigestOutputStream(fos, digest)
     fillUpQueue()
   }
 
@@ -74,6 +80,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils {
     // update pending blocks and unwritten blocks
     pendingBlocks -= block.id.part
     unwrittenBlocks += (block.id.part -> block)
+
     // if block can be written, write it
     while (!unwrittenBlocks.isEmpty && unwrittenBlocks.keySet.min == blockToBeWritten) {
       val array = unwrittenBlocks.head._2
@@ -87,12 +94,13 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils {
       // if finished:
       //    fulfill the promise
       outputStream.close()
-      if (!util.Arrays.equals(fd.hash, digest.digest())) {
-        l.warn("Could not reconstruct file "+destination.getAbsolutePath)
-        p.success(false)
-      } else {
+//      if (!util.Arrays.equals(fd.hash, digest.digest())) {
+//        l.warn("Could not reconstruct file " + destination.getAbsolutePath)
+//        p.success(false)
+//      } else {
         p.success(true)
-      }
+//      }
+      TypedActor.get(uni.system).getActorRefFor(ownRef) ! PoisonPill
     }
   }
 

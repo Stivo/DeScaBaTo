@@ -192,5 +192,4 @@ trait HashHandler extends LifeCycle with UniversePart {
 
 trait RestoreFileHandler extends UniversePart {
   def restore(): Future[Boolean]
-  def blockDecompressed(block: Block)
 }

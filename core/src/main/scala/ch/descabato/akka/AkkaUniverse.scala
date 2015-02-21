@@ -26,6 +26,7 @@ object Counter {
 }
 
 class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with Utils {
+  val reg = "[^a-zA-Z0-9-_.*$+:@&=,!~';.]"r
 
   val cpuTaskCounter = new AtomicInteger()
   
@@ -51,7 +52,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     val classI = manifest[I].runtimeClass.asInstanceOf[Class[I]]
     val classT = manifest[T].runtimeClass.asInstanceOf[Class[T]]
     val ref = TypedActor(system).typedActorOf(addDispatcher(
-      TypedProps.apply[T](classI, classT), dispatcher = dispatcher))
+      TypedProps.apply[T](classI, classT), dispatcher = dispatcher), name = cleanUpName(name))
     val out: I = ref
     out match {
       case u: UniversePart => u.setup(this)
@@ -226,9 +227,21 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   }
 
   override def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler = {
-    val ref = actorOf[AkkaRestoreFileHandler, RestoreFileActor]("restore " + file)
-    ref.setup(description, file, ref)
-    ref
+    if (description.size > 20 * config.blockSize.bytes) {
+      l.warn(s"Using restore actor for ${description.path} ${description.size}")
+      val ref = actorOf[AkkaRestoreFileHandler, RestoreFileActor]("restore " + file.getAbsolutePath)
+      ref.setup(description, file, ref)
+      ref
+    } else {
+      val ref = new SingleThreadRestoreFileHandler(description, file)
+      ref.setup(this)
+      ref
+    }
+  }
+
+  def cleanUpName(name: String) = {
+    val simpleCleanup = name.replaceAll("\\s", "_").replace("\\", "__").replace("/", "__")
+    reg.replaceAllIn(simpleCleanup, "")
   }
 }
 

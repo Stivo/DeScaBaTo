@@ -8,7 +8,7 @@ import ch.descabato.CompressionMode
 import ch.descabato.core._
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{FileUtils, Utils}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.rogach.scallop._
 
@@ -55,13 +55,16 @@ object CLI extends Utils {
       } else {
         //Thread.sleep(10000)
         try {
-//          FileUtils.deleteAll(new File("f:/desca8"))
+//          FileUtils.deleteAll(new File("L:/testdata/restore1"))
         } catch {
           case x: Exception =>
         }
 //        parseCommandLine("backup --threads 1 --serializer-type json --hash-algorithm md5 --compression none --volume-size 10mb C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/input".split(" "))
-
-        parseCommandLine("restore --restore-to-folder L:/testdata/restore1 L:/testdata/backup1".split(" "))
+//
+//        parseCommandLine("backup --threads 40 --compression gzip D:/temp/backupasdf C:/Users/Stivo/Downloads".split(" "))
+//          parseCommandLine("restore --restore-to-folder C:/temp/asdf2 D:/temp/backupasdf".split(" "))
+//        parseCommandLine("backup --threads 40 --compression gzip D:/testdata/backup1 L:/testdata/input1".split(" "))
+//        parseCommandLine("restore --restore-to-folder L:/testdata/restore1 L:/testdata/backup1".split(" "))
 
         //parseCommandLine("restore --restore-to-folder C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/restore1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1".split(" "))
 
@@ -355,7 +358,7 @@ class RestoreCommand extends BackupRelatedCommand {
 
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
-    withUniverse(conf, akkaAllowed = false) {
+    withUniverse(conf, akkaAllowed = true) {
       universe =>
         if (t.chooseDate()) {
           val fm = new FileManager(universe)
