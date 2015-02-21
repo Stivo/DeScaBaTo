@@ -96,6 +96,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
       unwrittenBlocks = unwrittenBlocks.tail
       blockToBeWritten += 1
       writeFileHandler.write(array.content)
+      add1
       hashHandler.hash(array.content)
     }
     fillUpQueue()
