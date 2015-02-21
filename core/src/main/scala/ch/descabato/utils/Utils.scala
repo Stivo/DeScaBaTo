@@ -116,7 +116,6 @@ object Utils extends LazyLogging {
     }
     print(t)
     logger.debug(baos.toString())
-    baos.recycle()
   }
 
 }
@@ -158,7 +157,6 @@ object Implicits {
     def recycle() {
       buf match {
         case x: DirectBuffer => x.cleaner().clean()
-        case x if x.hasArray() => ObjectPools.byteArrayPool.recycle(x.array())
       }
     }
 

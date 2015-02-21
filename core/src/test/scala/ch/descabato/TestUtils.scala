@@ -14,7 +14,7 @@ trait TestUtils extends Utils {
 
   def finishByteArrayOutputStream(out: ByteArrayOutputStream) = {
     out.close()
-    out.toByteArray()
+    out.toBytesWrapper.asArray()
   }
 
   // TODO there is a copy of this now in FileUtils

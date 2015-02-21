@@ -147,12 +147,11 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
       out
     }
     var failed = false
-    var hashList = ObjectPools.byteArrayPool.getExactly(blocksFor(fd) * config.hashLength)
+    var hashList = Array.ofDim[Byte](blocksFor(fd) * config.hashLength)
 
     def setFailed() {
       failed = true
       failedObjects += fd
-      ObjectPools.byteArrayPool.recycle(hashList)
       hashList = null
       unfinished -= fd.path
     }

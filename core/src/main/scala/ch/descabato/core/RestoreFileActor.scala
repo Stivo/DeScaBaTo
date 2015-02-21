@@ -5,7 +5,7 @@ import java.io.{File, FileOutputStream, OutputStream}
 import akka.actor.{PoisonPill, TypedActor}
 import akka.io.Tcp.Write
 import ch.descabato.akka.{AkkaHashActor, AkkaUniversePart}
-import ch.descabato.utils.{Hash, CompressedStream, Utils}
+import ch.descabato.utils.{BytesWrapper, Hash, CompressedStream, Utils}
 
 import scala.collection.{SortedMap, mutable}
 import scala.concurrent.{Await, Future, Promise}
@@ -138,7 +138,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
 
 trait WriteFileHandler {
   def setFile(file: File)
-  def write(bytes: Array[Byte])
+  def write(bytes: BytesWrapper)
   def finish(): Future[Boolean]
 }
 
@@ -158,7 +158,7 @@ class WriteActor extends WriteFileHandler with AkkaUniversePart {
     }
   }
 
-  override def write(bytes: Array[Byte]): Unit = {
+  override def write(bytes: BytesWrapper): Unit = {
     fos.write(bytes)
   }
 }

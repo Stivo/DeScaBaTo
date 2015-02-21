@@ -10,13 +10,14 @@ import org.apache.commons.compress.compressors.bzip2.{BZip2CompressorInputStream
 import org.apache.commons.compress.utils.IOUtils
 import org.iq80.snappy.{SnappyInputStream, SnappyOutputStream}
 import org.tukaani.xz.{LZMA2Options, XZInputStream, XZOutputStream}
+import ch.descabato.utils.Implicits._
 
 /**
  * Adds compressors and decompressors
  */
 object CompressedStream extends Utils {
   
-  def compress(content: Array[Byte], compressor: CompressionMode) : BytesWrapper = {
+  def compress(content: BytesWrapper, compressor: CompressionMode) : BytesWrapper = {
     val byte = compressor.getByte()
     val baos = new ByteArrayOutputStream(content.length+16)
     baos.write(byte)

@@ -27,7 +27,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
     def readFully() = {
       val baos = new ByteArrayOutputStream()
       IOUtils.copy(in, baos)
-      baos.toByteArray()
+      baos.toBytesWrapper().asArray()
     }
   }
 
@@ -49,10 +49,4 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   
   override val invokeBeforeAllAndAfterAllEvenIfNoTestsAreExpected = true
   
-  override def afterAll() {
-    import ch.descabato.utils.ObjectPools.{foundExactCounter, foundExactRequests, foundMinimumCounter, foundMinimumRequests}
-    l.info("Found minimum "+foundMinimumCounter+" / "+foundMinimumRequests)
-    l.info("Found exact "+foundExactCounter+" / "+foundExactRequests)
-  }
-
 }

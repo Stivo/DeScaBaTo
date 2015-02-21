@@ -329,7 +329,7 @@ class AkkaHasher extends HashFileHandler with UniversePart with PureLifeCycle wi
       val actor = uni.actorOf[HashHandler, AkkaHashActor]("hasher for " + s, withCounter = false)
       map += s -> actor
     }
-    map(s).hash(block.content.wrap())
+    map(s).hash(block.content)
   }
 
   def finish(fd: FileDescription) {

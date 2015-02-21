@@ -1,7 +1,6 @@
 package ch.descabato;
 
 import ch.descabato.utils.BytesWrapper;
-import ch.descabato.utils.ObjectPools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,8 @@ import java.nio.ByteBuffer;
 
 public class ByteArrayOutputStream extends OutputStream {
 	private final static Logger log = LoggerFactory.getLogger(ByteArrayOutputStream.class);
-	
+    private int initialSize = 100*1024;
+
     /**
      * The buffer where data is stored.
      */
@@ -49,7 +49,8 @@ public class ByteArrayOutputStream extends OutputStream {
             throw new IllegalArgumentException("Negative initial size: "
                                                + size);
         }
-        buf = ObjectPools.byteArrayPool().getMinimum(size);
+        this.initialSize = size;
+        buf = new byte[initialSize];
     }
 
     /**
@@ -85,9 +86,8 @@ public class ByteArrayOutputStream extends OutputStream {
                 throw new OutOfMemoryError();
             newCapacity = Integer.MAX_VALUE;
         }
-        byte[] newBuf = ObjectPools.byteArrayPool().getMinimum(newCapacity);
+        byte[] newBuf = new byte[newCapacity];
         System.arraycopy(buf, 0, newBuf, 0, count);
-        ObjectPools.byteArrayPool().recycle(buf);
         buf = newBuf;
     }
 
@@ -143,50 +143,14 @@ public class ByteArrayOutputStream extends OutputStream {
     public void reset() {
         count = 0;
         if (buf == null) {
-          log.error("Reusing recycled ByteArrayOutputStream");
-          System.err.println("Using a recycled bytearrayoutputstream");
-          buf = ObjectPools.byteArrayPool().getMinimum(1024);
-          throw new RuntimeException("Reusing recycled ByteArrayOutputStream");
+          buf = new byte[initialSize];
         }
-    }
-
-    /**
-     * Creates a newly allocated byte array. Its size is the current
-     * size of this output stream and the valid contents of the buffer
-     * have been copied into it.
-     *
-     * @return  the current contents of this output stream, as a byte array.
-     * @see     java.io.ByteArrayOutputStream#size()
-     */
-    public byte toByteArray()[] {
-    	return toByteArray(false);
-    }
-
-    /**
-     * Creates a newly allocated byte array. Its size is the current
-     * size of this output stream and the valid contents of the buffer
-     * have been copied into it.
-     * @param   recycle Recycles the underlying buffer, stream should not be 
-     *          reused.
-     * @return  the current contents of this output stream, as a byte array.
-     * @see     java.io.ByteArrayOutputStream#size()
-     */
-    public byte toByteArray(boolean recycle)[] {
-    	byte[] exactly = ObjectPools.byteArrayPool().getExactly(count);
-    	System.arraycopy(buf, 0, exactly, 0, count);
-    	if (recycle) {
-    		recycle();
-    	}
-        return exactly;
-    }
-    
-    public ByteBuffer toByteBuffer() {
-		return ByteBuffer.wrap(buf, 0, count);
     }
 
     public BytesWrapper toBytesWrapper() {
         return new BytesWrapper(buf, 0, count);
     }
+
     /**
      * Returns the current size of the buffer.
      *
@@ -249,11 +213,6 @@ public class ByteArrayOutputStream extends OutputStream {
      *
      */
     public void close() throws IOException {
-    }
-    
-    public void recycle() {
-    	ObjectPools.byteArrayPool().recycle(buf);
-    	buf = null;
     }
 
 }

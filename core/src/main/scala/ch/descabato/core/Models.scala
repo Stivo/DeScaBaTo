@@ -180,7 +180,7 @@ case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash
 
 case class BlockId(file: FileDescription, part: Int)
 
-class Block(val id: BlockId, var content: Array[Byte]) {
+class Block(val id: BlockId, var content: BytesWrapper) {
   val uncompressedLength = content.length
   @volatile var hash: Hash = NullHash.nul
   @volatile var mode: CompressionMode = null

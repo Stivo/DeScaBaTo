@@ -10,7 +10,7 @@ import ch.descabato.akka.AkkaUniverse
 import ch.descabato.frontend._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.BlockOutputStream
-import ch.descabato.utils.{Hash, CompressedStream, FileUtils, Utils}
+import ch.descabato.utils._
 import org.apache.commons.compress.utils.IOUtils
 
 import scala.collection.mutable
@@ -190,13 +190,13 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       //lazy val compressionDisabled = compressionFor(fileDesc)
       var i = 0
       val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, {
-        block: Array[Byte] =>
+        block: BytesWrapper =>
           val bid = new BlockId(fileDesc, i)
           val wrapper = new Block(bid, block)
           val wrapper2 = new Block(bid, block)
           universe.scheduleTask { () =>
             val md = universe.config.createMessageDigest
-            wrapper2.hash = new Hash(md.digest(wrapper2.content))
+            wrapper2.hash = md.finish(wrapper2.content)
             universe.backupPartHandler.hashComputed(wrapper2)
           }
           universe.hashFileHandler.hash(wrapper2)
