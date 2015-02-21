@@ -84,7 +84,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   }
 }
 
-class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycle {
+class SingleThreadHasher extends HashHandler {
   lazy val md = universe.config.getMessageDigest
 
   def finish(f: Hash => Unit) {
@@ -101,7 +101,10 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
 
   var hashList: Array[Array[Byte]] = null
 
+  val hasher = new SingleThreadHasher()
+
   override def restore(): Future[Boolean] = {
+    hasher.setup(universe)
     val os: OutputStream = null
     try {
       val hashList = if (fd.size > config.blockSize.bytes) {
@@ -113,11 +116,16 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
       val os = new FileOutputStream(destination)
       for (hash <- hashList) {
         val in = universe.blockHandler().readBlock(hash)
-          val decomp = CompressedStream.decompressToBytes(in)
-          os.write(decomp)
+        val decomp = CompressedStream.decompressToBytes(in)
+        hasher.hash(decomp)
+        os.write(decomp)
       }
       os.close()
-      Future.successful(true)
+      var success = true
+      hasher.finish { hash =>
+        success = hash safeEquals fd.hash
+      }
+      Future.successful(success)
     } catch {
       case e: Exception =>
         Future.failed(e)
@@ -129,8 +137,11 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
 
 class SingleThreadFileHasher extends HashFileHandler with PureLifeCycle {
   val hasher = new SingleThreadHasher()
-  hasher.setup(universe)
 
+  override def setup(universe: Universe): Unit = {
+    super.setup(universe)
+    hasher.setup(universe)
+  }
   // Hash this block of this file
   override def hash(blockwrapper: Block) {
     hasher.hash(blockwrapper.content)

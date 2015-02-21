@@ -227,8 +227,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   }
 
   override def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler = {
-    if (description.size > 20 * config.blockSize.bytes) {
-      l.warn(s"Using restore actor for ${description.path} ${description.size}")
+    if (description.size > 10 * config.blockSize.bytes) {
       val ref = actorOf[AkkaRestoreFileHandler, RestoreFileActor]("restore " + file.getAbsolutePath)
       ref.setup(description, file, ref)
       ref
@@ -326,7 +325,7 @@ class AkkaHasher extends HashFileHandler with UniversePart with PureLifeCycle wi
     add1
     val s = block.id.file.path
     if (map.get(s).isEmpty) {
-      val actor = uni.actorOf[HashHandler, AkkaSingleThreadHasher]("hasher for " + s, withCounter = false)
+      val actor = uni.actorOf[HashHandler, AkkaHashActor]("hasher for " + s, withCounter = false)
       map += s -> actor
     }
     map(s).hash(block.content)
@@ -354,7 +353,7 @@ class AkkaHasher extends HashFileHandler with UniversePart with PureLifeCycle wi
   override def remaining(): Int = map.size
 }
 
-class AkkaSingleThreadHasher extends SingleThreadHasher with AkkaUniversePart {
+class AkkaHashActor extends SingleThreadHasher with AkkaUniversePart {
   override def finish(f: Hash => Unit): Unit = {
     super.finish(f)
     subtract1

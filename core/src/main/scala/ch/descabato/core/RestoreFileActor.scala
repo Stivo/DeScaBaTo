@@ -4,7 +4,7 @@ import java.io.{File, FileOutputStream, OutputStream}
 
 import akka.actor.{PoisonPill, TypedActor}
 import akka.io.Tcp.Write
-import ch.descabato.akka.AkkaUniversePart
+import ch.descabato.akka.{AkkaHashActor, AkkaUniversePart}
 import ch.descabato.utils.{Hash, CompressedStream, Utils}
 
 import scala.collection.{SortedMap, mutable}
@@ -15,14 +15,17 @@ trait AkkaRestoreFileHandler extends RestoreFileHandler {
   def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler)
   def blockDecompressed(block: Block)
 }
+
 class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniversePart {
   val maxPending: Int = 100
   val p = Promise[Boolean]
   lazy val digest = config.getMessageDigest
 
+  var hashHandler: HashHandler = null
   var writeFileHandler: WriteFileHandler = null
   var ownRef: AkkaRestoreFileHandler = null
   var fd: FileDescription = null
+  var destination: File = null
 
   var unwrittenBlocks = SortedMap.empty[Int, Block]
   var pendingBlocks = mutable.Set.empty[Int]
@@ -37,6 +40,8 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     this.ownRef = ownRef
     writeFileHandler = uni.actorOf[WriteFileHandler, WriteActor]("write "+dest)
     writeFileHandler.setFile(dest)
+    hashHandler = uni.actorOf[HashHandler, AkkaHashActor]("hash "+dest)
+    destination = dest
   }
 
   override def restore(): Future[Boolean] = {
@@ -54,9 +59,14 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     while (unwrittenBlocks.size + pendingBlocks.size < maxPending && nextBlockToRequest < numberOfBlocks) {
       val id = new BlockId(fd, nextBlockToRequest)
       pendingBlocks += nextBlockToRequest
-      universe.blockHandler().readBlockAsync(hashList(nextBlockToRequest)).map({ bytes =>
+      val blockHash = hashList(nextBlockToRequest)
+      universe.blockHandler().readBlockAsync(blockHash).map({ bytes =>
         universe.scheduleTask { () =>
           val decomp = CompressedStream.decompressToBytes(bytes)
+          val hash = new Hash(universe.config().getMessageDigest().digest(decomp))
+          if (!(hash safeEquals blockHash)) {
+            l.warn("Could not reconstruct block "+id+" of file "+destination+" correctly, hash was incorrect")
+          }
           ownRef.blockDecompressed(new Block(id, decomp))
         }
       })
@@ -86,20 +96,26 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
       unwrittenBlocks = unwrittenBlocks.tail
       blockToBeWritten += 1
       writeFileHandler.write(array.content)
+      hashHandler.hash(array.content)
     }
-    // if pendingblocks is smaller than maxPending and still enough to go: enqueue another one
     fillUpQueue()
     if (blockToBeWritten == numberOfBlocks) {
-      // if finished:
-      //    fulfill the promise
+      // if finished: wait for write actor and kill it, wait for hash result, fulfill promise
       val result = Await.result(writeFileHandler.finish(), 5.minutes)
       TypedActor.get(uni.system).getActorRefFor(writeFileHandler) ! PoisonPill
-//      if (!util.Arrays.equals(fd.hash, digest.digest())) {
-//        l.warn("Could not reconstruct file " + destination.getAbsolutePath)
-//        p.success(false)
-//      } else {
+      val hashPromise = Promise[Hash]
+      hashHandler.finish{ hash =>
+        hashPromise.success(hash)
+      }
+      val computedHash = Await.result(hashPromise.future, 5.minutes)
+      TypedActor.get(uni.system).getActorRefFor(hashHandler) ! PoisonPill
+      //    fulfill the promise
+      if (! (fd.hash safeEquals computedHash)) {
+        l.warn("Could not reconstruct file exactly " + destination.getAbsolutePath)
+        p.success(false)
+      } else {
         p.success(result)
-//      }
+      }
       TypedActor.get(uni.system).getActorRefFor(ownRef) ! PoisonPill
     }
   }

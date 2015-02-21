@@ -177,7 +177,7 @@ trait BlockHandler extends BackupActor with UniversePart with CanVerify {
   def setTotalSize(size: Long)
 }
 
-trait HashHandler {
+trait HashHandler extends UniversePart with PureLifeCycle {
   def hash(bytes: Array[Byte])
   def finish(f: Hash => Unit)
 }
