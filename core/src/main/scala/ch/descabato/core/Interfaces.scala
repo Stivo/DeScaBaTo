@@ -105,12 +105,12 @@ trait RedundancyHandler extends UniversePart with MustFinish {
   // No requirements, will just return None if no hash exists
   def md5HashForFile(file: File): Option[Array[Byte]]
   // Will just return same stream if no md5 hash around
-  def wrapVerifyStreamIfCovered(file: File, is: InputStream): InputStream = {
-    md5HashForFile(file) match {
-      case Some(hash) => new Streams.VerifyInputStream(is, MessageDigest.getInstance("MD5"), hash, file)
-      case None => is
-    }
-  }
+//  def wrapVerifyStreamIfCovered(file: File, is: InputStream): InputStream = {
+//    md5HashForFile(file) match {
+//      case Some(hash) => new Streams.VerifyInputStream(is, MessageDigest.getInstance("MD5"), hash, file)
+//      case None => is
+//    }
+//  }
 }
 
 class NoOpRedundancyHandler extends RedundancyHandler with PureLifeCycle {

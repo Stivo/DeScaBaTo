@@ -7,7 +7,6 @@ import ch.descabato.CompressionMode
 import ch.descabato.core._
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Streams.{ExceptionCatchingInputStream, VerifyInputStream}
 import ch.descabato.utils._
 
 import scala.collection.immutable.HashMap
@@ -305,16 +304,6 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
 
   def fileFinished() {
     universe.journalHandler.finishedFile(currentlyWritingFile.file, fileType)
-  }
-
-  def readBlock(hash: Hash, verify: Boolean): InputStream = {
-    val (entry, pos) = readEntry(hash)
-    val out2 = new ExceptionCatchingInputStream(CompressedStream.decompress(entry.asArray()), pos.file)
-    if (verify) {
-      new VerifyInputStream(out2, config.createMessageDigest(), hash.bytes, pos.file)
-    } else {
-      out2
-    }
   }
 
   override def readBlockAsync(hash: Hash): Future[Array[Byte]] = {

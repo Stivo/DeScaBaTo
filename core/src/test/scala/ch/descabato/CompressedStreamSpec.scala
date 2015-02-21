@@ -1,12 +1,13 @@
 package ch.descabato
 
-import java.io.File
+import java.io.{InputStream, File}
 import java.util
 import java.util.{List => JList}
 
 import ch.descabato.core.BackupFolderConfiguration
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
+import org.apache.commons.compress.utils.IOUtils
 import org.scalacheck.Arbitrary
 import org.scalatest._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
@@ -21,7 +22,15 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   var folder = new File("testdata/temp")
   
   implicit val x = Arbitrary {oneOf(CompressionMode.values.filter(_.isCompressionAlgorithm))}
-      
+
+  implicit class InputStreamBetter(in: InputStream) {
+    def readFully() = {
+      val baos = new ByteArrayOutputStream()
+      IOUtils.copy(in, baos)
+      baos.toByteArray()
+    }
+  }
+
   class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, "", passphrase) {
     override def toString = s"Compression mode is $compressor, keylength is $keyLength, passphrase is $passphrase"
   }

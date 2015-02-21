@@ -9,8 +9,8 @@ import java.util
 import javax.xml.bind.DatatypeConverter
 
 import ch.descabato.ByteArrayOutputStream
-import ch.descabato.core.BaWrapper
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.compress.utils.IOUtils
 import sun.nio.ch.DirectBuffer
 
 import scala.language.implicitConversions
@@ -182,14 +182,7 @@ object Implicits {
     def safeContains(x: T): Boolean = xs.keySet contains x
   }
 
-  implicit class InputStreamBetter(in: InputStream) {
-    def readFully() = {
-      val baos = new ByteArrayOutputStream()
-      Streams.copy(in, baos)
-      baos.toByteArray()
-    }
-  }
-}
+ }
 
 object FileUtils extends Utils {
   def getRelativePath(dest: File, to: File, path: String) = {

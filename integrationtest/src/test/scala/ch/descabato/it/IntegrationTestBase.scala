@@ -3,13 +3,13 @@ package ch.descabato.it
 import java.io.{File, FileInputStream, RandomAccessFile}
 import java.nio.file.Paths
 
-import ch.descabato.utils.Streams.HashingOutputStream
-import ch.descabato.utils.{Streams, Utils}
+import ch.descabato.utils.{FileUtils, Streams, Utils}
 import ch.descabato.{RichFlatSpecLike, TestUtils}
+import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.exec.{CommandLine, ExecuteException}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
-
+import org.apache.commons.io. { FileUtils => IO_FileUtils }
 import scala.collection.mutable.Set
 
 class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
@@ -119,15 +119,9 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
         assert(c1.getName === c2.getName, "name should be same for " + c1)
         assert(c1.length === c2.length, "length should be same for " + c1)
         assert(c1.lastModified === c2.lastModified +- 1000, "Last modified should be within a second for "+c1)
-        assert(hash(c1) === hash(c2), "content should be same for " + c1)
+        assert(IO_FileUtils.contentEquals(c1, c2), "content should be same for " + c1)
       }
     }
-  }
-
-  def hash(f: File) = {
-    val hos = new HashingOutputStream("md5")
-    Streams.copy(new FileInputStream(f), hos)
-    Utils.encodeBase64Url(hos.out.get)
   }
 
 }

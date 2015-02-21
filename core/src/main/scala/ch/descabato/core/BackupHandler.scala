@@ -8,9 +8,10 @@ import java.util.Date
 
 import ch.descabato.akka.AkkaUniverse
 import ch.descabato.frontend._
-import ch.descabato.utils.Streams._
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Streams.BlockOutputStream
 import ch.descabato.utils.{Hash, CompressedStream, FileUtils, Utils}
+import org.apache.commons.compress.utils.IOUtils
 
 import scala.collection.mutable
 import scala.collection.parallel.ForkJoinTaskSupport
@@ -207,7 +208,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
           }
           i += 1
       })
-      copy(fis, blockHasher)
+      IOUtils.copy(fis, blockHasher, config.blockSize.bytes.toInt * 2)
       universe.hashFileHandler.finish(fileDesc)
       fileCounter += 1
       success = true
