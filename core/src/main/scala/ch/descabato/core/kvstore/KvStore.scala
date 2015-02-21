@@ -3,8 +3,8 @@ package ch.descabato.core.kvstore
 import java.io.{ByteArrayOutputStream, DataOutputStream, File}
 import java.util
 
-import ch.descabato.core.BaWrapper
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{BytesWrapper, Utils}
+import ch.descabato.utils.Implicits._
 
 case class EntryType(markerByte: Byte, parts: Int)
 
@@ -43,7 +43,7 @@ object EntryTypes {
 }
 
 trait EntryPart {
-  def array: Array[Byte]
+  def bytes: BytesWrapper
   def hasCrc: Boolean
   /**
    * points to the marker byte is for this entrypart
@@ -56,9 +56,9 @@ trait EntryPart {
   def endPos: Long
 }
 
-class EntryPartW(val array: Array[Byte], val hasCrc: Boolean = true) extends EntryPart {
+class EntryPartW(val bytes: BytesWrapper, val hasCrc: Boolean = true) extends EntryPart {
   var startPos = 0L
-  def endPos = startPos + array.length
+  def endPos = startPos + bytes.length
 }
 
 case class Entry(typ: EntryType, parts: Iterable[EntryPart]) {
@@ -77,11 +77,11 @@ case class Entry(typ: EntryType, parts: Iterable[EntryPart]) {
 
 trait KvStoreWriter extends AutoCloseable {
   def writeEntry(entry: Entry)
-  def writeKeyValue(key: Array[Byte], value: Array[Byte]) = {
-    writeEntry(new Entry(EntryTypes.keyValue, newEntryPart(key, hasCrc = false) :: newEntryPart(value, hasCrc = false) :: Nil))
+  def writeKeyValue(key: Array[Byte], value: BytesWrapper) = {
+    writeEntry(new Entry(EntryTypes.keyValue, newEntryPart(key.wrap(), hasCrc = false) :: newEntryPart(value, hasCrc = false) :: Nil))
   }
-  def newEntryPart(array: Array[Byte], hasCrc: Boolean = false) = {
-    new EntryPartW(array, hasCrc)
+  def newEntryPart(bytes: BytesWrapper, hasCrc: Boolean = false) = {
+    new EntryPartW(bytes, hasCrc)
   }
 }
 
@@ -93,13 +93,13 @@ trait KvStoreReader extends AutoCloseable with Iterable[Entry] {
 
 trait IndexedKvStoreReader extends KvStoreReader {
   lazy val index =  iterator.flatMap {
-      case Entry(e, key::value::Nil) => Some((new BaWrapper(key.array), value.startPos))
+      case Entry(e, key::value::Nil) => Some((key.bytes, value.startPos))
       case _ => None
     }.toMap
     
   def readValueForKey(key: Array[Byte]) = {
-    val pos = index(new BaWrapper(key))
-    readEntryPartAt(pos).array
+    val pos = index(new BytesWrapper(key))
+    readEntryPartAt(pos).bytes.asArray
   }
 }
 
@@ -178,10 +178,10 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 
 	def writeEntryPart(part: EntryPart) {
 	  writer.writeByte(if (part.hasCrc) 1 else 0)
-	  writer.writeVLong(part.array.length)
-	  writer.write(part.array)
+	  writer.writeVLong(part.bytes.length)
+	  writer.write(part.bytes)
 	  if (part.hasCrc)
-	    writer.writeInt(CrcUtil.crc(part.array))
+	    writer.writeInt(CrcUtil.crc(part.bytes))
 	}
 	
   def close() {
@@ -358,7 +358,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     new EntryPart() {
       private val startOfValue = reader.getFilePos()
       val startPos = startPosOfEntry
-      lazy val array = {
+      lazy val bytes = {
         reader.seek(startOfValue)
         val array = Array.ofDim[Byte](length.toInt)
         reader.read(array)
@@ -366,7 +366,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
           val crc = reader.readInt()
           CrcUtil.checkCrc(array, crc, "Crc failed while reading plain value at "+startPosOfEntry)
         }
-        array
+        array.wrap()
       }
       val hasCrc = hasCrcIn
       val endPos = startOfValue + length + offset 

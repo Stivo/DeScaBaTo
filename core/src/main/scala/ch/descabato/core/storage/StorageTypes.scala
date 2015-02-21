@@ -5,10 +5,12 @@ import java.util
 
 import ch.descabato.core.{MetaInfo, UniversePart}
 import ch.descabato.core.kvstore.{Entry, KvStoreReaderImpl, KvStoreWriterImpl}
-import ch.descabato.utils.JsonSerialization
+import ch.descabato.utils.{BytesWrapper, JsonSerialization}
+import ch.descabato.utils.Implicits._
 
 object StorageMechanismConstants {
   val manifestName = "manifest.txt".getBytes
+  val manifestNameWrapped = manifestName.wrap()
 }
 
 trait IndexMechanism[K, L <: Location] {
@@ -29,11 +31,11 @@ trait StorageMechanismReader[L <: Location, K, V] extends AutoCloseable with Ite
 }
 
 class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[String] = None)
-    extends StorageMechanismWriter[KvStoreLocation, Array[Byte], Array[Byte]] with UniversePart {
+    extends StorageMechanismWriter[KvStoreLocation, Array[Byte], BytesWrapper] with UniversePart {
 
   lazy val kvstoreWriter = new KvStoreWriterImpl(file, if (passphrase.isDefined) passphrase.get else null)
 
-  def add(k: Array[Byte], v: Array[Byte]) {
+  def add(k: Array[Byte], v: BytesWrapper) {
     kvstoreWriter.writeKeyValue(k, v)
   }
 
@@ -54,7 +56,7 @@ class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[Strin
     val m = new MetaInfo(universe.fileManager().getDateFormatted, versionNumber)
     val json = new JsonSerialization()
     val value = json.write(m)
-    kvstoreWriter.writeKeyValue(StorageMechanismConstants.manifestName, value)
+    kvstoreWriter.writeKeyValue(StorageMechanismConstants.manifestName, value.wrap())
   }
 
 }
@@ -69,18 +71,21 @@ class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[Strin
 
   def iterator = {
     kvstoreReader.iterator.collect {
-      case Entry(_, k::v::Nil) if !util.Arrays.equals(k.array, StorageMechanismConstants.manifestName) => (k.array, new KvStoreLocation(file, v.startPos))
+      case Entry(_, k::v::Nil)
+        if ! (StorageMechanismConstants.manifestNameWrapped == v.bytes)
+        => (k.bytes.asArray(), new KvStoreLocation(file, v.startPos))
     }
   }
 
   def manifest() = {
     if (_manifest == null && !_manifestReadFailed) {
       kvstoreReader.iterator.find {
-        case Entry(_, k :: v :: Nil) if util.Arrays.equals(k.array, StorageMechanismConstants.manifestName) =>
-          true
+        case Entry(_, k :: v :: Nil)
+          if StorageMechanismConstants.manifestNameWrapped == v.bytes =>
+            true
       }.foreach { e =>
         val json = new JsonSerialization()
-        json.read[MetaInfo](e.parts.last.array) match {
+        json.read[MetaInfo](e.parts.last.bytes.asArray()) match {
           case Left(m) => _manifest = m
           case _ => _manifestReadFailed = true
         }
@@ -90,7 +95,7 @@ class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[Strin
   }
   
   def get(loc: KvStoreLocation) = {
-    kvstoreReader.readEntryPartAt(loc.pos).array
+    kvstoreReader.readEntryPartAt(loc.pos).bytes.asArray()
   } 
 
   def close(): Unit = {

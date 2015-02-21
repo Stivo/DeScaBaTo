@@ -6,7 +6,7 @@ import java.util.zip.CRC32
 import javax.crypto.Mac
 import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
 
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{BytesWrapper, Utils}
 import org.bouncycastle.crypto.generators.SCrypt
 
 object CryptoUtils extends Utils {
@@ -54,12 +54,12 @@ object CryptoUtils extends Utils {
 }
 
 object CrcUtil {
-  def crc(bytes: Array[Byte]) = {
+  def crc(bytes: BytesWrapper) = {
     val crc = new CRC32()
-    crc.update(bytes)
+    crc.update(bytes.array, bytes.offset, bytes.length)
     crc.getValue().toInt
   }
-  def checkCrc(bytes: Array[Byte], expected: Int, m: String = "") = {
+  def checkCrc(bytes: BytesWrapper, expected: Int, m: String = "") = {
     if (crc(bytes) != expected) {
       throw new IllegalArgumentException("Crc check failed: "+m)
     }

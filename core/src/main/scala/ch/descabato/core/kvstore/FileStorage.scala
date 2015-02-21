@@ -8,7 +8,7 @@ import javax.crypto.Cipher
 
 import ch.descabato.akka.ActorStats
 import ch.descabato.core.BlockingOperation
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{BytesWrapper, Utils}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 import scala.collection.immutable.TreeMap
@@ -35,9 +35,11 @@ trait EncryptedRandomAccessFile extends AutoCloseable {
   def seek(pos: Long)
   def skip(pos: Long)
   def setEncryptionBoundary(keyInfo: KeyInfo)
-  final def write(bytes: Array[Byte], offset: Int = 0, len: Int = -1) = {
-    writeImpl(bytes, offset, if (len == -1) bytes.length else len)
+
+  final def write(bytes: BytesWrapper) = {
+    writeImpl(bytes.array, bytes.offset, bytes.length)
   }
+
   def writeImpl(bytes: Array[Byte], offset: Int, len: Int)
   final def read(bytes: Array[Byte], offset: Int = 0, len: Int = -1) = {
     readImpl(bytes, offset, if (len == -1) bytes.length else len)
@@ -52,12 +54,12 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
   def writeInt(value: Int) = {
     val buffer = ByteBuffer.allocate(4).putInt(value)
     val intArray = buffer.array()
-    write(intArray)
+    writeImpl(intArray, 0, 4)
   }
 
   def writeByte(arg: Byte) = {
     val byte = Array.apply(arg)
-    write(byte)
+    writeImpl(byte, 0, 1)
   }
 
   def writeVLong(value: Long) {

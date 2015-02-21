@@ -242,21 +242,6 @@ case class BackupDescription(files: Vector[FileDescription] = Vector.empty,
   @JsonIgnore def isEmpty() = sizeWithDeleted == 0
 }
 
-/**
- * A wrapper for a byte array so it can be used in a map as a key.
- */
-class BaWrapper(ba: Array[Byte]) {
-  val data: Array[Byte] = if (ba == null) Array.empty[Byte] else ba
-  def equals(other: BaWrapper): Boolean = util.Arrays.equals(data, other.data)
-  override def equals(obj: Any): Boolean =
-    obj match {
-      case other: BaWrapper => equals(other)
-      case _ => false
-    }
-  override def hashCode: Int = util.Arrays.hashCode(data)
-  override def toString() = data.length + ": " + new String(data)
-}
-
 // Domain classes
 case class Size(bytes: Long) {
   override def toString = Utils.readableFileSize(bytes)

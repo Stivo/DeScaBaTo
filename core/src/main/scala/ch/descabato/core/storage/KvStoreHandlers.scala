@@ -71,7 +71,7 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
     entries % 10 == 0
   }
 
-  def writeEntry(key: KI, value: Array[Byte]): Unit = {
+  def writeEntry(key: KI, value: BytesWrapper): Unit = {
     if (currentlyWritingFile == null) {
       currentlyWritingFile =
         new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, temp = false), config.passphrase)
@@ -83,6 +83,10 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
     currentlyWritingFile.add(keyMemToStorage(memKey), value)
     if (checkIfCheckpoint())
       currentlyWritingFile.checkpoint()
+  }
+
+  def writeEntry(key: KI, value: Array[Byte]): Unit = {
+    writeEntry(key, value.wrap())
   }
 
   def keyMemToStorage(k: KM): Array[Byte]
@@ -305,7 +309,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
 
   def readBlock(hash: Hash, verify: Boolean): InputStream = {
     val (entry, pos) = readEntry(hash)
-    val out2 = new ExceptionCatchingInputStream(CompressedStream.decompress(entry), pos.file)
+    val out2 = new ExceptionCatchingInputStream(CompressedStream.decompress(entry.asArray()), pos.file)
     if (verify) {
       new VerifyInputStream(out2, config.createMessageDigest(), hash.bytes, pos.file)
     } else {
@@ -361,7 +365,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
         currentlyWritingFile = null
       }
     }
-    writeEntry(block.hash, block.compressed.asArray())
+    writeEntry(block.hash, block.compressed)
     byteCounter += outstandingRequests(block.hash)
     compressionRatioCounter.maxValue += outstandingRequests(block.hash)
     outstandingRequests -= block.hash

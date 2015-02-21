@@ -52,9 +52,9 @@ abstract class AbstractJacksonSerialization extends Serialization {
     }
   }
   class BaWrapperDeserializer extends StdDeserializer[BytesWrapper](classOf[BytesWrapper]) {
-    def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
+    def deserialize(jp: JsonParser, ctx: DeserializationContext): BytesWrapper = {
       val bytes = jp.readValueAs(classOf[Array[Byte]])
-      bytes
+      bytes.wrap()
     }
   }
   class BaWrapperSerializer extends StdSerializer[BytesWrapper](classOf[BytesWrapper]) {

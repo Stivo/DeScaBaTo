@@ -5,6 +5,7 @@ import java.io.{File, RandomAccessFile}
 import ch.descabato.core.kvstore.{EntryTypes, KvStoreReaderImpl, KvStoreWriterImpl}
 import ch.descabato.utils.Utils
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpec, ShouldMatchers}
+import ch.descabato.utils.Implicits._
 
 import scala.util.Random
 
@@ -16,7 +17,7 @@ class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAft
   val maxEntries = 1000
 
   def makeKey(i: Int) = ("key" + i).getBytes()
-  def makeValue(i: Int) = (("value"*5) + i).getBytes()
+  def makeValue(i: Int) = (("value"*5) + i).getBytes().wrap()
 
   runTests(null, "normal kvstore", testFile1)
   runTests("aksögj kdfögj ksdöfgj jkö jkö", "encrypted kvstore", testFile2)
@@ -59,8 +60,8 @@ class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAft
           for (entry <- entries) {
             if (entry.typ == EntryTypes.keyValue) {
               seenEOF shouldBe (false)
-              val key = new String(entry.parts.head.array).drop("key".length)
-              val readValue = entry.parts.last.array
+              val key = new String(entry.parts.head.bytes.asArray()).drop("key".length)
+              val readValue = entry.parts.last.bytes
               readValue shouldBe (makeValue(key.toInt))
               kvEntries += 1
             } else {
