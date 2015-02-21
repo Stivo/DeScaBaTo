@@ -46,7 +46,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val backupPartHandler = make(new KvStoreBackupPartHandler())
   val hashListHandler = make(new KvStoreHashListHandler())
   val blockHandler = make(new KvStoreBlockHandler())
-  val hashHandler = make(new SingleThreadHasher())
+  val hashFileHandler = make(new SingleThreadFileHasher())
   val compressionDecider = make(config.compressor match {
     case x if x.isCompressionAlgorithm => new SimpleCompressionDecider()
     case smart => new SmartCompressionDecider()
@@ -84,24 +84,17 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   }
 }
 
-class SingleThreadHasher extends HashFileHandler with UniversePart with PureLifeCycle {
+class SingleThreadHasher extends HashHandler with UniversePart with PureLifeCycle {
   lazy val md = universe.config.getMessageDigest
 
-  def hash(block: Block) {
-    md.update(block.content)
-  }
-
-  def finish(fd: FileDescription) {
-    val hash = new Hash(md.digest())
-    universe.backupPartHandler.hashForFile(fd, hash)
-  }
-
-  def waitUntilQueueIsDone = true
-
-  def fileFailed(fd: FileDescription) {
+  def finish(f: Hash => Unit) {
+    f(new Hash(md.digest()))
     md.reset()
   }
 
+  override def hash(bytes: Array[Byte]) {
+    md.update(bytes)
+  }
 }
 
 class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: File) extends RestoreFileHandler {
@@ -131,5 +124,25 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
     } finally {
       IOUtils.closeQuietly(os)
     }
+  }
+}
+
+class SingleThreadFileHasher extends HashFileHandler with PureLifeCycle {
+  val hasher = new SingleThreadHasher()
+  hasher.setup(universe)
+
+  // Hash this block of this file
+  override def hash(blockwrapper: Block) {
+    hasher.hash(blockwrapper.content)
+  }
+
+  override def finish(fd: FileDescription): Unit = {
+    hasher.finish { hash =>
+      universe.backupPartHandler().hashForFile(fd, hash)
+    }
+  }
+
+  override def fileFailed(fd: FileDescription): Unit = {
+    hasher.finish { _ => }
   }
 }

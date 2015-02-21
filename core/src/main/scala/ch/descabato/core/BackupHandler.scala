@@ -198,7 +198,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
             wrapper2.hash = new Hash(md.digest(wrapper2.content))
             universe.backupPartHandler.hashComputed(wrapper2)
           }
-          universe.hashHandler.hash(wrapper2)
+          universe.hashFileHandler.hash(wrapper2)
           byteCounter += block.length
           counters.get += block.length
           waitForQueues()
@@ -208,7 +208,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
           i += 1
       })
       copy(fis, blockHasher)
-      universe.hashHandler.finish(fileDesc)
+      universe.hashFileHandler.finish(fileDesc)
       fileCounter += 1
       success = true
       true
@@ -230,7 +230,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       if (!success) {
         l.info("File was not successfully backed up "+fileDesc)
         failureCounter += 1
-        universe.hashHandler().fileFailed(fileDesc)
+        universe.hashFileHandler().fileFailed(fileDesc)
         universe.backupPartHandler().fileFailed(fileDesc)
       }
     }

@@ -45,7 +45,7 @@ trait Universe extends LifeCycle {
   def backupPartHandler(): BackupPartHandler
   def hashListHandler(): HashListHandler
   def blockHandler(): BlockHandler
-  def hashHandler(): HashFileHandler
+  def hashFileHandler(): HashFileHandler
   def journalHandler(): JournalHandler
   def redundancyHandler(): RedundancyHandler = {
       new NoOpRedundancyHandler()
@@ -53,10 +53,10 @@ trait Universe extends LifeCycle {
   def compressionDecider(): CompressionDecider
 
   lazy val startUpOrder: List[LifeCycle] = List(journalHandler(),
-      hashHandler, blockHandler, hashListHandler, backupPartHandler)
+    hashFileHandler, blockHandler, hashListHandler, backupPartHandler)
 
   lazy val finishOrder = List(blockHandler, hashListHandler, backupPartHandler,
-    hashHandler, journalHandler)
+    hashFileHandler, journalHandler)
 
   def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler
   

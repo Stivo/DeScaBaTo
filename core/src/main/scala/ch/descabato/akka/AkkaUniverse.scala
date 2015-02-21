@@ -13,7 +13,7 @@ import akka.routing.{DefaultResizer, RoundRobinPool, Routee}
 import ch.descabato.core.{BackupFolderConfiguration, _}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{Hash, Utils}
 import com.typesafe.config.Config
 
 import scala.collection.immutable.HashMap
@@ -99,7 +99,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   val backupPartHandler = actorOf[BackupPartHandler, KvStoreBackupPartHandler]("Backup Parts")
   val hashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
   val blockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
-  lazy val hashHandler = actorOf[HashFileHandler, AkkaHasher]("Hasher")
+  lazy val hashFileHandler = actorOf[HashFileHandler, AkkaHasher]("Hasher")
   lazy val compressionDecider = config.compressor match {
     case x if x.isCompressionAlgorithm => actorOf[CompressionDecider, SimpleCompressionDecider]("Compression Decider")
     case smart => actorOf[CompressionDecider, SmartCompressionDecider]("Compression Decider")
@@ -136,9 +136,9 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       count = 0
       count += cpuTaskCounter.get
       count += futureCounter.get
-      count += List(hashHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
+      count += List(hashFileHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
                 .map(queueLength).sum
-      count += blockHandler.remaining + hashHandler.remaining() + backupPartHandler.remaining()
+      count += blockHandler.remaining + hashFileHandler.remaining() + backupPartHandler.remaining()
       l.info(s"$count open items in all queues")
     } while (count > 0)
     // In the end, more threads are needed because there is some synchronous operations
@@ -206,7 +206,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     }
     ProgressReporters.addCounter(counters: _*)
     checkQueueWithFunction(cpuTaskCounter.get(), "CPU Tasks")
-    checkQueue(hashHandler, "hash handler")
+    checkQueue(hashFileHandler, "hash handler")
     checkQueue(blockHandler, "writer")
     checkQueue(compressionDecider, "compression decider")
     //if (blockHandler.remaining > queueLimit*2)
@@ -320,22 +320,24 @@ class MyExecutorServiceFactory extends ExecutorServiceFactory {
 }
 
 class AkkaHasher extends HashFileHandler with UniversePart with PureLifeCycle with AkkaUniversePart {
-  var map: Map[String, HashFileHandler] = new HashMap()
+  var map: Map[String, HashHandler] = new HashMap()
 
   def hash(block: Block) {
     add1
     val s = block.id.file.path
     if (map.get(s).isEmpty) {
-      val actor = uni.actorOf[HashFileHandler, AkkaSingleThreadHasher]("hasher for " + s, withCounter = false)
+      val actor = uni.actorOf[HashHandler, AkkaSingleThreadHasher]("hasher for " + s, withCounter = false)
       map += s -> actor
     }
-    map(s).hash(block)
+    map(s).hash(block.content)
   }
 
   def finish(fd: FileDescription) {
     add1
     val ref = map(fd.path)
-    ref.finish(fd)
+    ref.finish { hash =>
+      universe.backupPartHandler().hashForFile(fd, hash)
+    }
     TypedActor.get(uni.system).getActorRefFor(ref) ! PoisonPill
     map -= fd.path
   }
@@ -343,7 +345,6 @@ class AkkaHasher extends HashFileHandler with UniversePart with PureLifeCycle wi
   def fileFailed(fd: FileDescription) {
     map.get(fd.path) match {
       case Some(ref) =>
-        ref.fileFailed(fd)
         TypedActor.get(uni.system).getActorRefFor(ref) ! PoisonPill
       case None =>
     }
@@ -354,13 +355,13 @@ class AkkaHasher extends HashFileHandler with UniversePart with PureLifeCycle wi
 }
 
 class AkkaSingleThreadHasher extends SingleThreadHasher with AkkaUniversePart {
-  override def hash(block: Block) {
-    super.hash(block)
+  override def finish(f: Hash => Unit): Unit = {
+    super.finish(f)
     subtract1
   }
 
-  override def finish(fd: FileDescription) {
-    super.finish(fd)
+  override def hash(bytes: Array[Byte]) {
+    super.hash(bytes)
     subtract1
   }
 }
