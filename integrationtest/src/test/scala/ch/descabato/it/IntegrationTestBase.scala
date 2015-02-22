@@ -1,15 +1,15 @@
 package ch.descabato.it
 
-import java.io.{File, FileInputStream, RandomAccessFile}
+import java.io.{File, RandomAccessFile}
 import java.nio.file.Paths
 
-import ch.descabato.utils.{FileUtils, Streams, Utils}
+import ch.descabato.utils.Utils
 import ch.descabato.{RichFlatSpecLike, TestUtils}
-import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.exec.{CommandLine, ExecuteException}
+import org.apache.commons.io.{FileUtils => IO_FileUtils}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
-import org.apache.commons.io. { FileUtils => IO_FileUtils }
+
 import scala.collection.mutable.Set
 
 class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
