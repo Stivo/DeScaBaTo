@@ -7,6 +7,7 @@ import akka.actor.TypedActor.PostRestart
 import ch.descabato.CompressionMode
 import ch.descabato.akka.{ActorStats, AkkaUniverse}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
+import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.utils._
 import ch.descabato.utils.Implicits._
 import org.apache.commons.compress.utils.IOUtils
@@ -80,7 +81,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
     Future.successful(f())
   }
 
-  override def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler = {
+  override def createRestoreHandler(description: FileDescription, file: File, counter: MaxValueCounter): RestoreFileHandler = {
     val out = new SingleThreadRestoreFileHandler(description, file)
     out.setup(this)
     out

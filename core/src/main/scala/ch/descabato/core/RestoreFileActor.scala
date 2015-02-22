@@ -5,6 +5,7 @@ import java.io.{File, FileOutputStream, OutputStream}
 import akka.actor.{PoisonPill, TypedActor}
 import akka.io.Tcp.Write
 import ch.descabato.akka.{AkkaHashActor, AkkaUniversePart}
+import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.utils.{BytesWrapper, Hash, CompressedStream, Utils}
 
 import scala.collection.{SortedMap, mutable}
@@ -13,7 +14,7 @@ import scala.concurrent.duration._
 import ch.descabato.utils.Implicits._
 
 trait AkkaRestoreFileHandler extends RestoreFileHandler {
-  def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler)
+  def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler, filecounter: MaxValueCounter)
   def blockDecompressed(block: Block)
 }
 
@@ -28,6 +29,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
   var ownRef: AkkaRestoreFileHandler = null
   var fd: FileDescription = null
   var destination: File = null
+  var counter: MaxValueCounter = null
 
   // initialized in startRestore
   var hashList: Array[Hash] = null
@@ -39,13 +41,14 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
   var blockToBeWritten = 0
   var numberOfBlocks = 0
 
-  def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler): Unit = {
+  def setup(fd: FileDescription, dest: File, ownRef: AkkaRestoreFileHandler, counter: MaxValueCounter): Unit = {
     this.fd = fd
     this.ownRef = ownRef
     writeFileHandler = uni.actorOf[WriteFileHandler, WriteActor]("write "+dest)
     writeFileHandler.setFile(dest)
     hashHandler = uni.actorOf[HashHandler, AkkaHashActor]("hash "+dest)
     destination = dest
+    this.counter = counter
   }
 
   override def restore(): Future[Boolean] = {
@@ -111,6 +114,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
       writeFileHandler.write(array.content)
       add1
       hashHandler.hash(array.content)
+      counter += array.uncompressedLength
     }
   }
 

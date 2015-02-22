@@ -1,12 +1,9 @@
 package ch.descabato.core
 
-import java.io.{File, InputStream}
-import java.nio.ByteBuffer
-import java.security.MessageDigest
+import java.io.File
 import java.util.Date
 
-import ch.descabato.CompressionMode
-import ch.descabato.utils.Implicits._
+import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.utils._
 
 import scala.concurrent.Future
@@ -59,7 +56,7 @@ trait Universe extends LifeCycle {
   lazy val finishOrder = List(blockHandler, hashListHandler, backupPartHandler,
     hashFileHandler, journalHandler)
 
-  def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler
+  def createRestoreHandler(description: FileDescription, file: File, filecounter: MaxValueCounter): RestoreFileHandler
   
   // Doesn't really matter
   lazy val shutdownOrder = startUpOrder.reverse

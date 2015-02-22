@@ -228,10 +228,10 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     ret
   }
 
-  override def createRestoreHandler(description: FileDescription, file: File): RestoreFileHandler = {
+  override def createRestoreHandler(description: FileDescription, file: File, filecounter: MaxValueCounter): RestoreFileHandler = {
     if (description.size > 10 * config.blockSize.bytes) {
       val ref = actorOf[AkkaRestoreFileHandler, RestoreFileActor]("restore " + file.getAbsolutePath)
-      ref.setup(description, file, ref)
+      ref.setup(description, file, ref, filecounter)
       ref
     } else {
       val ref = new SingleThreadRestoreFileHandler(description, file)

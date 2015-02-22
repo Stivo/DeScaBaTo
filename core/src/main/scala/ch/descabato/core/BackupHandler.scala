@@ -46,6 +46,20 @@ trait BackupRelatedHandler {
   def universe: Universe
   def config: BackupFolderConfiguration = universe.config
 
+  var threadNumber = 0
+
+  class FileProgress extends MaxValueCounter() {
+    val name = "Current file " + (config.synchronized {
+      val copy = threadNumber
+      threadNumber += 1
+      copy
+    })
+    ProgressReporters.addCounter(this)
+    var filename = ""
+
+    override def formatted = filename
+  }
+
   def statistics(x: BackupDescription) = {
     val num = x.size
     val totalSize = new Size(x.files.map(_.size).sum)
@@ -72,21 +86,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     override def initialValue = new FileProgress()
   }
 
-  var threadNumber = 0
-
   val nameOfOperation = "Backing up"
 
-  class FileProgress extends MaxValueCounter() {
-    val name = "Current file " + (config.synchronized {
-      val copy = threadNumber
-      threadNumber += 1
-      copy
-    })
-    ProgressReporters.addCounter(this)
-    var filename = ""
-
-    override def formatted = filename
-  }
 
   import universe._
 
@@ -244,6 +245,8 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
 
   val nameOfOperation = "Restoring"
 
+  lazy val filecounter = new FileProgress()
+
   sealed trait Result
 
   case object IsSubFolder extends Result
@@ -327,8 +330,8 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     initRoots(description.folders)
     val filtered = description // TODO if (o.pattern.isDefined) filesInBackup.filter(x => x.path.contains(options.pattern())) else filesInBackup
     l.info("Going to restore " + statistics(filtered))
-    setMaximums(filtered)
-    ProgressReporters.activeCounters = List(fileCounter, byteCounter)
+    setMaximums(filtered, withGui = true)
+    ProgressReporters.activeCounters = List(fileCounter, byteCounter, failureCounter)
     universe.loadBlocking()
     description.folders.foreach(restoreFolderDesc(_))
     description.files.foreach(restoreFileDesc)
@@ -402,7 +405,10 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
       if (!restoredFile.getParentFile().exists())
         restoredFile.getParentFile().mkdirs()
 
-      val actor = universe.createRestoreHandler(fd, restoredFile)
+      filecounter.filename = restoredFile.getName
+      filecounter.maxValue = fd.size
+      filecounter.current = 0
+      val actor = universe.createRestoreHandler(fd, restoredFile, filecounter)
       val future = actor.restore()
       Await.result(future, 24.hours)
       // TODO add these again

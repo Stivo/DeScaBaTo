@@ -366,7 +366,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
     val indexWriter = new KvStoreStorageMechanismWriter(indexFile, config.passphrase)
     indexWriter.setup(universe)
     indexWriter.writeManifest()
-    val json = new JsonSerialization()
+    val json = new JsonSerialization(indent = false)
     val indexList = persistedEntries.toVector.filter(_._2.file == currentlyWritingFile.file).sortBy(_._2.pos).map {
       case (k, v) =>
         (k.asArray(), v.pos)

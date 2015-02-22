@@ -96,7 +96,7 @@ trait MaxValueCounter extends Counter {
 
 trait Counter {
   def name: String
-  var current = 0L
+  @volatile var current = 0L
 
   def +=(l: Long) {
     this.synchronized {
