@@ -68,7 +68,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
         universe.scheduleTask { () =>
           val decomp = CompressedStream.decompressToBytes(bytes)
           val hash = universe.config().createMessageDigest().finish(decomp)
-          if (!(hash safeEquals blockHash)) {
+          if (hash !== blockHash) {
             l.warn("Could not reconstruct block "+id+" of file "+destination+" correctly, hash was incorrect")
           }
           ownRef.blockDecompressed(new Block(id, decomp))
@@ -126,7 +126,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     val computedHash = Await.result(hashPromise.future, 5.minutes)
     TypedActor.get(uni.system).getActorRefFor(hashHandler) ! PoisonPill
     //    fulfill the promise
-    if (! (fd.hash safeEquals computedHash)) {
+    if (fd.hash !== computedHash) {
       l.warn("Could not reconstruct file exactly " + destination.getAbsolutePath)
       p.success(false)
     } else {

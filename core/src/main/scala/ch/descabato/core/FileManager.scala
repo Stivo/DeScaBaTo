@@ -43,6 +43,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   var remote = true
   var redundant = false
   var hasDate = false
+  def shouldDeleteIncomplete = false
 
   def this(prefix: String, metadata: Boolean, suffix: String,
     localC: Boolean = true, remoteC: Boolean = true, redundantC: Boolean = false, hasDateC: Boolean = false)(implicit m: Manifest[T]) {
@@ -161,16 +162,15 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
 trait Index
 
-class IndexFileType(val filetype: FileType[_]) extends FileType[Index](filetype.prefix, true, ".index.zip") {
+class IndexFileType(val filetype: FileType[_]) extends FileType[Index](filetype.prefix, true, ".index.kvs") {
   
   def indexForFile(file: File): File = {
     new File(file.getParentFile(), filenameForNumber(filetype.numberOf(file)))
   }
-  
   def fileForIndex(file: File): File = {
     new File(file.getParentFile(), filetype.filenameForNumber(numberOf(file)))
   }
-  
+  override val shouldDeleteIncomplete = true
 }
 
 /**

@@ -4,6 +4,7 @@ import java.io.{OutputStream, FileOutputStream, File}
 import java.security.DigestOutputStream
 
 import akka.actor.TypedActor.PostRestart
+import ch.descabato.CompressionMode
 import ch.descabato.akka.{ActorStats, AkkaUniverse}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.utils._
@@ -50,7 +51,8 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val hashFileHandler = make(new SingleThreadFileHasher())
   val compressionDecider = make(config.compressor match {
     case x if x.isCompressionAlgorithm => new SimpleCompressionDecider()
-    case smart => new SmartCompressionDecider()
+    case CompressionMode.smart => new SmartCompressionDecider()
+    case _ => new SimpleCompressionDecider(Some(CompressionMode.lz4hc))
   })
 
   load()
@@ -124,7 +126,7 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
       os.close()
       var success = true
       hasher.finish { hash =>
-        success = hash safeEquals fd.hash
+        success = hash === fd.hash
       }
       Future.successful(success)
     } catch {

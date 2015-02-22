@@ -15,14 +15,19 @@ import sun.nio.ch.DirectBuffer
 
 import scala.language.implicitConversions
 
+trait RealEquality[T] {
+  def ===(t: T): Boolean
+  def !==(t: T) = !(this === t)
+}
+
 class Hash(val bytes: Array[Byte]) extends AnyVal {
   def length = bytes.length
   def base64 = Utils.encodeBase64Url(bytes)
   def isNull = length == 0
   // minimal size of hash is 16
   def isNotNull = !isNull
-  def safeEquals(other: Hash) = java.util.Arrays.equals(bytes, other.bytes)
-  def different(other: Hash) = !(this safeEquals other)
+  def ===(other: Hash) = java.util.Arrays.equals(bytes, other.bytes)
+  def !==(other: Hash) = !(this === other)
   def wrap(): BytesWrapper = new BytesWrapper(bytes)
 }
 
@@ -149,35 +154,11 @@ object Implicits {
       os.write(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
     }
   }
-  implicit class AwareByteArray(array: Array[Byte]) {
-    def wrap(): BytesWrapper = new BytesWrapper(array)
+  implicit class ByteArrayUtils(buf: Array[Byte]) extends RealEquality[Array[Byte]]{
+    def ===(other: Array[Byte]) = java.util.Arrays.equals(buf, other)
+    def wrap(): BytesWrapper = new BytesWrapper(buf)
   }
 
-  implicit class ByteBufferUtils(buf: ByteBuffer) {
-    def writeTo(out: OutputStream) {
-      if (buf.hasArray()) {
-        out.write(buf.array(), buf.position(), buf.remaining())
-      } else {
-        throw new UnsupportedOperationException("Not yet implemented, but easy to do")
-      }
-    }
-
-    def recycle() {
-      buf match {
-        case x: DirectBuffer => x.cleaner().clean()
-      }
-    }
-
-    def toArray() = {
-      if (buf.hasArray()) {
-        val out = new Array[Byte](buf.limit())
-        System.arraycopy(buf.array(), buf.arrayOffset(), out, 0, buf.remaining())
-        out
-      } else {
-        throw new UnsupportedOperationException("Not yet implemented, but easy to do")
-      }
-    }
-  }
   implicit class InvariantContains[T, CC[X] <: Seq[X]](xs: CC[T]) {
     def safeContains(x: T): Boolean = xs contains x
   }

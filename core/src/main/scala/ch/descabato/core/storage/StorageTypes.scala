@@ -22,7 +22,7 @@ trait IndexMechanism[K, L <: Location] {
 trait Location
 
 trait StorageMechanismWriter[L <: Location, K, V] extends AutoCloseable {
-  def add(k: K, v: V)
+  def add(k: K, v: V): L
   def checkpoint()
 }
 
@@ -35,7 +35,7 @@ class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[Strin
 
   lazy val kvstoreWriter = new KvStoreWriterImpl(file, if (passphrase.isDefined) passphrase.get else null)
 
-  def add(k: Array[Byte], v: BytesWrapper) {
+  def add(k: Array[Byte], v: BytesWrapper): KvStoreLocation = {
     kvstoreWriter.writeKeyValue(k, v)
   }
 

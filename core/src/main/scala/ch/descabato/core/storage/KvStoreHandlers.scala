@@ -1,6 +1,7 @@
 package ch.descabato.core.storage
 
 import java.io.{File, InputStream}
+import java.nio.ByteBuffer
 import java.util
 
 import ch.descabato.CompressionMode
@@ -31,12 +32,16 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
     readers(file)
   }
 
-  def load() {
+  final def load() {
     for (file <- fileType.getFiles(config.folder)) {
-      val reader = getReaderForLocation(file)
-      persistedEntries ++= reader.iterator.map {
-        case (k, v) => (storageToKeyMem(k), v)
-      }
+      loadFile(file)
+    }
+  }
+
+  def loadFile(file: File): Unit = {
+    val reader = getReaderForLocation(file)
+    persistedEntries ++= reader.iterator.map {
+      case (k, v) => (storageToKeyMem(k), v)
     }
   }
 
@@ -78,8 +83,8 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
       currentlyWritingFile.writeManifest()
     }
     val memKey = keyInterfaceToKeyMem(key)
-    persistedEntries += memKey -> null
-    currentlyWritingFile.add(keyMemToStorage(memKey), value)
+    val pos = currentlyWritingFile.add(keyMemToStorage(memKey), value)
+    persistedEntries += memKey -> pos
     if (checkIfCheckpoint())
       currentlyWritingFile.checkpoint()
   }
@@ -298,6 +303,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
 
   def fileFinished() {
     universe.journalHandler.finishedFile(currentlyWritingFile.file, fileType)
+    createIndex()
   }
 
   override def readBlockAsync(hash: Hash): Future[BytesWrapper] = {
@@ -355,4 +361,45 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
     compressionRatioCounter += block.compressed.length
   }
 
+  def createIndex(): Unit = {
+    val indexFile = fileManager.volumeIndex.indexForFile(currentlyWritingFile.file)
+    val indexWriter = new KvStoreStorageMechanismWriter(indexFile, config.passphrase)
+    indexWriter.setup(universe)
+    indexWriter.writeManifest()
+    val json = new JsonSerialization()
+    val indexList = persistedEntries.toVector.filter(_._2.file == currentlyWritingFile.file).sortBy(_._2.pos).map {
+      case (k, v) =>
+        (k.asArray(), v.pos)
+    }
+    val jsonList = json.write(indexList)
+    val compressed = CompressedStream.compress(jsonList.wrap, CompressionMode.deflate)
+    indexWriter.add("list".getBytes, compressed)
+    indexWriter.close()
+    universe.journalHandler.finishedFile(indexFile, fileManager.volumeIndex)
+  }
+
+  override def loadFile(file: File): Unit = {
+    val indexFile = universe.fileManager().volumeIndex.indexForFile(file)
+    if (indexFile.exists()) {
+      val reader = new KvStoreStorageMechanismReader(indexFile, config.passphrase)
+      val key = "list".getBytes()
+      val json = new JsonSerialization()
+      reader.iterator.filter(_._1 === key).foreach { case (k, l) =>
+        val value = reader.get(l)
+        val decomp = CompressedStream.decompressToBytes(value)
+        json.read[Vector[(Array[Byte], Long)]](decomp) match {
+          case Left(vec) =>
+            val newEntries = vec.map { case (hash, pos) =>
+              (storageToKeyMem(hash), new KvStoreLocation(file, pos))
+            }
+            persistedEntries ++= newEntries
+          case _ =>
+            super.loadFile(file)
+        }
+      }
+      reader.close()
+    } else {
+      super.loadFile(file)
+    }
+  }
 }

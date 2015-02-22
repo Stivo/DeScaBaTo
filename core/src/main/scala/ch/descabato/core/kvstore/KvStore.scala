@@ -4,6 +4,7 @@ import java.io.{DataOutputStream, File}
 import java.util
 
 import ch.descabato.ByteArrayOutputStream
+import ch.descabato.core.storage.KvStoreLocation
 import ch.descabato.utils.{BytesWrapper, Utils}
 import ch.descabato.utils.Implicits._
 
@@ -77,7 +78,7 @@ case class Entry(typ: EntryType, parts: Iterable[EntryPart]) {
 }
 
 trait KvStoreWriter extends AutoCloseable {
-  def writeEntry(entry: Entry)
+  def writeEntry(entry: Entry): KvStoreLocation
   def writeKeyValue(key: Array[Byte], value: BytesWrapper) = {
     writeEntry(new Entry(EntryTypes.keyValue, newEntryPart(key.wrap(), hasCrc = false) :: newEntryPart(value, hasCrc = false) :: Nil))
   }
@@ -164,7 +165,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	
 	var lastSync = 0L
 	
-	def writeEntry(entry: Entry) {
+	def writeEntry(entry: Entry) = {
     writer.writeByte(entry.typ.markerByte)
     for (part <- entry.parts) {
       writeEntryPart(part)
@@ -173,16 +174,23 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
       writer.fsync()
       lastSync = writer.getFileLength()
 	  }
+    new KvStoreLocation(file, entry.parts.last.startPos)
   }
 
   def checkpoint(): Unit = writer.fsync()
 
 	def writeEntryPart(part: EntryPart) {
+    if (part.isInstanceOf[EntryPartW]) {
+      val writePart = part.asInstanceOf[EntryPartW]
+      writePart.startPos = writer.currentPos
+    } else {
+      throw new IllegalArgumentException("Really expected an EntryPartW here")
+    }
 	  writer.writeByte(if (part.hasCrc) 1 else 0)
-	  writer.writeVLong(part.bytes.length)
-	  writer.write(part.bytes)
-	  if (part.hasCrc)
-	    writer.writeInt(CrcUtil.crc(part.bytes))
+    writer.writeVLong(part.bytes.length)
+    writer.write(part.bytes)
+    if (part.hasCrc)
+    writer.writeInt(CrcUtil.crc(part.bytes))
 	}
 	
   def close() {
@@ -349,7 +357,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     entryType match {
       case 0 => readPlainValue(pos, hasCrcIn = false)
       case 1 => readPlainValue(pos, hasCrcIn = true)
-      case e => throw new IllegalArgumentException("Expected type of entrypart to be 0, was "+e)
+      case e => throw new IllegalArgumentException("Expected type of entrypart to be 0 or 1, was "+e)
     }
   }
   

@@ -515,7 +515,7 @@ class VerifyHandler(val universe: Universe)
         byteCounter += bytes.length
       }
       val hash = new Hash(md.digest())
-      if (!(file.hash safeEquals hash)) {
+      if (!(file.hash === hash)) {
         l.warn("File " + file + " is broken in backup")
         l.warn(file.hash.base64 + " " + hash.base64)
         problemCounter += 1

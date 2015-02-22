@@ -7,13 +7,17 @@ import ch.descabato.{CompressionMode, TimingUtil}
 import scala.collection.mutable
 import scala.language.implicitConversions
 
-class SimpleCompressionDecider extends CompressionDecider with UniversePart {
+class SimpleCompressionDecider(val overrideMode: Option[CompressionMode]) extends CompressionDecider with UniversePart {
+  def this() {
+    this(None)
+  }
+  lazy val mode = overrideMode.getOrElse(universe.config.compressor)
   def blockCompressed(block: Block, nanoTime: Long) {
 //    universe.blockHandler.writeCompressedBlock(block)
   }
   def compressBlock(block: Block): Unit = {
     universe.scheduleTask { () =>
-        block.mode = universe.config.compressor
+        block.mode = mode
         val compressed = CompressedStream.compress(block.content, block.mode)
         block.compressed = compressed
         universe.blockHandler().writeCompressedBlock(block)

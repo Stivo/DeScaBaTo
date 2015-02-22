@@ -23,6 +23,7 @@ trait Serialization {
 }
 
 abstract class AbstractJacksonSerialization extends Serialization {
+  def indent = true
   class UpdatePartDeserializer extends StdDeserializer[UpdatePart](classOf[UpdatePart]) {
     def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper]
@@ -75,7 +76,9 @@ abstract class AbstractJacksonSerialization extends Serialization {
 
   mapper.registerModule(testModule)
   // TODO disable before a release
-  mapper.enable(SerializationFeature.INDENT_OUTPUT)
+  if (indent) {
+    mapper.enable(SerializationFeature.INDENT_OUTPUT)
+  }
   mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
@@ -101,7 +104,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
 
 }
 
-class JsonSerialization extends AbstractJacksonSerialization {
+class JsonSerialization(override val indent: Boolean = true) extends AbstractJacksonSerialization {
   lazy val mapper = new ObjectMapper() with ScalaObjectMapper
 }
 

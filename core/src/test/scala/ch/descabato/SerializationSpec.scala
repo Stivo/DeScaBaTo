@@ -47,7 +47,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     import f._
     val fidAfter = writeAndRead(ser, fid)
     assert(fid === fidAfter)
-    assert(fid.hash safeEquals fidAfter.hash)
+    assert(fid.hash === fidAfter.hash)
     assert(fid.attrs.keys === fidAfter.attrs.keys)
     fidAfter.attrs.keys should contain ("lastModifiedTime")
     chainMap.map(_._1) should equal (writeAndRead(ser, chainMap).map(_._1))
@@ -58,7 +58,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     assert(bd === writeAndRead(ser, bd))
     (list.head, listAfter.head) match {
       case (x: FileDescription, y: FileDescription) => 
-        assert(x.hash safeEquals y.hash)
+        assert(x.hash === y.hash)
       case _ => fail
     }
   }

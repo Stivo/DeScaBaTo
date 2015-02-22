@@ -169,7 +169,7 @@ object FileDeleted {
 case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Hash = NullHash.nul) extends BackupPart {
   @JsonIgnore def isFolder = false
   override def equals(x: Any) = x match {
-    case FileDescription(p, s, attributes, h) if p == path && s == size && attributes == attrs => hash safeEquals h
+    case FileDescription(p, s, attributes, h) if p == path && s == size && attributes == attrs => hash === h
     case _ => false
   }
 

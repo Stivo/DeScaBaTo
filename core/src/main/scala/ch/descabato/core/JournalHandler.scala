@@ -110,14 +110,18 @@ class SimpleJournalHandler extends JournalHandler with Utils {
         l.debug(s"Checking file $f because Journal does not mention it")
         val file = new File(config.folder, f)
         var shouldDelete = true
-        if (file.getName.endsWith(".kvs")) {
-          val kvStore = new KvStoreReaderImpl(file, config.passphrase.orNull, readOnly = false)
-          val success = kvStore.checkAndFixFile()
-          kvStore.close()
-          if (success) {
-            shouldDelete = false
-            val ft = universe.fileManager().getFileType(file)
-            finishedFile(file, ft)
+        if (fileManager.getFileType(file).shouldDeleteIncomplete) {
+          shouldDelete = true
+        } else {
+          if (file.getName.endsWith(".kvs")) {
+            val kvStore = new KvStoreReaderImpl(file, config.passphrase.orNull, readOnly = false)
+            val success = kvStore.checkAndFixFile()
+            kvStore.close()
+            if (success) {
+              shouldDelete = false
+              val ft = universe.fileManager().getFileType(file)
+              finishedFile(file, ft)
+            }
           }
         }
         if (shouldDelete) {
