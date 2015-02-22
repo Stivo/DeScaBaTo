@@ -64,6 +64,9 @@ public class ByteArrayOutputStream extends OutputStream {
      * {@code (long) Integer.MAX_VALUE + (minCapacity - Integer.MAX_VALUE)}.
      */
     private void ensureCapacity(int minCapacity) {
+        if (buf == null) {
+            buf = new byte[initialSize];
+        }
         // overflow-conscious code
         if (minCapacity - buf.length > 0)
             grow(minCapacity);
@@ -121,18 +124,6 @@ public class ByteArrayOutputStream extends OutputStream {
     }
 
     /**
-     * Writes the complete contents of this byte array output stream to
-     * the specified output stream argument, as if by calling the output
-     * stream's write method using <code>out.write(buf, 0, count)</code>.
-     *
-     * @param      out   the output stream to which to write the data.
-     * @exception  IOException  if an I/O error occurs.
-     */
-    public void writeTo(OutputStream out) throws IOException {
-        out.write(buf, 0, count);
-    }
-
-    /**
      * Resets the <code>count</code> field of this byte array output
      * stream to zero, so that all currently accumulated output in the
      * output stream is discarded. The output stream can be used again,
@@ -142,9 +133,7 @@ public class ByteArrayOutputStream extends OutputStream {
      */
     public void reset() {
         count = 0;
-        if (buf == null) {
-          buf = new byte[initialSize];
-        }
+        buf = null;
     }
 
     public BytesWrapper toBytesWrapper() {

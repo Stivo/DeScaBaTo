@@ -27,6 +27,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
     def readFully() = {
       val baos = new ByteArrayOutputStream()
       IOUtils.copy(in, baos)
+      baos.close()
       baos.toBytesWrapper().asArray()
     }
   }

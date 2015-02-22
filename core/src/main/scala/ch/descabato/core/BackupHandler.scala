@@ -193,13 +193,12 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
         block: BytesWrapper =>
           val bid = new BlockId(fileDesc, i)
           val wrapper = new Block(bid, block)
-          val wrapper2 = new Block(bid, block)
           universe.scheduleTask { () =>
             val md = universe.config.createMessageDigest
-            wrapper2.hash = md.finish(wrapper2.content)
-            universe.backupPartHandler.hashComputed(wrapper2)
+            wrapper.hash = md.finish(wrapper.content)
+            universe.backupPartHandler.hashComputed(wrapper)
           }
-          universe.hashFileHandler.hash(wrapper2)
+          universe.hashFileHandler.hash(wrapper)
           byteCounter += block.length
           counters.get += block.length
           waitForQueues()
@@ -209,6 +208,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
           i += 1
       })
       IOUtils.copy(fis, blockHasher, config.blockSize.bytes.toInt * 2)
+      IOUtils.closeQuietly(fis)
+      IOUtils.closeQuietly(blockHasher)
       universe.hashFileHandler.finish(fileDesc)
       fileCounter += 1
       success = true

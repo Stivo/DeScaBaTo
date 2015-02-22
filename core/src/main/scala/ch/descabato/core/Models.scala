@@ -180,11 +180,11 @@ case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash
 
 case class BlockId(file: FileDescription, part: Int)
 
-class Block(val id: BlockId, var content: BytesWrapper) {
+class Block(val id: BlockId, val content: BytesWrapper) {
   val uncompressedLength = content.length
-  @volatile var hash: Hash = NullHash.nul
-  @volatile var mode: CompressionMode = null
-  @volatile var compressed: BytesWrapper = null
+  var hash: Hash = NullHash.nul
+  var mode: CompressionMode = null
+  var compressed: BytesWrapper = null
 }
 
 case class FolderDescription(path: String, attrs: FileAttributes) extends BackupPart {

@@ -119,6 +119,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     val result = Await.result(writeFileHandler.finish(), 5.minutes)
     TypedActor.get(uni.system).getActorRefFor(writeFileHandler) ! PoisonPill
     val hashPromise = Promise[Hash]
+    add1
     hashHandler.finish{ hash =>
       hashPromise.success(hash)
     }

@@ -84,10 +84,6 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
       currentlyWritingFile.checkpoint()
   }
 
-  def writeEntry(key: KI, value: Array[Byte]): Unit = {
-    writeEntry(key, value.wrap())
-  }
-
   def keyMemToStorage(k: KM): Array[Byte]
 
   def storageToKeyMem(k: Array[Byte]): KM
@@ -109,12 +105,11 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
 
 trait SimpleKvStoreHandler[K, V] extends KvStoreHandler[K, K, V] {
   def keyInterfaceToKeyMem(k: K): K = k
-
   def keyMemToKeyInterface(k: K) = k
 }
 
 trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, BytesWrapper, V] {
-  def keyInterfaceToKeyMem(k: Hash): BytesWrapper = k
+  def keyInterfaceToKeyMem(k: Hash): BytesWrapper = k.wrap()
   def keyMemToKeyInterface(k: BytesWrapper) = new Hash(k.asArray())
   def keyMemToStorage(k: BytesWrapper): Array[Byte] = k.asArray()
   def storageToKeyMem(k: Array[Byte]) = new BytesWrapper(k)
@@ -239,7 +234,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
   def writeBackupPart(fd: BackupPart) {
     val json = js.write(fd)
     val compressed = CompressedStream.compress(json.wrap(), CompressionMode.deflate)
-    writeEntry(fd.path, compressed.asArray())
+    writeEntry(fd.path, compressed)
   }
 
   protected def getUnfinished(fd: FileDescription) =
@@ -269,7 +264,7 @@ class KvStoreHashListHandler extends HashKvStoreHandler[Vector[(Hash, Array[Byte
     ensureLoaded()
     if (isPersisted(fileHash))
       return
-    writeEntry(fileHash, hashList)
+    writeEntry(fileHash, hashList.wrap())
   }
 
   def getHashlist(fileHash: Hash, size: Long): Seq[Hash] = {
@@ -344,10 +339,9 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
    }
 
   def writeCompressedBlock(block: Block) {
-
     if (currentlyWritingFile != null) {
-      val currentSize = currentlyWritingFile.length() + block.compressed.length + config.hashLength + 50
-      if (currentSize > config.volumeSize.bytes) {
+      val sizeAfterWriting = currentlyWritingFile.length() + block.compressed.length + config.hashLength + 50
+      if (sizeAfterWriting > config.volumeSize.bytes) {
         currentlyWritingFile.close()
         fileFinished()
         currentlyWritingFile = null

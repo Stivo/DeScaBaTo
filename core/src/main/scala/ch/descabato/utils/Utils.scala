@@ -22,6 +22,7 @@ class Hash(val bytes: Array[Byte]) extends AnyVal {
   // minimal size of hash is 16
   def isNotNull = !isNull
   def safeEquals(other: Hash) = java.util.Arrays.equals(bytes, other.bytes)
+  def different(other: Hash) = !(this safeEquals other)
   def wrap(): BytesWrapper = new BytesWrapper(bytes)
 }
 
@@ -30,23 +31,28 @@ object NullHash {
 }
 
 class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {
+  def copy(): BytesWrapper = {
+    new BytesWrapper(asArray())
+  }
+
   def asInputStream() = new ByteArrayInputStream(array, offset, length)
 
   if (length == -1) {
-    length = array.length
+    length = array.length - offset
   }
   def apply(i: Int) = array(i + offset)
   def asArray(): Array[Byte] = {
     if (array == null) {
       Array.empty[Byte]
     } else {
-      if (offset == 0 && length == array.length) {
-        array
-      } else {
+      // TODO if enabling this again, fix copy method
+//      if (offset == 0 && length == array.length) {
+//        array
+//      } else {
         val out = Array.ofDim[Byte](length)
         System.arraycopy(array, offset, out, 0, length)
         out
-      }
+//      }
     }
   }
   def equals(other: BytesWrapper): Boolean = {
@@ -76,7 +82,7 @@ class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int 
       return 0
     var result: Int = 1
     var i = offset
-    var end = offset + length
+    val end = offset + length
     while (i < end) {
      result = 31 * result + array(i)
       i += 1
@@ -131,8 +137,8 @@ object Implicits {
       md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
     }
     def finish(bytesWrapper: BytesWrapper): Hash = {
-      md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
-      new Hash(md.digest())
+      update(bytesWrapper)
+      finish()
     }
     def finish(): Hash = {
       new Hash(md.digest())

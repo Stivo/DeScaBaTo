@@ -19,7 +19,7 @@ object CompressedStream extends Utils {
   
   def compress(content: BytesWrapper, compressor: CompressionMode) : BytesWrapper = {
     val byte = compressor.getByte()
-    val baos = new ByteArrayOutputStream(content.length+16)
+    val baos = new ByteArrayOutputStream(content.length+80)
     baos.write(byte)
     val wrapped = getCompressor(byte, baos, Some(content.length))
     wrapped.write(content)
@@ -74,7 +74,9 @@ object CompressedStream extends Utils {
   def decompressToBytes(input: BytesWrapper): BytesWrapper = {
     val stream = decompress(input)
     val baos = new ByteArrayOutputStream()
-    IOUtils.copy(stream, baos)
+    IOUtils.copy(stream, baos, 100*1024)
+    IOUtils.closeQuietly(stream)
+    IOUtils.closeQuietly(baos)
     baos.toBytesWrapper
   }
 

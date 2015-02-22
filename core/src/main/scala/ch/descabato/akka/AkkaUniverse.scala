@@ -206,6 +206,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       return
     }
     ProgressReporters.addCounter(counters: _*)
+    checkQueueWithFunction(futureCounter.get().toInt, "Futures")
     checkQueueWithFunction(cpuTaskCounter.get(), "CPU Tasks")
     checkQueue(hashFileHandler, "hash handler")
     checkQueue(blockHandler, "writer")

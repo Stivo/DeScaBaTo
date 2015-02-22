@@ -72,7 +72,7 @@ class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[Strin
   def iterator = {
     kvstoreReader.iterator.collect {
       case Entry(_, k::v::Nil)
-        if ! (StorageMechanismConstants.manifestNameWrapped == v.bytes)
+        if ! (StorageMechanismConstants.manifestNameWrapped == k.bytes)
         => (k.bytes.asArray(), new KvStoreLocation(file, v.startPos))
     }
   }
@@ -81,7 +81,7 @@ class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[Strin
     if (_manifest == null && !_manifestReadFailed) {
       kvstoreReader.iterator.find {
         case Entry(_, k :: v :: Nil)
-          if StorageMechanismConstants.manifestNameWrapped == v.bytes =>
+          if StorageMechanismConstants.manifestNameWrapped == k.bytes =>
             true
       }.foreach { e =>
         val json = new JsonSerialization()
