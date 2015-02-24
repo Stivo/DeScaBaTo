@@ -34,7 +34,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   var system = ActorSystem("Descabato-"+Counter.i)
   Counter.i += 1
 
-  val queueLimit = 50
+  val queueLimit = 200
 
   val dispatcher = "backup-dispatcher"
 
@@ -178,7 +178,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     while (f > limit) {
       if (shouldPrint)
         l.info(s"Waiting for $name to finish, has $f left")
-      Thread.sleep(50)
+      Thread.sleep(10)
     }
   }
 
@@ -302,7 +302,6 @@ class Resizer(name: String) extends DefaultResizer(messagesPerResize = 100) with
       return 0
     }
     var requestedCapacity = capacity(currentRoutees)
-    var endResult = requestedCapacity + currentRoutees.size
     val newThreads = Math.min(requestedCapacity + currentRoutees.size, maxThreads)
     requestedCapacity = newThreads - currentRoutees.size
     requestedCapacity

@@ -161,7 +161,7 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
   //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks = opt[Boolean](default = Some(false))
   val compression = opt[CompressionMode](default = Some(CompressionMode.smart))
-  val createIndexes = opt[Boolean](default = Some(false))
+  val createIndexes = opt[Boolean](default = Some(true))
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {

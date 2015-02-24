@@ -35,14 +35,14 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var blockSize: Size = Size("16Kb")
   var volumeSize: Size = Size("100Mb")
   var threads: Int = 1
-  val useDeltas = false
+//  val useDeltas = false
   var hasPassword = passphrase.isDefined
-  var renameDetection = true
-  var redundancyEnabled = false
-  var metadataRedundancy: Int = 20
-  var volumeRedundancy: Int = 5
+//  var renameDetection = true
+//  var redundancyEnabled = false
+//  var metadataRedundancy: Int = 20
+//  var volumeRedundancy: Int = 5
   var saveSymlinks: Boolean = true
-  var createIndexes: Boolean = false
+  var createIndexes: Boolean = true
 }
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {

@@ -362,20 +362,22 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
   }
 
   def createIndex(): Unit = {
-    val indexFile = fileManager.volumeIndex.indexForFile(currentlyWritingFile.file)
-    val indexWriter = new KvStoreStorageMechanismWriter(indexFile, config.passphrase)
-    indexWriter.setup(universe)
-    indexWriter.writeManifest()
-    val json = new JsonSerialization(indent = false)
-    val indexList = persistedEntries.toVector.filter(_._2.file == currentlyWritingFile.file).sortBy(_._2.pos).map {
-      case (k, v) =>
-        (k.asArray(), v.pos)
+    if (config.createIndexes) {
+      val indexFile = fileManager.volumeIndex.indexForFile(currentlyWritingFile.file)
+      val indexWriter = new KvStoreStorageMechanismWriter(indexFile, config.passphrase)
+      indexWriter.setup(universe)
+      indexWriter.writeManifest()
+      val json = new JsonSerialization(indent = false)
+      val indexList = persistedEntries.toVector.filter(_._2.file == currentlyWritingFile.file).sortBy(_._2.pos).map {
+        case (k, v) =>
+          (k.asArray(), v.pos)
+      }
+      val jsonList = json.write(indexList)
+      val compressed = CompressedStream.compress(jsonList.wrap, CompressionMode.deflate)
+      indexWriter.add("list".getBytes, compressed)
+      indexWriter.close()
+      universe.journalHandler.finishedFile(indexFile, fileManager.volumeIndex)
     }
-    val jsonList = json.write(indexList)
-    val compressed = CompressedStream.compress(jsonList.wrap, CompressionMode.deflate)
-    indexWriter.add("list".getBytes, compressed)
-    indexWriter.close()
-    universe.journalHandler.finishedFile(indexFile, fileManager.volumeIndex)
   }
 
   override def loadFile(file: File): Unit = {
