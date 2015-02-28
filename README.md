@@ -19,6 +19,7 @@ As of now, it has these features:
 Compared to duplicati:
 
 - Duplicati is a mature program with a long history and a userbase, DeScaBaTo is very new
+- DeScaBaTo is inspired by Duplicati and shares the same deduplication strategy and has a similar storage format
 - DeScaBaTo is faster by decoupling IO from CPU tasks and writing every block exactly once, even when encrypted 
 - By using md5 (other hashes supported as well) and a custom archive format there is less space required
 - The design is simpler (no database to keep synchronized), and should be more robust. This makes it more useful as a portable program (no installation required, leaves no traces) too.
