@@ -1,10 +1,8 @@
 DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
 =========
 
-#####Info: The upcoming version 0.4.0 will be incompatible with the storage format of 0.3.0
 
-
-The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups and is in alpha stage, the program's internals are still heavily changing as I am figuring stuff out. The version 0.3.0, while rough around the edges, seems reliable for backups and restores even with simulated crashes.
+The Deduplicating Scala Backup Tool. It is inspired by [duplicati](http://www.duplicati.com/). Currently it only supports local backups and is in beta stage. The main backup functionality has been reliably working for a while now, and I don't plan to change too much of it anymore. The version 0.4.0, while rough around the edges, seems reliable for backups and restores even with simulated crashes.
 
 As of now, it has these features:
 
@@ -21,15 +19,16 @@ As of now, it has these features:
 Compared to duplicati:
 
 - Duplicati is a mature program with a long history and a userbase, DeScaBaTo is very new
-- DeScaBaTo is faster
+- DeScaBaTo is inspired by Duplicati and shares the same deduplication strategy and has a similar storage format
+- DeScaBaTo is faster by decoupling IO from CPU tasks and writing every block exactly once, even when encrypted 
 - By using md5 (other hashes supported as well) and a custom archive format there is less space required
-- The design is simpler (no database to keep synchronized), and should be more robust
-- It can automatically choose for each filetype which compression method to use. Duplicati either disables or enables based on a static list.
+- The design is simpler (no database to keep synchronized), and should be more robust. This makes it more useful as a portable program (no installation required, leaves no traces) too.
+- It can automatically choose for each file extension which compression method to use. Duplicati either disables or enables compression based on a static list.
 
 I plan to support these features:
 
 - Patterns for backups and restores
-- Useable file browser to restore files
+- Useable file browser to restore files (exists, but is not very useable)
 - Upload backup to remote hosts (cloud storage, ftp etc)
 
 ### Usage
@@ -86,11 +85,11 @@ To use encryption with longer keylength than 128, install the jce policy files (
 Absolutely no warranty given. 
 
 ### Compilation
-You will need sbt to compile or to set up eclipse. sbt universal:packageBin will create a zip file which an be distributed.
+You will need sbt to compile or to set up eclipse or intellij idea. sbt pack will create a folder which can be zipped and distributed.
 The project is split up into three parts:
 - core: The backup logic and command line interface
 - browser: A visual browser for the backups
-- integrationtest: A test that runs backups, tests the integrity and then restores them. Lets the process crash while backing up.
+- integrationtest: A test that runs backups, tests the integrity of them and then restores them. Lets the process crash while backing up.
 
 ### Implementation idea
 The current implementation finds all the files in a directory and hashes them block wise. A block contains a fixed number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used. 
