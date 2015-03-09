@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
 
 // UI Dependencies
 libraryDependencies ++= Seq(
-  "com.nativelibs4java" % "bridj" % "0.6.2" exclude("com.google.android.tools", "dx"),
+  "com.nativelibs4java" % "bridj" % "0.7.0" exclude("com.google.android.tools", "dx"),
   "com.miglayout" % "miglayout-swing" % "5.0"
 )
 

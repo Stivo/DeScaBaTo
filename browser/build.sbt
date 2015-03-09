@@ -28,7 +28,6 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 libraryDependencies ++= Seq(
 	"commons-configuration" % "commons-configuration" % "1.10",
 	"commons-io" % "commons-io" % "2.4",
-//	"com.google.guava" % "guava" % "15.0",
 	"com.miglayout" % "miglayout-swing" % "5.0",
 	"org.swinglabs.swingx" % "swingx-all" % "1.6.5-1",
 	"net.java.dev.jgoodies" % "looks" % "2.1.4",
