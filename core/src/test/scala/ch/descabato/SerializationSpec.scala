@@ -15,7 +15,7 @@ import scala.language.implicitConversions
 
 class SerializationSpec extends FlatSpec with TestUtils {
 
-  implicit def toVector[T](t: T) = Vector(t)
+  implicit def toVector[T](t: T): Vector[T] = Vector(t)
 
   def fixture =
     new {

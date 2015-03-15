@@ -16,7 +16,7 @@ class EncryptionInfo (
   // algorithm 0 is for HmacSHA256
   val macAlgorithm: Byte = 0,
   val ivLength: Byte = 16,
-  val iv: Array[Byte] = CryptoUtils newStrongRandomByteArray(16)
+  val iv: Array[Byte] = CryptoUtils.newStrongRandomByteArray(16)
 )
 
 class KeyDerivationInfo (
@@ -26,7 +26,7 @@ class KeyDerivationInfo (
   val memoryFactor: Byte = 8,
   val keyLength: Byte = 16,
   val saltLength: Byte = 20,
-  val salt: Array[Byte] = CryptoUtils newStrongRandomByteArray(20)
+  val salt: Array[Byte] = CryptoUtils.newStrongRandomByteArray(20)
 )
 
 object EntryTypes {
@@ -180,11 +180,11 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
   def checkpoint(): Unit = writer.fsync()
 
 	def writeEntryPart(part: EntryPart) {
-    if (part.isInstanceOf[EntryPartW]) {
-      val writePart = part.asInstanceOf[EntryPartW]
-      writePart.startPos = writer.currentPos
-    } else {
-      throw new IllegalArgumentException("Really expected an EntryPartW here")
+    part match {
+      case writePart: EntryPartW =>
+        writePart.startPos = writer.currentPos
+      case _ =>
+        throw new IllegalArgumentException("Really expected an EntryPartW here")
     }
 	  writer.writeByte(if (part.hasCrc) 1 else 0)
     writer.writeVLong(part.bytes.length)

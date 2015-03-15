@@ -120,7 +120,7 @@ trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, BytesWrapper, V] {
   def storageToKeyMem(k: Array[Byte]) = new BytesWrapper(k)
   def isPersisted(fileHash: Hash): Boolean = {
     ensureLoaded()
-    persistedEntries safeContains (fileHash)
+    persistedEntries safeContains fileHash
   }
 }
 
@@ -386,8 +386,8 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
       val reader = new KvStoreStorageMechanismReader(indexFile, config.passphrase)
       val key = "list".getBytes()
       val json = new JsonSerialization()
-      reader.iterator.filter(_._1 === key).foreach { case (k, l) =>
-        val value = reader.get(l)
+      reader.iterator.filter(_._1 === key).foreach { case (k, loc) =>
+        val value = reader.get(loc)
         val decomp = CompressedStream.decompressToBytes(value)
         json.read[Vector[(Array[Byte], Long)]](decomp) match {
           case Left(vec) =>

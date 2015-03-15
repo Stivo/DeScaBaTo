@@ -4,10 +4,10 @@ import ch.descabato.utils.BytesWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
 
 /**
  * This is a modified version of the JDK's ByteArrayOutputStream
@@ -113,7 +113,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * @param   off   the start offset in the data.
      * @param   len   the number of bytes to write.
      */
-    public void write(byte b[], int off, int len) {
+    public void write(@Nonnull byte b[], int off, int len) {
         if ((off < 0) || (off > b.length) || (len < 0) ||
             ((off + len) - b.length > 0)) {
             throw new IndexOutOfBoundsException();

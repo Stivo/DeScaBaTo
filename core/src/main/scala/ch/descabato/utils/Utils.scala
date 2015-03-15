@@ -74,7 +74,7 @@ class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int 
       o1 += 1
       o2 += 1
     }
-    return true
+    true
   }
   override def equals(obj: Any): Boolean =
     obj match {
@@ -92,7 +92,7 @@ class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int 
      result = 31 * result + array(i)
       i += 1
     }
-    return result
+    result
   }
   override def toString() = array.length + ": " + new String(array)
   def toByteBuffer(): ByteBuffer = ByteBuffer.wrap(array, offset, length)
