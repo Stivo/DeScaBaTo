@@ -323,6 +323,22 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     relativeToRoot = roots.size == 1 || roots.map(_.name).toList.distinct.size == roots.size
   }
 
+  def writeRestoreInfo(description: BackupDescription)(implicit options: RestoreConf) {
+    val info =
+      s"""Restoring completed successfully from ${universe.backupPartHandler.loadedBackup.map(_.getName).mkString(",")}
+          |Restored ${description.files.length} files with total size of ${Size(description.files.map(_.size).sum)}
+          |in ${description.folders.size} folders""".stripMargin
+    val lineEndings = if (Utils.isWindows) info.replace("\n", "\r\n") else info
+    val file = if (options.restoreToFolder.isDefined) {
+      new File(new File(options.restoreToFolder()), options.restoreInfo())
+    } else {
+      new File(options.restoreInfo())
+    }
+    val fos = new FileOutputStream(file)
+    fos.write(lineEndings.getBytes())
+    IOUtils.closeQuietly(fos)
+  }
+
   def restore(options: RestoreConf, d: Option[Date] = None) {
     implicit val o = options
     startMeasuring()
@@ -337,6 +353,9 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     description.files.foreach(restoreFileDesc)
     description.symlinks.foreach(restoreLink)
     description.folders.foreach(restoreFolderDesc(_, count = false))
+    if (options.restoreInfo.isDefined) {
+      writeRestoreInfo(description)
+    }
     universe.finish()
     ProgressReporters.activeCounters = Nil
     println("Finished restoring "+measuredTime())

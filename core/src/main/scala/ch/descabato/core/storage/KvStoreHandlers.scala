@@ -130,6 +130,8 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
   override val bytecountername = "Data hashed"
   override def nameOfOperation: String = "Should not be shown, is a bug"
 
+  var loadedBackup: Seq[File] = Nil
+
   var current: BackupDescription = new BackupDescription()
   var failedObjects = new BackupDescription()
 
@@ -195,12 +197,12 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
   }
 
   def loadBackup(date: Option[java.util.Date]): ch.descabato.core.BackupDescription = {
-    val filesToLoad: Seq[File] = date match {
+    loadedBackup = date match {
       case Some(d) => fileManager.getBackupForDate(d)
       case None => fileManager.getLastBackup(temp = true)
     }
     current = new BackupDescription()
-    val kvstores = filesToLoad.view.map(getReaderForLocation)
+    val kvstores = loadedBackup.view.map(getReaderForLocation)
     kvstores.foreach {
       kvstore =>
         kvstore.iterator.foreach {

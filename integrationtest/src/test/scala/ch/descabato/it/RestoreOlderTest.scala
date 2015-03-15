@@ -1,6 +1,8 @@
 package ch.descabato.it
 
-import org.apache.commons.io.FileUtils
+import java.io.{File, FileReader}
+
+import org.apache.commons.io.{IOUtils, FileUtils}
 import org.scalatest.Matchers._
 
 class RestoreOlderTest extends IntegrationTestBase {
@@ -12,6 +14,8 @@ class RestoreOlderTest extends IntegrationTestBase {
   val restore1 = folder("restore_old1")
   val restore2 = folder("restore_old2")
   val restore3 = folder("restore_old3")
+
+  val restoreInfoName = "restore-info.txt"
 
   "restore old versions " should "work" in {
     deleteAll(input1, input2, input3, backup1, restore1, restore2, restore3)
@@ -28,12 +32,19 @@ class RestoreOlderTest extends IntegrationTestBase {
     fg.changeSome()
     startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
     val backupFiles = backup1.listFiles().filter(_.getName.startsWith("backup_")).map(_.getName()).toList.sorted
-    startAndWait(s"restore --restore-backup ${backupFiles(0)} --restore-to-folder $restore1 $backup1".split(" ")) should be(0)
+    startAndWait(s"restore --restore-backup ${backupFiles(0)} --restore-info $restoreInfoName --restore-to-folder $restore1 $backup1".split(" ")) should be(0)
+    assertRestoreInfoWritten(restore1, backupFiles(0))
     compareBackups(input1, restore1)
     startAndWait(s"restore --restore-backup ${backupFiles(1)} --restore-to-folder $restore2 $backup1".split(" ")) should be(0)
     compareBackups(input2, restore2)
-    startAndWait(s"restore --restore-backup ${backupFiles(2)} --restore-to-folder $restore3 $backup1".split(" ")) should be(0)
+    startAndWait(s"restore --restore-info $restoreInfoName --restore-to-folder $restore3 $backup1".split(" ")) should be(0)
+    assertRestoreInfoWritten(restore3, backupFiles(2))
     compareBackups(input3, restore3)
+  }
+
+  def assertRestoreInfoWritten(folder: File, filename: String) {
+    val lines = IOUtils.readLines(new FileReader(new File(folder, restoreInfoName)))
+    assert(lines.get(0).contains(filename))
   }
 
 }

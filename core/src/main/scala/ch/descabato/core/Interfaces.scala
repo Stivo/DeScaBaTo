@@ -124,6 +124,8 @@ trait CompressionDecider extends UniversePart {
 
 trait BackupPartHandler extends BackupActor {
 
+  def loadedBackup: Seq[File]
+
   // reads all the backup parts for the given date
   def loadBackup(date: Option[Date] = None): BackupDescription
 

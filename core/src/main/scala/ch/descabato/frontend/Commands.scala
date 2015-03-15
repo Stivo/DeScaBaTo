@@ -333,6 +333,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   val chooseDate = opt[Boolean]()
   val restoreToFolder = opt[String]()
   val restoreBackup = opt[String]()
+  val restoreInfo = opt[String]()
   //  val overwriteExisting = toggle(default = Some(false))
   //  val pattern = opt[String]()
   requireOne(restoreToOriginalPath, restoreToFolder)
