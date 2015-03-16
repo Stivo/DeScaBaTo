@@ -3,6 +3,7 @@ package ch.descabato.core
 import java.io._
 import java.nio.file.{Files, LinkOption, NoSuchFileException}
 import java.security.DigestOutputStream
+import java.text.SimpleDateFormat
 import java.util
 import java.util.Date
 
@@ -324,8 +325,12 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
   }
 
   def writeRestoreInfo(description: BackupDescription)(implicit options: RestoreConf) {
+    val format = new SimpleDateFormat()
+    val backupFile = universe.backupPartHandler.loadedBackup.head
+    val date = universe.fileManager().getFileType(backupFile).date(backupFile)
     val info =
-      s"""Restoring completed successfully from ${universe.backupPartHandler.loadedBackup.map(_.getName).mkString(",")}
+      s"""Restored backup from ${format.format(date)} successfully, on ${format.format(new Date())}
+          |Filename of restored file: $backupFile
           |Restored ${description.files.length} files with total size of ${Size(description.files.map(_.size).sum)}
           |in ${description.folders.size} folders""".stripMargin
     val lineEndings = if (Utils.isWindows) info.replace("\n", "\r\n") else info

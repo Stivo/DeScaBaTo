@@ -2,13 +2,15 @@ package ch.descabato.frontend
 
 import java.io.{File, FileOutputStream, PrintStream}
 import java.lang.reflect.InvocationTargetException
+import java.nio.file.FileSystems
 
 import ch.descabato.CompressionMode
 import ch.descabato.core._
 import ch.descabato.frontend.ScallopConverters._
+import ch.descabato.frontend.ScallopConverters.singleArgConverter
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
-import org.rogach.scallop.{ArgType, ScallopConf, Subcommand, ValueConverter}
+import org.rogach.scallop._
 
 import scala.reflect.runtime.universe.TypeTag
 
@@ -115,6 +117,7 @@ trait BackupRelatedCommand extends Command with Utils {
         ProgressReporters.guiEnabled = false
       }
       if (t.logfile.isSupplied) {
+        validateFilename(t.logfile)
         System.setProperty("logname", t.logfile())
       }
       if (t.noAnsi.isSupplied) {
@@ -143,6 +146,19 @@ trait BackupRelatedCommand extends Command with Utils {
 
   def start(t: T, conf: BackupFolderConfiguration)
 
+  def validateFilename(option: ScallopOption[String]) {
+    if (option.isDefined) {
+      val s = option()
+      try {
+        // validate the restore to folder, as this will throw an exception
+        FileSystems.getDefault().getPath(s)
+      } catch {
+        case e: Exception =>
+          l.error(s"$s for ${option.humanName} is not a valid filename: ${e.getMessage}")
+          System.exit(1)
+      }
+    }
+  }
 }
 
 // Parsing classes
@@ -265,6 +281,8 @@ class RestoreCommand extends BackupRelatedCommand {
 
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
+    validateFilename(t.restoreToFolder)
+    validateFilename(t.restoreInfo)
     withUniverse(conf, akkaAllowed = true) {
       universe =>
         if (t.chooseDate()) {
