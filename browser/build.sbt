@@ -44,4 +44,4 @@ packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m"))
 
 packJarNameConvention := "original"
 
-packResourceDir := List("../doc/releases/0.4.0")
+packResourceDir := List("../doc/releases/0.4.1")
