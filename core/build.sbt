@@ -1,11 +1,5 @@
 name := "core"
 
-organization := "ch.descabato"
-
-version := Common.version
-
-scalaVersion := Common.scalaVersion
-
 mainClass := Some("ch.descabato.CLI")
 
 unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
@@ -70,6 +64,14 @@ parallelExecution in Test := false
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
+
+buildInfoPackage := "ch.descabato.version"
+
 packSettings
 
 packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
@@ -78,10 +80,4 @@ packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m"))
 
 packJarNameConvention := "original"
 
-buildInfoSettings
-
-sourceGenerators in Compile <+= buildInfo
-
-buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
-
-buildInfoPackage := "ch.descabato.version"
+packArchivePrefix := "descabato-core"

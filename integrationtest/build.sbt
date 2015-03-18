@@ -1,8 +1,4 @@
 
-version := Common.version
-
-scalaVersion := Common.scalaVersion
-
 // Additional Test dependencies
 libraryDependencies ++= Seq(
    "commons-io" % "commons-io" % "2.4" % "test",

@@ -1,12 +1,5 @@
 
-
 name := "browser"
-
-organization := "ch.descabato"
-
-version := Common.version
-
-scalaVersion := Common.scalaVersion
 
 mainClass := Some("ch.descabato.browser.Main")
 
@@ -42,6 +35,7 @@ packMain := Map("descabato" -> "ch.descabato.browser.Main")
 
 packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m"))
 
-packJarNameConvention := "original"
+packJarNameConvention := "full"
 
-packResourceDir := List("../doc/releases/0.4.1")
+packArchivePrefix := "descabato"
+
