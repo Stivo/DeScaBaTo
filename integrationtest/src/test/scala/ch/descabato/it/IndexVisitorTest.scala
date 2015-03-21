@@ -104,8 +104,8 @@ class IndexVisitorTest extends IntegrationTestBase with BeforeAndAfter {
     val visitor2 = new OldIndexVisitor(visitor1.newDesc.asMap, None, recordNew = true, recordUnchanged = true)
     visitor2.walk(destDir::Nil)
     assert(fileGen.fileList.size - 1 === visitor2.unchangedDesc.files.size)
-    val expectedFolderPaths = (changeToFolder.getParentFile::changeToFolder::Nil).map(_.getAbsolutePath)
-    assert(expectedFolderPaths === visitor2.newDesc.folders.map(_.path).toList)
+    // parent directory may or may not be seen as changed (due to modification date change), important is the new one
+    assert(visitor2.newDesc.folders.map(_.path).contains(changeToFolder.getAbsolutePath))
   }
 
   def runFirstIteration(fileGen: FileGen) = {
