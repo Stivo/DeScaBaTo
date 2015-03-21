@@ -26,12 +26,13 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     (1 to n).foreach(_ => f)
   }
 
+  def makeCopyFile(i: Int) = new File(folder, "copy"+i)
+
   def generateFiles() {
     deleteAll(folder)
     folder.mkdirs()
     folderList += folder
     times(25) { newFolder() }
-    var bigFiles = 4
     newFile(maxSizeIn.toInt / 2, true)
     newFile(maxSizeIn.toInt / 10, true)
     val copyFrom1 = fileList.last
@@ -40,7 +41,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     }
     times(10)(newFile(0))
     times(5)(newFile(102400, true))
-    Files.copy(copyFrom1.toPath, new File(folder, "copy1").toPath)
+    Files.copy(copyFrom1.toPath, makeCopyFile(1).toPath)
     def selectSmallFile() = {
       var file = selectFile
       while (file.length > 10*1024*1024) {
@@ -48,8 +49,9 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
       }
       file
     }
-    Files.copy(selectSmallFile.toPath, new File(folder, "copy2").toPath)
-    Files.copy(selectSmallFile.toPath, new File(folder, "copy3").toPath)
+    Files.copy(selectSmallFile.toPath, makeCopyFile(2).toPath)
+    Files.copy(selectSmallFile.toPath, makeCopyFile(3).toPath)
+    fileList ++= (for (i <- 1 to 3) yield makeCopyFile(i)).toBuffer
   }
 
   def rescan() {
