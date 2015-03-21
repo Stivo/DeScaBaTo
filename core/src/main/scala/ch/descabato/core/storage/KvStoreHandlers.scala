@@ -10,6 +10,7 @@ import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 
+import scala.collection.mutable
 import scala.collection.immutable.HashMap
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
@@ -17,7 +18,9 @@ import scala.language.reflectiveCalls
 trait KvStoreHandler[KI, KM, T] extends UniversePart {
   def fileType: FileType[T]
 
-  var persistedEntries = Map.empty[KM, KvStoreLocation]
+  var persistedEntries = initMap()
+
+  def initMap(): mutable.Map[KM, KvStoreLocation]
 
   var currentlyWritingFile: KvStoreStorageMechanismWriter = null
 
@@ -113,14 +116,16 @@ trait SimpleKvStoreHandler[K, V] extends KvStoreHandler[K, K, V] {
   def keyMemToKeyInterface(k: K) = k
 }
 
-trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, BytesWrapper, V] {
-  def keyInterfaceToKeyMem(k: Hash): BytesWrapper = k.wrap()
-  def keyMemToKeyInterface(k: BytesWrapper) = new Hash(k.asArray())
-  def keyMemToStorage(k: BytesWrapper): Array[Byte] = k.asArray()
-  def storageToKeyMem(k: Array[Byte]) = new BytesWrapper(k)
+trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, Array[Byte], V] {
+
+  def initMap = new ByteArrayKeyedMap[KvStoreLocation]()
+  def keyInterfaceToKeyMem(k: Hash): Array[Byte] = k.bytes
+  def keyMemToKeyInterface(k: Array[Byte]) = new Hash(k)
+  def keyMemToStorage(k: Array[Byte]): Array[Byte] = k
+  def storageToKeyMem(k: Array[Byte]) = k
   def isPersisted(fileHash: Hash): Boolean = {
     ensureLoaded()
-    persistedEntries safeContains fileHash
+    persistedEntries.contains(keyInterfaceToKeyMem(fileHash))
   }
 }
 
@@ -134,6 +139,8 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   var current: BackupDescription = new BackupDescription()
   var failedObjects = new BackupDescription()
+
+  def initMap = new mutable.HashMap[String, KvStoreLocation]()
 
   protected var unfinished: Map[String, FileDescriptionWrapper] = Map.empty
 
@@ -300,8 +307,6 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
 
   ProgressReporters.addCounter(byteCounter, compressionRatioCounter)
 
-  override def keyMemToStorage(k: BytesWrapper): Array[Byte] = k.asArray()
-  override def storageToKeyMem(k: Array[Byte]) = new BytesWrapper(k)
 
   def fileFinished() {
     universe.journalHandler.finishedFile(currentlyWritingFile.file, fileType)
@@ -372,7 +377,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
       val json = new JsonSerialization(indent = false)
       val indexList = persistedEntries.toVector.filter(_._2.file == currentlyWritingFile.file).sortBy(_._2.pos).map {
         case (k, v) =>
-          (k.asArray(), v.pos)
+          (k, v.pos)
       }
       val jsonList = json.write(indexList)
       val compressed = CompressedStream.compress(jsonList.wrap, CompressionMode.deflate)
