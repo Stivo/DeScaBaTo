@@ -14,7 +14,7 @@ libraryDependencies ++= Seq(
     "org.rogach" %% "scallop" % "0.9.5",
     "org.ocpsoft.prettytime" % "prettytime" % "3.2.7.Final",
     "org.fusesource.jansi" % "jansi" % "1.11",
-    "org.bouncycastle" % "bcprov-jdk15on" % "1.51"
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.52"
 )
 
 // compressors
