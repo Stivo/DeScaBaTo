@@ -1,6 +1,6 @@
 package ch.descabato.it
 
-import java.io.{File, FileReader}
+import java.io.{FileOutputStream, File, FileReader}
 
 import org.apache.commons.io.{IOUtils, FileUtils}
 import org.scalatest.Matchers._
@@ -24,10 +24,15 @@ class RestoreOlderTest extends IntegrationTestBase {
     fg.generateFiles()
     fg.rescan()
 
+    val ignoreFile = new File("ignored.txt")
+    val fos = new FileOutputStream(ignoreFile)
+    IOUtils.write("copy1", fos)
+    IOUtils.closeQuietly(fos)
+
     startAndWait(s"backup --compression gzip $backup1 $input3".split(" ")) should be(0)
     FileUtils.copyDirectory(input3, input1, true)
     fg.changeSome()
-    startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
+    startAndWait(s"backup --ignore-file ${ignoreFile.getAbsolutePath} $backup1 $input3".split(" ")) should be(0)
     FileUtils.copyDirectory(input3, input2, true)
     fg.changeSome()
     startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
@@ -36,9 +41,11 @@ class RestoreOlderTest extends IntegrationTestBase {
     assertRestoreInfoWritten(restore1, backupFiles(0))
     compareBackups(input1, restore1)
     startAndWait(s"restore --restore-backup ${backupFiles(1)} --restore-to-folder $restore2 $backup1".split(" ")) should be(0)
+    FileUtils.deleteQuietly(new File(input2, "copy1"))
     compareBackups(input2, restore2)
     startAndWait(s"restore --restore-info $restoreInfoName --restore-to-folder $restore3 $backup1".split(" ")) should be(0)
     assertRestoreInfoWritten(restore3, backupFiles(2))
+    FileUtils.deleteQuietly(new File(input3, "copy1"))
     compareBackups(input3, restore3)
   }
 

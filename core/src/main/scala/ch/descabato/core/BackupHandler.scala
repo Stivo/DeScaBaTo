@@ -100,7 +100,9 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     ConsoleManager.startConsoleUpdater()
     // Walk tree and compile to do list
     ProgressReporters.activeCounters = List(scanCounter)
-    val visitor = new OldIndexVisitor(backupPartHandler.loadBackup(None).asMap, recordNew = true, recordUnchanged = true, progress = Some(scanCounter)).walk(files)
+    val visitor = new OldIndexVisitor(backupPartHandler.loadBackup(None).asMap, config.ignoreFile,
+      recordNew = true, recordUnchanged = true, progress = Some(scanCounter)
+    ).walk(files)
     var (newDesc, unchangedDesc, deletedDesc) = (visitor.newDesc, visitor.unchangedDesc, visitor.deletedDesc)
 
     l.info("Counting of files done")

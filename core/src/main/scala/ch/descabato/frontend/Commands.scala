@@ -178,6 +178,7 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
   val dontSaveSymlinks = opt[Boolean](default = Some(false))
   val compression = opt[CompressionMode](default = Some(CompressionMode.smart))
   val createIndexes = opt[Boolean](default = Some(true))
+  val ignoreFile = opt[File](default = None)
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {

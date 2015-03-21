@@ -14,6 +14,7 @@ object InitBackupFolderConfiguration extends Utils {
         o.keylength.foreach(out.keyLength = _)
         o.volumeSize.foreach(out.volumeSize = _)
         o.threads.foreach(out.threads = _)
+        o.ignoreFile.foreach(f => out.ignoreFile = Some(f))
 //        o.renameDetection.foreach(out.renameDetection = _)
 //        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
 //        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
@@ -52,6 +53,10 @@ object InitBackupFolderConfiguration extends Utils {
         }
         if (o.createIndexes.isSupplied) {
           o.createIndexes.foreach(old.createIndexes = _)
+          changed = true
+        }
+        if (o.ignoreFile.isSupplied) {
+          o.ignoreFile.foreach(f => old.ignoreFile = Some(f))
           changed = true
         }
 //        if (o.renameDetection.isSupplied) {

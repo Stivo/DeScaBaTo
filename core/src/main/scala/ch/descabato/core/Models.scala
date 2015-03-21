@@ -21,7 +21,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   @JsonIgnore
   var configFileName = prefix + "backup.json"
   var version = ch.descabato.version.BuildInfo.version
-  var serializerType = "smile"
+  var serializerType = "json"
   @JsonIgnore
   def serialization(typ: String = serializerType) = typ match {
     case "smile" => new SmileSerialization
@@ -43,6 +43,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
 //  var volumeRedundancy: Int = 5
   var saveSymlinks: Boolean = true
   var createIndexes: Boolean = true
+  var ignoreFile: Option[File] = None
 }
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {

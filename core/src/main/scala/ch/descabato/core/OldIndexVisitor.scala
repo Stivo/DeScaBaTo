@@ -1,16 +1,27 @@
 package ch.descabato.core
 
 import java.io.{File, IOException}
-import java.nio.file.{FileVisitResult, Files, LinkOption, Path}
+import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
 
 import ch.descabato.FileVisitorHelper
 import ch.descabato.frontend.Counter
 
-class OldIndexVisitor(var oldMap: Map[String, BackupPart],
+import scala.io.{Codec, Source}
+
+class OldIndexVisitor(var oldMap: Map[String, BackupPart], ignoreFile: Option[File],
   recordNew: Boolean = false, recordAll: Boolean = false, recordUnchanged: Boolean = false,
   progress: Option[Counter] = None) extends FileVisitorHelper {
 
+  val ignoredPatterns: Iterable[PathMatcher] = {
+    ignoreFile.map { file =>
+      val source = Source.fromFile(file)(Codec.UTF8)
+      val cleanedLines = source.getLines().map(_.trim).filterNot(_.isEmpty).filterNot(_.startsWith("#")).toList
+      cleanedLines.map(pattern => FileSystems.getDefault().getPathMatcher("glob:"+pattern))
+    }.getOrElse(Nil)
+  }
+
+  var root: Path = null
   var allDesc = new BackupDescription()
   var newDesc = new BackupDescription()
   var unchangedDesc = new BackupDescription()
@@ -48,23 +59,29 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart],
   }
 
   override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = {
-    handleFile(new FolderDescription(dir.toRealPath().toString(), FileAttributes(dir)),
-      dir, attrs)
-    super.preVisitDirectory(dir, attrs)
+    if (pathIsNotIgnored(dir)) {
+      handleFile(new FolderDescription(dir.toRealPath().toString(), FileAttributes(dir)),
+        dir, attrs)
+      super.preVisitDirectory(dir, attrs)
+    } else {
+      FileVisitResult.SKIP_SUBTREE
+    }
   }
 
   override def visitFile(file: Path, attrs: BasicFileAttributes) = {
-    handleFile({
-      if (Files.isSymbolicLink(file)) {
-        new SymbolicLink(file.toRealPath(LinkOption.NOFOLLOW_LINKS).toString(),
-          file.getParent.resolve(Files.readSymbolicLink(file)).toRealPath().toString(), FileAttributes(file))
-      } else {
-        val out = new FileDescription(file.toRealPath().toString(), file.toFile().length(),
-          FileAttributes(file))
-        out
-      }
-    },
+    if (pathIsNotIgnored(file)) {
+      handleFile({
+        if (Files.isSymbolicLink(file)) {
+          new SymbolicLink(file.toRealPath(LinkOption.NOFOLLOW_LINKS).toString(),
+            file.getParent.resolve(Files.readSymbolicLink(file)).toRealPath().toString(), FileAttributes(file))
+        } else {
+          val out = new FileDescription(file.toRealPath().toString(), file.toFile().length(),
+            FileAttributes(file))
+          out
+        }
+      },
       file, attrs)
+    }
     super.visitFile(file, attrs)
   }
 
@@ -74,9 +91,19 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart],
 
   def walk(f: Seq[File]) = {
     f.foreach { x =>
+      root = x.toPath
       Files.walkFileTree(x.toPath(), this)
     }
     this
+  }
+
+  def pathIsNotIgnored(path: Path): Boolean = {
+    for(matcher <- ignoredPatterns) {
+      if (matcher.matches(root.relativize(path))) {
+        return false
+      }
+    }
+    return true
   }
 
 }

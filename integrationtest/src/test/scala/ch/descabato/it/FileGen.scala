@@ -53,7 +53,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
   }
 
   def rescan() {
-    val index = new OldIndexVisitor(Map.empty, recordAll = true)
+    val index = new OldIndexVisitor(Map.empty, None, recordAll = true)
     Files.walkFileTree(folder.toPath(), index)
     folderList.clear
     folderList ++= index.allDesc.folders.map(x => new File(x.path))

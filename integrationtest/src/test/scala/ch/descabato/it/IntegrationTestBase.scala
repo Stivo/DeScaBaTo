@@ -105,7 +105,11 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
     }
   }
 
-  def getFile(s1: Iterable[File], file: File) = s1.find(_.getName() == file.getName()).get
+  def getFile(s1: Iterable[File], file: File) = {
+    val option = s1.find(_.getName() == file.getName())
+    assert(option.isDefined, s"Did not find file $file")
+    option.get
+  }
 
   def compareBackups(f1: File, f2: File) {
     val files1 = f1.listFiles().toSet
