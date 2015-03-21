@@ -71,8 +71,8 @@ class IndexVisitorTest extends IntegrationTestBase with BeforeAndAfter {
   it should "detect modification date changes" in {
     val fileGen = setupRandomFiles()
     val visitor1 = runFirstIteration(fileGen)
-    fileGen.fileList.head.setLastModified(System.currentTimeMillis())
-    fileGen.folderList.head.setLastModified(System.currentTimeMillis())
+    fileGen.fileList.head.setLastModified(System.currentTimeMillis() + 1000)
+    fileGen.folderList.head.setLastModified(System.currentTimeMillis() + 1000)
     val visitor2 = new OldIndexVisitor(visitor1.newDesc.asMap, None, recordNew = true, recordUnchanged = true)
     visitor2.walk(destDir::Nil)
     assert(fileGen.folderList.size - 1 === visitor2.unchangedDesc.folders.size)
@@ -116,6 +116,5 @@ class IndexVisitorTest extends IntegrationTestBase with BeforeAndAfter {
     assert(fileGen.fileList.size === visitor1.newDesc.files.size)
     visitor1
   }
-
 
 }
