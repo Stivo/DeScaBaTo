@@ -1,5 +1,6 @@
-Version 0.4.2 (TODO):
-
+Version 0.4.2 (24.03.2015):
+- added ignore files option
+- reduced memory usage (not using wrapper for byte array keys anymore)
 
 Version 0.4.1 (17.03.2015):
 - added restore info option
