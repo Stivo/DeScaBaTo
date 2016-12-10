@@ -112,7 +112,7 @@ trait BackupRelatedCommand extends Command with Utils {
     try {
       lastArgs = args
       val t = newT(args)
-      t.afterInit()
+      t.verify()
       if (t.noGui.isSupplied && t.noGui()) {
         ProgressReporters.guiEnabled = false
       }
@@ -154,7 +154,7 @@ trait BackupRelatedCommand extends Command with Utils {
         FileSystems.getDefault().getPath(s)
       } catch {
         case e: Exception =>
-          l.error(s"$s for ${option.humanName} is not a valid filename: ${e.getMessage}")
+          l.error(s"$s for ${option.name} is not a valid filename: ${e.getMessage}")
           System.exit(1)
       }
     }

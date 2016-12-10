@@ -4,12 +4,12 @@ import java.io.{File, RandomAccessFile}
 
 import ch.descabato.core.kvstore.{EntryTypes, KvStoreReaderImpl, KvStoreWriterImpl}
 import ch.descabato.utils.Utils
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpec, ShouldMatchers}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpec, Matchers}
 import ch.descabato.utils.Implicits._
 
 import scala.util.Random
 
-class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAfter with BeforeAndAfterAll with ShouldMatchers with Utils {
+class KvStoreFixingSpec extends FlatSpec with RichFlatSpecLike with BeforeAndAfter with BeforeAndAfterAll with Matchers with Utils {
 
   val testFile1 = new File("test1.kvs")
   val testFile2 = new File("test2.kvs")

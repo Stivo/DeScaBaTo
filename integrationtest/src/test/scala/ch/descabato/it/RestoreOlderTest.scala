@@ -50,8 +50,10 @@ class RestoreOlderTest extends IntegrationTestBase {
   }
 
   def assertRestoreInfoWritten(folder: File, filename: String) {
-    val lines = IOUtils.readLines(new FileReader(new File(folder, restoreInfoName)))
-    assert(lines.get(1).contains(filename))
+    val reader = new FileReader(new File(folder, restoreInfoName))
+    val string = IOUtils.toString(reader)
+    IOUtils.closeQuietly(reader)
+    assert(string.contains(filename))
   }
 
 }

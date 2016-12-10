@@ -20,7 +20,7 @@ object BackupVfsProvider {
     GET_LAST_MODIFIED,
     READ_CONTENT,
     COMPRESS,
-    VIRTUAL);
+    VIRTUAL)
 
   var indexes = Map[String, VfsIndex]()
 }
