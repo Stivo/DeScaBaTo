@@ -134,7 +134,7 @@ trait BackupRelatedCommand extends Command with Utils {
   def start(t: T) {
     import ch.descabato.core.BackupVerification._
     val confHandler = new BackupConfigurationHandler(t)
-    var passphrase = t.passphrase.get
+    var passphrase = t.passphrase.toOption
     confHandler.verify(needsExistingBackup) match {
       case b@BackupDoesntExist => throw b
       case PasswordNeeded => passphrase = Some(askUser("This backup is passphrase protected. Please type your passphrase.", mask = true))

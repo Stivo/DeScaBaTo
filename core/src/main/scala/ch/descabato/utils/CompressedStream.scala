@@ -1,14 +1,13 @@
 package ch.descabato.utils
 
-import java.io.{ByteArrayInputStream, InputStream, OutputStream}
-import java.nio.ByteBuffer
+import java.io.{InputStream, OutputStream}
 import java.util.zip._
 
 import ch.descabato.{ByteArrayOutputStream, CompressionMode}
 import net.jpountz.lz4.{LZ4BlockInputStream, LZ4BlockOutputStream, LZ4Factory}
 import org.apache.commons.compress.compressors.bzip2.{BZip2CompressorInputStream, BZip2CompressorOutputStream}
 import org.apache.commons.compress.utils.IOUtils
-import org.iq80.snappy.{SnappyInputStream, SnappyOutputStream}
+import org.iq80.snappy.{SnappyFramedInputStream, SnappyFramedOutputStream}
 import org.tukaani.xz.{LZMA2Options, XZInputStream, XZOutputStream}
 import ch.descabato.utils.Implicits._
 
@@ -46,7 +45,7 @@ object CompressedStream extends Utils {
       case CompressionMode.bzip2 =>
         val sizeBzip2 = BZip2CompressorOutputStream.chooseBlockSize(size.getOrElse(-1).toLong)
         new BZip2CompressorOutputStream(out, sizeBzip2)
-      case CompressionMode.snappy => SnappyOutputStream.newChecksumFreeBenchmarkOutputStream(out)
+      case CompressionMode.snappy => new SnappyFramedOutputStream(out)
       case CompressionMode.deflate => new DeflaterOutputStream(out)
       case CompressionMode.lz4 => new LZ4BlockOutputStream(out, 1<<12, LZ4Factory.fastestJavaInstance().fastCompressor())
       case CompressionMode.lz4hc => new LZ4BlockOutputStream(out, 1<<12, LZ4Factory.fastestJavaInstance().highCompressor())
@@ -63,7 +62,7 @@ object CompressedStream extends Utils {
       case CompressionMode.gzip => new GZIPInputStream(in, 65536)
       case CompressionMode.lzma => new XZInputStream(in)
       case CompressionMode.bzip2 => new BZip2CompressorInputStream(in)
-      case CompressionMode.snappy => new SnappyInputStream(in, false)
+      case CompressionMode.snappy => new SnappyFramedInputStream(in, false)
       case CompressionMode.deflate => new InflaterInputStream(in)
       case CompressionMode.lz4 => new LZ4BlockInputStream(in)
       case CompressionMode.lz4hc => new LZ4BlockInputStream(in)

@@ -37,7 +37,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
   }
 
   "Compressed Streams" should "compress and decompress random bytes" in {
-    forAll(minSize(0), maxSize(1000000), minSuccessful(50)) { (compressor: CompressionMode, toEncode: Array[Byte]) => {
+    forAll(minSize(0), sizeRange(1000000), minSuccessful(50)) { (compressor: CompressionMode, toEncode: Array[Byte]) => {
 
       val baosOriginal = new ByteArrayOutputStream()
       val toEncodeWrapped = toEncode.wrap()
