@@ -2,11 +2,7 @@ name := "core"
 
 mainClass := Some("ch.descabato.CLI")
 
-unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
-  Seq(
-    base / "src/main/resources"
-  )
-}
+unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
@@ -64,13 +60,12 @@ parallelExecution in Test := false
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
-buildInfoSettings
-
-sourceGenerators in Compile <+= buildInfo
-
-buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
-
-buildInfoPackage := "ch.descabato.version"
+lazy val root = (project in file("core")).
+  enablePlugins(BuildInfoPlugin).
+  settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "ch.descabato.version"
+  )
 
 packSettings
 

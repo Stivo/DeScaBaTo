@@ -16,8 +16,7 @@ object DeScaBaToBuild extends Build {
       settings = Defaults.defaultSettings ++ commonSettings) dependsOn(core % "test->test")
   
   val commonSettings = {
-    net.virtualvoid.sbt.graph.Plugin.graphSettings ++ org.scalastyle.sbt.ScalastylePlugin.Settings ++
-     List(
+    List(
        artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
          s"${module.organization}.${artifact.name}-${module.revision}.${artifact.extension}"
        },

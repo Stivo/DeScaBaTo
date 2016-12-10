@@ -3,11 +3,9 @@ name := "browser"
 
 mainClass := Some("ch.descabato.browser.Main")
 
-unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
-  Seq(
-    base / "src/main/resources"
+unmanagedSourceDirectories in Compile ++= Seq(
+    new File("src/main/resources")
   )
-}
 
 libraryDependencies ++= Seq(
 		"org.apache.commons" % "commons-vfs2" % "2.0"
