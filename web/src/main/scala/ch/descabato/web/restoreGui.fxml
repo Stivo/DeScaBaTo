@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TreeView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.StackPane?>
+
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.Label?>
+<StackPane prefHeight="500.0" prefWidth="400.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1">
+    <children>
+      <TabPane>
+            <tabs>
+                <Tab text="Browse Files">
+                    <content>
+                        <fx:include fx:id="browserPage" source="browserPage.fxml"/>
+                    </content>
+                </Tab>
+                <Tab text="Search">
+                    <content>
+                        <fx:include fx:id="searchPage" source="searchPage.fxml"/>
+                    </content>
+                </Tab>
+            </tabs>
+      </TabPane>
+    </children>
+</StackPane>

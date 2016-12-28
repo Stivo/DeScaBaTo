@@ -11,10 +11,14 @@ object DeScaBaToBuild extends Build {
   
   val browser = Project(id = "browser", base = file("browser"),
       settings = Defaults.defaultSettings ++ commonSettings) dependsOn(core)
-  
+
+  val web = Project(id = "web", base = file("web"),
+    settings = Defaults.defaultSettings ++ commonSettings) dependsOn(core)
+
   val it = Project(id = "it", base = file("integrationtest"),
       settings = Defaults.defaultSettings ++ commonSettings) dependsOn(core % "test->test")
-  
+
+
   val commonSettings = {
     List(
        artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>

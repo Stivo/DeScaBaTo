@@ -222,7 +222,7 @@ case class BackupDescription(files: Vector[FileDescription] = Vector.empty,
       remove(symlinks) ++ later.symlinks, later.deleted)
   }
 
-  @JsonIgnore def allParts = files ++ folders ++ symlinks
+  @JsonIgnore def allParts: Seq[BackupPart] = files ++ folders ++ symlinks
 
   @JsonIgnore lazy val asMap: Map[String, BackupPart] = {
     var map = Map[String, BackupPart]()

@@ -119,7 +119,7 @@ class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFile
    * @throws FileSystemException if an error occurs.
    */
   override def isWriteable() = {
-    false;
+    false
   }
 
   /**
