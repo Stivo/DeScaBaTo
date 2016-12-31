@@ -17,7 +17,7 @@ class BrowseCommand extends BackupRelatedCommand {
       WebServer.index = bh
       BackupViewModel.index = bh
 
-//      new Thread(() => WebServer.main(Array.empty)).start()
+      new Thread(() => WebServer.main(Array.empty)).start()
 //      new Thread(() => ScalaFxTry.main(Array.empty)).start()
       ScalaFxGui.main(Array.empty)
     }

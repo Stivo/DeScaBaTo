@@ -21,6 +21,11 @@ case class RestoreFolder(folderDescription: BackupPart) extends RestoreOptions
 case class RestoreFolders(folderDescription: Seq[BackupPart]) extends RestoreOptions
 case object RestoreBoth extends RestoreOptions
 
+trait ChildController {
+  protected var restoreControllerI: RestoreControllerI = null
+  def registerMain(controller: RestoreControllerI) = restoreControllerI = controller
+}
+
 @sfxml
 class BrowserController(
                          private val browserTree: TreeView[BackupTreeNode],
@@ -29,7 +34,8 @@ class BrowserController(
                          private val restoreButton: Button,
                          private val showSubfolderFiles: CheckBox,
                          private val browserInfo: Label
-                       ) {
+                       ) extends ChildController {
+
   val model = new BackupViewModel()
   browserTree.root = model.root
   browserTable.items = model.sortedItems
@@ -142,6 +148,14 @@ class BrowserController(
         case RestoreNone => "Select files or folders to restore"
       }
     }, restoreOption)
+  }
+
+  def preview(): Unit = {
+    restoreOption.value match {
+      case RestoreFile(fd) =>
+        restoreControllerI.preview(fd)
+      case _ => println("No preview")
+    }
   }
 
   def startRestore(event: ActionEvent) {

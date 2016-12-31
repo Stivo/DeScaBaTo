@@ -1,27 +1,14 @@
 <!doctype html>
-<html ng-app="ui.bootstrap.demo">
+<html ng-app="previewer">
     <head>
         <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.js"></script>
         <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular-animate.js"></script>
         <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular-sanitize.js"></script>
         <script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-2.4.0.js"></script>
-        <script src="example.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/URI.js/1.18.4/URI.min.js"></script>
+        <script src="preview.js"></script>
         <link href="//netdna.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
-        <script>
-          angular.module('ui.bootstrap.demo', ['ngAnimate', 'ngSanitize', 'ui.bootstrap']);
-          angular.module('ui.bootstrap.demo').controller('PreviewCtrl', function ($scope, $window) {
 
-            $scope.tabs = [
-              { title:'Preview as Text', id: "text" },
-              { title:'Preview as Image', id: "image" }
-            ];
-
-            $scope.model = {
-              name: 'Tabs'
-            };
-          });
-
-        </script>
     </head>
     <body>
         <style type="text/css">
@@ -31,16 +18,12 @@
         </style>
 
         <div ng-controller="PreviewCtrl">
-            <uib-tabset active="active">
+            <uib-tabset active="active" ng-hide="hideTabs">
                 <uib-tab index="$index" ng-repeat="tab in tabs" heading="{{tab.title}}"></uib-tab>
             </uib-tabset>
-            <pre ng-show="active == 0">
-              Hello World
-
-              asjkdödfsg
-            </pre>
-            <img width="100%" src="{{url}}"
-                 ng-show="active == 1"/>
+            <pre ng-if="active === 0 || type === 'text'">{{text}}</pre>
+            <img ng-src="/api/preview/{{url}}"
+                 ng-if="active === 1 || type === 'image'"/>
         </div>
     </body>
 </html>

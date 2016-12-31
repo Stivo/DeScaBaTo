@@ -32,6 +32,7 @@
                         <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
                             <items>
                                 <Button fx:id="restoreButton" mnemonicParsing="false" onAction="#startRestore" text="Restore" />
+                                <Button mnemonicParsing="false" onAction="#preview" text="Preview" />
                             </items>
                         </ToolBar>
                     </center>

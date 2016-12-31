@@ -40,34 +40,42 @@ object TableColumns {
     tv: TableView[ObservableBackupPart] =>
       tv.selectionModel().setSelectionMode(SelectionMode.Multiple)
       val row = new TableRow[ObservableBackupPart]()
-      row.contextMenu = {
-        val menu = new ContextMenu()
-        val item = new MenuItem("Restore")
-        item.onAction = { event =>
-          val backupPart = row.getItem.backupPart
-          if (!backupPart.isFolder) {
-            val fileChooser = new FileChooser() {
-              title = "Choose destination for file"
-              initialFileName = backupPart.name
-            }
-            val file = fileChooser.showSaveDialog(tv.getScene.getWindow)
-            if (file != null) {
-              val inputStream = model.index.getInputStream(backupPart.asInstanceOf[FileDescription])
-              val fos = new FileOutputStream(file)
-              stream(inputStream, fos)
-              inputStream.close()
-              fos.close()
-            }
-          } else {
-            val directoryChooser = new DirectoryChooser() {
-              title = "Choose root for restoration of folder"
-            }
-            directoryChooser.showDialog(tv.getScene.getWindow)
-          }
-        }
-        menu.items += item
-        menu
-      }
+//      row.contextMenu = {
+//        val menu = new ContextMenu()
+//        val item = new MenuItem("Restore")
+//        item.onAction = { event =>
+//          val backupPart = row.getItem.backupPart
+//          if (!backupPart.isFolder) {
+//            val fileChooser = new FileChooser() {
+//              title = "Choose destination for file"
+//              initialFileName = backupPart.name
+//            }
+//            val file = fileChooser.showSaveDialog(tv.getScene.getWindow)
+//            if (file != null) {
+//              val inputStream = model.index.getInputStream(backupPart.asInstanceOf[FileDescription])
+//              val fos = new FileOutputStream(file)
+//              stream(inputStream, fos)
+//              inputStream.close()
+//              fos.close()
+//            }
+//          } else {
+//            val directoryChooser = new DirectoryChooser() {
+//              title = "Choose root for restoration of folder"
+//            }
+//            directoryChooser.showDialog(tv.getScene.getWindow)
+//          }
+//        }
+//        val preview = new MenuItem("Preview")
+//        preview.onAction = { event =>
+//          row.getItem.backupPart match {
+//            case x: FileDescription =>
+//              model.preview(x)
+//            case _ => println("Can not preview")
+//          }
+//        }
+//        menu.items += item
+//        menu
+//      }
       row.onMouseClicked = { event =>
         if (event.getClickCount() == 2 && (!row.isEmpty())) {
           val rowData: ObservableBackupPart = row.getItem()
