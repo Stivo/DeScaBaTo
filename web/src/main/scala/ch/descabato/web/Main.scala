@@ -7,7 +7,8 @@ import ch.descabato.frontend.CLI
   */
 object Main {
   def main(args: Array[String]) {
-    CLI.main(Array("web", "e:/backups/pics"))
+//    CLI.main(Array("web", "e:/backups/pics"))
+    CLI.main(Array("web", "l:/backup"))
     //CLI.main(args)
   }
 }

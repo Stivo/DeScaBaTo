@@ -32,10 +32,9 @@ class Index(universe: Universe)
     new SequenceInputStream(e)
   }
 
-  def tree: BackupTreeNode = {
+  val tree: BackupTreeNode = {
     val root = new BackupTreeNode(new FakeBackupFolder("/"))
     parts.foreach { part =>
-      val pathParts: Seq[String] = part.path.split("[\\/]")
       root.insert(part)
     }
     root
@@ -55,7 +54,15 @@ case class BackupTreeNode(var backupPart: BackupPart, var children: Map[String, 
       }
     } else {
       if (!(children contains restPath.head)) {
-        val newNode = new BackupTreeNode(new FakeBackupFolder(part.pathParts.dropRight(restPath.length).mkString("/")+"/"+restPath.head))
+
+        var path = restPath.head
+        val pathParts = part.pathParts.dropRight(restPath.length)
+        if (pathParts.isEmpty) {
+          path = restPath.head
+        } else {
+          path = pathParts.mkString("/") + "/" + restPath.head
+        }
+        val newNode = new BackupTreeNode(new FakeBackupFolder(path))
         children += restPath.head -> newNode
       }
       children(restPath.head).insert(part, restPath.drop(1))

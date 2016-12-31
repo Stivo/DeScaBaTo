@@ -23,7 +23,7 @@ object ScalaFxGui extends JFXApp {
   val root = FXMLView(resource, NoDependencyResolver)
 
   stage = new PrimaryStage() {
-    title = "FXML GridPane Demo"
+    title = "DeScaBaTo Backup Browser"
     scene = new Scene(root)
   }
 

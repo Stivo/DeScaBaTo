@@ -42,7 +42,7 @@ object CLI extends Utils {
       System.setProperty("logname", "backup.log")
     try {
       Security.addProvider(new BouncyCastleProvider())
-      if (runsInJar) {
+      if (runsInJar || true) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
         exit(0)

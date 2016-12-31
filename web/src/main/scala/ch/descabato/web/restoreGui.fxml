@@ -12,7 +12,7 @@
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.Label?>
-<StackPane prefHeight="500.0" prefWidth="400.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1">
+<StackPane prefHeight="500.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1">
     <children>
       <TabPane>
             <tabs>
@@ -24,6 +24,11 @@
                 <Tab text="Search">
                     <content>
                         <fx:include fx:id="searchPage" source="searchPage.fxml"/>
+                    </content>
+                </Tab>
+               <Tab text="Preview">
+                    <content>
+                        <fx:include fx:id="previewPage" source="previewPage.fxml"/>
                     </content>
                 </Tab>
             </tabs>

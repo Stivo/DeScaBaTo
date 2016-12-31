@@ -8,9 +8,11 @@ import javafx.scene.{control => jfxc}
 import scalafx.Includes._
 import ch.descabato.core.{FileDescription, Size}
 
-import scalafx.scene.control.{TableCell, TableColumn, TableRow, TableView}
+import scalafx.scene.control._
 import scalafx.scene.control.cell.TextFieldTableCell
 import scalafx.scene.image.{Image, ImageView}
+import scalafx.scene.input.ContextMenuEvent
+import scalafx.stage.{DirectoryChooser, FileChooser}
 import scalafx.util.converter.{DateStringConverter, LongStringConverter}
 
 /**
@@ -36,26 +38,41 @@ object TableColumns {
 
   def createRowFactory(table: TableView[ObservableBackupPart], model: BackupViewModel) = {
     tv: TableView[ObservableBackupPart] =>
-      val row = new TableRow[ObservableBackupPart]();
+      tv.selectionModel().setSelectionMode(SelectionMode.Multiple)
+      val row = new TableRow[ObservableBackupPart]()
+      row.contextMenu = {
+        val menu = new ContextMenu()
+        val item = new MenuItem("Restore")
+        item.onAction = { event =>
+          val backupPart = row.getItem.backupPart
+          if (!backupPart.isFolder) {
+            val fileChooser = new FileChooser() {
+              title = "Choose destination for file"
+              initialFileName = backupPart.name
+            }
+            val file = fileChooser.showSaveDialog(tv.getScene.getWindow)
+            if (file != null) {
+              val inputStream = model.index.getInputStream(backupPart.asInstanceOf[FileDescription])
+              val fos = new FileOutputStream(file)
+              stream(inputStream, fos)
+              inputStream.close()
+              fos.close()
+            }
+          } else {
+            val directoryChooser = new DirectoryChooser() {
+              title = "Choose root for restoration of folder"
+            }
+            directoryChooser.showDialog(tv.getScene.getWindow)
+          }
+        }
+        menu.items += item
+        menu
+      }
       row.onMouseClicked = { event =>
         if (event.getClickCount() == 2 && (!row.isEmpty())) {
           val rowData: ObservableBackupPart = row.getItem()
           if (rowData.backupPart.isFolder) {
-            //            model.populateListForPath(rowData.backupPart)
-            //            val treenodeForPath: Option[TreeItem[BackupTreeNode]] = {
-            //              var path = rowData.backupPart.pathParts
-            //              var item: Option[TreeItem[BackupTreeNode]] = Some(treeView.root.value)
-            //              while(!path.isEmpty && item.isDefined) {
-            //                val children: ObservableList[TreeItem[BackupTreeNode]] = item.get.getChildren
-            //                item = children.find{x: TreeItem[BackupTreeNode] => x.value.value.backupPart.name == path.head}
-            //                path = path.tail
-            //              }
-            //              item
-            //            }
-            //            treenodeForPath match {
-            //              case Some(node) => treeView.selectionModel().select(node)
-            //              case None => println("could not select "+rowData.backupPart)
-            //            }
+            model.shownFolder() = rowData.backupPart
           } else {
             val value = rowData.name.value
             val extension = "." + value.reverse.takeWhile(_ != '.').reverse
@@ -74,6 +91,7 @@ object TableColumns {
 
   def initTable(table: TableView[ObservableBackupPart], model: BackupViewModel): Unit = {
     initNameColumn(table)
+    initExtensionColumn(table)
     initPathColumn(table)
     initDateColumn(table)
     initSizeColumn(table)
@@ -126,6 +144,13 @@ object TableColumns {
     findColumn[String]("name", tableView).foreach { c =>
       c.cellValueFactory = {
         _.value.name
+      }
+    }
+  }
+  private def initExtensionColumn(tableView: TableView[ObservableBackupPart]): Unit = {
+    findColumn[String]("extension", tableView).foreach { c =>
+      c.cellValueFactory = { bp =>
+        bp.value.extension
       }
     }
   }
