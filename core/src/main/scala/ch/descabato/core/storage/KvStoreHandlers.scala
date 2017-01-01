@@ -338,7 +338,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
     true
   }
 
-  protected var outstandingRequests: HashMap[BytesWrapper, Int] = HashMap()
+  private var outstandingRequests: ByteArrayMap[Int] = new ByteArrayMap[Int]()
 
   def writeBlockIfNotExists(block: Block) {
     val hash = block.hash

@@ -10,9 +10,8 @@ import javax.xml.bind.DatatypeConverter
 
 import ch.descabato.ByteArrayOutputStream
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.compress.utils.IOUtils
-import sun.nio.ch.DirectBuffer
 
+import scala.collection.mutable
 import scala.language.implicitConversions
 
 trait RealEquality[T] {
@@ -36,28 +35,24 @@ object NullHash {
 }
 
 class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {
-  def copy(): BytesWrapper = {
-    new BytesWrapper(asArray())
-  }
-
   def asInputStream() = new ByteArrayInputStream(array, offset, length)
 
   if (length == -1) {
     length = array.length - offset
   }
   def apply(i: Int) = array(i + offset)
+
   def asArray(): Array[Byte] = {
     if (array == null) {
       Array.empty[Byte]
     } else {
-      // TODO if enabling this again, fix copy method
-//      if (offset == 0 && length == array.length) {
-//        array
-//      } else {
+      if (offset == 0 && length == array.length) {
+        array
+      } else {
         val out = Array.ofDim[Byte](length)
         System.arraycopy(array, offset, out, 0, length)
         out
-//      }
+      }
     }
   }
   def equals(other: BytesWrapper): Boolean = {
@@ -137,6 +132,7 @@ object Utils extends LazyLogging {
 object Implicits {
   import scala.language.higherKinds
   implicit def hashToWrapper(a: Hash): BytesWrapper = new BytesWrapper(a.bytes)
+  implicit def hashToArray(a: Hash): Array[Byte] = a.bytes
   implicit class AwareMessageDigest(md: MessageDigest) {
     def update(bytesWrapper: BytesWrapper): Unit = {
       md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
@@ -229,4 +225,14 @@ trait Utils extends LazyLogging {
     Utils.logException(t)
   }
 
+}
+
+class ByteArrayMap[T] extends mutable.HashMap[Array[Byte], T] {
+  override protected def elemHashCode(key: Array[Byte]): Int = {
+    util.Arrays.hashCode(key)
+  }
+
+  override protected def elemEquals(key1: Array[Byte], key2: Array[Byte]): Boolean = {
+    util.Arrays.equals(key1, key2)
+  }
 }
