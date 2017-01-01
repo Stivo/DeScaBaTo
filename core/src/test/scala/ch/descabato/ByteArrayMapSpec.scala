@@ -14,15 +14,15 @@ class ByteArrayMapSpec extends FlatSpec with GeneratorDrivenPropertyChecks {
     var wrappers = new ByteArrayMap[Boolean]()
     val encoder = Base64.getEncoder()
     forAll(minSize(0), sizeRange(100), minSuccessful(10000)) { (toEncode: Array[Byte]) =>
+      // reference: base 64 strings
       val string = encoder.encodeToString(toEncode)
       val contained = strings safeContains string
-      val hash = new Hash(toEncode)
-      val containedwrapper = wrappers safeContains hash
+      // check that the byte arrays say the same
       assert(contained === (wrappers safeContains new Hash(toEncode)))
+      assert(contained === (wrappers safeContains toEncode))
+      // add them to the set and map
       strings += string
-      if (toEncode.length % 2 == 0) {
-        wrappers += toEncode -> true
-      }
+      wrappers += toEncode -> true
     }
     for (wrapper <- wrappers.keys) {
       assert(wrappers safeContains (wrapper))
