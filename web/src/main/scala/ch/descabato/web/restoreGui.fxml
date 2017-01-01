@@ -1,33 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.SplitPane?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.TreeView?>
-<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.StackPane?>
 
-<?import javafx.scene.control.TabPane?>
-<?import javafx.scene.control.Tab?>
-<?import javafx.scene.control.Label?>
-<StackPane prefHeight="500.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1"
-           fx:controller="ch.descabato.web.RestoreController">
+<StackPane prefHeight="500.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ch.descabato.web.RestoreController">
     <children>
-      <TabPane fx:id="tabs">
+        <TabPane fx:id="tabs" BorderPane.alignment="CENTER">
             <tabs>
-                <Tab text="Browse Files">
+                <Tab closable="false" text="Browse Files">
                     <content>
-                        <fx:include fx:id="browser" source="browserPage.fxml"/>
+                        <fx:include fx:id="browser" source="browserPage.fxml" />
                     </content>
                 </Tab>
-                <Tab text="Preview">
+                <Tab closable="false" text="Preview">
                     <content>
-                        <fx:include fx:id="preview" source="previewPage.fxml"/>
+                        <fx:include fx:id="preview" source="previewPage.fxml" />
                     </content>
                 </Tab>
             </tabs>
-      </TabPane>
+        </TabPane>
+        <ComboBox layoutX="860.0" layoutY="2.0" opacity="0.0" prefWidth="150.0" StackPane.alignment="TOP_RIGHT">
+            <StackPane.margin>
+                <Insets bottom="1.0" left="1.0" right="3.0" top="1.0" />
+            </StackPane.margin>
+        </ComboBox>
     </children>
 </StackPane>

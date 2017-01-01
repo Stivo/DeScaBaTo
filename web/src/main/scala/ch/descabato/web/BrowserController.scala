@@ -1,29 +1,48 @@
 package ch.descabato.web
 
 
-import ch.descabato.core.{BackupPart, FileDescription, Size}
+import ch.descabato.core.{BackupPart, FileDescription, FolderDescription, Size}
+import ch.descabato.frontend.RestoreConf
 
-import scalafx.event.ActionEvent
-import scalafx.scene.control._
-import scalafxml.core.macros.sfxml
+import scala.collection.mutable
 import scalafx.Includes._
 import scalafx.animation.PauseTransition
 import scalafx.beans.binding.Bindings
 import scalafx.beans.property.StringProperty
+import scalafx.event.ActionEvent
+import scalafx.scene.control._
+import scalafxml.core.macros.sfxml
+
+import scalafx.scene.input.ContextMenuEvent
 import scalafx.util.Duration
 
-sealed trait RestoreOptions
+sealed trait SelectedItems {
+  def items: Seq[BackupPart]
+}
 
-case object RestoreNone extends RestoreOptions
-case class RestoreFile(fileDescription: FileDescription) extends RestoreOptions
-case class RestoreFiles(fileDescription: Seq[FileDescription]) extends RestoreOptions
-case class RestoreFolder(folderDescription: BackupPart) extends RestoreOptions
-case class RestoreFolders(folderDescription: Seq[BackupPart]) extends RestoreOptions
-case object RestoreBoth extends RestoreOptions
+case object NoneSelected extends SelectedItems {
+  def items = List.empty
+}
+case class SelectedFile(fileDescription: FileDescription) extends SelectedItems {
+  def items = Seq(fileDescription)
+}
+case class SelectedFiles(fileDescription: Seq[FileDescription]) extends SelectedItems {
+  def items = fileDescription
+}
+case class SelectedFolder(folderDescription: BackupPart) extends SelectedItems {
+  def items = Seq(folderDescription)
+}
+case class SelectedFolders(folderDescription: Seq[BackupPart]) extends SelectedItems {
+  def items = folderDescription
+}
+case class SelectedBoth(folders: Seq[BackupPart], files: Seq[BackupPart]) extends SelectedItems {
+  def items = folders ++ files
+}
 
 trait ChildController {
   protected var restoreControllerI: RestoreControllerI = null
   def registerMain(controller: RestoreControllerI) = restoreControllerI = controller
+  def restoreController: RestoreControllerI = restoreControllerI
 }
 
 @sfxml
@@ -32,13 +51,17 @@ class BrowserController(
                          private val browserTable: TableView[ObservableBackupPart],
                          private val browserSearch: TextField,
                          private val restoreButton: Button,
-                         private val showSubfolderFiles: CheckBox,
+                         val showSubfolderFiles: CheckBox,
                          private val browserInfo: Label
                        ) extends ChildController {
 
   val model = new BackupViewModel()
   browserTree.root = model.root
   browserTable.items = model.sortedItems
+
+  def toggleShowSubfolderFiles(): Unit = {
+    showSubfolderFiles.selected = !showSubfolderFiles.selected()
+  }
 
   model.showSubfolders.bind(showSubfolderFiles.selected)
 
@@ -54,23 +77,24 @@ class BrowserController(
     pause.playFromStart()
   }
 
-  val restoreOption = Bindings.createObjectBinding[RestoreOptions]({ () =>
+  val restoreOption = Bindings.createObjectBinding[SelectedItems]({ () =>
+    println("Updating selection")
     if (items.isEmpty) {
-      RestoreNone
+      NoneSelected
     } else if (items.size() == 1) {
       if (items(0).backupPart.isFolder) {
-        RestoreFolder(items(0).backupPart)
+        SelectedFolder(items(0).backupPart)
       } else {
-        RestoreFile(items(0).backupPart.asInstanceOf[FileDescription])
+        SelectedFile(items(0).backupPart.asInstanceOf[FileDescription])
       }
     } else {
-      val (folders, files) = items.partition(_.backupPart.isFolder)
+      val (folders, files) = items.map(_.backupPart).partition(_.isFolder)
       if (folders.size == 0) {
-        RestoreFiles(items.map(_.backupPart.asInstanceOf[FileDescription]))
+        SelectedFiles(files.map(_.asInstanceOf[FileDescription]))
       } else if (files.size == 0) {
-        RestoreFolders(items.map(_.backupPart).toSeq)
+        SelectedFolders(folders)
       } else {
-        RestoreBoth
+        SelectedBoth(folders.map(_.asInstanceOf[FolderDescription]), files.map(_.asInstanceOf[FileDescription]))
       }
     }
   }, items)
@@ -82,10 +106,19 @@ class BrowserController(
       updateInfo()
     }
   }
+  items.onChange {
+    (_, changes) => {
+      updateInfo()
+    }
+  }
 
   private def updateInfo() = {
-    val items = model.filteredItems
-    browserInfo.text = s"${items.size} files found, ${Size(items.map(_.size.value).sum)} total size"
+    val itemsInTable = model.filteredItems
+    var summary = s"${itemsInTable.size} files found, ${Size(itemsInTable.map(_.size.value).sum)} total size"
+    if (!items.isEmpty) {
+      summary += s". Selected ${items.size}, ${Size(items.map(_.size.value).sum)} total size."
+    }
+    browserInfo.text = summary
   }
 
   searchText.onChange { (_, _, text) =>
@@ -131,7 +164,7 @@ class BrowserController(
   restoreButton.disable.bind {
     Bindings.createBooleanBinding({ () =>
       restoreOption.value match {
-        case RestoreBoth | RestoreNone => true
+        case SelectedBoth(_, _) | NoneSelected => true
         case _ => false
       }
     }, restoreOption)
@@ -140,25 +173,67 @@ class BrowserController(
   restoreButton.text.bind {
     Bindings.createStringBinding({ () =>
       restoreOption.value match {
-        case RestoreFile(_) => "Restore file"
-        case RestoreFolder(_) => "Restore folder"
-        case RestoreFolders(x) => s"Restore ${x.size} folders"
-        case RestoreFiles(x) => s"Restore ${x.size} files"
-        case RestoreBoth => "Select either files or folders"
-        case RestoreNone => "Select files or folders to restore"
+        case SelectedFile(_) => "Restore file"
+        case SelectedFolder(_) => "Restore folder"
+        case SelectedFolders(x) => s"Restore ${x.size} folders"
+        case SelectedFiles(x) => s"Restore ${x.size} files"
+        case SelectedBoth(_, _) => "Select either files or folders"
+        case NoneSelected => "Select files or folders to restore"
       }
     }, restoreOption)
   }
 
   def preview(): Unit = {
     restoreOption.value match {
-      case RestoreFile(fd) =>
+      case SelectedFile(fd) =>
         restoreControllerI.preview(fd)
       case _ => println("No preview")
     }
   }
 
+  val menu = new ContextMenu()
+  val factories = mutable.Buffer(
+    new PreviewActionFactory(),
+    new RestoreToOriginalPlaceActionFactory(),
+    new ShowFilesFromSubfoldersActionFactory()
+  )
+
+  def tableContextMenu(event: ContextMenuEvent): Unit = {
+    val items = factories
+      .map(fac => fac.createAction(restoreOption(), BrowserController.this))
+      .filter(_.isEnabled)
+      .map(_.asMenuItem())
+
+    if (!items.isEmpty) {
+      menu.items.clear()
+      menu.items ++= items.map(_.delegate)
+      menu.show(browserTable, event.getScreenX(), event.getScreenY())
+      event.consume()
+    }
+  }
+
+  def hideMenu(): Unit = {
+    menu.hide()
+  }
+
   def startRestore(event: ActionEvent) {
     println("Handling restore")
   }
+
+  def restoreToOriginal(items: Seq[BackupPart]): Unit = {
+    val configArgs = model.index.universe.config().asCommandLineArgs()
+    // TODO this is quite error prone and ugly
+    val conf = new RestoreConf(Seq("--restore-to-original-path") ++ configArgs)
+    conf.verify()
+    items.foreach { item =>
+      item match {
+        case fd : FileDescription =>
+          model.index.restoreFileDesc(fd)(conf)
+        case fd : FolderDescription =>
+          model.index.restoreFolderDesc(fd)(conf)
+      }
+    }
+  }
+
+
 }

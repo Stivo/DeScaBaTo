@@ -44,6 +44,18 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var saveSymlinks: Boolean = true
   var createIndexes: Boolean = true
   var ignoreFile: Option[File] = None
+
+  def asCommandLineArgs(): Seq[String] = {
+    var out = Seq.empty[String]
+    passphrase.foreach { p =>
+      out ++= "--password" :: p :: Nil
+    }
+    if (prefix != "") {
+      out ++= "--prefix" :: prefix :: Nil
+    }
+    out :+= folder.getCanonicalFile.getAbsolutePath
+    out
+  }
 }
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {
