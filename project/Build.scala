@@ -8,11 +8,8 @@ object DeScaBaToBuild extends Build {
   
   val core = Project(id = "core", base = file("core"), 
       settings = Defaults.defaultSettings ++ commonSettings)
-  
-  val browser = Project(id = "browser", base = file("browser"),
-      settings = Defaults.defaultSettings ++ commonSettings) dependsOn(core)
 
-  val web = Project(id = "web", base = file("web"),
+  val ui = Project(id = "ui", base = file("ui"),
     settings = Defaults.defaultSettings ++ commonSettings) dependsOn(core)
 
   val it = Project(id = "it", base = file("integrationtest"),

@@ -19,8 +19,7 @@ object CLI extends Utils {
     new BackupCommand(),
     new VerifyCommand(),
     new RestoreCommand(),
-    new ReflectionCommand("browse", "ch.descabato.browser.BrowseCommand"),
-    new ReflectionCommand("web", "ch.descabato.web.BrowseCommand"),
+    new ReflectionCommand("browse", "ch.descabato.ui.BrowseCommand"),
     new HelpCommand()).map(x => (x.name.toLowerCase, x)).toMap
 
   def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
