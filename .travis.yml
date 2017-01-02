@@ -1,6 +1,6 @@
 # See http://about.travis-ci.org/docs/user/build-configuration/
 # triggers docker
-sudo: false
+sudo: required
 language: scala
 scala:
   - 2.12.1
@@ -10,5 +10,10 @@ branches:
     - ui
 jdk:
   - oraclejdk8
+script:
+  - sudo apt-get update && sudo apt-get install oracle-java8-installer
+  - java -version
+
 #before_script:
 #   - sudo apt-get install par2
+
