@@ -13,7 +13,6 @@ class BrowseCommand extends BackupRelatedCommand {
     println(t.summary)
     withUniverse(conf, false) { universe =>
       val bh = new Index(universe)
-      bh.registerIndex()
       WebServer.index = bh
       BackupViewModel.index = bh
 

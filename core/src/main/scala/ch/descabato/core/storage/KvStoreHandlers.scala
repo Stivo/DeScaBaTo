@@ -282,6 +282,7 @@ class KvStoreHashListHandler extends HashKvStoreHandler[Vector[(Hash, Array[Byte
   }
 
   def getHashlist(fileHash: Hash, size: Long): Seq[Hash] = {
+    ensureLoaded()
     readEntry(fileHash)._1.asArray().grouped(config.hashLength).toSeq.map(new Hash(_))
   }
 

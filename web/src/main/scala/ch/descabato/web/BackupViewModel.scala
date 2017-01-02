@@ -16,6 +16,15 @@ object BackupViewModel {
 }
 
 class BackupViewModel(val index: Index = BackupViewModel.index) {
+  def indexUpdated() = {
+    val backupPath = shownFolder()
+
+    treeItems = Map.empty[BackupPart, TreeItem[BackupTreeNode]]
+    root = createTreeItem(index.backup.tree)
+    populateListForPath(index.backup.tree.backupPart, showSubfolders.value)
+    shownFolder() = index.backup.tree.tryLookup(backupPath.pathParts).backupPart
+  }
+
   val tableItems = new ObservableBuffer[ObservableBackupPart]()
   val filteredItems = new FilteredBuffer(tableItems)
   val sortedItems = new SortedBuffer(filteredItems) {
@@ -35,18 +44,11 @@ class BackupViewModel(val index: Index = BackupViewModel.index) {
     }
   }
 
-  shownFolder() = index.tree.backupPart
-
-  def populateListWithAll() = {
-    index.parts.foreach {
-      case f@FileDescription(_, _, _, _) => tableItems.add(new ObservableBackupPart(f))
-      case _ => // ignore
-    }
-  }
+  shownFolder() = index.backup.tree.backupPart
 
   def populateListForPath(backupPart: BackupPart, includeSubFolders: Boolean = false) = {
     tableItems.clear()
-    val node = index.tree.lookup(backupPart.pathParts)
+    val node = index.backup.tree.lookup(backupPart.pathParts)
     var buffer = mutable.Seq.empty[ObservableBackupPart]
     def addRecursive(node: BackupTreeNode): Unit = {
       node.children.map { case (_, childNode@BackupTreeNode(bp, _)) =>
@@ -73,7 +75,7 @@ class BackupViewModel(val index: Index = BackupViewModel.index) {
 
   var treeItems = Map.empty[BackupPart, TreeItem[BackupTreeNode]]
 
-  lazy val root = createTreeItem(index.tree)
+  var root = createTreeItem(index.backup.tree)
 }
 
 class ObservableBackupPart(val backupPart: BackupPart) {

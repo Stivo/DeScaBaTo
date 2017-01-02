@@ -1,6 +1,7 @@
 package ch.descabato.web
 
 import java.io.{InputStream, SequenceInputStream}
+import java.util.Date
 
 import ch.descabato.core._
 import ch.descabato.utils.CompressedStream
@@ -8,15 +9,14 @@ import ch.descabato.utils.CompressedStream
 class Index(universe: Universe)
   extends RestoreHandler(universe) {
 
-  val backup = universe.backupPartHandler().loadBackup()
-  val parts = backup.allParts
-  val map = backup.asMap
+  def versions = universe.fileManager().getBackupDates()
 
-  def registerIndex() {
-    l.info("Loading information")
-    val path = config.folder.getCanonicalPath()
-    l.info("Path is loaded as " + path)
-    //BackupVfsProvider.indexes += Utils.normalizePath(path) -> this
+  private var _backup = new LoadedBackup(universe.backupPartHandler().loadBackup())
+
+  def backup = _backup
+
+  def loadBackup(date: Date): Unit = {
+    _backup = new LoadedBackup(universe.backupPartHandler().loadBackup(Some(date)))
   }
 
   def getInputStream(fd: FileDescription): InputStream = {
@@ -32,6 +32,13 @@ class Index(universe: Universe)
     new SequenceInputStream(e)
   }
 
+}
+
+class LoadedBackup(val backup: BackupDescription) {
+
+  val parts = backup.allParts
+  val map = backup.asMap
+
   val tree: BackupTreeNode = {
     val root = new BackupTreeNode(new FakeBackupFolder("/"))
     parts.foreach { part =>
@@ -39,6 +46,7 @@ class Index(universe: Universe)
     }
     root
   }
+
 }
 
 case class BackupTreeNode(var backupPart: BackupPart, var children: Map[String, BackupTreeNode] = Map.empty) {
@@ -74,6 +82,14 @@ case class BackupTreeNode(var backupPart: BackupPart, var children: Map[String, 
       this
     } else {
       children(restPath.head).lookup(restPath.drop(1))
+    }
+  }
+
+  def tryLookup(restPath: Seq[String]): BackupTreeNode = {
+    if (restPath.isEmpty || !children.contains(restPath.head)) {
+      this
+    } else {
+      children(restPath.head).tryLookup(restPath.drop(1))
     }
   }
 

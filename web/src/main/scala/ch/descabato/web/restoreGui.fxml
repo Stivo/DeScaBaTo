@@ -23,7 +23,7 @@
                 </Tab>
             </tabs>
         </TabPane>
-        <ComboBox layoutX="860.0" layoutY="2.0" opacity="0.0" prefWidth="150.0" StackPane.alignment="TOP_RIGHT">
+        <ComboBox fx:id="versionChooser" layoutX="860.0" layoutY="2.0" prefWidth="150.0" StackPane.alignment="TOP_RIGHT">
             <StackPane.margin>
                 <Insets bottom="1.0" left="1.0" right="3.0" top="1.0" />
             </StackPane.margin>

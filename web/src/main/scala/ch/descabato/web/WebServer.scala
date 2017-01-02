@@ -63,7 +63,7 @@ object WebServer {
 
   def getContent(path: String, requestContext: RequestContext) = {
     println ("Getting content of "+path)
-    val node = index.tree.lookup(path.split('/').tail)
+    val node = index.backup.tree.lookup(path.split('/').tail)
     node.backupPart match {
       case f : FileDescription =>
 
@@ -78,7 +78,7 @@ object WebServer {
 
   def getSize(path: String, requestContext: RequestContext) = {
     println ("Getting content of "+path)
-    val node = index.tree.lookup(path.split('/').tail)
+    val node = index.backup.tree.lookup(path.split('/').tail)
     requestContext.complete(""+node.backupPart.size)
   }
 

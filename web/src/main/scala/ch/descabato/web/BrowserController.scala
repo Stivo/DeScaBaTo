@@ -43,6 +43,8 @@ trait ChildController {
   protected var restoreControllerI: RestoreControllerI = null
   def registerMain(controller: RestoreControllerI) = restoreControllerI = controller
   def restoreController: RestoreControllerI = restoreControllerI
+
+  def indexUpdated(): Unit = {}
 }
 
 @sfxml
@@ -54,6 +56,13 @@ class BrowserController(
                          val showSubfolderFiles: CheckBox,
                          private val browserInfo: Label
                        ) extends ChildController {
+
+  override def indexUpdated() = {
+    selectionModelListenerSuspended = true
+    model.indexUpdated()
+    browserTree.root = model.root
+    selectionModelListenerSuspended = false
+  }
 
   val model = new BackupViewModel()
   browserTree.root = model.root
@@ -111,10 +120,16 @@ class BrowserController(
       updateInfo()
     }
   }
+  model.shownFolder.onChange {
+    (_, _, changes) => {
+      updateInfo()
+    }
+  }
 
   private def updateInfo() = {
     val itemsInTable = model.filteredItems
-    var summary = s"${itemsInTable.size} files found, ${Size(itemsInTable.map(_.size.value).sum)} total size"
+    var summary = s"Currently showing ${model.shownFolder().path}. "
+    summary += s"${itemsInTable.size} files found, ${Size(itemsInTable.map(_.size.value).sum)} total size"
     if (!items.isEmpty) {
       summary += s". Selected ${items.size}, ${Size(items.map(_.size.value).sum)} total size."
     }
@@ -142,7 +157,7 @@ class BrowserController(
 
   model.shownFolder.onChange { (_, oldSelection, newSelection) =>
     val newItem = model.treeItems(newSelection)
-    val oldItem = model.treeItems(oldSelection)
+    val oldItem = model.treeItems.get(oldSelection)
 
     selectionModelListenerSuspended = true
 
@@ -153,7 +168,7 @@ class BrowserController(
         parent = parent.parent.value
       }
     }
-    collapseOrExpand(oldItem, false)
+    oldItem.foreach(collapseOrExpand(_, false))
     collapseOrExpand(newItem, true)
     browserTree.selectionModel().select(newItem)
     selectionModelListenerSuspended = false
