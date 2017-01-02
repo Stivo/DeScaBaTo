@@ -12,10 +12,6 @@ unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
 libraryDependencies ++= Seq(
-	"org.webjars.bower" % "angular-filemanager" % "1.5.1",
-	"com.typesafe.akka" %% "akka-http" % "10.0.1",
-  "com.typesafe.akka" %% "akka-http-spray-json" % "10.0.1",
-  "org.webjars" % "webjars-locator-core" % "0.32",
   "org.scalafx" %% "scalafx" % "8.0.102-R11",
   "org.scalafx" %% "scalafxml-core-sfx8" % "0.3"
 )

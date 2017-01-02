@@ -86,7 +86,7 @@ class BrowserController(
     pause.playFromStart()
   }
 
-  val restoreOption = Bindings.createObjectBinding[SelectedItems]({ () =>
+  val selected = Bindings.createObjectBinding[SelectedItems]({ () =>
     println("Updating selection")
     if (items.isEmpty) {
       NoneSelected
@@ -123,6 +123,16 @@ class BrowserController(
   model.shownFolder.onChange {
     (_, _, changes) => {
       updateInfo()
+    }
+  }
+
+  selected.onChange {
+    (_, _, newValue) => {
+      newValue match {
+        case SelectedFile(fd) =>
+          restoreControllerI.previewIfOpen(fd)
+        case _ =>
+      }
     }
   }
 
@@ -178,16 +188,16 @@ class BrowserController(
 
   restoreButton.disable.bind {
     Bindings.createBooleanBinding({ () =>
-      restoreOption.value match {
+      selected.value match {
         case SelectedBoth(_, _) | NoneSelected => true
         case _ => false
       }
-    }, restoreOption)
+    }, selected)
   }
 
   restoreButton.text.bind {
     Bindings.createStringBinding({ () =>
-      restoreOption.value match {
+      selected.value match {
         case SelectedFile(_) => "Restore file"
         case SelectedFolder(_) => "Restore folder"
         case SelectedFolders(x) => s"Restore ${x.size} folders"
@@ -195,11 +205,11 @@ class BrowserController(
         case SelectedBoth(_, _) => "Select either files or folders"
         case NoneSelected => "Select files or folders to restore"
       }
-    }, restoreOption)
+    }, selected)
   }
 
   def preview(): Unit = {
-    restoreOption.value match {
+    selected.value match {
       case SelectedFile(fd) =>
         restoreControllerI.preview(fd)
       case _ => println("No preview")
@@ -215,7 +225,7 @@ class BrowserController(
 
   def tableContextMenu(event: ContextMenuEvent): Unit = {
     val items = factories
-      .map(fac => fac.createAction(restoreOption(), BrowserController.this))
+      .map(fac => fac.createAction(selected(), BrowserController.this))
       .filter(_.isEnabled)
       .map(_.asMenuItem())
 
@@ -250,5 +260,9 @@ class BrowserController(
     }
   }
 
+  if (System.getProperty("user.name") == "Stivo") {
+    showSubfolderFiles.selected = true
+    browserSearch.text = "png"
+  }
 
 }

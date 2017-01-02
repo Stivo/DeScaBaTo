@@ -13,11 +13,8 @@ class BrowseCommand extends BackupRelatedCommand {
     println(t.summary)
     withUniverse(conf, false) { universe =>
       val bh = new Index(universe)
-      WebServer.index = bh
       BackupViewModel.index = bh
 
-      new Thread(() => WebServer.main(Array.empty)).start()
-//      new Thread(() => ScalaFxTry.main(Array.empty)).start()
       ScalaFxGui.main(Array.empty)
     }
   }

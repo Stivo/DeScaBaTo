@@ -211,6 +211,9 @@ trait BackupPart extends UpdatePart {
   def attrs: FileAttributes
   def size: Long
 
+  @JsonIgnore
+  def sizeFormatted = new Size(size)
+
   def applyAttrsTo(f: File) {
     FileAttributes.restore(attrs, f)
   }

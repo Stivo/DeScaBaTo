@@ -18,6 +18,7 @@ class WelcomeController(
 
   if (System.getProperty("user.name") == "Stivo") {
     folderTextfield.text = "L:/backup"
+    open()
   }
 
   def onChooseFolderButton: Unit = {
@@ -27,10 +28,11 @@ class WelcomeController(
     }
   }
 
-  def open: Unit = {
+  def open(): Unit = {
     openBackupButton.text = "Loading ..."
     openBackupButton.disable = true
     ScalaFxGui.openRestore(folderTextfield.text())
   }
+
 }
 

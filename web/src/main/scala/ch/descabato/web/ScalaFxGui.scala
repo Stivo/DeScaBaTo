@@ -4,6 +4,7 @@ import java.io.IOException
 
 import ch.descabato.core.{BackupConfigurationHandler, Universes}
 import ch.descabato.frontend.RestoreConf
+import ch.descabato.utils.Utils
 
 import scalafx.Includes._
 import scalafx.application.{JFXApp, Platform}
@@ -16,7 +17,7 @@ import scalafxml.core.{FXMLView, NoDependencyResolver}
   *
   * @author Jarek Sacha
   */
-object ScalaFxGui extends JFXApp {
+object ScalaFxGui extends JFXApp with Utils {
 
   val resource = getClass.getResource("welcome.fxml")
   if (resource == null) {
@@ -39,14 +40,11 @@ object ScalaFxGui extends JFXApp {
 
         val handler = new BackupConfigurationHandler(conf)
         val config = handler.configure(None)
+        config.threads = 1
         val universe = Universes.makeUniverse(config)
 
         val index = new Index(universe)
         BackupViewModel.index = index
-        WebServer.index = index
-        val thread = new Thread(() => WebServer.main(Array.empty))
-        thread.setDaemon(true)
-        thread.start()
 
         val resource = getClass.getResource("restoreGui.fxml")
         if (resource == null) {
