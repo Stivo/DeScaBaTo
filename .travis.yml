@@ -7,6 +7,7 @@ scala:
 branches:
   only:
     - master
+    - ui
 jdk:
   - oraclejdk8
 #before_script:
