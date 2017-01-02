@@ -11,20 +11,24 @@ class SimpleCompressionDecider(val overrideMode: Option[CompressionMode]) extend
   def this() {
     this(None)
   }
+
   lazy val mode = overrideMode.getOrElse(universe.config.compressor)
+
   def blockCompressed(block: Block, nanoTime: Long) {
-//    universe.blockHandler.writeCompressedBlock(block)
+    //    universe.blockHandler.writeCompressedBlock(block)
   }
+
   def compressBlock(block: Block): Unit = {
     universe.scheduleTask { () =>
-        block.mode = mode
-        val compressed = CompressedStream.compress(block.content, block.mode)
-        block.compressed = compressed
-        universe.blockHandler().writeCompressedBlock(block)
+      block.mode = mode
+      val compressed = CompressedStream.compress(block.content, block.mode)
+      block.compressed = compressed
+      universe.blockHandler().writeCompressedBlock(block)
     }
   }
+
   def report() {
-    
+
   }
 }
 
@@ -40,7 +44,7 @@ object StatisticHelper {
     new SortedBuffer[Float](buf)
   }
 
-  implicit class SortedBuffer[T : Numeric](buf: mutable.Buffer[T])(implicit num: Numeric[T]) {
+  implicit class SortedBuffer[T: Numeric](buf: mutable.Buffer[T])(implicit num: Numeric[T]) {
     def median(default: T): T = {
       if (buf.isEmpty) {
         default
@@ -51,7 +55,7 @@ object StatisticHelper {
     }
 
     def insertSorted(x: T) {
-      if (buf.size > 2*defaultLimit)
+      if (buf.size > 2 * defaultLimit)
         return
       buf += x
       if (buf.size == 1)
@@ -59,7 +63,7 @@ object StatisticHelper {
       // insertion sort in place
       var i = buf.size - 2
       while (i >= 0) {
-        if (num.lt(buf(i+1),buf(i))) {
+        if (num.lt(buf(i + 1), buf(i))) {
           swap(i + 1, i)
           i -= 1
         } else {
@@ -78,50 +82,55 @@ object StatisticHelper {
 }
 
 class SmartCompressionDecider extends CompressionDecider with UniversePart with Utils {
+
   import ch.descabato.core.StatisticHelper._
 
-  val samples = 31
+  val samples = 13
 
-  val algos = CompressionMode.values.filter(_.isCompressionAlgorithm()).sortBy(_.getByte)
-  
-  val speeds = algos.map(x => mutable.Buffer[Long](x.getEstimatedTime)).toArray
+  val algos: Seq[CompressionMode] = Array(CompressionMode.none, CompressionMode.snappy, CompressionMode.gzip, CompressionMode.lzma)
 
-  val statistics = algos.map(x => 0)
+  var speeds: Map[CompressionMode, mutable.Buffer[Long]] = algos.map(x => (x, mutable.Buffer[Long](x.getEstimatedTime))).toMap
+
+  var statistics: Map[CompressionMode, Int] = speeds.mapValues(x => 0)
 
   /**
-   * Collects sampling data for one extension.
-   * Once enough samples are in a winner is declared, until then
-   * each block is sent to be compressed with each mode and results compared.
-   */
+    * Collects sampling data for one extension.
+    * Once enough samples are in a winner is declared, until then
+    * each block is sent to be compressed with each mode and results compared.
+    */
   class SamplingData(val ext: String) {
-    val ratioSamples = algos.map(x => mutable.Buffer[Float]())
-    val samplingBlocks = mutable.HashMap[(Int, String), Array[SamplingBlock]]()
+    var ratioSamples: Map[CompressionMode, mutable.Buffer[Float]] = speeds.mapValues(x => mutable.Buffer[Float]())
+    val samplingBlocks: mutable.HashMap[(Int, String), Map[CompressionMode, SamplingBlock]] = mutable.HashMap.empty
+
     def idForBlock(b: Block) = (b.id.part, b.id.file.path)
-    
+
     def sampleFile(block: Block) = {
       // create new blocks with each algorithm
-      val samples = algos.map(x => new SamplingBlock(x, block)).sortBy(_.mode.getByte())
+      val samples = algos.map(x => (x, new SamplingBlock(x, block))).toMap
       samplingBlocks += idForBlock(block) -> samples
-      samples.map(_.block)
+      samples.values.map(_.block)
     }
-    
-    def samplingFinished = ratioSamples.head.size > samples
-    
+
+    def samplingFinished = ratioSamples.head._2.size > samples
+
     def blockWasCompressed(b: Block): Option[Block] = {
       val id = idForBlock(b)
       if (!(samplingBlocks safeContains id)) {
         Some(b)
       } else {
-        val sample = samplingBlocks(id)
-        sample(b.mode.getByte()).block = b
-        sample(b.mode.getByte()).resultArrived = true
-        if (sample.forall(_.resultArrived)) {
-          sample.foreach { s =>
-            ratioSamples(s.mode.getByte()) insertSorted s.ratio
+        val samplesMap = samplingBlocks(id)
+        samplesMap(b.mode).block = b
+        samplesMap(b.mode).resultArrived = true
+        if (samplesMap.values.forall(_.resultArrived)) {
+          samplesMap.foreach { case (mode, sample) =>
+            val modeSamples = ratioSamples(mode)
+            modeSamples insertSorted sample.ratio
+            ratioSamples += mode -> modeSamples
+//            ratioSamples(mode) insertSorted sample.ratio
           }
           samplingBlocks -= idForBlock(b)
           checkIfSamplingDone()
-          Some(sample.minBy(_.ratio).block)
+          Some(samplesMap.values.minBy(_.ratio).block)
         } else {
           None
         }
@@ -134,78 +143,74 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
       if (samplingFinished) {
         val winnerBackup = winner
         // candidates are all algos
-        var candidates = algos.zip(speeds.map(_.median(config.blockSize.bytes * 10))).sortBy(_._2).drop(1)
+        var candidates: Seq[(CompressionMode, Long)] = speeds.mapValues(_.median(config.blockSize.bytes * 10)).toSeq.sortBy(_._2)
         winner = CompressionMode.none
-        val medians = algos.map(x => ratioSamples(x.getByte).median(100.0f))
+        var medians = ratioSamples.mapValues(_.median(100.0f))
         while (candidates.nonEmpty) {
           val next = candidates.head._1
           candidates = candidates.tail
-          if (medians(next.getByte) < medians(winner.getByte) - 0.03) {
+          if (medians(next) < medians(winner) - 0.03) {
             winner = next
           }
         }
         if (winner != winnerBackup) {
-          statistics(winner.getByte) += 1
+          statistics += winner -> (statistics.getOrElse(winner, 0) + 1)
           if (winnerBackup != null)
-            statistics(winnerBackup.getByte) -= 1
-          val ratiosAndNames = algos.zip(medians).sortBy(_._2).mkString(", ")
-          val speedsAndNames = algos.zip(speeds.map(_.median(config.blockSize.bytes * 10))).sortBy(_._2).mkString(", ")
-          l.info( s"""Sampling for $ext is done and winner is $winner with ${ratioSamples(winner.getByte).median(100)}""")
+            statistics += winnerBackup -> (statistics.getOrElse(winnerBackup, 0) - 1)
+          l.info( s"""Sampling for $ext is done and winner is $winner with ${medians(winner)}""")
         }
       }
     }
 
   }
-  
+
   class SamplingBlock(val mode: CompressionMode, bIn: Block) {
     var block: Block = {
-        val b = new Block(bIn.id, bIn.content)
-        b.hash = bIn.hash
-        b.mode = mode
-        b
+      val b = new Block(bIn.id, bIn.content)
+      b.hash = bIn.hash
+      b.mode = mode
+      b
     }
     var resultArrived = false
+
     def ratio = 1.0f * block.compressed.length / block.content.length
   }
-  
-  val extensions = mutable.HashMap[String, SamplingData]() 
-    //algos.map(_ => SortedSet[Long]()).toArray
-  
-  def getSamplingData(ext: String) = 
+
+  val extensions = mutable.HashMap[String, SamplingData]()
+
+  def getSamplingData(ext: String) =
     extensions.getOrElseUpdate(ext, new SamplingData(ext))
-  
-  def extension(block: Block): Option[String] = {
+
+  def extension(block: Block): String = {
     val name = block.id.file.name
     if (name.contains('.'))
-      Some(name.drop(name.lastIndexOf('.')+1))
+      name.drop(name.lastIndexOf('.') + 1)
     else
-      None
+      name
   }
-  
+
   def blockCompressed(block: Block, nanoTime: Long) {
     val toSave = mutable.Buffer[Block]()
     if (block.uncompressedLength == config.blockSize.bytes) {
-      val set = speeds(block.compressed(0))
-      set.insertSorted (nanoTime)
+      val set = speeds(block.mode)
+      set.insertSorted(nanoTime)
     }
     val ext = extension(block)
-    if (ext.isDefined) {
-      val data = getSamplingData(ext.get)
-      toSave ++= data.blockWasCompressed(block)
-    } else {
-      toSave += block
-    }
+    val data = getSamplingData(ext)
+    toSave ++= data.blockWasCompressed(block)
     toSave.foreach { block =>
       universe.blockHandler.writeCompressedBlock(block)
     }
   }
 
   def compressBlockAsync(block: Block) {
-    val startAt = TimingUtil.getCpuTime
-    val compressed = CompressedStream.compress(block.content, block.mode)
-    block.compressed = compressed
-    val duration = TimingUtil.getCpuTime - startAt
-    universe.compressionDecider.blockCompressed(block, duration)
+    universe.scheduleTask { () =>
+      val startAt = TimingUtil.getCpuTime
+      val compressed = CompressedStream.compress(block.content, block.mode)
+      block.compressed = compressed
+      val duration = TimingUtil.getCpuTime - startAt
+      universe.compressionDecider.blockCompressed(block, duration)
+    }
   }
 
   def compressBlock(block: Block): Unit = {
@@ -215,7 +220,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
         compressBlockAsync(block)
       case None =>
         // Needs to be sampled
-        getSamplingData(extension(block).get).sampleFile(block).foreach { 
+        getSamplingData(extension(block)).sampleFile(block).foreach {
           block =>
             compressBlockAsync(block)
         }
@@ -229,22 +234,17 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
     if (block.uncompressedLength < 2048) {
       return Some(CompressionMode.deflate)
     }
-    extension(block) match {
-      // No extension, just use best algorithm
-      case None => 
-        return Some(CompressionMode.bzip2)
-      case Some(ext) =>
-        val samplingData = getSamplingData(ext) 
-        if (samplingData.samplingFinished) {
-          return Some(samplingData.winner) 
-        }
+    val samplingData = getSamplingData(extension(block))
+    if (samplingData.samplingFinished) {
+      Some(samplingData.winner)
+    } else {
+      None
     }
-    None
   }
-    
+
   def report() {
-    if (statistics.sum > 0) {
-      val stats = algos.zip(statistics).filter(_._2 > 0).mkString("\n")
+    if (statistics.values.sum > 0) {
+      val stats = statistics.filter(_._2 > 0).mkString("\n")
       l.info(s"All algorithms with how often they were chosen:\n$stats")
     }
   }
