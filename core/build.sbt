@@ -6,32 +6,32 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-actor" % "2.4.14",
-    "org.rogach" %% "scallop" % "2.0.5",
+    "com.typesafe.akka" %% "akka-actor" % "2.5.8",
+    "org.rogach" %% "scallop" % "2.1.3",
     "org.ocpsoft.prettytime" % "prettytime" % "4.0.1.Final",
     "org.fusesource.jansi" % "jansi" % "1.11",
-    "org.bouncycastle" % "bcprov-jdk15on" % "1.55"
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.59"
 )
 
 // compressors
 libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
   "net.jpountz.lz4" % "lz4" % "1.3.0",
-  "org.tukaani" % "xz" % "1.6",
-  "org.apache.commons" % "commons-compress" % "1.12"
+  "org.tukaani" % "xz" % "1.8",
+  "org.apache.commons" % "commons-compress" % "1.15"
 )
 
 // Logging
 libraryDependencies ++= Seq(
-	"ch.qos.logback" % "logback-classic" % "1.1.8",
-	"com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
+	"ch.qos.logback" % "logback-classic" % "1.2.3",
+	"com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
   "org.scala-lang" % "scala-reflect" % Common.scalaVersion
 )
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.8.4",
-	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.8.4"
+	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.2",
+	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.2"
 )
 
 // UI Dependencies
@@ -42,7 +42,7 @@ libraryDependencies ++= Seq(
 
 // Test dependencies
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test->*"
+  "org.scalatest" %% "scalatest" % "3.0.4" % "test->*"
     excludeAll(
     ExclusionRule(organization = "org.seleniumhq.selenium"),
     ExclusionRule(organization = "org.eclipse.jetty"),
@@ -51,7 +51,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.easymock"),
     ExclusionRule(organization = "org.mockito")
     ),
-  "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"
+  "org.scalacheck" %% "scalacheck" % "1.13.5" % "test"
 )
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")

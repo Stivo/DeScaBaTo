@@ -8,7 +8,7 @@ unmanagedSourceDirectories in Compile ++= Seq(
   )
 
 libraryDependencies ++= Seq(
-		"org.apache.commons" % "commons-vfs2" % "2.0"
+		"org.apache.commons" % "commons-vfs2" % "2.2"
 //		"commons-httpclient" % "commons-httpclient" % "3.1",
 //		"commons-net" % "commons-net" % "3.3"
 )
@@ -18,7 +18,7 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 // Dependencies for the otros vfs browser
 libraryDependencies ++= Seq(
 	"commons-configuration" % "commons-configuration" % "1.10",
-	"commons-io" % "commons-io" % "2.5",
+	"commons-io" % "commons-io" % "2.6",
 	"com.miglayout" % "miglayout-swing" % "5.0",
 	"org.swinglabs.swingx" % "swingx-all" % "1.6.5-1",
 	"net.java.dev.jgoodies" % "looks" % "2.1.4",
