@@ -1,7 +1,8 @@
 package ch.descabato.it
 
 import java.io.{File, RandomAccessFile}
-import java.nio.file.Paths
+import java.nio.file.{Files, Path, Paths}
+import java.util.stream.Collectors
 
 import ch.descabato.utils.Utils
 import ch.descabato.{RichFlatSpecLike, TestUtils}
@@ -9,6 +10,7 @@ import org.apache.commons.exec.{CommandLine, ExecuteException}
 import org.apache.commons.io.{FileUtils => IO_FileUtils}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
+import scala.collection.JavaConverters._
 
 import scala.collection.mutable.Set
 
@@ -86,7 +88,7 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
     }
   }
   def messupBackupFiles(folder: File) {
-    val files = folder.listFiles()
+    val files = Files.walk(folder.toPath).iterator().asScala.map(_.toFile).filter(_.isFile).toList
     val set = Set("hashlists", "files")
     val prefix = if (currentTestName contains "prefix") "testprefix_" else ""
     files.filter(x => set.exists(s => x.getName.toLowerCase().startsWith(prefix + s))).foreach { f =>
