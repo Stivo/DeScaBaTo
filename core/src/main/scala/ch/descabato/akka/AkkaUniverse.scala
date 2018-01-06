@@ -27,11 +27,15 @@ object Counter {
 }
 
 class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with Utils {
+  implicit val context = ExecutionContext.fromExecutor(ActorStats.tpe)
+
   val reg = "[^a-zA-Z0-9-_.*$+:@&=,!~';.]".r
 
   val cpuTaskCounter = new AtomicInteger()
   
   var system = ActorSystem("Descabato-"+Counter.i)
+
+  system.whenTerminated.foreach(_ => this.terminated = true)
   Counter.i += 1
 
   val queueLimit = 200
@@ -48,6 +52,8 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     .withDispatcher(dispatcher).withRouter(RoundRobinPool(nrOfInstances = taskers).withResizer(new Resizer("hasher"))))
 
   val dispatch = system.dispatchers.lookup(dispatcher)
+
+  var terminated = false
 
   def actorOf[I <: AnyRef : Manifest, T <: I : Manifest](name: String, withCounter: Boolean = true, dispatcher: String = dispatcher) = {
     val classI = manifest[I].runtimeClass.asInstanceOf[Class[I]]
@@ -115,8 +121,6 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     }
   }
 
-  implicit val context = ExecutionContext.fromExecutor(ActorStats.tpe)
-
   val futureCounter = new AtomicLong(0)
 
   def scheduleTask[T](f: () => T) = {
@@ -160,7 +164,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   }
 
   def queueInfo(x: AnyRef): Option[(Int, Int)] = {
-    if (system.isTerminated)
+    if (terminated)
       return None
     try {
       val ref = TypedActor(system).getActorRefFor(x)
@@ -224,7 +228,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     super.shutdown()
     shutdownOrder.foreach(_.shutdown)
     shutdownOrder.collect{ case x: ActorRef => x}.foreach(_ ! PoisonPill)
-    system.shutdown()
+    system.terminate()
     ret
   }
 
