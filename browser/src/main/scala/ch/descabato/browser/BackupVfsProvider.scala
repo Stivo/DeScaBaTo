@@ -1,12 +1,12 @@
 package ch.descabato.browser
 
-import java.io.{SequenceInputStream, InputStream}
+import java.io.{InputStream, SequenceInputStream}
 import java.util
 import java.util.{ArrayList, Collection, Date}
 
 import ch.descabato.core.{FileDescription, FolderDescription, _}
 import ch.descabato.utils.{CompressedStream, Utils}
-import org.apache.commons.vfs2.provider.{AbstractFileName, AbstractFileObject, AbstractFileSystem, AbstractLayeredFileProvider, FileProvider, LayeredFileName}
+import org.apache.commons.vfs2.provider._
 import org.apache.commons.vfs2.{Capability, FileName, FileObject, FileSystemOptions, FileType => VfsFileType}
 
 object BackupVfsProvider {
@@ -43,7 +43,7 @@ class BackupVfsProvider extends AbstractLayeredFileProvider with FileProvider {
 
 }
 
-class BackupFileSystem(name: AbstractFileName, fo: FileObject, options: FileSystemOptions) extends AbstractFileSystem(
+class BackupFileSystem(name: AbstractFileName, fo: FileObject, options: FileSystemOptions) extends FileSystemProxy(
   name, fo, options) with Serializable with Utils {
 
   protected def addCapabilities(caps: Collection[Capability]) {
@@ -67,7 +67,7 @@ case class FakeBackupFolder(val path: String) extends BackupPart {
 }
 
 class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFileSystem)
-	extends AbstractFileObject(name, fs) with FileObject with Utils {
+	extends FileObjectProxy(name, fs) with FileObject with Utils {
 
   // On windows, the url starts with !/c:/, and the paths in the backup start with c:
   // On linux, only the ! needs to be taken out
