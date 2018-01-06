@@ -45,24 +45,27 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   var remote = true
   var redundant = false
   var hasDate = false
-
-  lazy val subfolder: String = {
-    if (globalPrefix != null) {
-      s"$globalPrefix/$prefix/"
-    } else {
-      s"$prefix/"
-    }
-  }
+  var useSubfolder = true
 
   def shouldDeleteIncomplete = false
 
   def this(prefix: String, metadata: Boolean, suffix: String,
-           localC: Boolean = true, remoteC: Boolean = true, redundantC: Boolean = false, hasDateC: Boolean = false)(implicit m: Manifest[T]) {
+           localC: Boolean = true, remoteC: Boolean = true, redundantC: Boolean = false, hasDateC: Boolean = false, useSubfolder: Boolean = true)(implicit m: Manifest[T]) {
     this(prefix, metadata, suffix)
-    local = localC
-    remote = remoteC
-    redundant = redundantC
-    hasDate = hasDateC
+    this.local = localC
+    this.remote = remoteC
+    this.redundant = redundantC
+    this.hasDate = hasDateC
+    this.useSubfolder = useSubfolder
+  }
+
+  lazy val subfolder: String = {
+    var prefixFolder = if (useSubfolder) s"$prefix/" else ""
+    if (globalPrefix != null) {
+      s"$globalPrefix/$prefixFolder"
+    } else {
+      s"$prefixFolder"
+    }
   }
 
   def nextNum(temp: Boolean = false): Int = {
@@ -245,7 +248,7 @@ class FileManager(override val universe: Universe) extends UniversePart {
   val volumes = new FileType[Volume]("volume", false, ".kvs", localC = false)
   val volumeIndex = new IndexFileType(volumes)
   val hashlists = new FileType[Vector[(Hash, Array[Byte])]]("hashlists", false, ".kvs")
-  val backup = new FileType[BackupDescription]("backup", true, ".kvs", hasDateC = true)
+  val backup = new FileType[BackupDescription]("backup", true, ".kvs", hasDateC = true, useSubfolder = false)
   val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   //  val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)

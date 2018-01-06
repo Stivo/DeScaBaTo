@@ -32,9 +32,7 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
 
   //  var baseFolder = new File("H:/testdata")
   var baseFolder = {
-    if (System.getProperty("user.name") == "Stivo") {
-      new File("L:/testdata")
-    } else new File("integrationtest/testdata")
+    new File("integrationtest/testdata")
   }
 
   var logFolder = new File(descabatoFolder, "integrationtest/logs")
@@ -87,6 +85,7 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
       case e: ExecuteException => e.getExitValue()
     }
   }
+
   def messupBackupFiles(folder: File) {
     val files = Files.walk(folder.toPath).iterator().asScala.map(_.toFile).filter(_.isFile).toList
     val set = Set("hashlists", "files")
@@ -119,12 +118,12 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
     for (c1 <- files1) {
       val c2 = getFile(files2, c1)
       if (c1.isDirectory()) {
-        c2 should be ('directory)
+        c2 should be('directory)
         compareBackups(c1, c2)
       } else {
         assert(c1.getName === c2.getName, "name should be same for " + c1)
         assert(c1.length === c2.length, "length should be same for " + c1)
-        assert(c1.lastModified === c2.lastModified +- 1000, "Last modified should be within a second for "+c1)
+        assert(c1.lastModified === c2.lastModified +- 1000, "Last modified should be within a second for " + c1)
         assert(IO_FileUtils.contentEquals(c1, c2), "content should be same for " + c1)
       }
     }
