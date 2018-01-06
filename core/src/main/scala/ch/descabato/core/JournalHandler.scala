@@ -80,7 +80,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
 
   def cleanUnfinishedFiles(): BlockingOperation = {
     checkLock()
-    var files = fileManager.allFiles().filter(_.isFile()).map(_.getName()).toSet
+    var files = fileManager.allFiles().filter(_.isFile()).map(config.relativePath).toSet
     randomAccessFile.synchronized {
       randomAccessFile.seek(0)
       var line: String = null
@@ -162,7 +162,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
 
   def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false): BlockingOperation = {
     checkLock()
-    val entry = JournalEntries.fileFinished(file.getName)
+    val entry = JournalEntries.fileFinished(config.relativePath(file))
     writeEntrySynchronized(entry)
     if (!filetype.isTemp(file) && !filetype.redundant) {
       universe.redundancyHandler.createPar2(file)

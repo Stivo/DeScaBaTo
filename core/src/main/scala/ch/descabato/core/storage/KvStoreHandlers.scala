@@ -371,6 +371,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
   def createIndex(): Unit = {
     if (config.createIndexes) {
       val indexFile = fileManager.volumeIndex.indexForFile(currentlyWritingFile.file)
+      indexFile.getParentFile.mkdirs()
       val indexWriter = new KvStoreStorageMechanismWriter(indexFile, config.passphrase)
       indexWriter.setup(universe)
       indexWriter.writeManifest()

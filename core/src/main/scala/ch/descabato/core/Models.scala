@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import scala.collection.JavaConverters._
 
 case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
+
   def this() = this(null)
   @JsonIgnore
   var configFileName: String = prefix + "backup.json"
@@ -44,6 +45,10 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var saveSymlinks: Boolean = true
   var createIndexes: Boolean = true
   var ignoreFile: Option[File] = None
+
+  def relativePath(file: File): String = {
+    folder.toPath.relativize(file.toPath).toString.replace('\\', '/')
+  }
 }
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {

@@ -18,20 +18,22 @@ object Constants {
   val tempPrefix = "temp."
   val filesEntry = "files.txt"
   val indexSuffix = ".index"
+
   def objectEntry(num: Option[Int] = None): String = {
-    val add = num.map(x => "_"+x).getOrElse("")
+    val add = num.map(x => "_" + x).getOrElse("")
     s"content$add.obj"
   }
 }
 
 /**
- * Describes the file patterns for a certain kind of file.
- * Supports a global prefix from the BackupFolderConfiguration,
- * a prefix for it's file type, a date and a temp modifier.
- * Can be used to get all files of this type from a folder and to
- * read and write objects using serialization.
- */
+  * Describes the file patterns for a certain kind of file.
+  * Supports a global prefix from the BackupFolderConfiguration,
+  * a prefix for it's file type, a date and a temp modifier.
+  * Can be used to get all files of this type from a folder and to
+  * read and write objects using serialization.
+  */
 case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
+
   import ch.descabato.core.Constants._
 
   def globalPrefix: String = config.prefix
@@ -43,10 +45,19 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
   var remote = true
   var redundant = false
   var hasDate = false
+
+  lazy val subfolder: String = {
+    if (globalPrefix != null) {
+      s"$globalPrefix/$prefix/"
+    } else {
+      s"$prefix/"
+    }
+  }
+
   def shouldDeleteIncomplete = false
 
   def this(prefix: String, metadata: Boolean, suffix: String,
-    localC: Boolean = true, remoteC: Boolean = true, redundantC: Boolean = false, hasDateC: Boolean = false)(implicit m: Manifest[T]) {
+           localC: Boolean = true, remoteC: Boolean = true, redundantC: Boolean = false, hasDateC: Boolean = false)(implicit m: Manifest[T]) {
     this(prefix, metadata, suffix)
     local = localC
     remote = remoteC
@@ -65,23 +76,41 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     }
   }
 
-  def nextName(tempFile: Boolean = false): String = {
+  private def nextName(tempFile: Boolean = false): String = {
     filenameForNumber(nextNum(tempFile), tempFile)
   }
 
-  def nextFile(f: File = config.folder, temp: Boolean = false)
-  	= new File(f, nextName(temp))
+  def nextFile(f: File = config.folder, temp: Boolean = false) = {
+    val out = new File(f, subfolder + nextName(temp))
+    out.getParentFile.mkdirs()
+    out
+  }
+
+  private def isInCorrectFolder(x: File): Boolean = {
+    var parentsToMatch = subfolder.split("/").toSeq.filter(_.nonEmpty)
+    var parent1 = x.getParentFile
+    while (parentsToMatch.nonEmpty) {
+      if (!parent1.getName.equals(parentsToMatch.last)) {
+        return false
+      }
+      parentsToMatch = parentsToMatch.init
+      parent1 = parent1.getParentFile
+    }
+    true
+  }
 
   def matches(x: File): Boolean = {
+    if (!isInCorrectFolder(x)) {
+      return false
+    }
     var name = x.getName()
-    if (!name.startsWith(globalPrefix))
-      return false
-    name = name.drop(globalPrefix.length)
-    if (name.startsWith(tempPrefix))
+    if (name.startsWith(tempPrefix)) {
       name = name.drop(tempPrefix.length)
-    if (!name.startsWith(prefix))
+    }
+    if (!name.startsWith(prefix)) {
       return false
-    name = name.drop(prefix.length)
+    }
+    name = name.drop(prefix.length).drop(1)
     if (hasDate) {
       try {
         fileManager.dateFormat.parse(name.take(fileManager.dateFormatLength))
@@ -96,33 +125,47 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       return false
     }
     name = name.drop(num.length())
-    name.startsWith(suffix)
+    name.equals(suffix)
   }
 
-  def getFiles(f: File = config.folder): Seq[File] = f.
-    listFiles().view.filter(_.isFile()).
-    filter(matches).
-    filterNot(_.getName.endsWith(".tmp"))
+  def getFiles(f: File = config.folder): Seq[File] = {
+    val folder = new File(f, subfolder)
+    if (!folder.exists()) {
+      Seq.empty
+    } else {
+      folder.
+        listFiles().view.filter(_.isFile()).
+        filter(matches).
+        filterNot(_.getName.endsWith(".tmp")).force
+    }
+  }
 
-  def getTempFiles(f: File = config.folder): Seq[File] = f.
-    listFiles().view.filter(_.isFile()).
-    filter(_.getName().startsWith(globalPrefix + tempPrefix + prefix)).
-    filter(matches).
-    filterNot(_.getName.endsWith(".tmp"))
+  def getTempFiles(f: File = config.folder): Seq[File] = {
+    val folder = new File(f, subfolder)
+    if (!folder.exists()) {
+      Seq.empty
+    } else {
+      folder.listFiles().view.filter(_.isFile()).
+        filter(_.getName().startsWith(globalPrefix + tempPrefix + prefix)).
+        filter(matches).
+        filterNot(_.getName.endsWith(".tmp")).force
+    }
+  }
+
 
   def deleteTempFiles(f: File = config.folder): Unit = getTempFiles(f).foreach(_.delete)
 
   /**
-   * Removes the global prefix, the temp prefix and the file type prefix.
-   * Leaves the date (if there) and number and suffix
-   */
+    * Removes the global prefix, the temp prefix and the file type prefix.
+    * Leaves the date (if there) and number and suffix
+    */
   def stripPrefixes(f: File): String = {
     var rest = f.getName().drop(globalPrefix.length())
     if (rest.startsWith(tempPrefix)) {
       rest = rest.drop(tempPrefix.length)
     }
     assert(rest.startsWith(prefix))
-    rest = rest.drop(prefix.length)
+    rest = rest.drop(prefix.length).drop(1)
     rest
   }
 
@@ -134,48 +177,62 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
 
   def numberOf(x: File): Int = {
     var rest = stripPrefixes(x)
-    if (hasDate)
+    if (hasDate) {
       rest = rest.drop(fileManager.dateFormatLength + 1)
+    }
     val num = rest.takeWhile(x => (x + "").matches("\\d"))
     if (num.isEmpty()) {
       -1
-    } else
+    } else {
       num.toInt
+    }
   }
 
   def filenameForNumber(number: Int, tempFile: Boolean = false): String = {
     val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
-    s"$globalPrefix$temp$prefix$date$number$suffix"
+    s"$temp${prefix}_$date$number$suffix"
   }
 
   def fileForNumber(number: Int, temp: Boolean = false): Option[File] = {
     getFiles().find(x => numberOf(x) == number)
   }
-  
+
   def isTemp(file: File): Boolean = {
     require(matches(file))
-    file.getName.startsWith(globalPrefix+tempPrefix)
+    file.getName.startsWith(tempPrefix)
   }
 
 }
 
 trait Index
 
-class IndexFileType(val filetype: FileType[_]) extends FileType[Index](filetype.prefix, true, ".index.kvs") {
-  
-  def indexForFile(file: File): File = {
-    new File(file.getParentFile(), filenameForNumber(filetype.numberOf(file)))
+class IndexFileType(val filetype: FileType[_]) extends FileType[Index](filetype.prefix + "_index", true, ".kvs") {
+
+  private def getParentFolder(file: File, fileType: FileType[_]) = {
+    var parent = file.getParentFile
+    filetype.subfolder.split("/").filter(_.nonEmpty).foreach { _ =>
+      parent = parent.getParentFile
+    }
+    parent
   }
-  def fileForIndex(file: File): File = {
-    new File(file.getParentFile(), filetype.filenameForNumber(numberOf(file)))
+
+  def indexForFile(indexedFile: File): File = {
+    val parent = getParentFolder(indexedFile, filetype)
+    new File(parent, subfolder + filenameForNumber(filetype.numberOf(indexedFile)))
   }
+
+  def fileForIndex(indexFile: File): File = {
+    val parent = getParentFolder(indexFile, this)
+    new File(indexFile.getParentFile(), filetype.subfolder + filetype.filenameForNumber(numberOf(indexFile)))
+  }
+
   override val shouldDeleteIncomplete = true
 }
 
 /**
- * Provides different file types and does some common backup file operations.
- */
+  * Provides different file types and does some common backup file operations.
+  */
 class FileManager(override val universe: Universe) extends UniversePart {
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
   val dateFormatLength: Int = dateFormat.format(new Date()).length()
@@ -185,47 +242,48 @@ class FileManager(override val universe: Universe) extends UniversePart {
 
   def getDateFormatted: String = dateFormat.format(startDate)
 
-  val volumes = new FileType[Volume]("volume_", false, ".kvs", localC = false)
+  val volumes = new FileType[Volume]("volume", false, ".kvs", localC = false)
   val volumeIndex = new IndexFileType(volumes)
-  val hashlists = new FileType[Vector[(Hash, Array[Byte])]]("hashlists_", false, ".kvs")
-  val backup = new FileType[BackupDescription]("backup_", true, ".kvs", hasDateC = true)
-  val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta_", true, ".kvs", hasDateC = true)
+  val hashlists = new FileType[Vector[(Hash, Array[Byte])]]("hashlists", false, ".kvs")
+  val backup = new FileType[BackupDescription]("backup", true, ".kvs", hasDateC = true)
+  val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
-  val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
-  val par2ForVolumes = new FileType[Parity]("par_volume_", true, ".par2", localC = false, redundantC = true)
-  val par2ForHashLists = new FileType[Parity]("par_hashlist_", true, ".par2", localC = false, redundantC = true)
-  val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
-  val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
+  //  val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
+  //  val par2ForVolumes = new FileType[Parity]("par_volume_", true, ".par2", localC = false, redundantC = true)
+  //  val par2ForHashLists = new FileType[Parity]("par_hashlist_", true, ".par2", localC = false, redundantC = true)
+  //  val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
+  //  val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
 
-  private val types = List(volumes, volumeIndex, hashlists, filesDelta,
-      backup, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
+  private val types = List(volumes, volumeIndex, hashlists, filesDelta, backup)
+  //, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
-  def allFiles(temp: Boolean = true): List[File] = types.flatMap(ft => ft.getFiles()++(if(temp) ft.getTempFiles() else Nil))
-  
+  def allFiles(temp: Boolean = true): List[File] = types.flatMap(ft => ft.getFiles() ++ (if (temp) ft.getTempFiles() else Nil))
+
   types.foreach { x => x.config = config; x.fileManager = this }
 
-  def getFileType(x: File): FileType[_ >: Vector[(Hash, Array[Byte])] with Parity with mutable.Buffer[UpdatePart] with Index with Volume with BackupDescription <: Object] = types.find(_.matches(x)).get
+  def getFileType(x: File): FileType[_] = types.find(_.matches(x)).get
 
-// TODO some of this code is needed later
-//  def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {
-//    val filesNow = config.folder.listFiles().filter(_.isFile()).filter(files.matches)
-//    val sorted = filesNow.sortBy(_.getName())
-//    val lastDate = if (sorted.isEmpty) new Date(0) else files.date(sorted.filterNot(_.getName.startsWith(Constants.tempPrefix)).last)
-//    val onlyLast = sorted.dropWhile(x => files.date(x).before(lastDate))
-//    val updates = filesDelta.getFiles().dropWhile(filesDelta.date(_).before(lastDate))
-//    val out1 = onlyLast ++ updates
-//    val complete = if (temp) out1 ++ files.getTempFiles() else out1
-//    (complete, !updates.isEmpty)
-//  }
+  // TODO some of this code is needed later
+  //  def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {
+  //    val filesNow = config.folder.listFiles().filter(_.isFile()).filter(files.matches)
+  //    val sorted = filesNow.sortBy(_.getName())
+  //    val lastDate = if (sorted.isEmpty) new Date(0) else files.date(sorted.filterNot(_.getName.startsWith(Constants.tempPrefix)).last)
+  //    val onlyLast = sorted.dropWhile(x => files.date(x).before(lastDate))
+  //    val updates = filesDelta.getFiles().dropWhile(filesDelta.date(_).before(lastDate))
+  //    val out1 = onlyLast ++ updates
+  //    val complete = if (temp) out1 ++ files.getTempFiles() else out1
+  //    (complete, !updates.isEmpty)
+  //  }
 
   def getLastBackup(temp: Boolean = false): List[File] = {
     val out = backup.getFiles().sortBy(f => (backup.date(f), backup.numberOf(f))).lastOption.toList
-    if (temp)
+    if (temp) {
       out ++ backup.getTempFiles().sortBy(backup.numberOf)
-    else
+    } else {
       out
+    }
   }
-  
+
   def getBackupDates(): Seq[Date] = {
     backup.getFiles().map(backup.date).toList.distinct.sorted
   }
