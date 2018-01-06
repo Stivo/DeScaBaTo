@@ -25,11 +25,11 @@ trait Serialization {
 abstract class AbstractJacksonSerialization extends Serialization {
   def indent = true
   class UpdatePartDeserializer extends StdDeserializer[UpdatePart](classOf[UpdatePart]) {
-    def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
+    def deserialize(jp: JsonParser, ctx: DeserializationContext): UpdatePart = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper]
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode]
       val fields = root.fieldNames().asScala.toSet
-      if (fields.find(_=="attrs").isEmpty) {
+      if (!fields.exists(_ == "attrs")) {
         mapper.convertValue(root, classOf[FileDeleted])
       } else if (fields.safeContains("hash")) {
         mapper.convertValue(root, classOf[FileDescription])
@@ -42,7 +42,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
   }
 
   class BackupPartDeserializer extends StdDeserializer[BackupPart](classOf[BackupPart]) {
-    def deserialize(jp: JsonParser, ctx: DeserializationContext) = {
+    def deserialize(jp: JsonParser, ctx: DeserializationContext): BackupPart = {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper]
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode]
       if (root.fieldNames().asScala.contains("hash")) {
@@ -86,11 +86,11 @@ abstract class AbstractJacksonSerialization extends Serialization {
     out.close()
   }
 
-  def write[T](t: T)(implicit m: Manifest[T]) = {
+  def write[T](t: T)(implicit m: Manifest[T]): Array[Byte] = {
     mapper.writeValueAsBytes(t)
   }
 
-  def read[T](in: BytesWrapper)(implicit m: Manifest[T]) = {
+  def read[T](in: BytesWrapper)(implicit m: Manifest[T]): Left[T, Exception] = {
     Left(mapper.readValue(in.array, in.offset, in.length))
   }
 
@@ -110,7 +110,7 @@ class JsonSerialization(override val indent: Boolean = true) extends AbstractJac
 
 class SmileSerialization extends AbstractJacksonSerialization {
 
-  lazy val fac = {
+  lazy val fac: SmileFactory = {
     val out = new SmileFactory
     out.disable(SmileParser.Feature.REQUIRE_HEADER)
     out.disable(SmileGenerator.Feature.WRITE_HEADER)

@@ -6,7 +6,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 import akka.actor._
-import akka.dispatch.{DispatcherPrerequisites, ExecutorServiceConfigurator, ExecutorServiceFactory}
+import akka.dispatch.{DispatcherPrerequisites, ExecutorServiceConfigurator, ExecutorServiceFactory, MessageDispatcher}
 import akka.event.Logging
 import akka.pattern.AskTimeoutException
 import akka.routing.{DefaultResizer, RoundRobinPool, Routee}
@@ -20,16 +20,17 @@ import com.typesafe.config.Config
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.util.matching.Regex
 
 object Counter {
   var i = 0
 }
 
 class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with Utils {
-  implicit val context = ExecutionContext.fromExecutor(ActorStats.tpe)
+  implicit val context: ExecutionContextExecutor = ExecutionContext.fromExecutor(ActorStats.tpe)
 
-  val reg = "[^a-zA-Z0-9-_.*$+:@&=,!~';.]".r
+  val reg: Regex = "[^a-zA-Z0-9-_.*$+:@&=,!~';.]".r
 
   val cpuTaskCounter = new AtomicInteger()
   
@@ -46,16 +47,16 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   
   val taskers = 1
 
-  val counters = mutable.Buffer[QueueCounter]()
+  val counters: mutable.Buffer[QueueCounter] = mutable.Buffer[QueueCounter]()
 
-  lazy val hashers = system.actorOf(Props(classOf[MyActor], this)
+  lazy val hashers: ActorRef = system.actorOf(Props(classOf[MyActor], this)
     .withDispatcher(dispatcher).withRouter(RoundRobinPool(nrOfInstances = taskers).withResizer(new Resizer("hasher"))))
 
-  val dispatch = system.dispatchers.lookup(dispatcher)
+  val dispatch: MessageDispatcher = system.dispatchers.lookup(dispatcher)
 
   var terminated = false
 
-  def actorOf[I <: AnyRef : Manifest, T <: I : Manifest](name: String, withCounter: Boolean = true, dispatcher: String = dispatcher) = {
+  def actorOf[I <: AnyRef : Manifest, T <: I : Manifest](name: String, withCounter: Boolean = true, dispatcher: String = dispatcher): I = {
     val classI = manifest[I].runtimeClass.asInstanceOf[Class[I]]
     val classT = manifest[T].runtimeClass.asInstanceOf[Class[T]]
     val ref = TypedActor(system).typedActorOf(addDispatcher(
@@ -72,7 +73,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     out
   }
 
-  def addDispatcher[T <: AnyRef](props: TypedProps[T], dispatcher: String = dispatcher) = props.withDispatcher(dispatcher).withTimeout(1.day)
+  def addDispatcher[T <: AnyRef](props: TypedProps[T], dispatcher: String = dispatcher): TypedProps[T] = props.withDispatcher(dispatcher).withTimeout(1.day)
 
   class QueueCounter(queueName: String, ref: AnyRef) extends MaxValueCounter {
     val name = s"Queue $queueName"
@@ -101,15 +102,15 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   counters += new CompressionTasksQueueCounter("CPU Tasks", futureCounter.get())
 
-  val journalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer", dispatcher = "single-dispatcher")
+  val journalHandler: JournalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer", dispatcher = "single-dispatcher")
   journalHandler.cleanUnfinishedFiles()
-  val backupPartHandler = actorOf[BackupPartHandler, KvStoreBackupPartHandler]("Backup Parts")
-  val hashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
-  val blockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
-  lazy val hashFileHandler = actorOf[HashFileHandler, AkkaHasher]("Hasher")
-  lazy val compressionDecider = config.compressor match {
+  val backupPartHandler: BackupPartHandler = actorOf[BackupPartHandler, KvStoreBackupPartHandler]("Backup Parts")
+  val hashListHandler: HashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
+  val blockHandler: BlockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
+  lazy val hashFileHandler: HashFileHandler = actorOf[HashFileHandler, AkkaHasher]("Hasher")
+  lazy val compressionDecider: CompressionDecider = config.compressor match {
     case x if x.isCompressionAlgorithm => actorOf[CompressionDecider, SimpleCompressionDecider]("Compression Decider")
-    case smart => actorOf[CompressionDecider, SmartCompressionDecider]("Compression Decider")
+    case _ => actorOf[CompressionDecider, SmartCompressionDecider]("Compression Decider")
   }
 
   def load() {
@@ -123,7 +124,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   val futureCounter = new AtomicLong(0)
 
-  def scheduleTask[T](f: () => T) = {
+  def scheduleTask[T](f: () => T): Future[T] = {
     futureCounter.getAndIncrement
     Future {
       val ret = f()
@@ -132,7 +133,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     }
   }
   
-  override def finish() = {
+  override def finish(): Boolean = {
     var count = 0L
     do {
       if (count != 0) {
@@ -155,7 +156,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     true
   }
 
-  def queueLength(x: AnyRef) = {
+  def queueLength(x: AnyRef): Int = {
     val ref = TypedActor(system).getActorRefFor(x)
      Queues(Some(ref)) match {
        case Some(queue) => queue.queue.size()
@@ -223,7 +224,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     checkQueue(backupPartHandler, "backup parts")
   }
 
-  override def shutdown() = {
+  override def shutdown(): BlockingOperation = {
     ActorStats.tpe.setCorePoolSize(10)
     super.shutdown()
     shutdownOrder.foreach(_.shutdown)
@@ -244,24 +245,24 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     }
   }
 
-  def cleanUpName(name: String) = {
+  def cleanUpName(name: String): String = {
     val simpleCleanup = name.replaceAll("\\s", "_").replace("\\", "__").replace("/", "__")
     reg.replaceAllIn(simpleCleanup, "")
   }
 }
 
 trait AkkaUniversePart extends UniversePart {
-  def uni = universe.asInstanceOf[AkkaUniverse]
-  def add1 = uni.cpuTaskCounter.incrementAndGet()
-  def subtract1 = uni.cpuTaskCounter.decrementAndGet()
+  def uni: AkkaUniverse = universe.asInstanceOf[AkkaUniverse]
+  def add1: Int = uni.cpuTaskCounter.incrementAndGet()
+  def subtract1: Int = uni.cpuTaskCounter.decrementAndGet()
 }
 
 object ActorStats {
-  val tpe = {
+  val tpe: ThreadPoolExecutor = {
     val out = new ThreadPoolExecutor(10, 10, 10, TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue[Runnable]())
     out.setThreadFactory(new ThreadFactory() {
-      def newThread(r: Runnable) = {
+      def newThread(r: Runnable): Thread = {
         val t = Executors.defaultThreadFactory.newThread(r)
         t.setPriority(2)
         t.setDaemon(true)
@@ -275,7 +276,7 @@ object ActorStats {
 
 class MyActor(override val uni: AkkaUniverse) extends Actor with AkkaUniversePart {
   val log = Logging(context.system, this)
-  var idleSince = System.currentTimeMillis()
+  var idleSince: Long = System.currentTimeMillis()
 
   def receive = {
     case (x: Function0[_]) =>
@@ -293,7 +294,7 @@ class MyActor(override val uni: AkkaUniverse) extends Actor with AkkaUniversePar
 
 
 class Resizer(name: String) extends DefaultResizer(messagesPerResize = 100) with Utils {
-  val counter = new MaxValueCounter {
+  val counter: MaxValueCounter = new MaxValueCounter {
     override val name: String = Resizer.this.name+" threads"
     maxValue = upperBound
     ProgressReporters.addCounter(this)

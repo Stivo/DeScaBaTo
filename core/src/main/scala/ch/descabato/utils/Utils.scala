@@ -9,24 +9,24 @@ import java.util
 import javax.xml.bind.DatatypeConverter
 
 import ch.descabato.ByteArrayOutputStream
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.{LazyLogging, Logger}
 
 import scala.collection.mutable
 import scala.language.implicitConversions
 
 trait RealEquality[T] {
   def ===(t: T): Boolean
-  def !==(t: T) = !(this === t)
+  def !==(t: T): Boolean = !(this === t)
 }
 
 class Hash(val bytes: Array[Byte]) extends AnyVal {
-  def length = bytes.length
-  def base64 = Utils.encodeBase64Url(bytes)
-  def isNull = length == 0
+  def length: Int = bytes.length
+  def base64: String = Utils.encodeBase64Url(bytes)
+  def isNull: Boolean = length == 0
   // minimal size of hash is 16
-  def isNotNull = !isNull
-  def ===(other: Hash) = java.util.Arrays.equals(bytes, other.bytes)
-  def !==(other: Hash) = !(this === other)
+  def isNotNull: Boolean = !isNull
+  def ===(other: Hash): Boolean = java.util.Arrays.equals(bytes, other.bytes)
+  def !==(other: Hash): Boolean = !(this === other)
   def wrap(): BytesWrapper = new BytesWrapper(bytes)
 }
 
@@ -89,14 +89,14 @@ class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int 
     }
     result
   }
-  override def toString() = array.length + ": " + new String(array)
+  override def toString(): String = array.length + ": " + new String(array)
   def toByteBuffer(): ByteBuffer = ByteBuffer.wrap(array, offset, length)
 }
 
 object Utils extends LazyLogging {
   
   private val units = Array[String]("B", "KB", "MB", "GB", "TB")
-  def isWindows = System.getProperty("os.name").contains("indows")
+  def isWindows: Boolean = System.getProperty("os.name").contains("indows")
   def readableFileSize(size: Long, afterDot: Int = 1): String = {
     if (size <= 0) return "0"
     val digitGroups = (Math.log10(size) / Math.log10(1024)).toInt
@@ -107,10 +107,10 @@ object Utils extends LazyLogging {
   private def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes)
   private def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s)
 
-  def encodeBase64Url(bytes: Array[Byte]) = encodeBase64(bytes).replace('+', '-').replace('/', '_')
-  def decodeBase64Url(s: String) = decodeBase64(s.replace('-', '+').replace('_', '/'))
+  def encodeBase64Url(bytes: Array[Byte]): String = encodeBase64(bytes).replace('+', '-').replace('/', '_')
+  def decodeBase64Url(s: String): Array[Byte] = decodeBase64(s.replace('-', '+').replace('_', '/'))
 
-  def normalizePath(x: String) = x.replace('\\', '/')
+  def normalizePath(x: String): String = x.replace('\\', '/')
 
   def logException(t: Throwable) {
     val baos = new ByteArrayOutputStream()
@@ -151,7 +151,7 @@ object Implicits {
     }
   }
   implicit class ByteArrayUtils(buf: Array[Byte]) extends RealEquality[Array[Byte]]{
-    def ===(other: Array[Byte]) = java.util.Arrays.equals(buf, other)
+    def ===(other: Array[Byte]): Boolean = java.util.Arrays.equals(buf, other)
     def wrap(): BytesWrapper = new BytesWrapper(buf)
   }
 
@@ -168,7 +168,7 @@ object Implicits {
  }
 
 object FileUtils extends Utils {
-  def getRelativePath(dest: File, to: File, path: String) = {
+  def getRelativePath(dest: File, to: File, path: String): File = {
     // Needs to take common parts out of the path.
     // Different semantics on windows. Upper-/lowercase is ignored, ':' may not be part of the output
     def prepare(f: File) = {
@@ -192,15 +192,14 @@ object FileUtils extends Utils {
     new File(dest, cleaned(cut))
   }
 
-  def deleteAll(f: File) = {
+  def deleteAll(f: File): Unit = {
     def walk(f: File) {
-      f.isDirectory() match {
-        case true =>
-          f.listFiles().toList.foreach(walk)
-          f.delete()
-        case false =>
-          f.delete()
-          Files.deleteIfExists(f.toPath())
+      if (f.isDirectory()) {
+        f.listFiles().toList.foreach(walk)
+        f.delete()
+      } else {
+        f.delete()
+        Files.deleteIfExists(f.toPath())
       }
     }
     var i = 0
@@ -217,7 +216,7 @@ object FileUtils extends Utils {
 }
 
 trait Utils extends LazyLogging {
-  lazy val l = logger
+  lazy val l: Logger = logger
 
   def readableFileSize(size: Long): String = Utils.readableFileSize(size)
 

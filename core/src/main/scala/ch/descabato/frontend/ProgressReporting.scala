@@ -40,7 +40,7 @@ object ProgressReporters {
     }
   }
 
-  val reporter = ConsoleManager
+  val reporter: ConsoleManager.type = ConsoleManager
 
   def addCounter(newCounters: Counter*) {
     counters.synchronized {
@@ -58,7 +58,7 @@ object ProgressReporters {
 
   var activeCounters: Seq[Counter] = List()
 
-  def newPrettyTime() = {
+  def newPrettyTime(): PrettyTime = {
     val out = new PrettyTime()
     val justNow = out.getUnits.asScala.find {
       case u: JustNow => true
@@ -91,7 +91,7 @@ trait MaxValueCounter extends Counter {
 
   override def formatted = s"$current/$maxValue"
 
-  def percent = if (maxValue == 0) 0 else (100 * current / maxValue).toInt
+  def percent: Int = if (maxValue == 0) 0 else (100 * current / maxValue).toInt
 }
 
 trait Counter {
@@ -106,7 +106,7 @@ trait Counter {
 
   def update() {}
 
-  def formatted = {
+  def formatted: String = {
     update()
     s"$current"
   }
@@ -119,8 +119,8 @@ class StandardCounter(val name: String) extends Counter
 trait ETACounter extends MaxValueCounter with Utils {
   def window = 60
   case class Snapshot(time: Long, l: Double)
-  val p = ProgressReporters.newPrettyTime()
-  var snapshots = List[Snapshot]()
+  val p: PrettyTime = ProgressReporters.newPrettyTime()
+  var snapshots: List[Snapshot] = List[Snapshot]()
   var newSnapshotAt = 0L
   override def +=(l: Long) {
     super.+=(l)
@@ -134,7 +134,7 @@ trait ETACounter extends MaxValueCounter with Utils {
   }
 
   def calcEta: String = {
-    if (snapshots.size < 2) {
+    if (snapshots.lengthCompare(2) < 0) {
       return ""
     }
     val last = snapshots.last
@@ -146,7 +146,7 @@ trait ETACounter extends MaxValueCounter with Utils {
       p.format(new Date(System.currentTimeMillis() + ms.toLong))
   }
 
-  def formattedWithEta = formatted + " " + calcEta
+  def formattedWithEta: String = formatted + " " + calcEta
 }
 
 class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxValueCounter {
@@ -155,7 +155,7 @@ class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxVal
 
 object AnsiUtil {
   var ansiDisabled = false
-  lazy val initAnsi = if (!ansiDisabled && CLI.runsInJar && System.getProperty("user.name").toLowerCase() != "travis") {
+  lazy val initAnsi: Unit = if (!ansiDisabled && CLI.runsInJar && System.getProperty("user.name").toLowerCase() != "travis") {
     AnsiConsole.systemInstall()
   } else {
     deleteLinesEnabled = false
@@ -163,7 +163,7 @@ object AnsiUtil {
 
   var deleteLinesEnabled = true
 
-  def mark(s: String, pattern: String, color: AnsiColor = red) = {
+  def mark(s: String, pattern: String, color: AnsiColor = red): String = {
     var stringParts = mutable.Buffer[String]()
     var args = mutable.Buffer[Any]()
     var todo = s
@@ -180,7 +180,7 @@ object AnsiUtil {
     new AnsiHelper(new StringContext(stringParts: _*)).a(args: _*)
   }
 
-  def disableAnsi() = Ansi.setEnabled(false)
+  def disableAnsi(): Unit = Ansi.setEnabled(false)
   def testSetup() {
     disableAnsi
     new ConsoleAppenderWithDeleteSupport()
@@ -241,10 +241,10 @@ object AnsiUtil {
 }
 
 object ConsoleManager extends ProgressReporting with Utils {
-  var appender: ConsoleAppenderWithDeleteSupport = null
+  var appender: ConsoleAppenderWithDeleteSupport = _
 
   def ephemeralMessage(message: => String) {
-    appender.writeDeleteLine(message, delete = true)
+    appender.writeDeleteLine(message)
   }
 
   lazy val timer = new java.util.Timer()
@@ -259,7 +259,7 @@ object ConsoleManager extends ProgressReporting with Utils {
   def startConsoleUpdater() {
     if (AnsiUtil.deleteLinesEnabled) {
       timer.schedule(new RepeatingWithTimeDelayTask({
-        val status = updateConsoleStatus(names = false)
+        val status = updateConsoleStatus()
         if (status != "")
           ephemeralMessage(status)
       }, 100), 1000)
@@ -271,7 +271,7 @@ object ConsoleManager extends ProgressReporting with Utils {
     }, 10000), 1000)
   }
 
-  def updateConsoleStatus(names: Boolean = false) = {
+  def updateConsoleStatus(names: Boolean = false): String = {
     ProgressReporters.consoleUpdate(names)
   }
 
@@ -293,7 +293,7 @@ class ConsoleAppenderWithDeleteSupport extends ConsoleAppender[ILoggingEvent] {
     }
   }
 
-  private def writeSafe(x: String) = lock.synchronized {
+  private def writeSafe(x: String): Unit = lock.synchronized {
     super.getOutputStream().write(x.getBytes())
     getOutputStream().flush()
   }

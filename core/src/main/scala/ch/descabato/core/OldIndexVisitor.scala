@@ -21,15 +21,15 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart], ignoreFile: Option[Fi
     }.getOrElse(Nil)
   }
 
-  var root: Path = null
-  var allDesc = new BackupDescription()
-  var newDesc = new BackupDescription()
-  var unchangedDesc = new BackupDescription()
-  lazy val deletedDesc = {
-    new BackupDescription(deleted = oldMap.values.map(x => new FileDeleted(x.path)).toVector)
+  var root: Path = _
+  var allDesc = BackupDescription()
+  var newDesc = BackupDescription()
+  var unchangedDesc = BackupDescription()
+  lazy val deletedDesc: BackupDescription = {
+    BackupDescription(deleted = oldMap.values.map(x => new FileDeleted(x.path)).toVector)
   }
   
-  val symManifest = manifest[SymbolicLink]
+  val symManifest: Manifest[SymbolicLink] = manifest[SymbolicLink]
 
   def handleFile[T <: BackupPart](f: => T, dir: Path, attrs: BasicFileAttributes)(implicit m: Manifest[T]) {
     lazy val desc = f
@@ -58,9 +58,9 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart], ignoreFile: Option[Fi
     }
   }
 
-  override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = {
+  override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult = {
     if (pathIsNotIgnored(dir)) {
-      handleFile(new FolderDescription(dir.toRealPath().toString(), FileAttributes(dir)),
+      handleFile(FolderDescription(dir.toRealPath().toString(), FileAttributes(dir)),
         dir, attrs)
       super.preVisitDirectory(dir, attrs)
     } else {
@@ -68,14 +68,14 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart], ignoreFile: Option[Fi
     }
   }
 
-  override def visitFile(file: Path, attrs: BasicFileAttributes) = {
+  override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
     if (pathIsNotIgnored(file)) {
       handleFile({
         if (Files.isSymbolicLink(file)) {
-          new SymbolicLink(file.toRealPath(LinkOption.NOFOLLOW_LINKS).toString(),
+          SymbolicLink(file.toRealPath(LinkOption.NOFOLLOW_LINKS).toString(),
             file.getParent.resolve(Files.readSymbolicLink(file)).toRealPath().toString(), FileAttributes(file))
         } else {
-          val out = new FileDescription(file.toRealPath().toString(), file.toFile().length(),
+          val out = FileDescription(file.toRealPath().toString(), file.toFile().length(),
             FileAttributes(file))
           out
         }
@@ -85,11 +85,11 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart], ignoreFile: Option[Fi
     super.visitFile(file, attrs)
   }
 
-  override def visitFileFailed(file: Path, exc: IOException) = {
+  override def visitFileFailed(file: Path, exc: IOException): FileVisitResult = {
     FileVisitResult.CONTINUE
   }
 
-  def walk(f: Seq[File]) = {
+  def walk(f: Seq[File]): OldIndexVisitor = {
     f.foreach { x =>
       root = x.toPath
       Files.walkFileTree(x.toPath(), this)

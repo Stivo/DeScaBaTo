@@ -27,12 +27,12 @@ trait MeasureTime {
     startTime = System.nanoTime()
   }
 
-  def measuredTime() = {
+  def measuredTime(): String = {
     val time = System.nanoTime()
     format(time - startTime)
   }
 
-  def format(millis: Long) = {
+  def format(millis: Long): String = {
     val seconds = millis / 1000 / 1000 / 1000
     val minutes = seconds / 60
     val hours = minutes / 60
@@ -50,7 +50,7 @@ trait BackupRelatedHandler {
   var threadNumber = 0
 
   class FileProgress extends MaxValueCounter() {
-    val name = "Current file " + (config.synchronized {
+    val name: String = "Current file " + (config.synchronized {
       val copy = threadNumber
       threadNumber += 1
       copy
@@ -58,10 +58,10 @@ trait BackupRelatedHandler {
     ProgressReporters.addCounter(this)
     var filename = ""
 
-    override def formatted = filename
+    override def formatted: String = filename
   }
 
-  def statistics(x: BackupDescription) = {
+  def statistics(x: BackupDescription): String = {
     val num = x.size
     val totalSize = new Size(x.files.map(_.size).sum)
     var out = f"$num%8d, $totalSize"
@@ -83,7 +83,7 @@ trait BackupRelatedHandler {
 
 class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {
 
-  var counters = new ThreadLocal[FileProgress]() {
+  var counters: ThreadLocal[FileProgress] = new ThreadLocal[FileProgress]() {
     override def initialValue = new FileProgress()
   }
 
@@ -195,7 +195,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       var i = 0
       val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, {
         block: BytesWrapper =>
-          val bid = new BlockId(fileDesc, i)
+          val bid = BlockId(fileDesc, i)
           val wrapper = new Block(bid, block)
           universe.scheduleTask { () =>
             val md = universe.config.createMessageDigest
@@ -260,11 +260,11 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
   def isRelated(folder: BackupPart, relatedTo: BackupPart): Result = {
     var folderParts = folder.pathParts.toList
     var relatedParts = relatedTo.pathParts.toList
-    while (relatedParts.headOption.isDefined && relatedParts.headOption == folderParts.headOption) {
+    while (relatedParts.nonEmpty && relatedParts.headOption == folderParts.headOption) {
       relatedParts = relatedParts.tail
       folderParts = folderParts.tail
     }
-    if (folderParts.size == folder.pathParts.size) {
+    if (folderParts.lengthCompare(folder.pathParts.size) == 0) {
       IsUnrelated
     } else {
       (folderParts, relatedParts) match {
@@ -313,9 +313,9 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
   var roots: Iterable[FolderDescription] = mutable.Buffer.empty
   var relativeToRoot: Boolean = false
 
-  def getRoot(sub: String) = {
+  def getRoot(sub: String): Option[FolderDescription] = {
     // TODO this asks for a refactoring
-    val fd = new FolderDescription(sub, null)
+    val fd = FolderDescription(sub, null)
     roots.find {
       x => val r = isRelated(x, fd); r == IsSubFolder || r == IsSame
     }
@@ -323,7 +323,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
 
   def initRoots(folders: Seq[FolderDescription]) {
     roots = detectRoots(folders)
-    relativeToRoot = roots.size == 1 || roots.map(_.name).toList.distinct.size == roots.size
+    relativeToRoot = roots.size == 1 || roots.map(_.name).toList.distinct.lengthCompare(roots.size) == 0
   }
 
   def writeRestoreInfo(description: BackupDescription)(implicit options: RestoreConf) {
@@ -347,7 +347,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
   }
 
   def restore(options: RestoreConf, d: Option[Date] = None) {
-    implicit val o = options
+    implicit val o: RestoreConf = options
     startMeasuring()
     val description = universe.backupPartHandler().loadBackup(d)
     initRoots(description.folders)
@@ -474,9 +474,9 @@ class VerifyHandler(val universe: Universe)
 
   var problemCounter = new ProblemCounter()
 
-  lazy val backupDesc = universe.backupPartHandler().loadBackup()
+  lazy val backupDesc: BackupDescription = universe.backupPartHandler().loadBackup()
 
-  def verify(t: VerifyConf) = {
+  def verify(t: VerifyConf): Long = {
     startMeasuring()
     problemCounter = new ProblemCounter()
     universe.load()
@@ -513,7 +513,7 @@ class VerifyHandler(val universe: Universe)
 
   val random = new Random()
 
-  def getRandomXElements[T](x: Int, array: Array[T]) = {
+  def getRandomXElements[T](x: Int, array: Array[T]): Array[T] = {
     def swap(i: Int, i2: Int) {
       val bak = array(i)
       array(i) = array(i2)
@@ -531,9 +531,9 @@ class VerifyHandler(val universe: Universe)
   def verifySomeFiles(percent: Int) {
     ProgressReporters.activeCounters = List(fileCounter, byteCounter)
     val files = backupDesc.files.toArray
-    var probes = ((percent * 1.0 / 100.0) * files.size).toInt + 1
-    if (probes > files.size)
-      probes = files.size
+    var probes = ((percent * 1.0 / 100.0) * files.length).toInt + 1
+    if (probes > files.length)
+      probes = files.length
     if (probes <= 0)
       return
     val tests = getRandomXElements(probes, files)
@@ -557,7 +557,7 @@ class VerifyHandler(val universe: Universe)
     ProgressReporters.activeCounters = Nil
   }
 
-  def getChunk(blockHash: Hash) = {
+  def getChunk(blockHash: Hash): BytesWrapper = {
     val compressed = universe.blockHandler().readBlock(blockHash)
     val ret = CompressedStream.decompressToBytes(compressed)
     // TODO fix this

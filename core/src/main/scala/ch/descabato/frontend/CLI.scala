@@ -13,9 +13,9 @@ object CLI extends Utils {
 
   var lastErrors: Long = 0L
 
-  def runsInJar = classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
+  def runsInJar: Boolean = classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
 
-  def getCommands() = List(
+  def getCommands(): Map[String, Command] = List(
     new BackupCommand(),
     new VerifyCommand(),
     new RestoreCommand(),

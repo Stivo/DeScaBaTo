@@ -12,7 +12,7 @@ class SimpleCompressionDecider(val overrideMode: Option[CompressionMode]) extend
     this(None)
   }
 
-  lazy val mode = overrideMode.getOrElse(universe.config.compressor)
+  lazy val mode: CompressionMode = overrideMode.getOrElse(universe.config.compressor)
 
   def blockCompressed(block: Block, nanoTime: Long) {
     //    universe.blockHandler.writeCompressedBlock(block)
@@ -55,10 +55,10 @@ object StatisticHelper {
     }
 
     def insertSorted(x: T) {
-      if (buf.size > 2 * defaultLimit)
+      if (buf.lengthCompare(2 * defaultLimit) > 0)
         return
       buf += x
-      if (buf.size == 1)
+      if (buf.lengthCompare(1) == 0)
         return
       // insertion sort in place
       var i = buf.size - 2
@@ -91,7 +91,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
 
   var speeds: Map[CompressionMode, mutable.Buffer[Long]] = algos.map(x => (x, mutable.Buffer[Long](x.getEstimatedTime))).toMap
 
-  var statistics: Map[CompressionMode, Int] = speeds.mapValues(x => 0)
+  var statistics: Map[CompressionMode, Int] = speeds.mapValues(_ => 0)
 
   /**
     * Collects sampling data for one extension.
@@ -99,19 +99,19 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
     * each block is sent to be compressed with each mode and results compared.
     */
   class SamplingData(val ext: String) {
-    var ratioSamples: Map[CompressionMode, mutable.Buffer[Float]] = speeds.mapValues(x => mutable.Buffer[Float]())
+    var ratioSamples: Map[CompressionMode, mutable.Buffer[Float]] = speeds.mapValues(_ => mutable.Buffer[Float]())
     val samplingBlocks: mutable.HashMap[(Int, String), Map[CompressionMode, SamplingBlock]] = mutable.HashMap.empty
 
-    def idForBlock(b: Block) = (b.id.part, b.id.file.path)
+    def idForBlock(b: Block): (Int, String) = (b.id.part, b.id.file.path)
 
-    def sampleFile(block: Block) = {
+    def sampleFile(block: Block): Iterable[Block] = {
       // create new blocks with each algorithm
       val samples = algos.map(x => (x, new SamplingBlock(x, block))).toMap
       samplingBlocks += idForBlock(block) -> samples
       samples.values.map(_.block)
     }
 
-    def samplingFinished = ratioSamples.head._2.size > samples
+    def samplingFinished: Boolean = ratioSamples.head._2.lengthCompare(samples) > 0
 
     def blockWasCompressed(b: Block): Option[Block] = {
       val id = idForBlock(b)
@@ -137,7 +137,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
       }
     }
 
-    var winner: CompressionMode = null
+    var winner: CompressionMode = _
 
     def checkIfSamplingDone() {
       if (samplingFinished) {
@@ -173,12 +173,12 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
     }
     var resultArrived = false
 
-    def ratio = 1.0f * block.compressed.length / block.content.length
+    def ratio: Float = 1.0f * block.compressed.length / block.content.length
   }
 
-  val extensions = mutable.HashMap[String, SamplingData]()
+  val extensions: mutable.HashMap[String, SamplingData] = mutable.HashMap[String, SamplingData]()
 
-  def getSamplingData(ext: String) =
+  def getSamplingData(ext: String): SamplingData =
     extensions.getOrElseUpdate(ext, new SamplingData(ext))
 
   def extension(block: Block): String = {

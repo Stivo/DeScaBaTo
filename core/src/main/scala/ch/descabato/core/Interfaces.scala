@@ -23,7 +23,7 @@ trait LifeCycle extends MustFinish {
   def mayUseNonBlockingLoad = true
   // Loads the data associated with this component
   def load()
-  def loadBlocking() = {
+  def loadBlocking(): BlockingOperation = {
     load()
     new BlockingOperation()
   }
@@ -33,7 +33,7 @@ trait LifeCycle extends MustFinish {
 
 trait PureLifeCycle extends LifeCycle {
   def load() {}
-  def shutdown() = ret
+  def shutdown(): BlockingOperation = ret
   def finish() = true
 }
 trait BackupActor extends UniversePart with LifeCycle
@@ -59,16 +59,16 @@ trait Universe extends LifeCycle {
   def createRestoreHandler(description: FileDescription, file: File, filecounter: MaxValueCounter): RestoreFileHandler
   
   // Doesn't really matter
-  lazy val shutdownOrder = startUpOrder.reverse
+  lazy val shutdownOrder: List[LifeCycle] = startUpOrder.reverse
       
   lazy val _fileManager = new FileManager(this)
-  def fileManager() = _fileManager
+  def fileManager(): FileManager = _fileManager
 
   def scheduleTask[T](f: () => T): Future[T]
 
   def waitForQueues() {}
   def finish(): Boolean
-  def shutdown() = {
+  def shutdown(): BlockingOperation = {
     compressionDecider().report
     ret
   }
@@ -87,8 +87,8 @@ trait JournalHandler extends BackupActor {
   def isInconsistentBackup(): Boolean
   
   override val mayUseNonBlockingLoad = false
-  override def load() = new IllegalAccessException("Journal handler must be loaded synchronously")
-  override def loadBlocking() = cleanUnfinishedFiles
+  override def load(): Unit = new IllegalAccessException("Journal handler must be loaded synchronously")
+  override def loadBlocking(): BlockingOperation = cleanUnfinishedFiles
   def startWriting(): BlockingOperation
   def stopWriting(): BlockingOperation
 }

@@ -12,7 +12,6 @@ import java.awt.event.ActionListener;
 
 public class ProgressMonitor extends JFrame {
 
-	private final JPanel contentPane;
 	private final JPanel slices;
 
 	/**
@@ -21,7 +20,7 @@ public class ProgressMonitor extends JFrame {
 	public ProgressMonitor(final ProgressGui gui, int numthreads, boolean sliderDisabled) {
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 331);
-		contentPane = new JPanel();
+		JPanel contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		contentPane.setLayout(new BorderLayout(0, 0));

@@ -1,6 +1,7 @@
 package ch.descabato.core
 
 import java.io.{File, RandomAccessFile}
+import java.nio.channels.FileLock
 
 import ch.descabato.core.kvstore.{KvStoreReaderImpl, KvStoreWriter}
 import ch.descabato.utils.Implicits._
@@ -11,11 +12,11 @@ import scala.collection.immutable.HashSet
 class BlockingOperation
 
 class JournalEntry(val typ: String) {
-  override def toString = (typ.length + 1) + s" $typ"
+  override def toString: String = (typ.length + 1) + s" $typ"
 }
 
 class FileFinishedJournalEntry(typ: String, val file: String) extends JournalEntry(typ) {
-  override def toString = (typ.length + 1 + file.length + 1) + s" $typ $file"
+  override def toString: String = (typ.length + 1 + file.length + 1) + s" $typ $file"
 }
 
 object JournalEntries {
@@ -49,7 +50,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
   val journalInZipFile = "journalUpdates.txt"
   val updateMarker = "_withUpdate"
 
-  lazy val journalName = config.prefix + "files-journal.txt"
+  lazy val journalName: String = config.prefix + "files-journal.txt"
 
   var backupClean = true
 
@@ -58,7 +59,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
   var _open = true
 
   lazy val randomAccessFile = new RandomAccessFile(new File(config.folder, journalName), "rw")
-  lazy val lock = try {
+  lazy val lock: FileLock = try {
     val out = randomAccessFile.getChannel().tryLock()
     if (out == null)
       throw new BackupInUseException()
@@ -136,7 +137,7 @@ class SimpleJournalHandler extends JournalHandler with Utils {
       _usedIdentifiers
   }
 
-  def isInconsistentBackup() = !backupClean
+  def isInconsistentBackup(): Boolean = !backupClean
 
   def startWriting(): BlockingOperation = {
     if (backupClean) {

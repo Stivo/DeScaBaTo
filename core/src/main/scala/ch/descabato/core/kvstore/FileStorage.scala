@@ -17,18 +17,18 @@ import scala.concurrent.duration._
 
 class KeyInfo(val key: Array[Byte]) {
   def ivSize = 16
-  var iv: Array[Byte] = null
+  var iv: Array[Byte] = _
 }
 
 trait RandomAccessFileUser extends AutoCloseable {
   lazy val raf = new RandomAccessFile(file, mode)
   def mode: String
   def file: File
-  def getFileLength() = raf.length()
-  def close() = raf.close()
-  def seek(pos: Long) = raf.seek(pos)
-  def skip(skip: Long) = raf.seek(raf.getFilePointer()+skip)
-  def getFilePos() = raf.getFilePointer()
+  def getFileLength(): Long = raf.length()
+  def close(): Unit = raf.close()
+  def seek(pos: Long): Unit = raf.seek(pos)
+  def skip(skip: Long): Unit = raf.seek(raf.getFilePointer()+skip)
+  def getFilePos(): Long = raf.getFilePointer()
 }
 
 trait EncryptedRandomAccessFile extends AutoCloseable {
@@ -36,12 +36,12 @@ trait EncryptedRandomAccessFile extends AutoCloseable {
   def skip(pos: Long)
   def setEncryptionBoundary(keyInfo: KeyInfo)
 
-  final def write(bytes: BytesWrapper) = {
+  final def write(bytes: BytesWrapper): Unit = {
     writeImpl(bytes.array, bytes.offset, bytes.length)
   }
 
   def writeImpl(bytes: Array[Byte], offset: Int, len: Int)
-  final def read(bytes: Array[Byte], offset: Int = 0, len: Int = -1) = {
+  final def read(bytes: Array[Byte], offset: Int = 0, len: Int = -1): Unit = {
     readImpl(bytes, offset, if (len == -1) bytes.length else len)
   }
   def readImpl(bytes: Array[Byte], offset: Int, len: Int)
@@ -51,13 +51,13 @@ trait EncryptedRandomAccessFile extends AutoCloseable {
 
 trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with RandomAccessFileUser {
 
-  def writeInt(value: Int) = {
+  def writeInt(value: Int): Unit = {
     val buffer = ByteBuffer.allocate(4).putInt(value)
     val intArray = buffer.array()
     writeImpl(intArray, 0, 4)
   }
 
-  def writeByte(arg: Byte) = {
+  def writeByte(arg: Byte): Unit = {
     val byte = Array.apply(arg)
     writeImpl(byte, 0, 1)
   }
@@ -66,7 +66,7 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
     ZigZag.writeLong(value, this)
   }
 
-  def readVLong() = {
+  def readVLong(): Long = {
     ZigZag.readLong(this)
   }
 
@@ -82,7 +82,7 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
     intArray(0)
   }
 
-  def readBytes(len: Int) = {
+  def readBytes(len: Int): Array[Byte] = {
     val array = Array.ofDim[Byte](len)
     read(array, 0, len)
     array
@@ -91,9 +91,9 @@ trait EncryptedRandomAccessFileHelpers extends EncryptedRandomAccessFile with Ra
 }
 
 class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = false) extends EncryptedRandomAccessFileHelpers with Utils {
-  implicit val context = ExecutionContext.fromExecutor(ActorStats.tpe)
+  implicit val context: ExecutionContextExecutor = ExecutionContext.fromExecutor(ActorStats.tpe)
 
-  val mode = if (readOnly) "r" else "rw"
+  val mode: String = if (readOnly) "r" else "rw"
 
   var futureFailed = 0
   var futureWorked = 0
@@ -102,15 +102,15 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
 
   class Block(val blockNum: Int, val size: Int) {
 
-    val startOfBlockPos = blockNum * cipher.getBlockSize + encryptedFrom
-    var _cipherBytes: Array[Byte] = null
-    var _plainBytes: Array[Byte] = null
-    var _future: Future[(Array[Byte], Array[Byte])] = null
+    val startOfBlockPos: Long = blockNum * cipher.getBlockSize + encryptedFrom
+    var _cipherBytes: Array[Byte] = _
+    var _plainBytes: Array[Byte] = _
+    var _future: Future[(Array[Byte], Array[Byte])] = _
     var _diskCipherSynced = true
     var _plainCipherSynced = true
-    var endOfBlock = Math.min(size, Math.max(currentPos, getFileLength()) - startOfBlockPos).toInt
+    var endOfBlock: Int = Math.min(size, Math.max(currentPos, getFileLength()) - startOfBlockPos).toInt
 
-    def cipherBytes() = {
+    def cipherBytes(): Array[Byte] = {
       if (_cipherBytes == null && raf.length() >= startOfBlockPos) {
         raf.seek(startOfBlockPos)
         _cipherBytes = Array.ofDim[Byte](endOfBlock)
@@ -122,7 +122,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
       _cipherBytes
     }
 
-    def plainBytes() = {
+    def plainBytes(): Array[Byte] = {
       if (_plainBytes == null) {
         val cipherBytes2 = cipherBytes()
         if (cipherBytes2 != null) {
@@ -150,7 +150,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
       }
     }
 
-    def updateBytes(x: Array[Byte], xOffset: Int, filePos: Long, len: Int) = {
+    def updateBytes(x: Array[Byte], xOffset: Int, filePos: Long, len: Int): Int = {
       val destOffset = (filePos - startOfBlockPos).toInt
       val lenHere = List(len, size - destOffset).min
       plainBytes()
@@ -173,7 +173,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
       lenHere
     }
 
-    def readBytes(bytes: Array[Byte], destOffset: Int, filePos: Long, len: Int) = {
+    def readBytes(bytes: Array[Byte], destOffset: Int, filePos: Long, len: Int): Int = {
       val srcOffset = (filePos - startOfBlockPos).toInt
       val lenHere = List(len, endOfBlock - srcOffset).min
       l.trace(s"Copying $lenHere bytes from plainBytes (${plainBytes().length} at $srcOffset) to bytes (${bytes.length} at $destOffset), at pos $filePos/${raf.length()}")
@@ -181,7 +181,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
       lenHere
     }
 
-    def truncateTo(filePos: Long) = {
+    def truncateTo(filePos: Long): Unit = {
       endOfBlock = (filePos - startOfBlockPos).toInt
       l.trace(s"Block starting at $startOfBlockPos truncating to $filePos, end of block now $endOfBlock")
       _future = null
@@ -189,7 +189,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
       _diskCipherSynced = false
     }
 
-    def encryptBytes(plainBytes: Array[Byte], endHere: Int) = {
+    def encryptBytes(plainBytes: Array[Byte], endHere: Int): (Array[Byte], Array[Byte]) = {
       val iv = CryptoUtils.deriveIv(keyInfo.iv, blockNum)
       val cipherHere = Cipher.getInstance("AES/CTR/NoPadding", "BC")
       cipherHere.init(Cipher.ENCRYPT_MODE, CryptoUtils.keySpec(keyInfo), iv)
@@ -271,19 +271,19 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
 
     def getLastPos(): Long = cache.lastOption.map{ case (_, b) => b.endOfBlock + b.startOfBlockPos}.getOrElse(0L)
 
-    def clear() = {
+    def clear(): Unit = {
       currentSize = 0
       cache = TreeMap.empty
     }
   }
 
-  var encryptedFrom = Long.MaxValue
+  var encryptedFrom: Long = Long.MaxValue
 
   var noException = true
-  var keyInfo: KeyInfo = null
-  var cipher: Cipher = null
+  var keyInfo: KeyInfo = _
+  var cipher: Cipher = _
   var _currentPos = 0L
-  def currentPos = {
+  def currentPos: Long = {
     l.trace("Getting currentpos") // "+Thread.currentThread().getStackTrace.mkString("\n"))
     _currentPos
   }
@@ -292,7 +292,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
     _currentPos = newValue
   }
 
-  def blockSize = cipher.getBlockSize
+  def blockSize: Int = cipher.getBlockSize
 
   val blockCache = new BlockCache()
 
@@ -391,14 +391,14 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
     currentPos = currentPos + pos
   }
 
-  override def getFilePos() = currentPos
+  override def getFilePos(): Long = currentPos
 
   override def getFileLength(): Long = {
     val o = blockCache.getLastPos()
     List(super.getFileLength(), o).max
   }
 
-  def truncateRestOfFile() = {
+  def truncateRestOfFile(): BlockingOperation = {
     raf.setLength(currentPos)
     if (encryptedFrom <= currentPos) {
       val block = blockCache.getBlock()

@@ -1,12 +1,13 @@
 package ch.descabato.core
 
 import java.io.{File, FileOutputStream, OutputStream}
+import java.security.MessageDigest
 
 import akka.actor.{PoisonPill, TypedActor}
 import akka.io.Tcp.Write
 import ch.descabato.akka.{AkkaHashActor, AkkaUniversePart}
 import ch.descabato.frontend.MaxValueCounter
-import ch.descabato.utils.{BytesWrapper, Hash, CompressedStream, Utils}
+import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash, Utils}
 
 import scala.collection.{SortedMap, mutable}
 import scala.concurrent.{Await, Future, Promise}
@@ -20,22 +21,22 @@ trait AkkaRestoreFileHandler extends RestoreFileHandler {
 
 class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniversePart {
   val maxPending: Int = 100
-  val p = Promise[Boolean]
-  lazy val digest = config.createMessageDigest
+  val p: Promise[Boolean] = Promise[Boolean]
+  lazy val digest: MessageDigest = config.createMessageDigest
 
   // initialized in setup
-  var hashHandler: HashHandler = null
-  var writeFileHandler: WriteFileHandler = null
-  var ownRef: AkkaRestoreFileHandler = null
-  var fd: FileDescription = null
-  var destination: File = null
-  var counter: MaxValueCounter = null
+  var hashHandler: HashHandler = _
+  var writeFileHandler: WriteFileHandler = _
+  var ownRef: AkkaRestoreFileHandler = _
+  var fd: FileDescription = _
+  var destination: File = _
+  var counter: MaxValueCounter = _
 
   // initialized in startRestore
-  var hashList: Array[Hash] = null
-  var outputStream: OutputStream = null
+  var hashList: Array[Hash] = _
+  var outputStream: OutputStream = _
   
-  var unwrittenBlocks = SortedMap.empty[Int, Block]
+  var unwrittenBlocks: SortedMap[Int, Block] = SortedMap.empty[Int, Block]
   var pendingBlocks = mutable.Set.empty[Int]
   var nextBlockToRequest: Int = 0
   var blockToBeWritten = 0
@@ -64,7 +65,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
 
   def fillQueue() {
     while (unwrittenBlocks.size + pendingBlocks.size < maxPending && nextBlockToRequest < numberOfBlocks) {
-      val id = new BlockId(fd, nextBlockToRequest)
+      val id = BlockId(fd, nextBlockToRequest)
       pendingBlocks += nextBlockToRequest
       val blockHash = hashList(nextBlockToRequest)
       universe.blockHandler().readBlockAsync(blockHash).map({ bytes =>
@@ -81,7 +82,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
     }
   }
 
-  def startRestore() = {
+  def startRestore(): Unit = {
     if (fd.size > config.blockSize.bytes) {
       hashList = universe.hashListHandler().getHashlist(fd.hash, fd.size).toArray
     } else {
@@ -148,7 +149,7 @@ trait WriteFileHandler {
 }
 
 class WriteActor extends WriteFileHandler with AkkaUniversePart {
-  var fos: FileOutputStream = null
+  var fos: FileOutputStream = _
   override def setFile(destination: File): Unit = {
     destination.getParentFile.mkdirs()
     fos = new FileOutputStream(destination)

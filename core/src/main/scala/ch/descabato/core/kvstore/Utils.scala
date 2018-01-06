@@ -10,7 +10,7 @@ import ch.descabato.utils.{BytesWrapper, Utils}
 import org.bouncycastle.crypto.generators.SCrypt
 
 object CryptoUtils extends Utils {
-  def deriveIv(iv: Array[Byte], offset: Int) = {
+  def deriveIv(iv: Array[Byte], offset: Int): IvParameterSpec = {
     var bigInt = new BigInteger(iv)
     bigInt = bigInt.add(new BigInteger(offset+""))
     var bytes = bigInt.toByteArray
@@ -24,7 +24,7 @@ object CryptoUtils extends Utils {
     }
     new IvParameterSpec(bytes)
   }
-  def newStrongRandomByteArray(ivLength: Short) = {
+  def newStrongRandomByteArray(ivLength: Short): Array[Byte] = {
     val iv = Array.ofDim[Byte](ivLength)
     new SecureRandom().nextBytes(iv)
     iv
@@ -32,11 +32,11 @@ object CryptoUtils extends Utils {
   
   def keySpec(keyInfo: KeyInfo) = new SecretKeySpec(keyInfo.key, "AES")
   
-  def hmac(bytes: Array[Byte], keyInfo: KeyInfo) = {
+  def hmac(bytes: Array[Byte], keyInfo: KeyInfo): Array[Byte] = {
      newHmac(keyInfo).doFinal(bytes)
   }
   
-  def newHmac(keyInfo: KeyInfo) = {
+  def newHmac(keyInfo: KeyInfo): Mac = {
      val sha256_HMAC = Mac.getInstance("HmacSHA256")
      val secret_key = new SecretKeySpec(keyInfo.key, "HmacSHA256")
      sha256_HMAC.init(secret_key)
@@ -47,19 +47,19 @@ object CryptoUtils extends Utils {
     def ** (exp:Int):Int = Math.pow(i,exp).toInt
   }
   
-  def keyDerive(passphrase: String, salt: Array[Byte], keyLength: Byte = 16, iterationsPower: Int = 12, memoryFactor: Int = 8) = {
+  def keyDerive(passphrase: String, salt: Array[Byte], keyLength: Byte = 16, iterationsPower: Int = 12, memoryFactor: Int = 8): Array[Byte] = {
     SCrypt.generate(passphrase.getBytes("UTF-8"), salt, 2**iterationsPower, memoryFactor, 4, keyLength)
   }
   
 }
 
 object CrcUtil {
-  def crc(bytes: BytesWrapper) = {
+  def crc(bytes: BytesWrapper): Int = {
     val crc = new CRC32()
     crc.update(bytes.array, bytes.offset, bytes.length)
     crc.getValue().toInt
   }
-  def checkCrc(bytes: BytesWrapper, expected: Int, m: String = "") = {
+  def checkCrc(bytes: BytesWrapper, expected: Int, m: String = ""): Unit = {
     if (crc(bytes) != expected) {
       throw new IllegalArgumentException("Crc check failed: "+m)
     }

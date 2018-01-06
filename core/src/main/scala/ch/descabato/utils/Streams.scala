@@ -26,7 +26,7 @@ object Streams extends Utils {
       }
     }
 
-    def cur = out.size()
+    def cur: Int = out.size()
 
     override def write(buf: Array[Byte], start: Int, len: Int) {
       var (lenC, startC) = (len, start)

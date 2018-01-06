@@ -34,10 +34,10 @@ object Constants {
 case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
   import ch.descabato.core.Constants._
 
-  def globalPrefix = config.prefix
+  def globalPrefix: String = config.prefix
 
-  var config: BackupFolderConfiguration = null
-  var fileManager: FileManager = null
+  var config: BackupFolderConfiguration = _
+  var fileManager: FileManager = _
 
   var local = true
   var remote = true
@@ -54,7 +54,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     hasDate = hasDateC
   }
 
-  def nextNum(temp: Boolean = false) = {
+  def nextNum(temp: Boolean = false): Int = {
     val col = (if (temp) getTempFiles() else getFiles()).map(numberOf)
     val fromJournal = fileManager.usedIdentifiers
     val col2 = col ++ fromJournal.map(x => new File(config.folder, x)).filter(matches).filter(isTemp(_) == temp).map(numberOf)
@@ -65,7 +65,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     }
   }
 
-  def nextName(tempFile: Boolean = false) = {
+  def nextName(tempFile: Boolean = false): String = {
     filenameForNumber(nextNum(tempFile), tempFile)
   }
 
@@ -110,13 +110,13 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     filter(matches).
     filterNot(_.getName.endsWith(".tmp"))
 
-  def deleteTempFiles(f: File = config.folder) = getTempFiles(f).foreach(_.delete)
+  def deleteTempFiles(f: File = config.folder): Unit = getTempFiles(f).foreach(_.delete)
 
   /**
    * Removes the global prefix, the temp prefix and the file type prefix.
    * Leaves the date (if there) and number and suffix
    */
-  def stripPrefixes(f: File) = {
+  def stripPrefixes(f: File): String = {
     var rest = f.getName().drop(globalPrefix.length())
     if (rest.startsWith(tempPrefix)) {
       rest = rest.drop(tempPrefix.length)
@@ -126,13 +126,13 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     rest
   }
 
-  def date(x: File) = {
+  def date(x: File): Date = {
     val name = stripPrefixes(x)
     val date = name.take(fileManager.dateFormatLength)
     fileManager.dateFormat.parse(date)
   }
 
-  def numberOf(x: File) = {
+  def numberOf(x: File): Int = {
     var rest = stripPrefixes(x)
     if (hasDate)
       rest = rest.drop(fileManager.dateFormatLength + 1)
@@ -153,7 +153,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     getFiles().find(x => numberOf(x) == number)
   }
   
-  def isTemp(file: File) = {
+  def isTemp(file: File): Boolean = {
     require(matches(file))
     file.getName.startsWith(globalPrefix+tempPrefix)
   }
@@ -178,12 +178,12 @@ class IndexFileType(val filetype: FileType[_]) extends FileType[Index](filetype.
  */
 class FileManager(override val universe: Universe) extends UniversePart {
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
-  val dateFormatLength = dateFormat.format(new Date()).length()
+  val dateFormatLength: Int = dateFormat.format(new Date()).length()
   val startDate = new Date()
 
-  def usedIdentifiers = universe.journalHandler().usedIdentifiers()
+  def usedIdentifiers: Set[String] = universe.journalHandler().usedIdentifiers()
 
-  def getDateFormatted = dateFormat.format(startDate)
+  def getDateFormatted: String = dateFormat.format(startDate)
 
   val volumes = new FileType[Volume]("volume_", false, ".kvs", localC = false)
   val volumeIndex = new IndexFileType(volumes)
@@ -200,11 +200,11 @@ class FileManager(override val universe: Universe) extends UniversePart {
   private val types = List(volumes, volumeIndex, hashlists, filesDelta,
       backup, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
-  def allFiles(temp: Boolean = true) = types.flatMap(ft => ft.getFiles()++(if(temp) ft.getTempFiles() else Nil))
+  def allFiles(temp: Boolean = true): List[File] = types.flatMap(ft => ft.getFiles()++(if(temp) ft.getTempFiles() else Nil))
   
   types.foreach { x => x.config = config; x.fileManager = this }
 
-  def getFileType(x: File) = types.find(_.matches(x)).get
+  def getFileType(x: File): FileType[_ >: Vector[(Hash, Array[Byte])] with Parity with mutable.Buffer[UpdatePart] with Index with Volume with BackupDescription <: Object] = types.find(_.matches(x)).get
 
 // TODO some of this code is needed later
 //  def getBackupAndUpdates(temp: Boolean = true): (Array[File], Boolean) = {

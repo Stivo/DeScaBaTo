@@ -30,10 +30,10 @@ class KeyDerivationInfo (
 )
 
 object EntryTypes {
-  val simple = new EntryType(0, 1)
-  val keyValue = new EntryType(1, 2)
-  val endOfFile = new EntryType(255.toByte, 0)
-  def getTypeForByte(byte: Byte) = {
+  val simple = EntryType(0, 1)
+  val keyValue = EntryType(1, 2)
+  val endOfFile = EntryType(255.toByte, 0)
+  def getTypeForByte(byte: Byte): EntryType = {
     byte match {
       case 0 => simple
       case 1 => keyValue
@@ -60,7 +60,7 @@ trait EntryPart {
 
 class EntryPartW(val bytes: BytesWrapper, val hasCrc: Boolean = true) extends EntryPart {
   var startPos = 0L
-  def endPos = startPos + bytes.length
+  def endPos: Long = startPos + bytes.length
 }
 
 case class Entry(typ: EntryType, parts: Iterable[EntryPart]) {
@@ -79,10 +79,10 @@ case class Entry(typ: EntryType, parts: Iterable[EntryPart]) {
 
 trait KvStoreWriter extends AutoCloseable {
   def writeEntry(entry: Entry): KvStoreLocation
-  def writeKeyValue(key: Array[Byte], value: BytesWrapper) = {
-    writeEntry(new Entry(EntryTypes.keyValue, newEntryPart(key.wrap(), hasCrc = false) :: newEntryPart(value, hasCrc = false) :: Nil))
+  def writeKeyValue(key: Array[Byte], value: BytesWrapper): KvStoreLocation = {
+    writeEntry(Entry(EntryTypes.keyValue, newEntryPart(key.wrap()) :: newEntryPart(value) :: Nil))
   }
-  def newEntryPart(bytes: BytesWrapper, hasCrc: Boolean = false) = {
+  def newEntryPart(bytes: BytesWrapper, hasCrc: Boolean = false): EntryPartW = {
     new EntryPartW(bytes, hasCrc)
   }
 }
@@ -94,12 +94,12 @@ trait KvStoreReader extends AutoCloseable with Iterable[Entry] {
 }
 
 trait IndexedKvStoreReader extends KvStoreReader {
-  lazy val index = iterator.flatMap {
+  lazy val index: Map[BytesWrapper, Long] = iterator.flatMap {
       case Entry(e, key::value::Nil) => Some((key.bytes, value.startPos))
       case _ => None
     }.toMap
     
-  def readValueForKey(key: Array[Byte]) = {
+  def readValueForKey(key: Array[Byte]): Array[Byte] = {
     val pos = index(new BytesWrapper(key))
     readEntryPartAt(pos).bytes.asArray
   }
@@ -108,7 +108,7 @@ trait IndexedKvStoreReader extends KvStoreReader {
 class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: Array[Byte] = null, val fsyncThreshold: Long = 100*1024*1024) extends KvStoreWriter {
   lazy val encryptionInfo = new EncryptionInfo()
   lazy val keyDerivationInfo = new KeyDerivationInfo()
-	lazy val writer = {
+	lazy val writer: EncryptedRandomAccessFileImpl = {
     val baos = new ByteArrayOutputStream()
 	  val tempOut = new DataOutputStream(baos) 
 	  val out = new EncryptedRandomAccessFileImpl(file)
@@ -165,7 +165,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
 	
 	var lastSync = 0L
 	
-	def writeEntry(entry: Entry) = {
+	def writeEntry(entry: Entry): KvStoreLocation = {
     writer.writeByte(entry.typ.markerByte)
     for (part <- entry.parts) {
       writeEntryPart(part)
@@ -174,7 +174,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
       writer.fsync()
       lastSync = writer.getFileLength()
 	  }
-    new KvStoreLocation(file, entry.parts.last.startPos)
+    KvStoreLocation(file, entry.parts.last.startPos)
   }
 
   def checkpoint(): Unit = writer.fsync()
@@ -197,15 +197,15 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
     writer.writeByte(255.toByte)
     writer.close()
   }
-  def length() = writer.getFileLength()
+  def length(): Long = writer.getFileLength()
 }
 
 class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGiven: Array[Byte] = null, val readOnly: Boolean = true) extends KvStoreReader with Utils {
   val maxSupportedVersion = 0
   private var startOfEntries = 0L
-  private var encryptionInfo: EncryptionInfo = null
-  var _reader: EncryptedRandomAccessFileImpl = null
-  def reader() = {
+  private var encryptionInfo: EncryptionInfo = _
+  var _reader: EncryptedRandomAccessFileImpl = _
+  def reader(): EncryptedRandomAccessFileImpl = {
     if (_reader == null) {
       _reader = new EncryptedRandomAccessFileImpl(file, readOnly = readOnly)
       val marker = Array.ofDim[Byte](7)
@@ -266,11 +266,17 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     _reader
   }
 
-  def iterator = {
+  def iterator: Iterator[Entry] {
+    var pos: Long
+
+    def next(): Entry
+
+    def hasNext: Boolean
+  } = {
     new Iterator[Entry]() {
-      var pos = getPosOfFirstEntry()
-      def hasNext = pos < file.length
-      def next() = {
+      var pos: Long = getPosOfFirstEntry()
+      def hasNext: Boolean = pos < file.length
+      def next(): Entry = {
         val out = readEntryAt(pos).get
         pos = out.getEndOfEntryPos()
         out
@@ -346,7 +352,7 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     reader.close()
   }
   
-  def getPosOfFirstEntry() = {
+  def getPosOfFirstEntry(): Long = {
     reader.getFileLength()
     startOfEntries
   }
@@ -361,13 +367,13 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
     }
   }
   
-  def readPlainValue(startPosOfEntry: Long, hasCrcIn: Boolean) = {
+  def readPlainValue(startPosOfEntry: Long, hasCrcIn: Boolean): EntryPart = {
     val length = reader.readVLong()
     val offset = if (hasCrcIn) 4 else 0
     new EntryPart() {
       private val startOfValue = reader.getFilePos()
-      val startPos = startPosOfEntry
-      lazy val bytes = {
+      val startPos: Long = startPosOfEntry
+      lazy val bytes: BytesWrapper = {
         reader.seek(startOfValue)
         val array = Array.ofDim[Byte](length.toInt)
         reader.read(array)
@@ -377,8 +383,8 @@ class KvStoreReaderImpl(val file: File, val passphrase: String = null, val keyGi
         }
         array.wrap()
       }
-      val hasCrc = hasCrcIn
-      val endPos = startOfValue + length + offset 
+      val hasCrc: Boolean = hasCrcIn
+      val endPos: Long = startOfValue + length + offset
       reader.seek(endPos)
     }
   }

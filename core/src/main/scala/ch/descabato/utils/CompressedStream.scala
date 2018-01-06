@@ -26,7 +26,7 @@ object CompressedStream extends Utils {
     baos.toBytesWrapper()
   }
 
-  def roundUp(x: Int) = {
+  def roundUp(x: Int): Int = {
     var z = 4096
     while (z < x) {
       z = z * 2
@@ -34,7 +34,7 @@ object CompressedStream extends Utils {
     z
   }
 
-  def getCompressor(byte: Int, out: OutputStream, size: Option[Int] = None) = {
+  def getCompressor(byte: Int, out: OutputStream, size: Option[Int] = None): OutputStream = {
     CompressionMode.getByByte(byte) match {
       case CompressionMode.gzip => new GZIPOutputStream(out, 65536)
       case CompressionMode.lzma =>

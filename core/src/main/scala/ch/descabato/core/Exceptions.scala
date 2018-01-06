@@ -16,7 +16,7 @@ class BackupInUseException extends Exception("Another process seems to be changi
 case class MisconfigurationException(message: String) extends Exception(message) with BackupException
 
 object ExceptionFactory {
-  def newPar2Missing() = {
+  def newPar2Missing(): MisconfigurationException = {
     var message = """Par2 command line utility is missing. It is needed if redundancy is enabled.
 To disable the redundancy, add --no-redundancy to command line.
 """
@@ -26,6 +26,6 @@ Get it for example here: http://chuchusoft.com/par2_tbb/"""
     } else {
       "Otherwise please install par2 from the repositories."
     })
-    new MisconfigurationException(message)
+    MisconfigurationException(message)
   }
 }

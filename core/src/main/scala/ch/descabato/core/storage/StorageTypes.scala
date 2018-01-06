@@ -9,8 +9,8 @@ import ch.descabato.utils.{BytesWrapper, JsonSerialization}
 import ch.descabato.utils.Implicits._
 
 object StorageMechanismConstants {
-  val manifestName = "manifest.txt".getBytes
-  val manifestNameWrapped = manifestName.wrap()
+  val manifestName: Array[Byte] = "manifest.txt".getBytes
+  val manifestNameWrapped: BytesWrapper = manifestName.wrap()
 }
 
 trait IndexMechanism[K, L <: Location] {
@@ -47,13 +47,13 @@ class KvStoreStorageMechanismWriter(val file: File, val passphrase: Option[Strin
     kvstoreWriter.close()
   }
 
-  def length() = {
+  def length(): Long = {
     kvstoreWriter.length()
   }
 
   def writeManifest() {
     val versionNumber: String = ch.descabato.version.BuildInfo.version
-    val m = new MetaInfo(universe.fileManager().getDateFormatted, versionNumber)
+    val m = MetaInfo(universe.fileManager().getDateFormatted, versionNumber)
     val json = new JsonSerialization()
     val value = json.write(m)
     kvstoreWriter.writeKeyValue(StorageMechanismConstants.manifestName, value.wrap())
@@ -66,18 +66,18 @@ case class KvStoreLocation(file: File, pos: Long) extends Location
 class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[String] = None) extends StorageMechanismReader[KvStoreLocation, Array[Byte], BytesWrapper] {
   lazy val kvstoreReader = new KvStoreReaderImpl(file, if (passphrase.isDefined) passphrase.get else null)
 
-  private var _manifest: MetaInfo = null
+  private var _manifest: MetaInfo = _
   private var _manifestReadFailed = false
 
-  def iterator = {
+  def iterator: Iterator[(Array[Byte], KvStoreLocation)] = {
     kvstoreReader.iterator.collect {
       case Entry(_, k::v::Nil)
         if ! (StorageMechanismConstants.manifestNameWrapped == k.bytes)
-        => (k.bytes.asArray(), new KvStoreLocation(file, v.startPos))
+        => (k.bytes.asArray(), KvStoreLocation(file, v.startPos))
     }
   }
 
-  def manifest() = {
+  def manifest(): MetaInfo = {
     if (_manifest == null && !_manifestReadFailed) {
       kvstoreReader.iterator.find {
         case Entry(_, k :: v :: Nil)
@@ -94,7 +94,7 @@ class KvStoreStorageMechanismReader(val file: File, val passphrase: Option[Strin
     _manifest
   }
   
-  def get(loc: KvStoreLocation) = {
+  def get(loc: KvStoreLocation): BytesWrapper = {
     kvstoreReader.readEntryPartAt(loc.pos).bytes
   } 
 

@@ -12,7 +12,7 @@ import org.bridj.jawt.JAWTUtils
 import scala.collection.mutable
 
 object CreateProgressGui {
-  def apply(threads: Int, nameOfOp: String, sliderDisabled: Boolean) = {
+  def apply(threads: Int, nameOfOp: String, sliderDisabled: Boolean): ProgressGui = {
     if (Utils.isWindows) {
       new WindowsProgressGui(threads, nameOfOp, sliderDisabled)
     } else {
@@ -63,15 +63,15 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
     }
   }
 
-  var counters = mutable.Buffer[Counter]()
+  var counters: mutable.Buffer[Counter] = mutable.Buffer[Counter]()
 
   def pause(pausing: Boolean) {
     CLI.paused = pausing
   }
 
-  val slices = mutable.Buffer[ProgressSlice]()
+  val slices: mutable.Buffer[ProgressSlice] = mutable.Buffer[ProgressSlice]()
 
-  def getSlice(counter: Counter) = {
+  def getSlice(counter: Counter): ProgressSlice = {
     slices.find(counter.name == _.getName()) match {
       case Some(x) => x
       case None =>
@@ -109,8 +109,8 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
 
 class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false)
     extends ProgressGui(threads, nameOfOperation, sliderDisabled) {
-  var list: ITaskbarList3 = null
-  var hwnd: Pointer[Integer] = null
+  var list: ITaskbarList3 = _
+  var hwnd: Pointer[Integer] = _
   try {
     list = COMRuntime.newInstance(classOf[ITaskbarList3])
     val hwndVal = JAWTUtils.getNativePeerHandle(mon)

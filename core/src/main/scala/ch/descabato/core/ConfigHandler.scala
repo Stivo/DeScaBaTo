@@ -7,7 +7,7 @@ import ch.descabato.utils.{JsonSerialization, Utils}
 
 
 object InitBackupFolderConfiguration extends Utils {
-  def apply(option: BackupFolderOption, passphrase: Option[String]) = {
+  def apply(option: BackupFolderOption, passphrase: Option[String]): BackupFolderConfiguration = {
     val out = BackupFolderConfiguration(option.backupDestination(), option.prefix(), passphrase)
     option match {
       case o: ChangeableBackupOptions =>
@@ -34,7 +34,7 @@ object InitBackupFolderConfiguration extends Utils {
     out
   }
 
-  def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption, passphrase: Option[String]) = {
+  def merge(old: BackupFolderConfiguration, supplied: BackupFolderOption, passphrase: Option[String]): (BackupFolderConfiguration, Boolean) = {
     old.passphrase = passphrase
     var changed = false
     supplied match {
@@ -109,9 +109,9 @@ object BackupVerification {
  */
 class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
-  val mainFile = supplied.prefix() + "backup.json"
+  val mainFile: String = supplied.prefix() + "backup.json"
   val folder: File = supplied.backupDestination()
-  def hasOld = new File(folder, mainFile).exists() && loadOld().isDefined
+  def hasOld: Boolean = new File(folder, mainFile).exists() && loadOld().isDefined
   def loadOld(): Option[BackupFolderConfiguration] = {
     val json = new JsonSerialization()
     // TODO a backup.json that is invalid is a serious problem. Should throw exception

@@ -1,7 +1,7 @@
 package ch.descabato.core
 
-import java.io.{OutputStream, FileOutputStream, File}
-import java.security.DigestOutputStream
+import java.io.{File, FileOutputStream, OutputStream}
+import java.security.{DigestOutputStream, MessageDigest}
 
 import akka.actor.TypedActor.PostRestart
 import ch.descabato.CompressionMode
@@ -12,10 +12,10 @@ import ch.descabato.utils._
 import ch.descabato.utils.Implicits._
 import org.apache.commons.compress.utils.IOUtils
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
 object Universes {
-  def makeUniverse(config: BackupFolderConfiguration) = {
+  def makeUniverse(config: BackupFolderConfiguration): Universe with Utils = {
     if (config.threads == 1)
       new SingleThreadUniverse(config)
     else
@@ -24,12 +24,12 @@ object Universes {
 }
 
 trait UniversePart extends AnyRef with PostRestart {
-  protected def universe = _universe
-  protected var _universe: Universe = null
-  protected def fileManager = universe.fileManager
-  protected implicit val executionContext = ExecutionContext.fromExecutor(ActorStats.tpe)
+  protected def universe: Universe = _universe
+  protected var _universe: Universe = _
+  protected def fileManager: FileManager = universe.fileManager
+  protected implicit val executionContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(ActorStats.tpe)
 
-  protected def config = universe.config
+  protected def config: BackupFolderConfiguration = universe.config
 
   def setup(universe: Universe) {
     this._universe = universe
@@ -44,13 +44,13 @@ trait UniversePart extends AnyRef with PostRestart {
 }
 
 class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe with PureLifeCycle with Utils {
-  def make[T <: UniversePart](x: T) = {x.setup(this); x}
-  val journalHandler = make(new SimpleJournalHandler())
-  val backupPartHandler = make(new KvStoreBackupPartHandler())
-  val hashListHandler = make(new KvStoreHashListHandler())
-  val blockHandler = make(new KvStoreBlockHandler())
-  val hashFileHandler = make(new SingleThreadFileHasher())
-  val compressionDecider = make(config.compressor match {
+  def make[T <: UniversePart](x: T): T = {x.setup(this); x}
+  val journalHandler: SimpleJournalHandler = make(new SimpleJournalHandler())
+  val backupPartHandler: KvStoreBackupPartHandler = make(new KvStoreBackupPartHandler())
+  val hashListHandler: KvStoreHashListHandler = make(new KvStoreHashListHandler())
+  val blockHandler: KvStoreBlockHandler = make(new KvStoreBlockHandler())
+  val hashFileHandler: SingleThreadFileHasher = make(new SingleThreadFileHasher())
+  val compressionDecider: CompressionDecider = make(config.compressor match {
     case x if x.isCompressionAlgorithm => new SimpleCompressionDecider()
     case CompressionMode.smart => new SmartCompressionDecider()
     case _ => new SimpleCompressionDecider(Some(CompressionMode.lz4hc))
@@ -58,12 +58,12 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
 
   load()
 
-  override def finish() = {
+  override def finish(): Boolean = {
     compressionDecider.report()
     finishOrder.map (_.finish).reduce(_ && _)
   }
 
-  override def shutdown() = {
+  override def shutdown(): BlockingOperation = {
     journalHandler.finish()
     shutdownOrder.foreach { h =>
       try {
@@ -89,7 +89,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
 }
 
 class SingleThreadHasher extends HashHandler {
-  lazy val md = universe.config.createMessageDigest
+  lazy val md: MessageDigest = universe.config.createMessageDigest
 
   def finish(f: Hash => Unit) {
     f(new Hash(md.digest()))
@@ -103,7 +103,7 @@ class SingleThreadHasher extends HashHandler {
 
 class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: File) extends RestoreFileHandler {
 
-  var hashList: Array[Array[Byte]] = null
+  var hashList: Array[Array[Byte]] = _
 
   val hasher = new SingleThreadHasher()
 

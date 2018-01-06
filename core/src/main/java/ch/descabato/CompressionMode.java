@@ -15,13 +15,13 @@ public enum CompressionMode {
 	private final boolean isCompressionAlgorithm;
     private final long estimatedTime;
 
-    private CompressionMode(int v, long estimatedTime) {
+    CompressionMode(int v, long estimatedTime) {
 		val = v;
 		isCompressionAlgorithm = true;
         this.estimatedTime = estimatedTime;
 	}
 
-	private CompressionMode() {
+	CompressionMode() {
 		val = 255;
 		isCompressionAlgorithm = false;
         this.estimatedTime = -1;

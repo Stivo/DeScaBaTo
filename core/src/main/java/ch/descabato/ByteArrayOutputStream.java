@@ -200,7 +200,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * <p>
      *
      */
-    public void close() throws IOException {
+    public void close() {
     }
 
 }

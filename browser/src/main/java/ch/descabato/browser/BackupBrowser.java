@@ -60,10 +60,10 @@ public class BackupBrowser {
 				  System.exit(1);
 			  }
 		  }.start();
-	  };
+	  }
   };
   
-  public static void main2(final String[] args) throws InterruptedException, InvocationTargetException, SecurityException, IOException {
+  public static void main2(final String[] args) throws InterruptedException, InvocationTargetException, SecurityException {
     if (args.length > 1)
       throw new IllegalArgumentException("SYNTAX:  java... "
           + BackupBrowser.class.getName() + " [initialPath]");

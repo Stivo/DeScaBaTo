@@ -12,11 +12,12 @@ import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 import org.rogach.scallop._
 
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe.TypeTag
 
 object ScallopConverters {
-  def singleArgConverter[A](conv: String => A, msg: String = "wrong arguments format")(implicit tt: TypeTag[A]) = new ValueConverter[A] {
-    def parse(s: List[(String, List[String])]) = {
+  def singleArgConverter[A](conv: String => A, msg: String = "wrong arguments format")(implicit tt: TypeTag[A]): ValueConverter[A] = new ValueConverter[A] {
+    def parse(s: List[(String, List[String])]): Either[String, Option[A]] = {
       s match {
         case (_, i :: Nil) :: Nil =>
           try {
@@ -29,18 +30,18 @@ object ScallopConverters {
       }
     }
 
-    val tag = tt
-    val argType = ArgType.SINGLE
+    val tag: universe.TypeTag[A] = tt
+    val argType: ArgType.V = ArgType.SINGLE
   }
 
-  implicit val modeConverter = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
-  implicit val sizeConverter = singleArgConverter[Size](x => Size(x))
+  implicit val modeConverter: ValueConverter[CompressionMode] = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
+  implicit val sizeConverter: ValueConverter[Size] = singleArgConverter[Size](x => Size(x))
 
 }
 
 trait Command {
 
-  def name = this.getClass().getSimpleName().replace("Command", "").toLowerCase()
+  def name: String = this.getClass().getSimpleName().replace("Command", "").toLowerCase()
 
   def execute(args: Seq[String])
 
@@ -89,7 +90,7 @@ trait BackupRelatedCommand extends Command with Utils {
 
   var lastArgs: Seq[String] = Nil
 
-  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: Universe => T) = {
+  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: Universe => T): T = {
     var universe: Universe = null
     try {
       universe = if (akkaAllowed)
@@ -170,32 +171,32 @@ trait RedundancyOptions extends BackupFolderOption {
 }
 
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {
-  val keylength = opt[Int](default = Some(128))
-  val volumeSize = opt[Size](default = Some(Size("100Mb")))
-  val threads = opt[Int](default = Some(4))
-  val noScriptCreation = opt[Boolean](default = Some(false))
+  val keylength: ScallopOption[Int] = opt[Int](default = Some(128))
+  val volumeSize: ScallopOption[Size] = opt[Size](default = Some(Size("100Mb")))
+  val threads: ScallopOption[Int] = opt[Int](default = Some(4))
+  val noScriptCreation: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
   //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
-  val dontSaveSymlinks = opt[Boolean](default = Some(false))
-  val compression = opt[CompressionMode](default = Some(CompressionMode.smart))
-  val createIndexes = opt[Boolean](default = Some(true))
-  val ignoreFile = opt[File](default = None)
+  val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
+  val compression: ScallopOption[CompressionMode] = opt[CompressionMode](default = Some(CompressionMode.smart))
+  val createIndexes: ScallopOption[Boolean] = opt[Boolean](default = Some(true))
+  val ignoreFile: ScallopOption[File] = opt[File](default = None)
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
-  val serializerType = opt[String]()
-  val blockSize = opt[Size](default = Some(Size("100Kb")))
-  val hashAlgorithm = opt[String](default = Some("md5"))
+  val serializerType: ScallopOption[String] = opt[String]()
+  val blockSize: ScallopOption[Size] = opt[Size](default = Some(Size("100Kb")))
+  val hashAlgorithm: ScallopOption[String] = opt[String](default = Some("md5"))
 }
 
 trait ProgramOption extends ScallopConf {
-  val noGui = opt[Boolean](short = 'g')
-  val logfile = opt[String]()
-  val noAnsi = opt[Boolean]()
+  val noGui: ScallopOption[Boolean] = opt[Boolean](short = 'g')
+  val logfile: ScallopOption[String] = opt[String]()
+  val noAnsi: ScallopOption[Boolean] = opt[Boolean]()
 }
 
 trait BackupFolderOption extends ProgramOption {
-  val passphrase = opt[String](default = None)
-  val prefix = opt[String](default = Some("")).map {
+  val passphrase: ScallopOption[String] = opt[String](default = None)
+  val prefix: ScallopOption[String] = opt[String](default = Some("")).map {
     x =>
       if (x == "") {
         x
@@ -206,16 +207,16 @@ trait BackupFolderOption extends ProgramOption {
         }
       }
   }
-  val backupDestination = trailArg[String](required = true).map(new File(_).getCanonicalFile())
+  val backupDestination: ScallopOption[File] = trailArg[String](required = true).map(new File(_).getCanonicalFile())
 }
 
 class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOption
 
 class BackupCommand extends BackupRelatedCommand with Utils {
 
-  val suffix = if (Utils.isWindows) ".bat" else ""
+  val suffix: String = if (Utils.isWindows) ".bat" else ""
 
-  def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]) = {
+  def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]): Unit = {
     var path = new File(s"${conf.prefix}descabato$suffix").getCanonicalFile
     // TODO the directory should be determined by looking at the classpath
     if (!path.exists) {
@@ -284,7 +285,7 @@ class RestoreCommand extends BackupRelatedCommand {
     println(t.summary)
     validateFilename(t.restoreToFolder)
     validateFilename(t.restoreInfo)
-    withUniverse(conf, akkaAllowed = true) {
+    withUniverse(conf) {
       universe =>
         if (t.chooseDate()) {
           val fm = new FileManager(universe)
@@ -328,7 +329,7 @@ class VerifyCommand extends BackupRelatedCommand {
 
   def newT(args: Seq[String]) = new VerifyConf(args)
 
-  def start(t: T, conf: BackupFolderConfiguration) = {
+  def start(t: T, conf: BackupFolderConfiguration): Unit = {
     println(t.summary)
     val count = withUniverse(conf, akkaAllowed = false) {
       u =>
@@ -344,15 +345,15 @@ class VerifyCommand extends BackupRelatedCommand {
 class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
 
 class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
-  val folderToBackup = trailArg[File]().map(_.getCanonicalFile())
+  val folderToBackup: ScallopOption[File] = trailArg[File]().map(_.getCanonicalFile())
 }
 
 class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
-  val restoreToOriginalPath = opt[Boolean]()
-  val chooseDate = opt[Boolean]()
-  val restoreToFolder = opt[String]()
-  val restoreBackup = opt[String]()
-  val restoreInfo = opt[String]()
+  val restoreToOriginalPath: ScallopOption[Boolean] = opt[Boolean]()
+  val chooseDate: ScallopOption[Boolean] = opt[Boolean]()
+  val restoreToFolder: ScallopOption[String] = opt[String]()
+  val restoreBackup: ScallopOption[String] = opt[String]()
+  val restoreInfo: ScallopOption[String] = opt[String]()
   //  val overwriteExisting = toggle(default = Some(false))
   //  val pattern = opt[String]()
   requireOne(restoreToOriginalPath, restoreToFolder)
@@ -360,13 +361,10 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
 }
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
-  val percentOfFilesToCheck = opt[Int](default = Some(5))
+  val percentOfFilesToCheck: ScallopOption[Int] = opt[Int](default = Some(5))
   validate(percentOfFilesToCheck) {
-    xIn: Int =>
-      xIn match {
-        case x if x > 0 && x <= 100 => Right(Unit)
-        case _ => Left("Needs to be percent")
-      }
+    case x if x > 0 && x <= 100 => Right(Unit)
+    case _ => Left("Needs to be percent")
   }
 }
 

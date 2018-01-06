@@ -18,17 +18,17 @@ import scala.language.reflectiveCalls
 trait KvStoreHandler[KI, KM, T] extends UniversePart {
   def fileType: FileType[T]
 
-  var persistedEntries = initMap()
+  var persistedEntries: mutable.Map[KM, KvStoreLocation] = initMap()
 
   def initMap(): mutable.Map[KM, KvStoreLocation]
 
-  var currentlyWritingFile: KvStoreStorageMechanismWriter = null
+  var currentlyWritingFile: KvStoreStorageMechanismWriter = _
 
   var _loaded = false
 
   var readers: HashMap[File, KvStoreStorageMechanismReader] = HashMap.empty
 
-  protected def getReaderForLocation(file: File) = {
+  protected def getReaderForLocation(file: File): KvStoreStorageMechanismReader = {
     if (!readers.safeContains(file)) {
       readers += file -> new KvStoreStorageMechanismReader(file, config.passphrase)
     }
@@ -81,7 +81,7 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
   def writeEntry(key: KI, value: BytesWrapper): Unit = {
     if (currentlyWritingFile == null) {
       currentlyWritingFile =
-        new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder, temp = false), config.passphrase)
+        new KvStoreStorageMechanismWriter(fileType.nextFile(config.folder), config.passphrase)
       currentlyWritingFile.setup(universe)
       currentlyWritingFile.writeManifest()
     }
@@ -100,7 +100,7 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
 
   def keyMemToKeyInterface(k: KM): KI
 
-  def readEntry(key: KI) = {
+  def readEntry(key: KI): (BytesWrapper, KvStoreLocation) = {
     ensureLoaded()
     val pos = persistedEntries(keyInterfaceToKeyMem(key))
     val reader = getReaderForLocation(pos.file)
@@ -113,7 +113,7 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
 
 trait SimpleKvStoreHandler[K, V] extends KvStoreHandler[K, K, V] {
   def keyInterfaceToKeyMem(k: K): K = k
-  def keyMemToKeyInterface(k: K) = k
+  def keyMemToKeyInterface(k: K): K = k
 }
 
 trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, Array[Byte], V] {
@@ -122,7 +122,7 @@ trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, Array[Byte], V] {
   def keyInterfaceToKeyMem(k: Hash): Array[Byte] = k.bytes
   def keyMemToKeyInterface(k: Array[Byte]) = new Hash(k)
   def keyMemToStorage(k: Array[Byte]): Array[Byte] = k
-  def storageToKeyMem(k: Array[Byte]) = k
+  def storageToKeyMem(k: Array[Byte]): Array[Byte] = k
   def isPersisted(fileHash: Hash): Boolean = {
     ensureLoaded()
     persistedEntries.contains(keyInterfaceToKeyMem(fileHash))
@@ -137,14 +137,14 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   var loadedBackup: Seq[File] = Nil
 
-  var current: BackupDescription = new BackupDescription()
-  var failedObjects = new BackupDescription()
+  var current: BackupDescription = BackupDescription()
+  var failedObjects = BackupDescription()
 
   def initMap = new mutable.HashMap[String, KvStoreLocation]()
 
   protected var unfinished: Map[String, FileDescriptionWrapper] = Map.empty
 
-  def blocksFor(fd: FileDescription) = {
+  def blocksFor(fd: FileDescription): Int = {
     if (fd.size == 0) 1
     else (1.0 * fd.size / config.blockSize.bytes).ceil.toInt
   }
@@ -156,7 +156,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
       out
     }
     var failed = false
-    var hashList = Array.ofDim[Byte](blocksFor(fd) * config.hashLength)
+    var hashList: Array[Byte] = Array.ofDim[Byte](blocksFor(fd) * config.hashLength)
 
     def setFailed() {
       failed = true
@@ -208,7 +208,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
       case Some(d) => fileManager.getBackupForDate(d)
       case None => fileManager.getLastBackup(temp = true)
     }
-    current = new BackupDescription()
+    current = BackupDescription()
     val kvstores = loadedBackup.view.map(getReaderForLocation)
     kvstores.foreach {
       kvstore =>
@@ -251,7 +251,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     writeEntry(fd.path, compressed)
   }
 
-  protected def getUnfinished(fd: FileDescription) =
+  protected def getUnfinished(fd: FileDescription): FileDescriptionWrapper =
     unfinished.get(fd.path) match {
       case Some(w) => w
       case None =>
@@ -260,19 +260,19 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
         out
   }
 
-  lazy val fileType = universe.fileManager().backup
+  lazy val fileType: FileType[BackupDescription] = universe.fileManager().backup
 
-  override def fileFinished() = {
+  override def fileFinished(): Unit = {
     universe.journalHandler().finishedFile(currentlyWritingFile.file, fileType)    // TODO
   }
 
-  override def keyMemToStorage(k: String) = k.getBytes("UTF-8")
+  override def keyMemToStorage(k: String): Array[Byte] = k.getBytes("UTF-8")
   override def storageToKeyMem(k: Array[Byte]) = new String(k, "UTF-8")
 
 }
 
 class KvStoreHashListHandler extends HashKvStoreHandler[Vector[(Hash, Array[Byte])]] with HashListHandler {
-  lazy val fileType = fileManager.hashlists
+  lazy val fileType: FileType[Vector[(Hash, Array[Byte])]] = fileManager.hashlists
 
   def addHashlist(fileHash: Hash, hashList: Array[Byte]): Unit = {
     ensureLoaded()
@@ -291,18 +291,18 @@ class KvStoreHashListHandler extends HashKvStoreHandler[Vector[(Hash, Array[Byte
 }
 
 class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler with Utils {
-  lazy val fileType = fileManager.volumes
+  lazy val fileType: FileType[Volume] = fileManager.volumes
 
   private val byteCounter = new MaxValueCounter() {
     var compressedBytes = 0L
     def name: String = "Blocks written"
-    def r(x: Long) = Utils.readableFileSize(x)
+    def r(x: Long): String = Utils.readableFileSize(x)
     override def formatted = s"${r(current)}/${r(maxValue)} (compressed ${r(compressedBytes)})"
   }
 
   private val compressionRatioCounter = new MaxValueCounter() {
     def name: String = "Compression Ratio"
-    override def formatted = percent + "%"
+    override def formatted: String = percent + "%"
   }
 
   ProgressReporters.addCounter(byteCounter, compressionRatioCounter)
@@ -399,7 +399,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
         json.read[Vector[(Array[Byte], Long)]](decomp) match {
           case Left(vec) =>
             val newEntries = vec.map { case (hash, pos) =>
-              (storageToKeyMem(hash), new KvStoreLocation(file, pos))
+              (storageToKeyMem(hash), KvStoreLocation(file, pos))
             }
             persistedEntries ++= newEntries
           case _ =>
