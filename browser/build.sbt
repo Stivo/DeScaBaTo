@@ -24,7 +24,8 @@ libraryDependencies ++= Seq(
 	"net.java.dev.jgoodies" % "looks" % "2.1.4",
 	"com.intellij" % "annotations" % "12.0",
 	"org.ocpsoft.prettytime" % "prettytime" % "4.0.1.Final",
-	"com.github.insubstantial" % "substance" % "7.3"
+	"com.github.insubstantial" % "substance" % "7.3",
+	"com.google.guava" % "guava" % "16.0.1"
 )
 
 enablePlugins(PackPlugin)

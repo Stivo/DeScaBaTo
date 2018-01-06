@@ -101,7 +101,7 @@ object Utils extends LazyLogging {
     if (size <= 0) return "0"
     val digitGroups = (Math.log10(size) / Math.log10(1024)).toInt
     val afterDotPart = if (afterDot == 0) "#" else "0" * afterDot
-    new DecimalFormat("#,##0." + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups)
+    new DecimalFormat("#,##0. " + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups)
   }
 
   private def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes)

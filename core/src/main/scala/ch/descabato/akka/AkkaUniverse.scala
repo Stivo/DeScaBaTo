@@ -76,7 +76,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   class QueueCounter(queueName: String, ref: AnyRef) extends MaxValueCounter {
     val name = s"Queue $queueName"
-    maxValue = 500
+    maxValue = queueLimit * 2
 
     override def update() {
       queueInfo(ref) match {
@@ -265,7 +265,6 @@ object ActorStats {
         val t = Executors.defaultThreadFactory.newThread(r)
         t.setPriority(2)
         t.setDaemon(true)
-//        println("Created new thread " + t.getName())
         t
       }
     })

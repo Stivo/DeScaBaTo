@@ -90,6 +90,20 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
     }
   }
 
+  add(new MaxValueCounter {
+    override def name: String = "RAM"
+
+    maxValue = Runtime.getRuntime().maxMemory()
+
+    override def update(): Unit = {
+      this.current = Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory()
+    }
+
+    override def formatted: String = {
+      s"${Utils.readableFileSize(this.current)} / ${Utils.readableFileSize(this.maxValue)}"
+    }
+  })
+
   def setValue(value: Int, max: Int) {}
 }
 
