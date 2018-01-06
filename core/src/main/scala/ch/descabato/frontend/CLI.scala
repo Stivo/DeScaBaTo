@@ -1,10 +1,10 @@
 package ch.descabato.frontend
 
-import java.io.{File, PrintStream}
+import java.io.PrintStream
 import java.security.Security
 
 import ch.descabato.core._
-import ch.descabato.utils.{FileUtils, Utils}
+import ch.descabato.utils.Utils
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 object CLI extends Utils {
@@ -41,7 +41,7 @@ object CLI extends Utils {
       System.setProperty("logname", "backup.log")
     try {
       Security.addProvider(new BouncyCastleProvider())
-      if (runsInJar || true) {
+      if (runsInJar || !args.isEmpty) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
         exit(0)
@@ -53,6 +53,7 @@ object CLI extends Utils {
         } catch {
           case x: Exception =>
         }
+//        parseCommandLine("backup l:/backup D:\\pics\\tosort\\bilder2".split(" "))
 //        parseCommandLine("backup --threads 1 --serializer-type json --hash-algorithm md5 --compression none --volume-size 10mb C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/input".split(" "))
         //
 //        parseCommandLine("backup --threads 6 --compression gzip L:\\testdata\\backup1 L:\\testdata\\input1".split(" "))

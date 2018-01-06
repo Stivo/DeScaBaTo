@@ -94,7 +94,7 @@ trait KvStoreReader extends AutoCloseable with Iterable[Entry] {
 }
 
 trait IndexedKvStoreReader extends KvStoreReader {
-  lazy val index = iterator.flatMap {
+  lazy val index: Map[BytesWrapper, Long] = iterator.flatMap {
       case Entry(e, key::value::Nil) => Some((key.bytes, value.startPos))
       case _ => None
     }.toMap

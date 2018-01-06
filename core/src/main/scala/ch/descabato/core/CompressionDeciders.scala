@@ -15,7 +15,8 @@ class SimpleCompressionDecider(val overrideMode: Option[CompressionMode]) extend
   lazy val mode = overrideMode.getOrElse(universe.config.compressor)
 
   def blockCompressed(block: Block, nanoTime: Long) {
-    //    universe.blockHandler.writeCompressedBlock(block)
+    // this method should not be called by anyone
+    ???
   }
 
   def compressBlock(block: Block): Unit = {
@@ -137,27 +138,29 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
       }
     }
 
-    var winner: CompressionMode = null
+    var winner: Option[CompressionMode] = None
 
     def checkIfSamplingDone() {
-      if (samplingFinished) {
+      if (samplingFinished && winner == None) {
         val winnerBackup = winner
         // candidates are all algos
         var candidates: Seq[(CompressionMode, Long)] = speeds.mapValues(_.median(config.blockSize.bytes * 10)).toSeq.sortBy(_._2)
-        winner = CompressionMode.none
+        var best = CompressionMode.none
         var medians = ratioSamples.mapValues(_.median(100.0f))
         while (candidates.nonEmpty) {
           val next = candidates.head._1
           candidates = candidates.tail
-          if (medians(next) < medians(winner) - 0.03) {
-            winner = next
+          if (medians(next) < medians(best) - 0.03) {
+            best = next
           }
         }
+        winner = Some(best)
         if (winner != winnerBackup) {
-          statistics += winner -> (statistics.getOrElse(winner, 0) + 1)
-          if (winnerBackup != null)
-            statistics += winnerBackup -> (statistics.getOrElse(winnerBackup, 0) - 1)
-          l.info( s"""Sampling for $ext is done and winner is $winner with ${medians(winner)}""")
+          statistics += best -> (statistics.getOrElse(best, 0) + 1)
+          winnerBackup.foreach { backup =>
+              statistics += backup -> (statistics.getOrElse(backup, 0) - 1)
+          }
+          l.info( s"""Sampling for $ext is done and winner is $winner with ${medians(best)}""")
         }
       }
     }
@@ -236,7 +239,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
     }
     val samplingData = getSamplingData(extension(block))
     if (samplingData.samplingFinished) {
-      Some(samplingData.winner)
+      samplingData.winner
     } else {
       None
     }

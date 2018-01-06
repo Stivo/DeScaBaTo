@@ -34,7 +34,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   var system = ActorSystem("Descabato-"+Counter.i)
   Counter.i += 1
 
-  val queueLimit = 200
+  val queueLimit = 500
 
   val dispatcher = "backup-dispatcher"
 
@@ -70,7 +70,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
 
   class QueueCounter(queueName: String, ref: AnyRef) extends MaxValueCounter {
     val name = s"Queue $queueName"
-    maxValue = 500
+    maxValue = queueLimit * 2
 
     override def update() {
       queueInfo(ref) match {
