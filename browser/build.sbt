@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
 	"com.github.insubstantial" % "substance" % "7.3"
 )
 
-packSettings
+enablePlugins(PackPlugin)
 
 packMain := Map("descabato" -> "ch.descabato.browser.Main")
 

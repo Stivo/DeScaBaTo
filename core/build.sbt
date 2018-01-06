@@ -68,11 +68,11 @@ buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
 
 buildInfoPackage := "ch.descabato.version"
 
-packSettings
+enablePlugins(PackPlugin)
 
 packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
 
-packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m"))
+packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx1g"))
 
 packJarNameConvention := "original"
 
