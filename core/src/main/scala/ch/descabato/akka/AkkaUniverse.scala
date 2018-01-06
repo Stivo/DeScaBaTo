@@ -36,7 +36,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   
   var system = ActorSystem("Descabato-"+Counter.i)
 
-  system.whenTerminated.foreach(_ => this.terminated = true)
+  system.whenTerminated.foreach(_ => this.terminated = true)(ExecutionContext.global)
   Counter.i += 1
 
   val queueLimit = 200
@@ -261,13 +261,11 @@ object ActorStats {
   val tpe: ThreadPoolExecutor = {
     val out = new ThreadPoolExecutor(10, 10, 10, TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue[Runnable]())
-    out.setThreadFactory(new ThreadFactory() {
-      def newThread(r: Runnable): Thread = {
-        val t = Executors.defaultThreadFactory.newThread(r)
-        t.setPriority(2)
-        t.setDaemon(true)
-        t
-      }
+    out.setThreadFactory((r: Runnable) => {
+      val t = Executors.defaultThreadFactory.newThread(r)
+      t.setPriority(2)
+      t.setDaemon(true)
+      t
     })
     out
   }
