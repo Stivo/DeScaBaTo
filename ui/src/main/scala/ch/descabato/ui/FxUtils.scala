@@ -35,7 +35,10 @@ object FxUtils {
 
   private def _getResource(resource: String): URL = {
 
-    var url: URL = null;
+    var url: URL = this.getClass.getResource(resource)
+    if (url != null){
+      return url
+    }
 
     //Try with the Thread Context Loader.
     var classLoader = Thread.currentThread().getContextClassLoader()

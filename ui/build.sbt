@@ -20,7 +20,7 @@ addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.fu
 
 packSettings
 
-packMain := Map("descabato" -> "ch.descabato.web.Main")
+packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
 
 packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m"))
 

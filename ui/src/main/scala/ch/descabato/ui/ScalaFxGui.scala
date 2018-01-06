@@ -26,7 +26,7 @@ object ScalaFxGui extends JFXApp with Utils {
   }
 
   def openChooser() {
-    val resource = getClass.getResource("welcome.fxml")
+    val resource = getClass.getResource("/ch/descabato/ui/welcome.fxml")
     if (resource == null) {
       throw new IOException("Cannot load resource: welcome.fxml")
     }
@@ -56,7 +56,7 @@ object ScalaFxGui extends JFXApp with Utils {
   }
 
   private def openBrowser() = {
-    val resource = getClass.getResource("restoreGui.fxml")
+    val resource = getClass.getResource("/ch/descabato/ui/restoreGui.fxml")
     if (resource == null) {
       throw new IOException("Cannot load resource: restoreGui.fxml")
     }
