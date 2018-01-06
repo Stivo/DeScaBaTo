@@ -40,6 +40,13 @@ libraryDependencies ++= Seq(
   "com.miglayout" % "miglayout-swing" % "5.0"
 )
 
+// remote dependencies
+libraryDependencies ++= Seq(
+  "org.apache.commons" % "commons-vfs2" % "2.2",
+  "commons-net" % "commons-net" % "3.6"
+)
+
+
 // Test dependencies
 libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.4" % "test->*"
