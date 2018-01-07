@@ -117,12 +117,14 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   val mainFile: String = supplied.prefix() + "backup.json"
   val folder: File = supplied.backupDestination()
 
-  def hasOld: Boolean = new File(folder, mainFile).exists() && loadOld().isDefined
+  private val configFile = new File(folder, mainFile)
+
+  def hasOld: Boolean = configFile.exists() && loadOld().isDefined
 
   def loadOld(): Option[BackupFolderConfiguration] = {
     val json = new JsonSerialization()
     // TODO a backup.json that is invalid is a serious problem. Should throw exception
-    json.readObject[BackupFolderConfiguration](new FileInputStream(new File(folder, mainFile))) match {
+    json.readObject[BackupFolderConfiguration](new FileInputStream(configFile)) match {
       case Left(x) => Some(x)
       case _ => None
     }
@@ -130,7 +132,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
   def write(out: BackupFolderConfiguration) {
     val json = new JsonSerialization()
-    val fos = new FileOutputStream(new File(folder, mainFile))
+    val fos = new FileOutputStream(configFile)
     json.writeObject(out, fos)
     // writeObject closes
   }

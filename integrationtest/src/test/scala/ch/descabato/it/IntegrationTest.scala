@@ -46,58 +46,53 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
     }
   }
 
+  def backupWithCrashes(maxCrashes: Int, config: String) = {
+    var crashes = 0
+    while (crashes < maxCrashes) {
+      val checkpoints = numberOfCheckpoints()
+      // crash process sometimes
+      val proc = createHandler(s"backup$config $backup1 $input".split(" "))
+      proc.start()
+      if (Random.nextBoolean) {
+        val secs = Random.nextInt(10) + 5
+        l.info(s"Waiting for $secs seconds before destroying process")
+        var waited = 0
+        while (waited < secs && !proc.finished) {
+          Thread.sleep(1000)
+          waited += 1
+        }
+      } else {
+        l.info("Waiting for 2 new volume before destroying process")
+        Thread.sleep(1000)
+        while ((numberOfCheckpoints() <= checkpoints + 1) && !proc.finished) {
+          Thread.sleep(100)
+        }
+      }
+      crashes += 1
+      if (proc.finished) {
+        crashes = 10
+      }
+      proc.destroyProcess()
+    }
+    l.info("Crashes done, letting process finish now")
+  }
+
+
   def testWith(testName: String, config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false) {
     val hasPassword = configRestore.contains("--passphrase")
     val fg = new FileGen(input, maxSize)
     testName should "setup" in {
-      deleteAll(input, backup1, restore1)
-      l.info(s"Testing with $config and $configRestore, $iterations iterations with $maxSize, crashes: $crash, redundancy: $redundancy")
-      baseFolder.mkdirs()
-      assume(baseFolder.getCanonicalFile().exists())
-      // create some files
-      fg.rescan()
-      fg.generateFiles
-      fg.rescan()
+      setupJob(config, configRestore, iterations, maxSize, crash, redundancy, fg)
     }
     val maxCrashes = 3
     for (i <- 1 to iterations) {
       if (crash) {
         it should s"backup while crashing $i/$iterations" in {
-          var crashes = 0
-          while (crashes < maxCrashes) {
-            val checkpoints = numberOfCheckpoints()
-            // crash process sometimes
-            val proc = createHandler(s"backup$config $backup1 $input".split(" "))
-            proc.start()
-            if (Random.nextBoolean) {
-              val secs = Random.nextInt(10) + 5
-              l.info(s"Waiting for $secs seconds before destroying process")
-              var waited = 0
-              while (waited < secs && !proc.finished) {
-                Thread.sleep(1000)
-                waited += 1
-              }
-            } else {
-              l.info("Waiting for 2 new volume before destroying process")
-              Thread.sleep(1000)
-              while ((numberOfCheckpoints() <= checkpoints + 1) && !proc.finished) {
-                Thread.sleep(100)
-              }
-            }
-            crashes += 1
-            if (proc.finished) {
-              crashes = 10
-            }
-            proc.destroyProcess()
-          }
-          l.info("Crashes done, letting process finish now")
+          backupWithCrashes(maxCrashes, config)
         }
       }
       it should s"backup $i/$iterations" in {
-        // let backup finish
-        startAndWait(s"backup$config $backup1 $input".split(" ")) should be(0)
-        // no temp files in backup
-        input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
+        finishBackup(config)
       }
       it should s"verify $i/$iterations" in {
         // verify backup
@@ -139,5 +134,22 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
     }
   }
 
+  private def setupJob(config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean, redundancy: Boolean, fg: FileGen) = {
+    deleteAll(input, backup1, restore1)
+    l.info(s"Testing with $config and $configRestore, $iterations iterations with $maxSize, crashes: $crash, redundancy: $redundancy")
+    baseFolder.mkdirs()
+    assume(baseFolder.getCanonicalFile().exists())
+    // create some files
+    fg.rescan()
+    fg.generateFiles
+    fg.rescan()
+  }
+
+  private def finishBackup(config: String) = {
+    // let backup finish
+    startAndWait(s"backup$config $backup1 $input".split(" ")) should be(0)
+    // no temp files in backup
+    input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
+  }
 }
 
