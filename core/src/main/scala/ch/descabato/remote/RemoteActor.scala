@@ -5,6 +5,7 @@ import java.io._
 import ch.descabato.core._
 import ch.descabato.frontend.{FileCounter, MaxValueCounter, ProgressReporters, SizeStandardCounter}
 import ch.descabato.utils.Utils
+import ch.descabato.utils.Implicits._
 import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.vfs2.FileObject
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
@@ -58,7 +59,7 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
   private var completedUploads = 0L
 
   override def uploadFile(file: File): Unit = {
-    val path = new BackupPath(config.relativePath(file))
+    val path = BackupPath(config.relativePath(file))
     val length = file.length()
     uploaderall.maxValue += length
     queuedUploads :+= new Upload(path, length)
@@ -143,16 +144,47 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
     ???
   }
 
+  def uploadMissingFiles(): Unit = {
+    for (ident <- fileManager.usedIdentifiers) {
+      val path = BackupPath(ident)
+      if (!remoteFiles.safeContains(path) && path.forConfig(config).exists()) {
+        logger.info(s"Uploading file $path")
+        uploadFile(path.forConfig(config))
+      }
+    }
+    startUploads()
+  }
+
   def load(): Unit = {
     remoteFiles = remoteClient.list().get.map { rem =>
       (rem.path, rem)
     }.toMap
     deleteFilesWithWrongSizes()
+    uploadMissingFiles()
   }
 
   def deleteFilesWithWrongSizes(): Unit = {
-    for ((path, file) <- remoteFiles) {
-      // TODO
+    var toDelete = Seq.empty[(BackupPath, String)]
+    for ((path, remoteFile) <- remoteFiles) {
+      if (path.path.endsWith(".tmp")) {
+        toDelete :+= path -> "it is a temp file"
+      }
+      val localFile = path.forConfig(config)
+      if (localFile.exists()) {
+        val length = localFile.length()
+        if (length != remoteFile.remoteSize) {
+          toDelete :+= path -> s"it has the wrong size (local $length vs remote ${remoteFile.remoteSize})"
+        }
+      }
+    }
+    for ((path, reason) <- toDelete) {
+      logger.info(s"Deleting remote file $path, because $reason")
+      remoteClient.delete(path) match {
+        case Failure(x) =>
+          logger.warn(s"Could not delete remote file $path", x)
+        case _ =>
+          remoteFiles -= path
+      }
     }
   }
 
@@ -211,7 +243,7 @@ class SingleThreadRemoteHandler extends RemoteHandler with Utils {
   private var remoteFiles: Map[BackupPath, RemoteFile] = Map.empty
 
   override def uploadFile(file: File): Unit = {
-    remoteClient.put(file, new BackupPath(config.relativePath(file)))
+    remoteClient.put(file, BackupPath(config.relativePath(file)))
   }
 
   def startUploading(): Unit = {
@@ -248,9 +280,6 @@ class SingleThreadRemoteHandler extends RemoteHandler with Utils {
   }
 
   def cleanUpWrongSizeFiles(): Unit = {
-    for ((path, file) <- remoteFiles) {
-      // TODO
-    }
   }
 
   def shutdown(): BlockingOperation = {
@@ -330,10 +359,24 @@ trait RemoteClient {
 
 }
 
-class BackupPath(val path: String) extends AnyVal {
+object BackupPath {
+  private def normalizePath(s: String) = {
+    val path = s.replace("\\", "/").replaceAll("/+", "/")
+    if (path.startsWith("/")) {
+      path.substring(1)
+    } else {
+      path
+    }
+  }
 
+  def apply(s: String): BackupPath = {
+    new BackupPath(normalizePath(s))
+  }
+}
+
+class BackupPath private(val path: String) extends AnyVal {
   def resolve(s: String): BackupPath = {
-    new BackupPath((path + "/" + s).replace('\\', '/').replaceAll("//", "/"))
+    BackupPath((path + "/" + s))
   }
 
   def forConfig(config: BackupFolderConfiguration): File = {
@@ -352,7 +395,7 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
 
   def list(): Try[Seq[RemoteFile]] = {
     Try {
-      listIn(new BackupPath(""), remoteDir)
+      listIn(BackupPath(""), remoteDir)
     }
   }
 
@@ -367,7 +410,7 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
 
 
   def put(file: File, path: BackupPath, counter: Option[MaxValueCounter]): Try[Unit] = {
-    val tmpFile = resolvePath(new BackupPath(path.path + ".tmp"))
+    val tmpFile = resolvePath(BackupPath(path.path + ".tmp"))
     // return failure if the file already exists
     exists(path).flatMap { exists =>
       Try {
@@ -399,7 +442,9 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
 
   def delete(path: BackupPath): Try[Unit] = {
     Try {
-      resolvePath(path).delete()
+      if (!resolvePath(path).delete()) {
+        throw new IOException(s"Could not delete file $path")
+      }
     }
   }
 
@@ -449,7 +494,7 @@ object RemoteTest extends App {
   client.getSize(file.path)
   private val downloaded = new File("downloaded")
   client.get(file.path, downloaded)
-  private val path = new BackupPath("uploadedagain")
+  private val path = BackupPath("uploadedagain")
   client.put(downloaded, path)
   println(client.exists(path))
   client.delete(path)

@@ -95,7 +95,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
   import universe._
 
   def backup(files: Seq[File]) {
-    universe.remoteHandler().uploadFile(new File(config.folder, config.prefix + "backup.json"))
+    val backupFile = new File(config.folder, config.prefix + "backup.json")
+    universe.remoteHandler().uploadFile(backupFile)
     config.folder.mkdirs()
     startMeasuring()
     universe.loadBlocking()
@@ -140,8 +141,14 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     }
     if ((newDesc.size + deletedDesc.size) == 0) {
       ProgressReporters.activeCounters = Nil
-      l.info("No files have been changed, aborting backup")
-      return
+      if (universe.remoteHandler().remaining() == 0) {
+        l.info("No files have been changed and remote is up to date")
+        return
+      } else {
+        l.info("No files have been changed, but need to upload some missing files")
+        universe.finish()
+        return
+      }
     }
     journalHandler().startWriting()
     backupPartHandler.setFiles(unchangedDesc, newDesc)
