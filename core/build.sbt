@@ -67,11 +67,7 @@ parallelExecution in Test := false
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
-buildInfoSettings
-
-sourceGenerators in Compile <+= buildInfo
-
-buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
+enablePlugins(BuildInfoPlugin)
 
 buildInfoPackage := "ch.descabato.version"
 
