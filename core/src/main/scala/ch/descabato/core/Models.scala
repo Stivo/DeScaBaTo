@@ -9,7 +9,7 @@ import java.security.{MessageDigest, Principal}
 import java.util
 import java.util.regex.Pattern
 
-import ch.descabato.CompressionMode
+import ch.descabato.{CompressionMode, RemoteMode}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -47,7 +47,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var ignoreFile: Option[File] = None
 
   var remoteUri: String = _
-  var remoteMode: RemoteMode = NoRemote
+  var remoteMode: RemoteMode = RemoteMode.NoRemote
 
   def relativePath(file: File): String = {
     folder.toPath.relativize(file.toPath).toString.replace('\\', '/')
@@ -58,41 +58,16 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   }
 
   private def verifyRemoteOptions(): Unit = {
-    if (remoteUri != null && remoteMode == NoRemote) {
-      throw new IllegalArgumentException(s"RemoteMode can not be ${NoRemote} if a remote URI has been set")
+    if (remoteUri != null && remoteMode == RemoteMode.NoRemote) {
+      throw new IllegalArgumentException(s"RemoteMode can not be ${RemoteMode.NoRemote} if a remote URI has been set")
     }
-    if (remoteMode != NoRemote && remoteUri == null) {
+    if (remoteMode != RemoteMode.NoRemote && remoteUri == null) {
       throw new IllegalArgumentException(s"RemoteMode is set to ${remoteMode} but no remote URI has been set")
     }
   }
 
 }
 
-object RemoteMode {
-
-  private val values = Seq(VolumesOnBoth, VolumesOnlyRemote, NoRemote)
-  val message: String = s"Must be one of ${values.map(_.cliName).mkString(", ")}"
-
-  def fromCli(s: String): RemoteMode = {
-    values.find(_.cliName == s).orElse{
-      throw new IllegalArgumentException(message)
-    }.get
-  }
-}
-
-sealed trait RemoteMode {
-  def cliName: String
-}
-
-case object VolumesOnBoth extends RemoteMode {
-  val cliName = "both"
-}
-case object VolumesOnlyRemote extends RemoteMode {
-  val cliName = "onlyRemote"
-}
-case object NoRemote extends RemoteMode {
-  val cliName = "none"
-}
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {
 

@@ -4,7 +4,7 @@ import java.io.{File, FileOutputStream, PrintStream}
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
-import ch.descabato.CompressionMode
+import ch.descabato.{CompressionMode, RemoteMode}
 import ch.descabato.core._
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.frontend.ScallopConverters.singleArgConverter
