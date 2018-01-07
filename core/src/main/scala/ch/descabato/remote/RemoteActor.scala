@@ -187,6 +187,70 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
 }
 
 
+class SingleThreadRemoteHandler extends RemoteHandler with Utils {
+
+  private var isUploading = true
+
+  private lazy val remoteClient = RemoteClient.forConfig(config)
+  private lazy val mode = config.remoteMode
+
+  private var remoteFiles: Map[BackupPath, RemoteFile] = Map.empty
+
+  override def uploadFile(file: File): Unit = {
+    remoteClient.put(file, new BackupPath(config.relativePath(file)))
+  }
+
+  def startUploading(): Unit = {
+    isUploading = true
+  }
+
+  def stopUploading(): Unit = {
+    isUploading = false
+  }
+
+  private def localPath(next: BackupPath) = {
+    val src = new File(config.folder, next.path)
+    src
+  }
+
+  def fileOperationFinished(operation: RemoteOperation, result: Try[Unit]): Unit = {
+  }
+
+  def read(backupPath: BackupPath): Future[Unit] = {
+    Future {
+      remoteClient.get(backupPath, localPath(backupPath))
+    }
+  }
+
+  def getFiles(fileType: FileType[_]): List[RemoteFile] = {
+    ???
+  }
+
+  def load(): Unit = {
+    remoteFiles = remoteClient.list().get.map { rem =>
+      (rem.path, rem)
+    }.toMap
+    cleanUpWrongSizeFiles()
+  }
+
+  def cleanUpWrongSizeFiles(): Unit = {
+    for ((path, file) <- remoteFiles) {
+      // TODO
+    }
+  }
+
+  def shutdown(): BlockingOperation = {
+    new BlockingOperation()
+  }
+
+  def finish(): Boolean = {
+    true
+  }
+
+  override def remaining(): Int = 0
+}
+
+
 sealed trait RemoteTransferDirection
 
 case object Upload extends RemoteTransferDirection
