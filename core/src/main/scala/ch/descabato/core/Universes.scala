@@ -1,15 +1,15 @@
 package ch.descabato.core
 
 import java.io.{File, FileOutputStream, OutputStream}
-import java.security.{DigestOutputStream, MessageDigest}
+import java.security.MessageDigest
 
 import akka.actor.TypedActor.PostRestart
 import ch.descabato.CompressionMode
 import ch.descabato.akka.{ActorStats, AkkaUniverse}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.frontend.MaxValueCounter
-import ch.descabato.utils._
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils._
 import org.apache.commons.compress.utils.IOUtils
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
@@ -55,7 +55,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
     case CompressionMode.smart => new SmartCompressionDecider()
     case _ => new SimpleCompressionDecider(Some(CompressionMode.lz4hc))
   })
-
+  val remoteHandler: RemoteHandler = ??? // TODO
   load()
 
   override def finish(): Boolean = {

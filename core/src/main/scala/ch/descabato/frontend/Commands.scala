@@ -35,6 +35,7 @@ object ScallopConverters {
   }
 
   implicit val modeConverter: ValueConverter[CompressionMode] = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
+  implicit val remoteModeConverter: ValueConverter[RemoteMode] = singleArgConverter[RemoteMode](RemoteMode.fromCli, RemoteMode.message)
   implicit val sizeConverter: ValueConverter[Size] = singleArgConverter[Size](x => Size(x))
 
 }
@@ -186,6 +187,9 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
   val serializerType: ScallopOption[String] = opt[String]()
   val blockSize: ScallopOption[Size] = opt[Size](default = Some(Size("100Kb")))
   val hashAlgorithm: ScallopOption[String] = opt[String](default = Some("md5"))
+  val remoteUri: ScallopOption[String] = opt[String]()
+  val remoteMode: ScallopOption[RemoteMode] = opt[RemoteMode]()
+  codependent(remoteUri, remoteMode)
 }
 
 trait ProgramOption extends ScallopConf {

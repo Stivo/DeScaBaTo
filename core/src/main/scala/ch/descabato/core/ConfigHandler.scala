@@ -15,10 +15,10 @@ object InitBackupFolderConfiguration extends Utils {
         o.volumeSize.foreach(out.volumeSize = _)
         o.threads.foreach(out.threads = _)
         o.ignoreFile.foreach(f => out.ignoreFile = Some(f))
-//        o.renameDetection.foreach(out.renameDetection = _)
-//        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
-//        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
-//        o.metadataRedundancy.foreach(out.metadataRedundancy = _)
+        //        o.renameDetection.foreach(out.renameDetection = _)
+        //        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
+        //        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
+        //        o.metadataRedundancy.foreach(out.metadataRedundancy = _)
         o.createIndexes.foreach(b => out.createIndexes = b)
         o.dontSaveSymlinks.foreach(b => out.saveSymlinks = !b)
         o.compression.foreach(x => out.compressor = x)
@@ -29,6 +29,8 @@ object InitBackupFolderConfiguration extends Utils {
         o.serializerType.foreach(out.serializerType = _)
         o.blockSize.foreach(out.blockSize = _)
         o.hashAlgorithm.foreach(out.hashAlgorithm = _)
+        o.remoteUri.foreach(out.remoteUri = _)
+        o.remoteMode.foreach(out.remoteMode = _)
       case _ => // TODO
     }
     out
@@ -59,22 +61,22 @@ object InitBackupFolderConfiguration extends Utils {
           o.ignoreFile.foreach(f => old.ignoreFile = Some(f))
           changed = true
         }
-//        if (o.renameDetection.isSupplied) {
-//          o.renameDetection.foreach(old.renameDetection = _)
-//          changed = true
-//        }
-//        if (o.noRedundancy.isSupplied) {
-//          o.noRedundancy.foreach(b => old.redundancyEnabled = !b)
-//          changed = true
-//        }
-//        if (o.volumeRedundancy.isSupplied) {
-//          o.volumeRedundancy.foreach(old.volumeRedundancy = _)
-//          changed = true
-//        }
-//        if (o.metadataRedundancy.isSupplied) {
-//          o.metadataRedundancy.foreach(old.metadataRedundancy = _)
-//          changed = true
-//        }
+        //        if (o.renameDetection.isSupplied) {
+        //          o.renameDetection.foreach(old.renameDetection = _)
+        //          changed = true
+        //        }
+        //        if (o.noRedundancy.isSupplied) {
+        //          o.noRedundancy.foreach(b => old.redundancyEnabled = !b)
+        //          changed = true
+        //        }
+        //        if (o.volumeRedundancy.isSupplied) {
+        //          o.volumeRedundancy.foreach(old.volumeRedundancy = _)
+        //          changed = true
+        //        }
+        //        if (o.metadataRedundancy.isSupplied) {
+        //          o.metadataRedundancy.foreach(old.metadataRedundancy = _)
+        //          changed = true
+        //        }
         if (o.dontSaveSymlinks.isSupplied) {
           o.dontSaveSymlinks.foreach(b => old.saveSymlinks = !b)
           changed = true
@@ -87,6 +89,7 @@ object InitBackupFolderConfiguration extends Utils {
       // TODO generate this code omg
       case _ =>
     }
+    old.verify()
     l.debug("Configuration after merge " + old)
     (old, changed)
   }
@@ -94,6 +97,7 @@ object InitBackupFolderConfiguration extends Utils {
 }
 
 object BackupVerification {
+
   trait VerificationResult
 
   case object PasswordNeeded extends VerificationResult
@@ -102,16 +106,19 @@ object BackupVerification {
     with VerificationResult with BackupException
 
   case object OK extends VerificationResult
+
 }
 
 /**
- * Loads a configuration and verifies the command line arguments
- */
+  * Loads a configuration and verifies the command line arguments
+  */
 class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
 
   val mainFile: String = supplied.prefix() + "backup.json"
   val folder: File = supplied.backupDestination()
+
   def hasOld: Boolean = new File(folder, mainFile).exists() && loadOld().isDefined
+
   def loadOld(): Option[BackupFolderConfiguration] = {
     val json = new JsonSerialization()
     // TODO a backup.json that is invalid is a serious problem. Should throw exception
@@ -142,9 +149,9 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   }
 
   def verifyAndInitializeSetup(conf: BackupFolderConfiguration) {
-//    if (conf.redundancyEnabled && CommandLineToolSearcher.lookUpName("par2").isEmpty) {
-//      throw ExceptionFactory.newPar2Missing
-//    }
+    //    if (conf.redundancyEnabled && CommandLineToolSearcher.lookUpName("par2").isEmpty) {
+    //      throw ExceptionFactory.newPar2Missing
+    //    }
   }
 
   def configure(passphrase: Option[String]): BackupFolderConfiguration = {

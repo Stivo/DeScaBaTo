@@ -164,8 +164,11 @@ class SimpleJournalHandler extends JournalHandler with Utils {
     checkLock()
     val entry = JournalEntries.fileFinished(config.relativePath(file))
     writeEntrySynchronized(entry)
-    if (!filetype.isTemp(file) && !filetype.redundant) {
-      universe.redundancyHandler.createPar2(file)
+    if (!filetype.isTemp(file)) {
+      if (!filetype.redundant) {
+        universe.redundancyHandler.createPar2(file)
+      }
+      universe.remoteHandler().uploadFile(file)
     }
     new BlockingOperation()
   }

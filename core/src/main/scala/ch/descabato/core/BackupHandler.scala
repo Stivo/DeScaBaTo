@@ -23,6 +23,7 @@ import scala.concurrent.duration._
 
 trait MeasureTime {
   var startTime = 0L
+
   def startMeasuring() {
     startTime = System.nanoTime()
   }
@@ -45,6 +46,7 @@ trait MeasureTime {
 
 trait BackupRelatedHandler {
   def universe: Universe
+
   def config: BackupFolderConfiguration = universe.config
 
   var threadNumber = 0
@@ -93,6 +95,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
   import universe._
 
   def backup(files: Seq[File]) {
+    universe.remoteHandler().uploadFile(new File(config.folder, config.prefix + "backup.json"))
     config.folder.mkdirs()
     startMeasuring()
     universe.loadBlocking()
@@ -127,6 +130,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
         }
         true
       }
+
       val (finishedFiles, unfinished) = unchangedDesc.files.partition(finished)
       newDesc = newDesc.copy(files = newDesc.files ++ unfinished)
       unchangedDesc = unchangedDesc.copy(files = finishedFiles)
@@ -234,7 +238,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       if (fis != null)
         fis.close()
       if (!success) {
-        l.info("File was not successfully backed up "+fileDesc)
+        l.info("File was not successfully backed up " + fileDesc)
         failureCounter += 1
         universe.hashFileHandler().fileFailed(fileDesc)
         universe.backupPartHandler().fileFailed(fileDesc)
@@ -253,8 +257,11 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
   sealed trait Result
 
   case object IsSubFolder extends Result
+
   case object IsTopFolder extends Result
+
   case object IsUnrelated extends Result
+
   case object IsSame extends Result
 
   def isRelated(folder: BackupPart, relatedTo: BackupPart): Result = {
@@ -285,12 +292,12 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
         var foundACandidate = false
         candidates = candidates.map {
           candidate =>
-          // case1: This folder is a subfolder of candidate
-          //		=> nothing changes, but search is aborted
-          // case2: this folder is a parent of candidate
-          //		=> this folder should replace that candidate, search is aborted
-          // case3: this folder is not related to any candidate
-          //		=> folder is added to candidates
+            // case1: This folder is a subfolder of candidate
+            //		=> nothing changes, but search is aborted
+            // case2: this folder is a parent of candidate
+            //		=> this folder should replace that candidate, search is aborted
+            // case3: this folder is not related to any candidate
+            //		=> folder is added to candidates
             isRelated(candidate, folder) match {
               case IsUnrelated => candidate
               case IsTopFolder =>
@@ -332,9 +339,9 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     val date = universe.fileManager().getFileType(backupFile).date(backupFile)
     val info =
       s"""Restored backup from ${format.format(date)} successfully, on ${format.format(new Date())}
-          |Filename of restored file: $backupFile
-          |Restored ${description.files.length} files with total size of ${Size(description.files.map(_.size).sum)}
-          |in ${description.folders.size} folders""".stripMargin
+         |Filename of restored file: $backupFile
+         |Restored ${description.files.length} files with total size of ${Size(description.files.map(_.size).sum)}
+         |in ${description.folders.size} folders""".stripMargin
     val lineEndings = if (Utils.isWindows) info.replace("\n", "\r\n") else info
     val file = if (options.restoreToFolder.isDefined) {
       new File(new File(options.restoreToFolder()), options.restoreInfo())
@@ -365,7 +372,7 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     }
     universe.finish()
     ProgressReporters.activeCounters = Nil
-    println("Finished restoring "+measuredTime())
+    println("Finished restoring " + measuredTime())
   }
 
   def restoreFromDate(t: RestoreConf, d: Date) {
@@ -376,7 +383,9 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
     if (options.restoreToOriginalPath()) {
       return new File(path)
     }
+
     def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
+
     val dest = new File(options.restoreToFolder())
     if (relativeToRoot) {
       val relativeTo = getRoot(path) match {
@@ -438,13 +447,13 @@ class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHan
       val future = actor.restore()
       Await.result(future, 24.hours)
       // TODO add these again
-//      val hash = dos.getMessageDigest().digest()
-//      if (!util.Arrays.equals(fd.hash, hash)) {
-//        l.warn("Error while restoring file, hash is not correct")
-//      }
-//      if (restoredFile.length() != fd.size) {
-//        l.warn(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
-//      }
+      //      val hash = dos.getMessageDigest().digest()
+      //      if (!util.Arrays.equals(fd.hash, hash)) {
+      //        l.warn("Error while restoring file, hash is not correct")
+      //      }
+      //      if (restoredFile.length() != fd.size) {
+      //        l.warn(s"Restoring failed for $restoredFile (old size: ${fd.size}, now: ${restoredFile.length()}")
+      //      }
       fd.applyAttrsTo(restoredFile)
     } catch {
       case e@BackupCorruptedException(f, false) =>
@@ -491,7 +500,7 @@ class VerifyHandler(val universe: Universe)
         l.warn("Aborting verification because of error ", x)
         logException(x)
     }
-    l.info(s"Verification completed with ${problemCounter.current} errors in "+measuredTime())
+    l.info(s"Verification completed with ${problemCounter.current} errors in " + measuredTime())
     problemCounter.current
   }
 
@@ -501,7 +510,9 @@ class VerifyHandler(val universe: Universe)
       it.next match {
         case f: FileDescription =>
           val chain = getHashlistForFile(f)
-          val missing = chain.filterNot { universe.blockHandler().isPersisted }
+          val missing = chain.filterNot {
+            universe.blockHandler().isPersisted
+          }
           if (missing.nonEmpty) {
             problemCounter += missing.size
             l.warn(s"Missing ${missing.size} blocks for $f")
@@ -519,6 +530,7 @@ class VerifyHandler(val universe: Universe)
       array(i) = array(i2)
       array(i2) = bak
     }
+
     val end = Math.min(x, array.length - 2) + 1
     (0 to end).foreach { i =>
       val chooseFrom = array.length - 1 - i
@@ -561,8 +573,8 @@ class VerifyHandler(val universe: Universe)
     val compressed = universe.blockHandler().readBlock(blockHash)
     val ret = CompressedStream.decompressToBytes(compressed)
     // TODO fix this
-//    if (config.getMessageDigest().digest(ret) safeEquals blockHash) {
-//    }
+    //    if (config.getMessageDigest().digest(ret) safeEquals blockHash) {
+    //    }
     ret
   }
 

@@ -46,9 +46,52 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var createIndexes: Boolean = true
   var ignoreFile: Option[File] = None
 
+  var remoteUri: String = _
+  var remoteMode: RemoteMode = NoRemote
+
   def relativePath(file: File): String = {
     folder.toPath.relativize(file.toPath).toString.replace('\\', '/')
   }
+
+  def verify(): Unit = {
+    verifyRemoteOptions()
+  }
+
+  private def verifyRemoteOptions(): Unit = {
+    if (remoteUri != null && remoteMode == NoRemote) {
+      throw new IllegalArgumentException(s"RemoteMode can not be ${NoRemote} if a remote URI has been set")
+    }
+    if (remoteMode != NoRemote && remoteUri == null) {
+      throw new IllegalArgumentException(s"RemoteMode is set to ${remoteMode} but no remote URI has been set")
+    }
+  }
+
+}
+
+object RemoteMode {
+
+  private val values = Seq(VolumesOnBoth, VolumesOnlyRemote, NoRemote)
+  val message: String = s"Must be one of ${values.map(_.cliName).mkString(", ")}"
+
+  def fromCli(s: String): RemoteMode = {
+    values.find(_.cliName == s).orElse{
+      throw new IllegalArgumentException(message)
+    }.get
+  }
+}
+
+sealed trait RemoteMode {
+  def cliName: String
+}
+
+case object VolumesOnBoth extends RemoteMode {
+  val cliName = "both"
+}
+case object VolumesOnlyRemote extends RemoteMode {
+  val cliName = "onlyRemote"
+}
+case object NoRemote extends RemoteMode {
+  val cliName = "none"
 }
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {

@@ -13,6 +13,7 @@ import akka.routing.{DefaultResizer, RoundRobinPool, Routee}
 import ch.descabato.core.{BackupFolderConfiguration, _}
 import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
+import ch.descabato.remote.{NoOpRemoteHandler, SimpleRemoteHandler}
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
 import ch.descabato.utils.Implicits._
 import com.typesafe.config.Config
@@ -107,6 +108,13 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   val backupPartHandler: BackupPartHandler = actorOf[BackupPartHandler, KvStoreBackupPartHandler]("Backup Parts")
   val hashListHandler: HashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
   val blockHandler: BlockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
+  val remoteHandler: RemoteHandler = {
+    if (config.remoteUri != null) {
+      actorOf[RemoteHandler, SimpleRemoteHandler]("Remote")
+    } else {
+      actorOf[RemoteHandler, NoOpRemoteHandler]("Remote")
+    }
+  }
   lazy val hashFileHandler: HashFileHandler = actorOf[HashFileHandler, AkkaHasher]("Hasher")
   lazy val compressionDecider: CompressionDecider = config.compressor match {
     case x if x.isCompressionAlgorithm => actorOf[CompressionDecider, SimpleCompressionDecider]("Compression Decider")
@@ -134,6 +142,24 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   }
   
   override def finish(): Boolean = {
+    // In the end, more threads are needed because there is some synchronous operations
+    val threads = ActorStats.tpe.getCorePoolSize()
+    if (threads < 3) {
+      ActorStats.tpe.setCorePoolSize(Math.max(threads, 3))
+    }
+
+    var toBeFinished = finishOrder
+    while (toBeFinished.nonEmpty) {
+      waitForEmptyQueues()
+      // finish first actor to be finished, it might add to the queues of other actors
+      toBeFinished.head.finish()
+      toBeFinished = toBeFinished.tail
+    }
+    //Thread.sleep(10000)
+    true
+  }
+
+  private def waitForEmptyQueues(): Unit = {
     var count = 0L
     do {
       if (count != 0) {
@@ -143,17 +169,10 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       count += cpuTaskCounter.get
       count += futureCounter.get
       count += List(hashFileHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
-                .map(queueLength).sum
-      count += blockHandler.remaining + hashFileHandler.remaining() + backupPartHandler.remaining()
+        .map(queueLength).sum
+      count += blockHandler.remaining + hashFileHandler.remaining() + backupPartHandler.remaining() + remoteHandler.remaining()
       l.info(s"$count open items in all queues")
     } while (count > 0)
-    // In the end, more threads are needed because there is some synchronous operations
-    val threads = ActorStats.tpe.getCorePoolSize()
-    ActorStats.tpe.setCorePoolSize(Math.max(threads, 3))
-    //Thread.sleep(10000)
-    // Actually finishing the backup, from inside out
-    finishOrder.foreach { _.finish }
-    true
   }
 
   def queueLength(x: AnyRef): Int = {
