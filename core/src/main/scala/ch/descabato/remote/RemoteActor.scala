@@ -1,9 +1,9 @@
 package ch.descabato.remote
 
-import java.io.{Closeable, File, FileInputStream, FileOutputStream}
+import java.io._
 
 import ch.descabato.core._
-import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
+import ch.descabato.frontend.{FileCounter, MaxValueCounter, ProgressReporters, SizeStandardCounter}
 import ch.descabato.utils.Utils
 import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.vfs2.FileObject
@@ -55,9 +55,13 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
   private var currentDownloads: Seq[Download] = Seq.empty
   private var queuedDownloads: Seq[Download] = Seq.empty
 
+  private var completedUploads = 0L
+
   override def uploadFile(file: File): Unit = {
     val path = new BackupPath(config.relativePath(file))
-    queuedUploads :+= new Upload(path)
+    val length = file.length()
+    uploaderall.maxValue += length
+    queuedUploads :+= new Upload(path, length)
     logger.info(s"Queued upload of ${path}")
     scheduleOperations()
   }
@@ -91,7 +95,7 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
       logger.info(s"Starting next upload ${next.backupPath}")
       val future = Future {
         val src = localPath(next.backupPath)
-        val result = remoteClient.put(src, next.backupPath)
+        val result = remoteClient.put(src, next.backupPath, Some(uploader1))
         logger.info(s"Upload ${next.backupPath} finished with result $result")
         fileOperationFinishedFromOtherThread(next, result)
         result
@@ -117,8 +121,12 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
 
   def fileOperationFinished(operation: RemoteOperation, result: Try[Unit]): Unit = {
     operation match {
-      case d@Download(_) => currentDownloads = currentDownloads.filterNot(_ == d)
-      case u@Upload(_) => currentUploads = currentUploads.filterNot(_ == u)
+      case d@Download(_) =>
+        currentDownloads = currentDownloads.filterNot(_ == d)
+      case u@Upload(_, _) =>
+        currentUploads = currentUploads.filterNot(_ == u)
+        remoteFiles += u.backupPath -> RemoteFile(u.backupPath, u.size)
+        completedUploads += u.size
     }
     scheduleOperations()
     operation.promise.complete(result)
@@ -139,10 +147,10 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
     remoteFiles = remoteClient.list().get.map { rem =>
       (rem.path, rem)
     }.toMap
-    cleanUpWrongSizeFiles()
+    deleteFilesWithWrongSizes()
   }
 
-  def cleanUpWrongSizeFiles(): Unit = {
+  def deleteFilesWithWrongSizes(): Unit = {
     for ((path, file) <- remoteFiles) {
       // TODO
     }
@@ -153,14 +161,6 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
   }
 
   def finish(): Boolean = {
-    val exception = new InterruptedException()
-    //    for (op <- queuedUploads ++ queuedDownloads) {
-    //      logger.info(s"Cancelling ${op}")
-    //      op.promise.failure(exception)
-    //    }
-    //    queuedUploads = Seq.empty
-    //    queuedDownloads = Seq.empty
-
     true
   }
 
@@ -173,6 +173,20 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
     }
 
   })
+
+  private val uploader1: FileCounter = new FileCounter {
+    override def name: String = "Uploader 1"
+  }
+  ProgressReporters.addCounter(uploader1)
+
+  private val uploaderall: MaxValueCounter = new SizeStandardCounter {
+    override def name: String = "Total Uploads"
+
+    override def update(): Unit = {
+      current = completedUploads + uploader1.current
+    }
+  }
+  ProgressReporters.addCounter(uploaderall)
 
   ProgressReporters.addCounter(new MaxValueCounter {
     override def name: String = "Downloads"
@@ -257,13 +271,13 @@ case object Upload extends RemoteTransferDirection
 
 case object Download extends RemoteTransferDirection
 
-sealed abstract class RemoteOperation(typ: RemoteTransferDirection, backupPath: BackupPath) {
+sealed abstract class RemoteOperation(typ: RemoteTransferDirection, backupPath: BackupPath, size: Long) {
   val promise: Promise[Unit] = Promise[Unit]
 }
 
-case class Download(backupPath: BackupPath) extends RemoteOperation(Download, backupPath)
+case class Download(backupPath: BackupPath) extends RemoteOperation(Download, backupPath, 0)
 
-case class Upload(backupPath: BackupPath) extends RemoteOperation(Upload, backupPath)
+case class Upload(backupPath: BackupPath, size: Long) extends RemoteOperation(Upload, backupPath, size)
 
 object RemoteClient {
   def forConfig(config: BackupFolderConfiguration): RemoteClient = {
@@ -278,7 +292,7 @@ object RemoteClient {
 trait RemoteClient {
   def get(path: BackupPath, file: File): Try[Unit]
 
-  def put(file: File, path: BackupPath): Try[Unit]
+  def put(file: File, path: BackupPath, counter: Option[MaxValueCounter] = None): Try[Unit]
 
   def exists(path: BackupPath): Try[Boolean]
 
@@ -287,11 +301,43 @@ trait RemoteClient {
   def list(): Try[Seq[RemoteFile]]
 
   def getSize(path: BackupPath): Try[Long]
+
+  protected def copyStream(in: FileInputStream, out: OutputStream, progressCounter: Option[MaxValueCounter], size: Long, filename: String): Unit = {
+    progressCounter match {
+      case Some(pc) => copyWithProgress(in, out, pc, size, filename)
+      case None => IOUtils.copy(in, out, 64 * 1024)
+    }
+  }
+
+  protected def copyWithProgress(in: FileInputStream, out: OutputStream, pc: MaxValueCounter, size: Long, filename: String): Unit = {
+    pc.maxValue = size
+    pc match {
+      case x: FileCounter => x.fileName = filename
+      case _ =>
+    }
+    val buffer = Array.ofDim[Byte](64 * 1024)
+    var lastRead = 0
+    var count = 0L
+    while (lastRead >= 0) {
+      lastRead = in.read(buffer)
+      out.write(buffer, 0, lastRead)
+      if (lastRead > 0) {
+        count += lastRead
+        pc.current = count
+      }
+    }
+  }
+
 }
 
 class BackupPath(val path: String) extends AnyVal {
+
   def resolve(s: String): BackupPath = {
     new BackupPath((path + "/" + s).replace('\\', '/').replaceAll("//", "/"))
+  }
+
+  def forConfig(config: BackupFolderConfiguration): File = {
+    new File(config.folder, path)
   }
 
   override def toString: String = path
@@ -319,7 +365,8 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
     }
   }
 
-  def put(file: File, path: BackupPath): Try[Unit] = {
+
+  def put(file: File, path: BackupPath, counter: Option[MaxValueCounter]): Try[Unit] = {
     val tmpFile = resolvePath(new BackupPath(path.path + ".tmp"))
     // return failure if the file already exists
     exists(path).flatMap { exists =>
@@ -332,7 +379,7 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
       // try to write to temp file
       tryWithResource(new FileInputStream(file)) { in =>
         tryWithResource(tmpFile.getContent.getOutputStream) { out =>
-          IOUtils.copy(in, out)
+          copyStream(in, out, counter, file.length(), file.getName)
         }
       }
     }.flatMap { _ =>

@@ -149,6 +149,15 @@ trait ETACounter extends MaxValueCounter with Utils {
   def formattedWithEta: String = formatted + " " + calcEta
 }
 
+trait SizeStandardCounter extends MaxValueCounter with ETACounter {
+  override def formatted: String = { s"${Utils.readableFileSize(current)} / ${Utils.readableFileSize(maxValue)}" }
+}
+
+trait FileCounter extends MaxValueCounter {
+  var fileName: String = "filename"
+  override def formatted = fileName
+}
+
 class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxValueCounter {
   maxValue = maxValueIn
 }
