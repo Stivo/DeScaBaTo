@@ -6,21 +6,24 @@ import com.google.common.util.concurrent.RateLimiter
 
 class RemoteOptions {
 
+  var uri: String = _
+  var mode: RemoteMode = RemoteMode.NoRemote
 
-  var uri: String = null
-  var mode: RemoteMode = RemoteMode.VolumesOnBoth
-
+  @transient
   def enabled: Boolean = uri != null
 
   // set to 1 GB for unlimited initially
   private var _uploadSpeedLimitKiloBytesPerSecond: Int = 1024 * 1024
 
-  val uploadRateLimiter: RateLimiter = RateLimiter.create(_uploadSpeedLimitKiloBytesPerSecond * 1024)
+  @transient
+  lazy val uploadRateLimiter: RateLimiter = RateLimiter.create(_uploadSpeedLimitKiloBytesPerSecond * 1024)
 
-  def uploadSpeedLimitKiloBytesPerSecond_=(newRate: Int): Unit = {
+  def setUploadSpeedLimitKiloBytesPerSecond(newRate: Int): Unit = {
     _uploadSpeedLimitKiloBytesPerSecond = newRate
     uploadRateLimiter.setRate(newRate * 1024)
   }
+
+  def getUploadSpeedLimitKiloBytesPerSecond(): Int = _uploadSpeedLimitKiloBytesPerSecond
 
   def uploadContext(fileSize: Long, fileName: String): RemoteOperationContext = {
     val out = new RemoteOperationContext(uploadRateLimiter, uploaderCounter1)
@@ -36,6 +39,8 @@ class RemoteOptions {
       throw new IllegalArgumentException(s"RemoteMode is set to ${mode} but no remote URI has been set")
     }
   }
+
+  @transient
   lazy val uploaderCounter1: FileCounter = new FileCounter {
     override def name: String = "Uploader 1"
     ProgressReporters.addCounter(this)

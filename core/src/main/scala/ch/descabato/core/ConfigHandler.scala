@@ -126,7 +126,9 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     // TODO a backup.json that is invalid is a serious problem. Should throw exception
     json.readObject[BackupFolderConfiguration](new FileInputStream(configFile)) match {
       case Left(x) => Some(x)
-      case _ => None
+      case Right(e) =>
+        logger.warn(s"Could not read config file $configFile", e)
+        None
     }
   }
 

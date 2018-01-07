@@ -4,6 +4,7 @@ import java.util.{Date, TimerTask}
 import javax.swing.SwingUtilities
 
 import ch.descabato.akka.ActorStats
+import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 import ch.qos.logback.classic.spi.ILoggingEvent
@@ -23,7 +24,7 @@ object ProgressReporters {
 
   var gui: Option[ProgressGui] = None
 
-  def openGui(nameOfOperation: String, sliderDisabled: Boolean = false) {
+  def openGui(nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions = null){
     if (!guiEnabled)
       return
     gui.synchronized {
@@ -31,7 +32,7 @@ object ProgressReporters {
       SwingUtilities.invokeAndWait(new Runnable() {
         def run() {
           if (gui.isEmpty) {
-            gui = Some(CreateProgressGui(ActorStats.tpe.getCorePoolSize, nameOfOperation, sliderDisabled))
+            gui = Some(CreateProgressGui(ActorStats.tpe.getCorePoolSize, nameOfOperation, sliderDisabled, remoteOptions))
             counters.filterNot(_._1.contains("iles found")).values.foreach{gui.get.add}
           }
         }

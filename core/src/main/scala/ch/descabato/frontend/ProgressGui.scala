@@ -3,6 +3,7 @@ package ch.descabato.frontend
 import java.awt.event.{ActionEvent, ActionListener}
 import javax.swing.{Timer, UIManager}
 
+import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Utils
 import org.bridj.Pointer
 import org.bridj.cpp.com.COMRuntime
@@ -12,17 +13,17 @@ import org.bridj.jawt.JAWTUtils
 import scala.collection.mutable
 
 object CreateProgressGui {
-  def apply(threads: Int, nameOfOp: String, sliderDisabled: Boolean): ProgressGui = {
+  def apply(threads: Int, nameOfOp: String, sliderDisabled: Boolean, remoteOptions: RemoteOptions): ProgressGui = {
     if (Utils.isWindows) {
-      new WindowsProgressGui(threads, nameOfOp, sliderDisabled)
+      new WindowsProgressGui(threads, nameOfOp, sliderDisabled, remoteOptions)
     } else {
-      new ProgressGui(threads, nameOfOp, sliderDisabled)
+      new ProgressGui(threads, nameOfOp, sliderDisabled, remoteOptions)
     }
   }
 }
 
-class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false) extends ActionListener {
-  val mon = new ProgressMonitor(this, threads, sliderDisabled)
+class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions) extends ActionListener {
+  val mon = new ProgressMonitor(this, threads, sliderDisabled, remoteOptions)
   val timer = new Timer(40, this)
   show()
 
@@ -107,8 +108,8 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
   def setValue(value: Int, max: Int) {}
 }
 
-class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false)
-    extends ProgressGui(threads, nameOfOperation, sliderDisabled) {
+class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions)
+    extends ProgressGui(threads, nameOfOperation, sliderDisabled, remoteOptions) {
   var list: ITaskbarList3 = _
   var hwnd: Pointer[Integer] = _
   try {
