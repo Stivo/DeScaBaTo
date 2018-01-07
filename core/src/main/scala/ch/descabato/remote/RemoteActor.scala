@@ -1,13 +1,16 @@
 package ch.descabato.remote
 
 import java.io._
+import java.util.concurrent.atomic.AtomicLong
 
 import ch.descabato.core._
-import ch.descabato.frontend.{FileCounter, MaxValueCounter, ProgressReporters, SizeStandardCounter}
-import ch.descabato.utils.Utils
+import ch.descabato.frontend.{MaxValueCounter, ProgressReporters, SizeStandardCounter}
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Utils
+import com.amazonaws.RequestClientOptions
+import com.amazonaws.event.{ProgressEvent, ProgressListener}
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.services.s3.model.{GetObjectRequest, ObjectMetadata}
+import com.amazonaws.services.s3.transfer.TransferManagerBuilder
 import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.vfs2.FileObject
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
@@ -101,7 +104,8 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
       Future {
         val src = localPath(next.backupPath)
         logger.info(s"Upload ${next.backupPath} started")
-        val result = remoteClient.put(src, next.backupPath, Some(remoteOptions.uploadContext(src.length(), next.backupPath.path)))
+        val context = remoteOptions.uploadContext(src.length(), next.backupPath.path)
+        val result = remoteClient.put(src, next.backupPath, Some(context))
         logger.info(s"Upload ${next.backupPath} finished with result $result")
         fileOperationFinishedFromOtherThread(next, result)
         result
@@ -505,12 +509,41 @@ class S3RemoteClient(url: String) extends RemoteClient {
   }
 
   override def put(file: File, path: BackupPath, context: Option[RemoteOperationContext]): Try[Unit] = {
-    tryWithResource(new ThrottlingInputStream(new FileInputStream(file), context)) { stream =>
-      val remotePath: String = computeRemotePath(path)
-      val metadata = new ObjectMetadata()
-      metadata.setContentLength(file.length)
-      client.putObject(bucketName, remotePath, stream, metadata)
+    val bufferSize = RequestClientOptions.DEFAULT_STREAM_BUFFER_SIZE
+    val remotePath: String = computeRemotePath(path)
+    // slow
+    //    tryWithResource(new ThrottlingInputStream(new BufferedInputStream(new FileInputStream(file), 2 * bufferSize), context)) { stream =>
+    //      val manager = TransferManagerBuilder.standard()
+    //      val metadata = new ObjectMetadata()
+    //      metadata.setContentLength(file.length)
+    //      val upload = manager.upload(bucketName, remotePath, stream, metadata)
+    //      upload.waitForUploadResult()
+    //    }
+    // fast, but no throttling
+    Try {
+      val manager = TransferManagerBuilder.defaultTransferManager()
+      val upload = manager.upload(bucketName, remotePath, file)
+      val integer = new AtomicLong()
+      context.foreach { c =>
+        upload.addProgressListener(new ProgressListener {
+          override def progressChanged(progressEvent: ProgressEvent): Unit = {
+            val transferred = progressEvent.getBytesTransferred
+            val after = integer.addAndGet(transferred)
+            c.progress.current = after
+          }
+        })
+      }
+      upload.waitForUploadResult()
     }
+    // slow
+    //    Try {
+    //      client.putObject(bucketName, remotePath, file)
+    //    }
+    //    tryWithResource(new ThrottlingInputStream(new BufferedInputStream(new FileInputStream(file), 2 * bufferSize), context)) { stream =>
+    //      val metadata = new ObjectMetadata()
+    //      metadata.setContentLength(file.length)
+    //      client.putObject(bucketName, remotePath, stream, metadata)
+    //    }
   }
 
   private def computeRemotePath(path: BackupPath) = {
@@ -527,7 +560,9 @@ class S3RemoteClient(url: String) extends RemoteClient {
   }
 
   override def getSize(path: BackupPath): Try[Long] = {
-    Try { ??? }
+    Try {
+      ???
+    }
   }
 }
 

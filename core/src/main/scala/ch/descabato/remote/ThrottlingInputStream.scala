@@ -1,10 +1,10 @@
 package ch.descabato.remote
 
-import java.io.FileInputStream
+import java.io.InputStream
 
 import ch.descabato.utils.Streams.DelegatingInputStream
 
-class ThrottlingInputStream(private val stream: FileInputStream, private val context: Option[RemoteOperationContext])
+class ThrottlingInputStream(private val stream: InputStream, private val context: Option[RemoteOperationContext])
   extends DelegatingInputStream(stream) {
 
   override def read(): Int = {

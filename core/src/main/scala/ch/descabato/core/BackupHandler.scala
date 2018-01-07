@@ -146,6 +146,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
         return
       } else {
         l.info("No files have been changed, but need to upload some missing files")
+        ProgressReporters.openGui("Backup", false, config.remoteOptions)
         universe.finish()
         return
       }

@@ -168,7 +168,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     true
   }
 
-  val limiter = RateLimiter.create(0.06)
+  val limiter = RateLimiter.create(0.016)
 
   private def waitForEmptyQueues(waitForRemote: Boolean): Unit = {
     var count = 0L
