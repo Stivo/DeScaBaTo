@@ -9,6 +9,7 @@ import java.security.{MessageDigest, Principal}
 import java.util
 import java.util.regex.Pattern
 
+import ch.descabato.remote.RemoteOptions
 import ch.descabato.{CompressionMode, RemoteMode}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
@@ -46,25 +47,16 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var createIndexes: Boolean = true
   var ignoreFile: Option[File] = None
 
-  var remoteUri: String = _
-  var remoteMode: RemoteMode = RemoteMode.NoRemote
+  var remoteOptions: RemoteOptions = new RemoteOptions()
 
   def relativePath(file: File): String = {
     folder.toPath.relativize(file.toPath).toString.replace('\\', '/')
   }
 
   def verify(): Unit = {
-    verifyRemoteOptions()
+    remoteOptions.verify()
   }
 
-  private def verifyRemoteOptions(): Unit = {
-    if (remoteUri != null && remoteMode == RemoteMode.NoRemote) {
-      throw new IllegalArgumentException(s"RemoteMode can not be ${RemoteMode.NoRemote} if a remote URI has been set")
-    }
-    if (remoteMode != RemoteMode.NoRemote && remoteUri == null) {
-      throw new IllegalArgumentException(s"RemoteMode is set to ${remoteMode} but no remote URI has been set")
-    }
-  }
 
 }
 

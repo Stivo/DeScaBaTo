@@ -47,7 +47,7 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
   private var isUploading = true
 
   private lazy val remoteClient = RemoteClient.forConfig(config)
-  private lazy val mode = config.remoteMode
+  private lazy val remoteOptions = config.remoteOptions
 
   private var remoteFiles: Map[BackupPath, RemoteFile] = Map.empty
 
@@ -96,7 +96,7 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
       logger.info(s"Starting next upload ${next.backupPath}")
       val future = Future {
         val src = localPath(next.backupPath)
-        val result = remoteClient.put(src, next.backupPath, Some(uploader1))
+        val result = remoteClient.put(src, next.backupPath, Some(remoteOptions.uploadContext(src.length(), next.backupPath.path)))
         logger.info(s"Upload ${next.backupPath} finished with result $result")
         fileOperationFinishedFromOtherThread(next, result)
         result
@@ -206,16 +206,11 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
 
   })
 
-  private val uploader1: FileCounter = new FileCounter {
-    override def name: String = "Uploader 1"
-  }
-  ProgressReporters.addCounter(uploader1)
-
   private val uploaderall: MaxValueCounter = new SizeStandardCounter {
     override def name: String = "Total Uploads"
 
     override def update(): Unit = {
-      current = completedUploads + uploader1.current
+      current = completedUploads + remoteOptions.uploaderCounter1.current
     }
   }
   ProgressReporters.addCounter(uploaderall)
@@ -238,7 +233,7 @@ class SingleThreadRemoteHandler extends RemoteHandler with Utils {
   private var isUploading = true
 
   private lazy val remoteClient = RemoteClient.forConfig(config)
-  private lazy val mode = config.remoteMode
+  private lazy val mode = config.remoteOptions.mode
 
   private var remoteFiles: Map[BackupPath, RemoteFile] = Map.empty
 
@@ -310,10 +305,11 @@ case class Upload(backupPath: BackupPath, size: Long) extends RemoteOperation(Up
 
 object RemoteClient {
   def forConfig(config: BackupFolderConfiguration): RemoteClient = {
-    if (config.remoteUri.startsWith("ftp://")) {
-      new VfsRemoteClient(config.remoteUri)
+    val uri = config.remoteOptions.uri
+    if (uri.startsWith("ftp://")) {
+      new VfsRemoteClient(uri)
     } else {
-      throw new IllegalArgumentException("Could not find implementation for " + config.remoteUri)
+      throw new IllegalArgumentException("Could not find implementation for " + uri)
     }
   }
 }
@@ -321,7 +317,7 @@ object RemoteClient {
 trait RemoteClient {
   def get(path: BackupPath, file: File): Try[Unit]
 
-  def put(file: File, path: BackupPath, counter: Option[MaxValueCounter] = None): Try[Unit]
+  def put(file: File, path: BackupPath, context: Option[RemoteOperationContext] = None): Try[Unit]
 
   def exists(path: BackupPath): Try[Boolean]
 
@@ -331,28 +327,22 @@ trait RemoteClient {
 
   def getSize(path: BackupPath): Try[Long]
 
-  protected def copyStream(in: FileInputStream, out: OutputStream, progressCounter: Option[MaxValueCounter], size: Long, filename: String): Unit = {
-    progressCounter match {
-      case Some(pc) => copyWithProgress(in, out, pc, size, filename)
+  protected def copyStream(in: FileInputStream, out: OutputStream, context: Option[RemoteOperationContext]): Unit = {
+    context match {
+      case Some(remoteContext) => copyWithProgress(in, out, remoteContext)
       case None => IOUtils.copy(in, out, 64 * 1024)
     }
   }
 
-  protected def copyWithProgress(in: FileInputStream, out: OutputStream, pc: MaxValueCounter, size: Long, filename: String): Unit = {
-    pc.maxValue = size
-    pc match {
-      case x: FileCounter => x.fileName = filename
-      case _ =>
-    }
+  protected def copyWithProgress(in: FileInputStream, out: OutputStream, context: RemoteOperationContext): Unit = {
     val buffer = Array.ofDim[Byte](64 * 1024)
     var lastRead = 0
-    var count = 0L
     while (lastRead >= 0) {
       lastRead = in.read(buffer)
+      context.rateLimiter.acquire(lastRead)
       out.write(buffer, 0, lastRead)
       if (lastRead > 0) {
-        count += lastRead
-        pc.current = count
+        context.progress.current += lastRead
       }
     }
   }
@@ -409,7 +399,7 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
   }
 
 
-  def put(file: File, path: BackupPath, counter: Option[MaxValueCounter]): Try[Unit] = {
+  def put(file: File, path: BackupPath, context: Option[RemoteOperationContext]): Try[Unit] = {
     val tmpFile = resolvePath(BackupPath(path.path + ".tmp"))
     // return failure if the file already exists
     exists(path).flatMap { exists =>
@@ -422,7 +412,7 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
       // try to write to temp file
       tryWithResource(new FileInputStream(file)) { in =>
         tryWithResource(tmpFile.getContent.getOutputStream) { out =>
-          copyStream(in, out, counter, file.length(), file.getName)
+          copyStream(in, out, context)
         }
       }
     }.flatMap { _ =>

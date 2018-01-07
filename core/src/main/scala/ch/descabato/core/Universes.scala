@@ -56,10 +56,10 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
     case CompressionMode.smart => new SmartCompressionDecider()
     case _ => new SimpleCompressionDecider(Some(CompressionMode.lz4hc))
   })
-  val remoteHandler: RemoteHandler = make(if (config.remoteUri == null) {
-    new NoOpRemoteHandler()
-  } else {
+  val remoteHandler: RemoteHandler = make(if (config.remoteOptions.enabled) {
     new SingleThreadRemoteHandler()
+  } else {
+    new NoOpRemoteHandler()
   })
   load()
 

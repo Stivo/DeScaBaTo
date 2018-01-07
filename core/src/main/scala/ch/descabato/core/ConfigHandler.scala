@@ -29,8 +29,8 @@ object InitBackupFolderConfiguration extends Utils {
         o.serializerType.foreach(out.serializerType = _)
         o.blockSize.foreach(out.blockSize = _)
         o.hashAlgorithm.foreach(out.hashAlgorithm = _)
-        o.remoteUri.foreach(out.remoteUri = _)
-        o.remoteMode.foreach(out.remoteMode = _)
+        o.remoteUri.foreach(out.remoteOptions.uri = _)
+        o.remoteMode.foreach(out.remoteOptions.mode = _)
       case _ => // TODO
     }
     out

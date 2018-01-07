@@ -61,11 +61,11 @@ public class ProgressMonitor extends JFrame {
 		final JSlider slider = new JSlider();
 		slider.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
-				ActorStats.tpe().setCorePoolSize(slider.getValue());
-				ActorStats.tpe().setMaximumPoolSize(slider.getValue()*2);
-				threads.setText("Threads: " + slider.getValue());
+            ActorStats.tpe().setCorePoolSize(slider.getValue());
+            ActorStats.tpe().setMaximumPoolSize(slider.getValue()*2);
+            threads.setText("Threads: " + slider.getValue());
 			}
-		});
+        });
 		slider.setValue(numthreads);
         if (sliderDisabled)
             slider.setEnabled(false);

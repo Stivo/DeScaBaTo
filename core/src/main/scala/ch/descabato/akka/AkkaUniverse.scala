@@ -109,7 +109,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   val hashListHandler: HashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")
   val blockHandler: BlockHandler = actorOf[BlockHandler, KvStoreBlockHandler]("Writer")
   val remoteHandler: RemoteHandler = {
-    if (config.remoteUri != null) {
+    if (config.remoteOptions.enabled) {
       actorOf[RemoteHandler, SimpleRemoteHandler]("Remote")
     } else {
       actorOf[RemoteHandler, NoOpRemoteHandler]("Remote")

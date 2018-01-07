@@ -43,7 +43,8 @@ libraryDependencies ++= Seq(
 // remote dependencies
 libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-vfs2" % "2.2",
-  "commons-net" % "commons-net" % "3.6"
+  "commons-net" % "commons-net" % "3.6",
+  "com.google.guava" % "guava" % "16.0.1"
 )
 
 
