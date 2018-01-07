@@ -16,6 +16,7 @@ import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.remote.{NoOpRemoteHandler, SimpleRemoteHandler}
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
 import ch.descabato.utils.Implicits._
+import com.google.common.util.concurrent.RateLimiter
 import com.typesafe.config.Config
 
 import scala.collection.immutable.HashMap
@@ -140,26 +141,36 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       ret
     }
   }
-  
+
+
+
   override def finish(): Boolean = {
     // In the end, more threads are needed because there is some synchronous operations
     val threads = ActorStats.tpe.getCorePoolSize()
-    if (threads < 3) {
-      ActorStats.tpe.setCorePoolSize(Math.max(threads, 3))
+    if (threads < 5) {
+      ActorStats.tpe.setCorePoolSize(Math.max(threads, 5))
     }
 
     var toBeFinished = finishOrder
     while (toBeFinished.nonEmpty) {
-      waitForEmptyQueues()
+      val head = toBeFinished.head
+      // finish everything but the remote handler first, as usually that will be the last one to go
+      // but if we wait to finish the other handlers before the remote handler they don't finish their
+      // last file
+      val waitForRemoteToo = head == remoteHandler
+      waitForEmptyQueues(waitForRemoteToo)
       // finish first actor to be finished, it might add to the queues of other actors
-      toBeFinished.head.finish()
+      head.finish()
+      logger.info("Finalized " + head.getClass)
       toBeFinished = toBeFinished.tail
     }
     //Thread.sleep(10000)
     true
   }
 
-  private def waitForEmptyQueues(): Unit = {
+  val limiter = RateLimiter.create(0.06)
+
+  private def waitForEmptyQueues(waitForRemote: Boolean): Unit = {
     var count = 0L
     do {
       if (count != 0) {
@@ -170,8 +181,13 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       count += futureCounter.get
       count += List(hashFileHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
         .map(queueLength).sum
-      count += blockHandler.remaining + hashFileHandler.remaining() + backupPartHandler.remaining() + remoteHandler.remaining()
-      l.info(s"$count open items in all queues")
+      count += blockHandler.remaining + hashFileHandler.remaining() + backupPartHandler.remaining()
+      if (waitForRemote) {
+        count += remoteHandler.remaining()
+      }
+      if (limiter.tryAcquire(1)) {
+        l.info(s"$count open items in all queues")
+      }
     } while (count > 0)
   }
 

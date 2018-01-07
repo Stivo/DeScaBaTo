@@ -1,6 +1,6 @@
 package ch.descabato.utils
 
-import java.io.OutputStream
+import java.io.{InputStream, OutputStream}
 
 import ch.descabato.ByteArrayOutputStream
 
@@ -47,6 +47,24 @@ object Streams extends Utils {
       out = null
     }
 
+  }
+
+  class DelegatingInputStream(in: InputStream) extends InputStream {
+    def read() = in.read()
+    override def read(b: Array[Byte], start: Int, len: Int) = in.read(b, start, len)
+    override def close() = in.close()
+    override def mark(limit: Int) = in.mark(limit)
+    override def reset() = in.reset()
+    override def markSupported() = in.markSupported()
+    override def available(): Int = in.available()
+    override def skip(n: Long): Long = in.skip(n)
+  }
+
+  class DelegatingOutputStream(out: OutputStream*) extends OutputStream {
+    def write(b: Int) = out foreach(_.write(b))
+    override def write(b: Array[Byte], start: Int, len: Int) = out foreach(_.write(b, start, len))
+    override def close() = out foreach(_.close())
+    override def flush() = out foreach(_.flush())
   }
 
 }

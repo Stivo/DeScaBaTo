@@ -2,7 +2,7 @@ package ch.descabato.it
 
 import java.io.{File, FileOutputStream}
 
-import ch.descabato.it.Streams.DelegatingOutputStream
+import ch.descabato.utils.Streams.DelegatingOutputStream
 import ch.descabato.utils.Utils
 import org.apache.commons.exec._
 import org.apache.commons.exec.environment.EnvironmentUtils

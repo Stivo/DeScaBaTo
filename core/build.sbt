@@ -44,7 +44,8 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-vfs2" % "2.2",
   "commons-net" % "commons-net" % "3.6",
-  "com.google.guava" % "guava" % "16.0.1"
+  "com.google.guava" % "guava" % "16.0.1",
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.257"
 )
 
 

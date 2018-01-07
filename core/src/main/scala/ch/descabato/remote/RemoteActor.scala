@@ -6,10 +6,13 @@ import ch.descabato.core._
 import ch.descabato.frontend.{FileCounter, MaxValueCounter, ProgressReporters, SizeStandardCounter}
 import ch.descabato.utils.Utils
 import ch.descabato.utils.Implicits._
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.model.{GetObjectRequest, ObjectMetadata}
 import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.vfs2.FileObject
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
 
+import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
@@ -64,6 +67,7 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
     uploaderall.maxValue += length
     queuedUploads :+= new Upload(path, length)
     logger.info(s"Queued upload of ${path}")
+    queuedUploads = queuedUploads.sortBy(_.size)
     scheduleOperations()
   }
 
@@ -94,8 +98,9 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
     while (currentUploads.size < concurrentUploads && queuedUploads.nonEmpty) {
       val next = queuedUploads.head
       logger.info(s"Starting next upload ${next.backupPath}")
-      val future = Future {
+      Future {
         val src = localPath(next.backupPath)
+        logger.info(s"Upload ${next.backupPath} started")
         val result = remoteClient.put(src, next.backupPath, Some(remoteOptions.uploadContext(src.length(), next.backupPath.path)))
         logger.info(s"Upload ${next.backupPath} finished with result $result")
         fileOperationFinishedFromOtherThread(next, result)
@@ -121,6 +126,10 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
   }
 
   def fileOperationFinished(operation: RemoteOperation, result: Try[Unit]): Unit = {
+    result match {
+      case Failure(e) => logException(e)
+      case _ =>
+    }
     operation match {
       case d@Download(_) =>
         currentDownloads = currentDownloads.filterNot(_ == d)
@@ -306,7 +315,9 @@ case class Upload(backupPath: BackupPath, size: Long) extends RemoteOperation(Up
 object RemoteClient {
   def forConfig(config: BackupFolderConfiguration): RemoteClient = {
     val uri = config.remoteOptions.uri
-    if (uri.startsWith("ftp://")) {
+    if (uri.startsWith("s3://")) {
+      new S3RemoteClient(uri)
+    } else if (uri.startsWith("ftp://")) {
       new VfsRemoteClient(uri)
     } else {
       throw new IllegalArgumentException("Could not find implementation for " + uri)
@@ -327,14 +338,14 @@ trait RemoteClient {
 
   def getSize(path: BackupPath): Try[Long]
 
-  protected def copyStream(in: FileInputStream, out: OutputStream, context: Option[RemoteOperationContext]): Unit = {
+  protected def copyStream(in: InputStream, out: OutputStream, context: Option[RemoteOperationContext]): Unit = {
     context match {
       case Some(remoteContext) => copyWithProgress(in, out, remoteContext)
       case None => IOUtils.copy(in, out, 64 * 1024)
     }
   }
 
-  protected def copyWithProgress(in: FileInputStream, out: OutputStream, context: RemoteOperationContext): Unit = {
+  protected def copyWithProgress(in: InputStream, out: OutputStream, context: RemoteOperationContext): Unit = {
     val buffer = Array.ofDim[Byte](64 * 1024)
     var lastRead = 0
     while (lastRead >= 0) {
@@ -344,6 +355,21 @@ trait RemoteClient {
       if (lastRead > 0) {
         context.progress.current += lastRead
       }
+    }
+  }
+
+  def tryWithResource[T, X <: Closeable](resources: => X)(block: X => T): Try[T] = {
+    val input = resources
+    val result = Try {
+      block(input)
+    }
+    val closeResult = Try {
+      input.close()
+    }
+    (result, closeResult) match {
+      case (Success(_), f@Failure(_)) => f.asInstanceOf[Try[T]]
+      case (s@Success(x), _) => s
+      case (f@Failure(_), _) => f
     }
   }
 
@@ -412,7 +438,8 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
       // try to write to temp file
       tryWithResource(new FileInputStream(file)) { in =>
         tryWithResource(tmpFile.getContent.getOutputStream) { out =>
-          copyStream(in, out, context)
+          val throttled = new ThrottlingInputStream(in, context)
+          copyStream(throttled, out, None)
         }
       }
     }.flatMap { _ =>
@@ -438,21 +465,6 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
     }
   }
 
-  def tryWithResource[T, X <: Closeable](resources: => X)(block: X => T): Try[T] = {
-    val input = resources
-    val result = Try {
-      block(input)
-    }
-    val closeResult = Try {
-      input.close()
-    }
-    (result, closeResult) match {
-      case (Success(_), f@Failure(_)) => f.asInstanceOf[Try[T]]
-      case (s@Success(x), _) => s
-      case (f@Failure(_), _) => f
-    }
-  }
-
   def get(path: BackupPath, file: File): Try[Unit] = {
     val fileObject = resolvePath(path)
     tryWithResource(fileObject.getContent.getInputStream) { in =>
@@ -473,6 +485,51 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
   }
 }
 
+class S3RemoteClient(url: String) extends RemoteClient {
+  lazy val client = AmazonS3ClientBuilder.defaultClient()
+  val bucketName = "backuuuup"
+
+  override def get(path: BackupPath, file: File): Try[Unit] = ???
+
+  val prefix = "pics/"
+
+  override def list(): Try[Seq[RemoteFile]] = {
+    Try {
+      val listing = client.listObjects(bucketName, prefix)
+      listing.getObjectSummaries.asScala.map { summary =>
+        val path = summary.getKey.replace(prefix, "")
+        val size = summary.getSize
+        RemoteFile(BackupPath(path), size)
+      }
+    }
+  }
+
+  override def put(file: File, path: BackupPath, context: Option[RemoteOperationContext]): Try[Unit] = {
+    tryWithResource(new ThrottlingInputStream(new FileInputStream(file), context)) { stream =>
+      val remotePath: String = computeRemotePath(path)
+      val metadata = new ObjectMetadata()
+      metadata.setContentLength(file.length)
+      client.putObject(bucketName, remotePath, stream, metadata)
+    }
+  }
+
+  private def computeRemotePath(path: BackupPath) = {
+    val remotePath = prefix + path.path
+    remotePath
+  }
+
+  override def exists(path: BackupPath): Try[Boolean] = ???
+
+  override def delete(path: BackupPath): Try[Unit] = {
+    Try {
+      client.deleteObject(bucketName, computeRemotePath(path))
+    }
+  }
+
+  override def getSize(path: BackupPath): Try[Long] = {
+    Try { ??? }
+  }
+}
 
 object RemoteTest extends App {
   private val client = new VfsRemoteClient("ftp://testdescabato:pass1@localhost/")
