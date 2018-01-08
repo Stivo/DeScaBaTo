@@ -116,7 +116,7 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
     hasher.setup(universe)
     val os: OutputStream = null
     try {
-      val hashList = if (fd.size > config.blockSize.bytes) {
+      val hashList = if (fd.hasHashList) {
         universe.hashListHandler().getHashlist(fd.hash, fd.size).toArray
       } else {
         Array.apply(fd.hash)

@@ -83,7 +83,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
   }
 
   def startRestore(): Unit = {
-    if (fd.size > config.blockSize.bytes) {
+    if (fd.hasHashList) {
       hashList = universe.hashListHandler().getHashlist(fd.hash, fd.size).toArray
     } else {
       hashList = Array.apply(fd.hash)

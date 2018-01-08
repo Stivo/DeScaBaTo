@@ -74,7 +74,7 @@ trait BackupRelatedHandler {
   }
 
   def getHashlistForFile(fd: FileDescription): Seq[Hash] = {
-    if (fd.size > universe.config.blockSize.bytes) {
+    if (fd.hasHashList) {
       universe.hashListHandler().getHashlist(fd.hash, fd.size)
     } else
       List(fd.hash)
@@ -118,7 +118,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
         if (fileDesc.hash.isNull)
           return false
         var blocks: Iterable[Hash] = List(fileDesc.hash)
-        if (fileDesc.size > config.blockSize.bytes) {
+        if (fileDesc.hasHashList) {
           if (!universe.hashListHandler().isPersisted(fileDesc.hash)) {
             return false
           }

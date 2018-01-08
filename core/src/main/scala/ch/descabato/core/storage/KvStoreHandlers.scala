@@ -154,12 +154,12 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     private var totalBytes = 0
 
     var failed = false
-    private var hashList: TreeMap[Int, Array[Byte]] = TreeMap.empty
+    private var hashLists: TreeMap[Int, Array[Byte]] = TreeMap.empty
 
     def setFailed() {
       failed = true
       failedObjects += fd
-      hashList = null
+      hashLists = null
       unfinished -= fd.path
     }
 
@@ -170,10 +170,11 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
     private def checkFinished() {
       if (totalBytes == fd.size && fd.hash.isNotNull && !failed) {
+        fd.hasHashList = hashLists.size > 1
         writeBackupPart(fd)
-        if (hashList.size > 1) {
-          val stream = new CustomByteArrayOutputStream(config.hashLength * hashList.size)
-          for (elem <- hashList.values) {
+        if (hashLists.size > 1) {
+          val stream = new CustomByteArrayOutputStream(config.hashLength * hashLists.size)
+          for (elem <- hashLists.values) {
             stream.write(elem)
           }
           universe.hashListHandler.addHashlist(fd.hash, stream.toBytesWrapper.asArray())
@@ -186,7 +187,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     def blockHashArrived(block: Block) {
       if (!failed) {
         totalBytes += block.content.length
-        hashList += block.id.part -> block.hash
+        hashLists += block.id.part -> block.hash
         checkFinished()
       }
     }
