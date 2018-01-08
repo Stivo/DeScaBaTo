@@ -222,7 +222,7 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
     }
   }
 
-  class BlockCache(val maxMemory: Int = 5*1024*1024) {
+  class BlockCache(val maxMemory: Int = 50*1024*1024) {
     private var cache = TreeMap[Int, Block]()
     var currentSize = 0
 

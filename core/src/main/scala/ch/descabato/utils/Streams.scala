@@ -8,7 +8,7 @@ import ch.descabato.hashes.RollingBuzHash
 
 object Streams extends Utils {
 
-  abstract class ChunkingOutputStream(func: BytesWrapper => _) extends OutputStream {
+  abstract class ChunkingOutputStream(func: BytesWrapper => _) extends OutputStream  {
     var out = new CustomByteArrayOutputStream()
 
     var funcWasCalledOnce = false
@@ -23,6 +23,7 @@ object Streams extends Utils {
     def createChunkNow() {
       funcWasCalledOnce = true
       func(out.toBytesWrapper())
+      logger.info(s"Created chunk with ${readableFileSize(out.size())}")
       out.reset()
     }
 
