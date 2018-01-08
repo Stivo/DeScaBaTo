@@ -168,7 +168,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
     true
   }
 
-  val limiter = RateLimiter.create(0.016)
+  val limiter = RateLimiter.create(1)
 
   private def waitForEmptyQueues(waitForRemote: Boolean): Unit = {
     var count = 0L
@@ -185,7 +185,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       if (waitForRemote) {
         count += remoteHandler.remaining()
       }
-      if (limiter.tryAcquire(1)) {
+      if (limiter.tryAcquire(30)) {
         l.info(s"$count open items in all queues")
       }
     } while (count > 0)

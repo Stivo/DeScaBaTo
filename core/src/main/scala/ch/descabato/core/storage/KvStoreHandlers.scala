@@ -1,17 +1,15 @@
 package ch.descabato.core.storage
 
-import java.io.{File, InputStream}
-import java.nio.ByteBuffer
-import java.util
+import java.io.File
 
-import ch.descabato.CompressionMode
+import ch.descabato.{CompressionMode, CustomByteArrayOutputStream}
 import ch.descabato.core._
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 
+import scala.collection.immutable.{HashMap, TreeMap}
 import scala.collection.mutable
-import scala.collection.immutable.HashMap
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
@@ -113,16 +111,22 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
 
 trait SimpleKvStoreHandler[K, V] extends KvStoreHandler[K, K, V] {
   def keyInterfaceToKeyMem(k: K): K = k
+
   def keyMemToKeyInterface(k: K): K = k
 }
 
 trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, Array[Byte], V] {
 
   def initMap = new ByteArrayKeyedMap[KvStoreLocation]()
+
   def keyInterfaceToKeyMem(k: Hash): Array[Byte] = k.bytes
+
   def keyMemToKeyInterface(k: Array[Byte]) = new Hash(k)
+
   def keyMemToStorage(k: Array[Byte]): Array[Byte] = k
+
   def storageToKeyMem(k: Array[Byte]): Array[Byte] = k
+
   def isPersisted(fileHash: Hash): Boolean = {
     ensureLoaded()
     persistedEntries.contains(keyInterfaceToKeyMem(fileHash))
@@ -133,6 +137,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   override val filecountername = "Files hashed"
   override val bytecountername = "Data hashed"
+
   override def nameOfOperation: String = "Should not be shown, is a bug"
 
   var loadedBackup: Seq[File] = Nil
@@ -144,19 +149,12 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   protected var unfinished: Map[String, FileDescriptionWrapper] = Map.empty
 
-  def blocksFor(fd: FileDescription): Int = {
-    if (fd.size == 0) 1
-    else (1.0 * fd.size / config.blockSize.bytes).ceil.toInt
-  }
-
   class FileDescriptionWrapper(var fd: FileDescription) {
-    lazy val blocks: util.BitSet = {
-      val out = new util.BitSet(blocksFor(fd))
-      out.set(0, blocksFor(fd), true)
-      out
-    }
+
+    private var totalBytes = 0
+
     var failed = false
-    var hashList: Array[Byte] = Array.ofDim[Byte](blocksFor(fd) * config.hashLength)
+    private var hashList: TreeMap[Int, Array[Byte]] = TreeMap.empty
 
     def setFailed() {
       failed = true
@@ -171,19 +169,24 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     }
 
     private def checkFinished() {
-      if (blocks.isEmpty && fd.hash.isNotNull && !failed) {
+      if (totalBytes == fd.size && fd.hash.isNotNull && !failed) {
         writeBackupPart(fd)
-        if (hashList.length > fd.hash.length)
-          universe.hashListHandler.addHashlist(fd.hash, hashList)
+        if (hashList.size > 1) {
+          val stream = new CustomByteArrayOutputStream(config.hashLength * hashList.size)
+          for (elem <- hashList.values) {
+            stream.write(elem)
+          }
+          universe.hashListHandler.addHashlist(fd.hash, stream.toBytesWrapper.asArray())
+        }
         fileCounter += 1
         unfinished -= fd.path
       }
     }
 
-    def blockHashArrived(blockId: BlockId, hash: Hash) {
+    def blockHashArrived(block: Block) {
       if (!failed) {
-        blocks.clear(blockId.part)
-        System.arraycopy(hash.bytes, 0, hashList, blockId.part * config.hashLength, config.hashLength)
+        totalBytes += block.content.length
+        hashList += block.id.part -> block.hash
         checkFinished()
       }
     }
@@ -200,7 +203,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
   def hashComputed(block: Block): Unit = {
     universe.blockHandler.writeBlockIfNotExists(block)
     byteCounter += block.content.length
-    getUnfinished(block.id.file).blockHashArrived(block.id, block.hash)
+    getUnfinished(block.id.file).blockHashArrived(block)
   }
 
   def loadBackup(date: Option[java.util.Date]): ch.descabato.core.BackupDescription = {
@@ -219,7 +222,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
             val decompressed = CompressedStream.decompressToBytes(value)
             js.read[BackupPart](decompressed) match {
               case Left(x: UpdatePart) => current += x
-              case x => throw new IllegalArgumentException("Not implemented for object "+x)
+              case x => throw new IllegalArgumentException("Not implemented for object " + x)
             }
         }
     }
@@ -258,15 +261,16 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
         val out = new FileDescriptionWrapper(fd)
         unfinished += fd.path -> out
         out
-  }
+    }
 
   lazy val fileType: FileType[BackupDescription] = universe.fileManager().backup
 
   override def fileFinished(): Unit = {
-    universe.journalHandler().finishedFile(currentlyWritingFile.file, fileType)    // TODO
+    universe.journalHandler().finishedFile(currentlyWritingFile.file, fileType) // TODO
   }
 
   override def keyMemToStorage(k: String): Array[Byte] = k.getBytes("UTF-8")
+
   override def storageToKeyMem(k: Array[Byte]) = new String(k, "UTF-8")
 
 }
@@ -295,13 +299,17 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
 
   private val byteCounter = new MaxValueCounter() {
     var compressedBytes = 0L
+
     def name: String = "Blocks written"
+
     def r(x: Long): String = Utils.readableFileSize(x)
+
     override def formatted = s"${r(current)}/${r(maxValue)} (compressed ${r(compressedBytes)})"
   }
 
   private val compressionRatioCounter = new MaxValueCounter() {
     def name: String = "Compression Ratio"
+
     override def formatted: String = percent + "%"
   }
 
@@ -320,7 +328,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
   }
 
   override def readBlock(hash: Hash): BytesWrapper = {
-      readEntry(hash)._1
+    readEntry(hash)._1
   }
 
   override def checkIfCheckpoint() = false
@@ -349,7 +357,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
     block.mode = config.compressor
     outstandingRequests += ((hash, block.content.length))
     universe.compressionDecider().compressBlock(block)
-   }
+  }
 
   def writeCompressedBlock(block: Block) {
     if (currentlyWritingFile != null) {

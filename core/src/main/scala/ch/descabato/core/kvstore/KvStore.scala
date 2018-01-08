@@ -3,7 +3,7 @@ package ch.descabato.core.kvstore
 import java.io.{DataOutputStream, File}
 import java.util
 
-import ch.descabato.ByteArrayOutputStream
+import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.storage.KvStoreLocation
 import ch.descabato.utils.{BytesWrapper, Utils}
 import ch.descabato.utils.Implicits._
@@ -109,7 +109,7 @@ class KvStoreWriterImpl(val file: File, val passphrase: String = null, val key: 
   lazy val encryptionInfo = new EncryptionInfo()
   lazy val keyDerivationInfo = new KeyDerivationInfo()
 	lazy val writer: EncryptedRandomAccessFileImpl = {
-    val baos = new ByteArrayOutputStream()
+    val baos = new CustomByteArrayOutputStream()
 	  val tempOut = new DataOutputStream(baos) 
 	  val out = new EncryptedRandomAccessFileImpl(file)
     def copyTempOutToOut() = {

@@ -29,7 +29,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
 	    val symLink = new SymbolicLink("test", "asdf", new FileAttributes())
       val list : Seq[UpdatePart] = List(fid, fod, fd, symLink)
       val bd = new BackupDescription(fid, fod, symLink, fd)
-      val baout = new ByteArrayOutputStream()
+      val baout = new CustomByteArrayOutputStream()
     }
   
   def writeAndRead[T](s: Serialization, t: T)(implicit m: Manifest[T]) = {

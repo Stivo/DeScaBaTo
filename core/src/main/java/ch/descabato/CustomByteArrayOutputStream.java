@@ -4,18 +4,15 @@ import ch.descabato.utils.BytesWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 
 /**
  * This is a modified version of the JDK's ByteArrayOutputStream
- * It is not synchronized and uses the ByteArrayPool.
- * It can be recycled with <code>#recycle()</code>.
+ * It is not synchronized and allows exporting the array as a ByteWrapper
  */
-
-public class ByteArrayOutputStream extends OutputStream {
-	private final static Logger log = LoggerFactory.getLogger(ByteArrayOutputStream.class);
+public class CustomByteArrayOutputStream extends OutputStream {
+	private final static Logger log = LoggerFactory.getLogger(CustomByteArrayOutputStream.class);
     private int initialSize = 100*1024;
 
     /**
@@ -32,7 +29,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * Creates a new byte array output stream. The buffer capacity is
      * initially 32 bytes, though its size increases if necessary.
      */
-    public ByteArrayOutputStream() {
+    public CustomByteArrayOutputStream() {
         this(100*1024);
     }
 
@@ -43,7 +40,7 @@ public class ByteArrayOutputStream extends OutputStream {
      * @param   size   the initial size.
      * @exception  IllegalArgumentException if size is negative.
      */
-    public ByteArrayOutputStream(int size) {
+    public CustomByteArrayOutputStream(int size) {
         if (size < 0) {
             throw new IllegalArgumentException("Negative initial size: "
                                                + size);

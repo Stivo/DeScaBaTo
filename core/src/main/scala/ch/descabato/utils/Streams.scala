@@ -2,14 +2,15 @@ package ch.descabato.utils
 
 import java.io.{InputStream, OutputStream}
 
-import ch.descabato.ByteArrayOutputStream
+import ch.descabato.CustomByteArrayOutputStream
+import ch.descabato.hashes.RollingBuzHash
 
 
 object Streams extends Utils {
 
   class BlockOutputStream(val blockSize: Int, func: (BytesWrapper => _)) extends OutputStream {
 
-    var out = new ByteArrayOutputStream(blockSize)
+    var out = new CustomByteArrayOutputStream(blockSize)
 
     var funcWasCalledOnce = false
 
@@ -42,6 +43,58 @@ object Streams extends Utils {
     override def close() {
       if (out.size() > 0 || !funcWasCalledOnce)
         func(out.toBytesWrapper())
+      super.close()
+      // out was returned to the pool, so remove instance pointer
+      out = null
+    }
+
+  }
+
+  class VariableBlockOutputStream(val maxBlockSize: Int, func: (BytesWrapper => _)) extends OutputStream {
+
+    var out = new CustomByteArrayOutputStream(maxBlockSize)
+
+    var funcWasCalledOnce = false
+
+    val onebyte = Array.ofDim[Byte](1)
+
+    val buzhash = new RollingBuzHash()
+
+    def write(b: Int) {
+      onebyte(0) = b.asInstanceOf[Byte]
+      write(onebyte)
+    }
+
+    def handleEnd() {
+      funcWasCalledOnce = true
+      func(out.toBytesWrapper())
+      out.reset()
+    }
+
+    def cur: Int = out.size()
+
+    override def write(buf: Array[Byte], start: Int, len: Int) {
+      val end = start + len
+      var pos = start
+      while (pos < end) {
+        val boundary = buzhash.updateAndReportBoundary(buf, pos, end - pos, 20)
+        // no boundary found, try again
+        if (boundary < 0) {
+          out.write(buf, pos, len - pos)
+          pos = end
+        } else {
+          // boundary found
+          out.write(buf, pos, boundary)
+          handleEnd()
+          pos += boundary
+        }
+      }
+    }
+
+    override def close() {
+      if (out.size() > 0 || !funcWasCalledOnce) {
+        func(out.toBytesWrapper())
+      }
       super.close()
       // out was returned to the pool, so remove instance pointer
       out = null

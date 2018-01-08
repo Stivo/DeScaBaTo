@@ -10,7 +10,7 @@ import java.util.Date
 import ch.descabato.akka.AkkaUniverse
 import ch.descabato.frontend._
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Streams.BlockOutputStream
+import ch.descabato.utils.Streams.{BlockOutputStream, VariableBlockOutputStream}
 import ch.descabato.utils._
 import org.apache.commons.compress.utils.IOUtils
 
@@ -204,25 +204,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       //        fis.getChannel.position(0)
       //      }
       //lazy val compressionDisabled = compressionFor(fileDesc)
-      var i = 0
-      val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, {
-        block: BytesWrapper =>
-          val bid = BlockId(fileDesc, i)
-          val wrapper = new Block(bid, block)
-          universe.scheduleTask { () =>
-            val md = universe.config.createMessageDigest
-            wrapper.hash = md.finish(wrapper.content)
-            universe.backupPartHandler.hashComputed(wrapper)
-          }
-          universe.hashFileHandler.hash(wrapper)
-          byteCounter += block.length
-          counters.get += block.length
-          waitForQueues()
-          while (CLI.paused) {
-            Thread.sleep(100)
-          }
-          i += 1
-      })
+//      val blockHasher: OutputStream = createChunkerStream(fileDesc)
+      val blockHasher: OutputStream = createVariableChunkerStream(fileDesc)
       IOUtils.copy(fis, blockHasher, config.blockSize.bytes.toInt * 2)
       IOUtils.closeQuietly(fis)
       IOUtils.closeQuietly(blockHasher)
@@ -254,6 +237,52 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     }
   }
 
+  private def createChunkerStream(fileDesc: FileDescription) = {
+    var i = 0
+    val blockHasher = new BlockOutputStream(config.blockSize.bytes.toInt, {
+      bytes: BytesWrapper =>
+        val bid = BlockId(fileDesc, i)
+        val block = new Block(bid, bytes)
+        universe.scheduleTask { () =>
+          val md = universe.config.createMessageDigest
+          block.hash = md.finish(block.content)
+          universe.backupPartHandler.hashComputed(block)
+        }
+        universe.hashFileHandler.hash(block)
+        byteCounter += bytes.length
+        counters.get += bytes.length
+        waitForQueues()
+        while (CLI.paused) {
+          Thread.sleep(100)
+        }
+        i += 1
+    })
+    blockHasher
+  }
+
+  private def createVariableChunkerStream(fileDesc: FileDescription) = {
+    var i = 0
+
+    val blockHasher = new VariableBlockOutputStream(config.blockSize.bytes.toInt, {
+      block: BytesWrapper =>
+        val bid = BlockId(fileDesc, i)
+        val wrapper = new Block(bid, block)
+        universe.scheduleTask { () =>
+          val md = universe.config.createMessageDigest
+          wrapper.hash = md.finish(wrapper.content)
+          universe.backupPartHandler.hashComputed(wrapper)
+        }
+        universe.hashFileHandler.hash(wrapper)
+        byteCounter += block.length
+        counters.get += block.length
+        waitForQueues()
+        while (CLI.paused) {
+          Thread.sleep(100)
+        }
+        i += 1
+    })
+    blockHasher
+  }
 }
 
 class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {

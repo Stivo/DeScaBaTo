@@ -8,7 +8,7 @@ import java.text.DecimalFormat
 import java.util
 import javax.xml.bind.DatatypeConverter
 
-import ch.descabato.ByteArrayOutputStream
+import ch.descabato.CustomByteArrayOutputStream
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 
 import scala.collection.mutable
@@ -35,6 +35,7 @@ object NullHash {
 }
 
 class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {
+
   def asInputStream() = new ByteArrayInputStream(array, offset, length)
 
   if (length == -1) {
@@ -113,7 +114,7 @@ object Utils extends LazyLogging {
   def normalizePath(x: String): String = x.replace('\\', '/')
 
   def logException(t: Throwable) {
-    val baos = new ByteArrayOutputStream()
+    val baos = new CustomByteArrayOutputStream()
     val ps = new PrintStream(baos)
     def print(t: Throwable) {
       t.printStackTrace(ps)

@@ -8,11 +8,11 @@ import org.scalatest.FlatSpecLike
 
 trait TestUtils extends Utils {
 
-  def replay(out: ByteArrayOutputStream) = {
+  def replay(out: CustomByteArrayOutputStream) = {
     new ByteArrayInputStream(finishByteArrayOutputStream(out))
   }
 
-  def finishByteArrayOutputStream(out: ByteArrayOutputStream) = {
+  def finishByteArrayOutputStream(out: CustomByteArrayOutputStream) = {
     out.close()
     out.toBytesWrapper.asArray()
   }

@@ -3,7 +3,7 @@ package ch.descabato.utils
 import java.io.{InputStream, OutputStream}
 import java.util.zip._
 
-import ch.descabato.{ByteArrayOutputStream, CompressionMode}
+import ch.descabato.{CompressionMode, CustomByteArrayOutputStream}
 import net.jpountz.lz4.{LZ4BlockInputStream, LZ4BlockOutputStream, LZ4Factory}
 import org.apache.commons.compress.compressors.bzip2.{BZip2CompressorInputStream, BZip2CompressorOutputStream}
 import org.apache.commons.compress.utils.IOUtils
@@ -18,7 +18,7 @@ object CompressedStream extends Utils {
   
   def compress(content: BytesWrapper, compressor: CompressionMode) : BytesWrapper = {
     val byte = compressor.getByte()
-    val baos = new ByteArrayOutputStream(content.length+80)
+    val baos = new CustomByteArrayOutputStream(content.length+80)
     baos.write(byte)
     val wrapped = getCompressor(byte, baos, Some(content.length))
     wrapped.write(content)
@@ -72,7 +72,7 @@ object CompressedStream extends Utils {
 
   def decompressToBytes(input: BytesWrapper): BytesWrapper = {
     val stream = decompress(input)
-    val baos = new ByteArrayOutputStream()
+    val baos = new CustomByteArrayOutputStream()
     IOUtils.copy(stream, baos, 100*1024)
     IOUtils.closeQuietly(stream)
     IOUtils.closeQuietly(baos)
