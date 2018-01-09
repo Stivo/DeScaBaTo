@@ -33,10 +33,10 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
 
 //  testWith("backup with smart compression", " --compression smart --threads 8 --volume-size 20Mb", "", 1, "200Mb", crash = false)
 
-  testWith("backup with crashes", " --compression deflate --volume-size 10Mb", "", 2, "100Mb", crash = true, redundancy = false)
-
-  testWith("backup with crashes, encryption and multiple threads",
-    " --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", crash = true, redundancy = false)
+//  testWith("backup with crashes", " --compression deflate --volume-size 10Mb", "", 2, "100Mb", crash = true, redundancy = false)
+//
+//  testWith("backup with crashes, encryption and multiple threads",
+//    " --threads 10 --compression deflate --passphrase testpass --volume-size 50Mb", " --passphrase testpass", 3, "300mb", crash = true, redundancy = false)
 
   def numberOfCheckpoints(): Int = {
     if (backup1.exists) {
