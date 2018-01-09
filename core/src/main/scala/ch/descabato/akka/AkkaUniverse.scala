@@ -119,7 +119,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   lazy val hashFileHandler: HashFileHandler = actorOf[HashFileHandler, AkkaHasher]("Hasher")
   lazy val compressionDecider: CompressionDecider = config.compressor match {
     case x if x.isCompressionAlgorithm => actorOf[CompressionDecider, SimpleCompressionDecider]("Compression Decider")
-    case _ => actorOf[CompressionDecider, SmartCompressionDecider]("Compression Decider")
+    case _ => actorOf[CompressionDecider, Smart2CompressionDecider]("Compression Decider")
   }
 
   def load() {

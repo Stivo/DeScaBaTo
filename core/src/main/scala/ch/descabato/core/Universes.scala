@@ -53,7 +53,7 @@ class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Univer
   val hashFileHandler: SingleThreadFileHasher = make(new SingleThreadFileHasher())
   val compressionDecider: CompressionDecider = make(config.compressor match {
     case x if x.isCompressionAlgorithm => new SimpleCompressionDecider()
-    case CompressionMode.smart => new SmartCompressionDecider()
+    case CompressionMode.smart => new Smart2CompressionDecider()
     case _ => new SimpleCompressionDecider(Some(CompressionMode.lz4hc))
   })
   val remoteHandler: RemoteHandler = make(if (config.remoteOptions.enabled) {

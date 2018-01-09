@@ -81,6 +81,173 @@ object StatisticHelper {
 
 }
 
+sealed trait Status
+case object Sampling extends Status
+case object Waiting extends Status
+case class Done(val winner: CompressionMode) extends Status
+
+class Smart2CompressionDecider extends CompressionDecider with UniversePart with Utils {
+
+  val sampleBytes: Long = 4 * 1024 * 1024
+
+  def extensionFor(block: Block): Extension = {
+    val name = block.id.file.name
+    val extension = if (name.contains('.'))
+      name.drop(name.lastIndexOf('.') + 1)
+    else
+      name
+    if (!extensions.safeContains(extension)) {
+      extensions += extension -> new Extension(extension)
+    }
+    extensions(extension)
+  }
+
+  val algos: Seq[CompressionMode] = Array(CompressionMode.none, CompressionMode.snappy, CompressionMode.gzip, CompressionMode.lzma)
+  var speeds: Map[CompressionMode, mutable.Buffer[Long]] = algos.map(x => (x, mutable.Buffer[Long](x.getEstimatedTime))).toMap
+
+  class Extension(val ext: String) {
+
+    var samplesSent = 0
+    var samplesReceived = 0
+
+    class SampleData {
+
+      private var _bytesReceived = 0
+      private var _compressedBytes = 0
+      private var _totalTime = 0L
+
+      def blockArrived(block: Block, time: Long) = {
+        _bytesReceived += block.content.length
+        _compressedBytes += block.compressed.length
+        _totalTime += time
+      }
+
+      def totalTime = _totalTime
+
+      // lower is better
+      def ratio = _compressedBytes / _bytesReceived
+
+      // more than a 3 percent gap
+      def isBetterThan(winnerData: SampleData): Boolean = {
+        ratio + 0.03 < winnerData.ratio
+      }
+
+    }
+
+    private var sampledBlocks: Map[BlockId, Seq[Block]] = Map.empty
+    private var sampleData: Map[CompressionMode, SampleData] = algos.map(algo => (algo, new SampleData())).toMap
+
+    private var _status: Status = Sampling
+
+    def status: Status = _status
+
+    def copyBlock(bIn: Block, mode: CompressionMode) = {
+      val b = new Block(bIn.id, bIn.content)
+      b.hash = bIn.hash
+      b.mode = mode
+      b
+    }
+
+    def compressBlock(block: Block): Unit = {
+      _status match {
+        case Sampling =>
+          sampledBlocks += block.id -> Seq.empty
+          for (algo <- algos) {
+            compressBlockAsync(copyBlock(block, algo))
+          }
+          samplesSent += block.content.length
+          if (samplesSent > sampleBytes && _status == Sampling) {
+            _status = Waiting
+          }
+        case Waiting =>
+          block.mode = CompressionMode.gzip
+          compressBlockAsync(block)
+        case Done(winner) =>
+          block.mode = winner
+          compressBlockAsync(block)
+      }
+    }
+
+    def sampledBlockIsDone(block: Block): Boolean = sampledBlocks(block.id).size == algos.size
+
+    def writeCompressedBlock(block: Block) = {
+      universe.blockHandler().writeCompressedBlock(block)
+    }
+
+    def finishSampledBlock(block: Block) = {
+      val blocks = sampledBlocks(block.id)
+      writeCompressedBlock(blocks.minBy(_.compressed.length))
+    }
+
+    def freeSamplingData() = {
+      sampleData = Map.empty
+    }
+
+    def chooseWinner(): CompressionMode = {
+      val candidates = sampleData.toList.sortBy(_._2.totalTime)
+      var (winner, winnerData) = candidates.head
+      for ((mode, data) <- candidates.tail) {
+        if (data.isBetterThan(winnerData)) {
+          winner = mode
+          winnerData = data
+        }
+      }
+      logger.info(s"Sampling for $ext is done and winner is $winner with ${winnerData.ratio}")
+      winner
+    }
+
+    def updateSampleData(block: Block, nanoTime: Long) = {
+      sampleData(block.mode).blockArrived(block, nanoTime)
+    }
+
+    def blockWasCompressed(block: Block, nanoTime: Long): Unit = {
+      if (sampledBlocks.safeContains(block.id)) {
+        // update sampled blocks
+        sampledBlocks += block.id -> (sampledBlocks(block.id) :+ block)
+        updateSampleData(block, nanoTime)
+        if (sampledBlockIsDone(block)) {
+          finishSampledBlock(block)
+          samplesReceived += block.content.length
+          sampledBlocks -= block.id
+        }
+        if (samplesReceived == samplesSent) {
+          _status = Done(chooseWinner())
+          freeSamplingData()
+        }
+      } else {
+        writeCompressedBlock(block)
+      }
+    }
+  }
+
+  var extensions: Map[String, Extension] = Map.empty
+
+  override def compressBlock(block: Block): Unit = {
+    extensionFor(block).compressBlock(block)
+  }
+
+  def compressBlockAsync(block: Block) {
+    universe.scheduleTask { () =>
+      val startAt = TimingUtil.getCpuTime
+      val compressed = CompressedStream.compress(block.content, block.mode)
+      block.compressed = compressed
+      val duration = TimingUtil.getCpuTime - startAt
+      universe.compressionDecider.blockCompressed(block, duration)
+    }
+  }
+
+  override def blockCompressed(block: Block, nanoTime: Long): Unit = {
+    extensionFor(block).blockWasCompressed(block, nanoTime)
+  }
+
+  override def report(): Unit = {
+    val modes = extensions.values.map(_.status).collect { case Done(winner) => (winner, 1) }.groupBy(_._1).mapValues(_.size)
+    for ((algo, times) <- modes.toList.sortBy(_._1.getEstimatedTime)) {
+      logger.info(s"Chose $algo $times")
+    }
+  }
+}
+
 class SmartCompressionDecider extends CompressionDecider with UniversePart with Utils {
 
   import ch.descabato.core.StatisticHelper._
@@ -126,7 +293,7 @@ class SmartCompressionDecider extends CompressionDecider with UniversePart with 
             val modeSamples = ratioSamples(mode)
             modeSamples insertSorted sample.ratio
             ratioSamples += mode -> modeSamples
-//            ratioSamples(mode) insertSorted sample.ratio
+            //            ratioSamples(mode) insertSorted sample.ratio
           }
           samplingBlocks -= idForBlock(b)
           checkIfSamplingDone()
