@@ -244,7 +244,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
 
   private def createVariableChunkerStream(fileDesc: FileDescription) = {
     val creator = new BlockCreator(fileDesc)
-    new VariableBlockOutputStream(2 * 1024 * 1024, creator.blockArrived)
+    new VariableBlockOutputStream(creator.blockArrived)
   }
 
   class BlockCreator(val fileDesc: FileDescription) {
