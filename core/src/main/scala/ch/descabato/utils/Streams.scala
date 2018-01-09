@@ -18,7 +18,7 @@ object Streams extends Utils {
 
     final def write(b: Int) {
       oneByte(0) = b.asInstanceOf[Byte]
-      out.write(oneByte)
+      write(oneByte)
     }
 
     def createChunkNow() {
@@ -30,7 +30,7 @@ object Streams extends Utils {
 
     override final def close() {
       if (out.size() > 0 || !funcWasCalledOnce) {
-        func(out.toBytesWrapper())
+        createChunkNow()
       }
       super.close()
     }
@@ -78,7 +78,7 @@ object Streams extends Utils {
         if (boundary < 0) {
           // no boundary found
           out.write(buf, pos, bytesToFindBoundaryIn)
-          pos = end
+          pos += bytesToFindBoundaryIn
           if (currentChunkSize == maxBlockSize) {
             createChunkNow()
           }
