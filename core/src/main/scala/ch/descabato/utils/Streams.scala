@@ -8,8 +8,9 @@ import ch.descabato.hashes.RollingBuzHash
 
 object Streams extends Utils {
 
-  abstract class ChunkingOutputStream(func: BytesWrapper => _) extends OutputStream  {
-    var out = new CustomByteArrayOutputStream()
+  abstract class ChunkingOutputStream(func: BytesWrapper => _, private val initialSize: Int = 100 * 1024) extends OutputStream {
+
+    var out = new CustomByteArrayOutputStream(initialSize)
 
     var funcWasCalledOnce = false
 
@@ -28,8 +29,9 @@ object Streams extends Utils {
     }
 
     override final def close() {
-      if (out.size() > 0 || !funcWasCalledOnce)
+      if (out.size() > 0 || !funcWasCalledOnce) {
         func(out.toBytesWrapper())
+      }
       super.close()
     }
 
@@ -60,7 +62,10 @@ object Streams extends Utils {
 
   }
 
-  class VariableBlockOutputStream(func: (BytesWrapper => _), val minBlockSize: Int = 256 * 1024, val maxBlockSize: Int = 4 * 1024 * 1024, val bitsToChunkOn: Byte = 20) extends ChunkingOutputStream(func) {
+  class VariableBlockOutputStream(func: (BytesWrapper => _),
+                                  val minBlockSize: Int = 256 * 1024,
+                                  val maxBlockSize: Int = 4 * 1024 * 1024,
+                                  val bitsToChunkOn: Byte = 20) extends ChunkingOutputStream(func, minBlockSize) {
 
     val buzhash = new RollingBuzHash()
 
@@ -68,13 +73,11 @@ object Streams extends Utils {
       val end = start + len
       var pos = start
       while (pos < end) {
-        val remainingBytes = end - pos
-        val bytesBeforeMaxBlockSize = maxBlockSize - pos
-        val bytesToFindBoundaryIn = Math.min(bytesBeforeMaxBlockSize, remainingBytes)
+        val bytesToFindBoundaryIn = computeBytesToRead(end, pos)
         val boundary = buzhash.updateAndReportBoundary(buf, pos, bytesToFindBoundaryIn, bitsToChunkOn)
         if (boundary < 0) {
           // no boundary found
-          out.write(buf, pos, remainingBytes)
+          out.write(buf, pos, bytesToFindBoundaryIn)
           pos = end
           if (currentChunkSize == maxBlockSize) {
             createChunkNow()
@@ -90,6 +93,11 @@ object Streams extends Utils {
       }
     }
 
+    private def computeBytesToRead(end: Int, pos: Int) = {
+      val remainingBytes = end - pos
+      val bytesBeforeMaxBlockSize = maxBlockSize - pos
+      Math.min(bytesBeforeMaxBlockSize, remainingBytes)
+    }
   }
 
   class DelegatingInputStream(in: InputStream) extends InputStream {
