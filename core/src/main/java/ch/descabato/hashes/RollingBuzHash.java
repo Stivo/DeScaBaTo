@@ -176,6 +176,10 @@ public class RollingBuzHash {
         }
     }
 
+    public void reset() {
+        hash = initial_hash;
+    }
+
 }
 
 class Result {

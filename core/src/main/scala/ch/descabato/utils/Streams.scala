@@ -67,7 +67,7 @@ object Streams extends Utils {
                                   val maxBlockSize: Int = 4 * 1024 * 1024,
                                   val bitsToChunkOn: Byte = 20) extends ChunkingOutputStream(func, minBlockSize) {
 
-    val buzhash = new RollingBuzHash()
+    private val buzhash = new RollingBuzHash()
 
     override def write(buf: Array[Byte], start: Int, len: Int) {
       val end = start + len
@@ -91,6 +91,12 @@ object Streams extends Utils {
           }
         }
       }
+    }
+
+
+    override def createChunkNow(): Unit = {
+      super.createChunkNow()
+      buzhash.reset()
     }
 
     private def computeBytesToRead(end: Int, pos: Int) = {
