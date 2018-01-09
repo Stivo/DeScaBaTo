@@ -93,7 +93,7 @@ case class Done(val winner: CompressionMode) extends CompressionDeciderState
 
 class Smart2CompressionDecider extends CompressionDecider with UniversePart with Utils {
 
-  val sampleBytes: Long = 4 * 1024 * 1024
+  val sampleBytes: Long = 2 * 1024 * 1024
 
   def extensionFor(block: Block): Extension = {
     val name = block.id.file.name
