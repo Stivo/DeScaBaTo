@@ -74,8 +74,8 @@ object Streams extends Utils {
         val boundary = buzhash.updateAndReportBoundary(buf, pos, bytesToFindBoundaryIn, bitsToChunkOn)
         if (boundary < 0) {
           // no boundary found
-          pos = end
           out.write(buf, pos, remainingBytes)
+          pos = end
           if (currentChunkSize == maxBlockSize) {
             createChunkNow()
           }
