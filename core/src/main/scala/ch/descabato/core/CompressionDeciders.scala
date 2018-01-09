@@ -15,7 +15,8 @@ class SimpleCompressionDecider(val overrideMode: Option[CompressionMode]) extend
   lazy val mode: CompressionMode = overrideMode.getOrElse(universe.config.compressor)
 
   def blockCompressed(block: Block, nanoTime: Long) {
-    //    universe.blockHandler.writeCompressedBlock(block)
+    // nobody should be calling this
+    ???
   }
 
   def compressBlock(block: Block): Unit = {
@@ -82,8 +83,11 @@ object StatisticHelper {
 }
 
 sealed trait Status
+
 case object Sampling extends Status
+
 case object Waiting extends Status
+
 case class Done(val winner: CompressionMode) extends Status
 
 class Smart2CompressionDecider extends CompressionDecider with UniversePart with Utils {
@@ -92,10 +96,11 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
 
   def extensionFor(block: Block): Extension = {
     val name = block.id.file.name
-    val extension = if (name.contains('.'))
+    val extension = if (name.contains('.')) {
       name.drop(name.lastIndexOf('.') + 1)
-    else
+    } else {
       name
+    }
     if (!extensions.safeContains(extension)) {
       extensions += extension -> new Extension(extension)
     }
@@ -116,16 +121,22 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
       private var _compressedBytes = 0
       private var _totalTime = 0L
 
-      def blockArrived(block: Block, time: Long) = {
+      def blockArrived(block: Block, time: Long): Unit = {
         _bytesReceived += block.content.length
         _compressedBytes += block.compressed.length
         _totalTime += time
       }
 
-      def totalTime = _totalTime
+      def totalTime: Long = _totalTime
 
       // lower is better
-      def ratio = _compressedBytes / _bytesReceived
+      def ratio: Double = {
+        if (_compressedBytes == 0) {
+          1
+        } else {
+          _compressedBytes / _bytesReceived
+        }
+      }
 
       // more than a 3 percent gap
       def isBetterThan(winnerData: SampleData): Boolean = {
@@ -174,7 +185,7 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
       universe.blockHandler().writeCompressedBlock(block)
     }
 
-    def finishSampledBlock(block: Block) = {
+    def writeBlockWithBestCompression(block: Block) = {
       val blocks = sampledBlocks(block.id)
       writeCompressedBlock(blocks.minBy(_.compressed.length))
     }
@@ -206,13 +217,13 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
         sampledBlocks += block.id -> (sampledBlocks(block.id) :+ block)
         updateSampleData(block, nanoTime)
         if (sampledBlockIsDone(block)) {
-          finishSampledBlock(block)
+          writeBlockWithBestCompression(block)
           samplesReceived += block.content.length
           sampledBlocks -= block.id
-        }
-        if (samplesReceived == samplesSent) {
-          _status = Done(chooseWinner())
-          freeSamplingData()
+          if (samplesReceived == samplesSent) {
+            _status = Done(chooseWinner())
+            freeSamplingData()
+          }
         }
       } else {
         writeCompressedBlock(block)
@@ -223,7 +234,20 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
   var extensions: Map[String, Extension] = Map.empty
 
   override def compressBlock(block: Block): Unit = {
-    extensionFor(block).compressBlock(block)
+    val mode = if (block.uncompressedLength < 256) {
+      Some(CompressionMode.none)
+    } else if (block.uncompressedLength < 2048) {
+      Some(CompressionMode.deflate)
+    } else {
+      None
+    }
+    mode match {
+      case Some(m) =>
+        block.mode = m
+        compressBlockAsync(block)
+      case None =>
+        extensionFor(block).compressBlock(block)
+    }
   }
 
   def compressBlockAsync(block: Block) {

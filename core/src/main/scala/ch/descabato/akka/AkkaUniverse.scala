@@ -182,11 +182,12 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       count += List(hashFileHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
         .map(queueLength).sum
       count += blockHandler.remaining + hashFileHandler.remaining() + backupPartHandler.remaining()
-      logger.info(s"blockhandler ${blockHandler.remaining} + hashfileHandler ${hashFileHandler.remaining}} + backupPartHandler ${backupPartHandler.remaining}}")
       if (waitForRemote) {
         count += remoteHandler.remaining()
       }
-      l.info(s"$count open items in all queues")
+      if (limiter.tryAcquire(30)) {
+        l.info(s"$count open items in all queues")
+      }
     } while (count > 0)
   }
 
