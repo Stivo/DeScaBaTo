@@ -82,13 +82,14 @@ object StatisticHelper {
 
 }
 
-sealed trait Status
 
-case object Sampling extends Status
-
-case object Waiting extends Status
-
-case class Done(val winner: CompressionMode) extends Status
+sealed trait CompressionDeciderState
+// we still send every block to all 4 compression deciders to see which is best
+case object Sampling extends CompressionDeciderState
+// we just send everything to gzip while we wait for the results (good tradeoff)
+case object Waiting extends CompressionDeciderState
+// we send everything to the winner now
+case class Done(val winner: CompressionMode) extends CompressionDeciderState
 
 class Smart2CompressionDecider extends CompressionDecider with UniversePart with Utils {
 
@@ -108,7 +109,6 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
   }
 
   val algos: Seq[CompressionMode] = Array(CompressionMode.none, CompressionMode.snappy, CompressionMode.gzip, CompressionMode.lzma)
-  var speeds: Map[CompressionMode, mutable.Buffer[Long]] = algos.map(x => (x, mutable.Buffer[Long](x.getEstimatedTime))).toMap
 
   class Extension(val ext: String) {
 
@@ -134,7 +134,7 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
         if (_compressedBytes == 0) {
           1
         } else {
-          _compressedBytes / _bytesReceived
+          _compressedBytes * 1.0 / _bytesReceived
         }
       }
 
@@ -148,9 +148,9 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
     private var sampledBlocks: Map[BlockId, Seq[Block]] = Map.empty
     private var sampleData: Map[CompressionMode, SampleData] = algos.map(algo => (algo, new SampleData())).toMap
 
-    private var _status: Status = Sampling
+    private var _status: CompressionDeciderState = Sampling
 
-    def status: Status = _status
+    def status: CompressionDeciderState = _status
 
     def copyBlock(bIn: Block, mode: CompressionMode) = {
       val b = new Block(bIn.id, bIn.content)
@@ -190,7 +190,7 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
       writeCompressedBlock(blocks.minBy(_.compressed.length))
     }
 
-    def freeSamplingData() = {
+    def freeSamplingData(): Unit = {
       sampleData = Map.empty
     }
 
@@ -220,7 +220,7 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
           writeBlockWithBestCompression(block)
           samplesReceived += block.content.length
           sampledBlocks -= block.id
-          if (samplesReceived == samplesSent) {
+          if (readyToChooseWinner()) {
             _status = Done(chooseWinner())
             freeSamplingData()
           }
@@ -228,6 +228,10 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
       } else {
         writeCompressedBlock(block)
       }
+    }
+
+    private def readyToChooseWinner(): Boolean = {
+      samplesReceived == samplesSent && samplesSent >= sampleBytes
     }
   }
 
