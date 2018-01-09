@@ -33,22 +33,23 @@ object Streams extends Utils {
       super.close()
     }
 
+    def currentChunkSize: Int = out.size()
+
   }
 
   class BlockOutputStream(val blockSize: Int, func: (BytesWrapper => _)) extends ChunkingOutputStream(func) {
 
     def handleEnd() {
-      if (cur == blockSize) {
+      if (currentChunkSize == blockSize) {
         createChunkNow()
       }
     }
 
-    def cur: Int = out.size()
 
     override def write(buf: Array[Byte], start: Int, len: Int) {
       var (lenC, startC) = (len, start)
       while (lenC > 0) {
-        val now = Math.min(blockSize - cur, lenC)
+        val now = Math.min(blockSize - currentChunkSize, lenC)
         out.write(buf, startC, now)
         lenC -= now
         startC += now
@@ -68,11 +69,16 @@ object Streams extends Utils {
       var pos = start
       while (pos < end) {
         val remainingBytes = end - pos
-        val boundary = buzhash.updateAndReportBoundary(buf, pos, remainingBytes, bitsToChunkOn)
-        // no boundary found, try again
+        val bytesBeforeMaxBlockSize = maxBlockSize - pos
+        val bytesToFindBoundaryIn = Math.min(bytesBeforeMaxBlockSize, remainingBytes)
+        val boundary = buzhash.updateAndReportBoundary(buf, pos, bytesToFindBoundaryIn, bitsToChunkOn)
         if (boundary < 0) {
+          // no boundary found
           out.write(buf, pos, remainingBytes)
           pos = end
+          if (currentChunkSize == maxBlockSize) {
+            createChunkNow()
+          }
         } else {
           // boundary found
           out.write(buf, pos, boundary)

@@ -246,12 +246,10 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
       if (option.isDefined) {
         return option.get._2
       } else {
-        var len = length >> 5
-        len += 1
-        val blockSize = len << 5
+        val blockSize: Int = roundUpBlockSize(length)
         cache += startBlock -> new Block(startBlock, blockSize)
         currentSize += blockSize
-        while (currentSize > maxMemory) {
+        while (currentSize > maxMemory && cache.size > 1) {
           l.trace(s"Removing an entry from cache because $currentSize > $maxMemory")
           val option = (cache - startBlock).headOption
           option.foreach { case (k, v) =>
@@ -263,6 +261,13 @@ class EncryptedRandomAccessFileImpl(val file: File, val readOnly: Boolean = fals
         }
       }
       cache(startBlock)
+    }
+
+    private def roundUpBlockSize(length: Int) = {
+      var len = length >> 5
+      len += 1
+      val blockSize = len << 5
+      blockSize
     }
 
     def flushWrites() {
