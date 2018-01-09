@@ -60,7 +60,7 @@ object Streams extends Utils {
 
   }
 
-  class VariableBlockOutputStream(val maxBlockSize: Int, func: (BytesWrapper => _), val bitsToChunkOn: Byte = 20) extends ChunkingOutputStream(func) {
+  class VariableBlockOutputStream(func: (BytesWrapper => _), val minBlockSize: Int = 256 * 1024, val maxBlockSize: Int = 4 * 1024 * 1024, val bitsToChunkOn: Byte = 20) extends ChunkingOutputStream(func) {
 
     val buzhash = new RollingBuzHash()
 
@@ -74,16 +74,18 @@ object Streams extends Utils {
         val boundary = buzhash.updateAndReportBoundary(buf, pos, bytesToFindBoundaryIn, bitsToChunkOn)
         if (boundary < 0) {
           // no boundary found
-          out.write(buf, pos, remainingBytes)
           pos = end
+          out.write(buf, pos, remainingBytes)
           if (currentChunkSize == maxBlockSize) {
             createChunkNow()
           }
         } else {
-          // boundary found
           out.write(buf, pos, boundary)
-          createChunkNow()
           pos += boundary
+          if (currentChunkSize >= minBlockSize) {
+            // boundary found and more than minimum block size
+            createChunkNow()
+          }
         }
       }
     }
