@@ -183,8 +183,9 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       count += List(hashFileHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
         .map(queueLength).sum
       count += blockHandler.remaining + hashFileHandler.remaining() + backupPartHandler.remaining()
-      if (restTasks == count && startWaiting + 60000 > System.currentTimeMillis()) {
-        throw new IllegalStateException("Program will not finish, backup failed")
+      if (restTasks == count && startWaiting + 60000 < System.currentTimeMillis()) {
+        logger.error("Program will not finish, backup failed. Exiting hard.")
+        System.exit(5)
       }
       if (restTasks != count) {
         restTasks = count
