@@ -1,8 +1,8 @@
 package ch.descabato.it
 
-import java.io.{FileOutputStream, File, FileReader}
+import java.io.{File, FileOutputStream, FileReader}
 
-import org.apache.commons.io.{IOUtils, FileUtils}
+import org.apache.commons.io.{FileUtils, IOUtils}
 import org.scalatest.Matchers._
 
 class RestoreOlderTest extends IntegrationTestBase {
@@ -17,36 +17,70 @@ class RestoreOlderTest extends IntegrationTestBase {
 
   val restoreInfoName = "restore-info.txt"
 
-  "restore old versions " should "work" in {
+  lazy val fg = new FileGen(input3, "20Mb")
+  val ignoreFile = new File("ignored.txt")
+  var part = 0
+
+  "restore old versions" should "setup" in {
     deleteAll(input1, input2, input3, backup1, restore1, restore2, restore3)
-    val fg = new FileGen(input3, "20Mb")
     fg.rescan()
     fg.generateFiles()
     fg.rescan()
 
-    val ignoreFile = new File("ignored.txt")
     val fos = new FileOutputStream(ignoreFile)
     IOUtils.write("copy1", fos)
     IOUtils.closeQuietly(fos)
+  }
 
+  it should "backup 1/3" in {
     startAndWait(s"backup --compression gzip $backup1 $input3".split(" ")) should be(0)
+  }
+
+  it should getNextPartName() in {
     FileUtils.copyDirectory(input3, input1, true)
     fg.changeSome()
+  }
+
+  it should "backup 2/3" in {
     startAndWait(s"backup --ignore-file ${ignoreFile.getAbsolutePath} $backup1 $input3".split(" ")) should be(0)
+  }
+
+  it should getNextPartName() in {
     FileUtils.copyDirectory(input3, input2, true)
     fg.changeSome()
+  }
+
+  it should "backup 3/3" in {
     startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
-    val backupFiles = backup1.listFiles().filter(_.getName.startsWith("backup_")).map(_.getName()).toList.sorted
+  }
+
+  var backupFiles: List[String] = List.empty
+
+  it should getNextPartName() in {
+    backupFiles = backup1.listFiles().filter(_.getName.startsWith("backup_")).map(_.getName()).toList.sorted
+  }
+
+  it should "restore 1/3" in {
     startAndWait(s"restore --restore-backup ${backupFiles(0)} --restore-info $restoreInfoName --restore-to-folder $restore1 $backup1".split(" ")) should be(0)
     assertRestoreInfoWritten(restore1, backupFiles(0))
     compareBackups(input1, restore1)
+  }
+
+  it should "restore 2/3" in {
     startAndWait(s"restore --restore-backup ${backupFiles(1)} --restore-to-folder $restore2 $backup1".split(" ")) should be(0)
     FileUtils.deleteQuietly(new File(input2, "copy1"))
     compareBackups(input2, restore2)
+  }
+
+  it should "restore 3/3" in {
     startAndWait(s"restore --restore-info $restoreInfoName --restore-to-folder $restore3 $backup1".split(" ")) should be(0)
     assertRestoreInfoWritten(restore3, backupFiles(2))
     FileUtils.deleteQuietly(new File(input3, "copy1"))
     compareBackups(input3, restore3)
+  }
+
+  private def getNextPartName() = {
+    s"prepare next test ${part = part + 1; part}"
   }
 
   def assertRestoreInfoWritten(folder: File, filename: String) {

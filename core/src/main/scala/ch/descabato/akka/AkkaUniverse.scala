@@ -171,6 +171,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   val limiter = RateLimiter.create(1)
 
   private def waitForEmptyQueues(waitForRemote: Boolean): Unit = {
+    var (restTasks, startWaiting) = (0L, System.currentTimeMillis())
     var count = 0L
     do {
       if (count != 0) {
@@ -182,6 +183,13 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
       count += List(hashFileHandler, backupPartHandler, blockHandler, hashListHandler, journalHandler, compressionDecider)
         .map(queueLength).sum
       count += blockHandler.remaining + hashFileHandler.remaining() + backupPartHandler.remaining()
+      if (restTasks == count && startWaiting + 60000 > System.currentTimeMillis()) {
+        throw new IllegalStateException("Program will not finish, backup failed")
+      }
+      if (restTasks != count) {
+        restTasks = count
+        startWaiting = System.currentTimeMillis()
+      }
       if (waitForRemote) {
         count += remoteHandler.remaining()
       }
