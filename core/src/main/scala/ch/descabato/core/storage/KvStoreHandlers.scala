@@ -151,7 +151,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   class FileDescriptionWrapper(var fd: FileDescription) {
 
-    private var totalBytes = 0
+    private var totalBytesReceived = 0
 
     var failed = false
     private var hashLists: TreeMap[Int, Array[Byte]] = TreeMap.empty
@@ -160,7 +160,6 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
       failed = true
       failedObjects += fd
       hashLists = null
-      unfinished -= fd.path
     }
 
     def fileHashArrived(hash: Hash) {
@@ -169,10 +168,10 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     }
 
     private def checkFinished() {
-      if (totalBytes == fd.size && fd.hash.isNotNull && !failed) {
+      if (totalBytesReceived == fd.size && Hash.isDefined(fd.hash) && !failed) {
         fd.hasHashList = hashLists.size > 1
         writeBackupPart(fd)
-        if (hashLists.size > 1) {
+        if (fd.hasHashList) {
           val stream = new CustomByteArrayOutputStream(config.hashLength * hashLists.size)
           for (elem <- hashLists.values) {
             stream.write(elem)
@@ -186,7 +185,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
     def blockHashArrived(block: Block) {
       if (!failed) {
-        totalBytes += block.content.length
+        totalBytesReceived += block.content.length
         hashLists += block.id.part -> block.hash
         checkFinished()
       }
@@ -238,7 +237,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     current = finished.merge(unfinished)
     unfinished.files.foreach {
       file =>
-        getUnfinished(file.copy(hash = NullHash.nul))
+        createUnfinished(file.copy(hash = Hash.nul))
     }
     val toCheckpoint = finished
     toCheckpoint.allParts.foreach(writeBackupPart)
@@ -249,15 +248,22 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   val js = new JsonSerialization()
 
-  def writeBackupPart(fd: BackupPart) {
+  private def writeBackupPart(fd: BackupPart) {
     val json = js.write(fd)
     val compressed = CompressedStream.compress(json.wrap(), CompressionMode.deflate)
     writeEntry(fd.path, compressed)
   }
 
-  protected def getUnfinished(fd: FileDescription): FileDescriptionWrapper =
+  private def getUnfinished(fd: FileDescription): FileDescriptionWrapper =
     unfinished.get(fd.path) match {
       case Some(w) => w
+      case None =>
+        throw new IllegalStateException(s"Unfinished for $fd does not exist yet")
+    }
+
+  private def createUnfinished(fd: FileDescription): FileDescriptionWrapper =
+    unfinished.get(fd.path) match {
+      case Some(_) => throw new IllegalStateException(s"Unfinished for $fd already exists")
       case None =>
         val out = new FileDescriptionWrapper(fd)
         unfinished += fd.path -> out
@@ -355,7 +361,6 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
       byteCounter.maxValue -= block.content.length
       return
     }
-    block.mode = config.compressor
     outstandingRequests += ((hash, block.content.length))
     universe.compressionDecider().compressBlock(block)
   }

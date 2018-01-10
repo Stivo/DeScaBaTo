@@ -182,7 +182,7 @@ object FileDeleted {
   }
 }
 
-case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Hash = NullHash.nul) extends BackupPart {
+case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Hash = Hash.nul) extends BackupPart {
   var hasHashList: Boolean = false
 
   @JsonIgnore def isFolder = false
@@ -200,7 +200,7 @@ case class BlockId(file: FileDescription, part: Int)
 
 class Block(val id: BlockId, val content: BytesWrapper) {
   val uncompressedLength: Int = content.length
-  var hash: Hash = NullHash.nul
+  var hash: Hash = Hash.nul
   var mode: CompressionMode = _
   var compressed: BytesWrapper = _
 }

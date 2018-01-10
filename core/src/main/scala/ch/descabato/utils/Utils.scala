@@ -19,19 +19,20 @@ trait RealEquality[T] {
   def !==(t: T): Boolean = !(this === t)
 }
 
+object Hash {
+  def isDefined (hash: Hash): Boolean = {
+    hash.bytes != null && hash.length > 0
+  }
+
+  val nul = new Hash(Array.ofDim[Byte](0))
+}
+
 class Hash(val bytes: Array[Byte]) extends AnyVal {
   def length: Int = bytes.length
   def base64: String = Utils.encodeBase64Url(bytes)
-  def isNull: Boolean = length == 0
-  // minimal size of hash is 16
-  def isNotNull: Boolean = !isNull
   def ===(other: Hash): Boolean = java.util.Arrays.equals(bytes, other.bytes)
   def !==(other: Hash): Boolean = !(this === other)
   def wrap(): BytesWrapper = new BytesWrapper(bytes)
-}
-
-object NullHash {
-  val nul = new Hash(Array.ofDim[Byte](0))
 }
 
 class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {

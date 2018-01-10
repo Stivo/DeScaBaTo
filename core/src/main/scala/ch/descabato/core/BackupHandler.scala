@@ -115,7 +115,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
     l.info("Deleted files  : " + statistics(deletedDesc))
     if (universe.journalHandler().isInconsistentBackup()) {
       def finished(fileDesc: FileDescription): Boolean = {
-        if (fileDesc.hash.isNull)
+        if (!Hash.isDefined(fileDesc.hash))
           return false
         var blocks: Iterable[Hash] = List(fileDesc.hash)
         if (fileDesc.hasHashList) {
