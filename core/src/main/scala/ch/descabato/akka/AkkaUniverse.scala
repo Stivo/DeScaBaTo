@@ -41,7 +41,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with 
   system.whenTerminated.foreach(_ => this.terminated = true)(ExecutionContext.global)
   Counter.i += 1
 
-  val queueLimit = 200
+  val queueLimit = 50
 
   val dispatcher = "backup-dispatcher"
 
