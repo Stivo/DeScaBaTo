@@ -204,8 +204,8 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
       //        fis.getChannel.position(0)
       //      }
       //lazy val compressionDisabled = compressionFor(fileDesc)
+//      val blockHasher: OutputStream = createChunkerStream(fileDesc)
       val blockHasher: OutputStream = createVariableChunkerStream(fileDesc)
-//      val blockHasher: OutputStream = createVariableChunkerStream(fileDesc)
       IOUtils.copy(fis, blockHasher, config.blockSize.bytes.toInt * 2)
       IOUtils.closeQuietly(fis)
       IOUtils.closeQuietly(blockHasher)

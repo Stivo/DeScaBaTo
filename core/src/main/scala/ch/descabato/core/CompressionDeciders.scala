@@ -167,7 +167,7 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
             compressBlockAsync(copyBlock(block, algo))
           }
           samplesSent += block.content.length
-          if (samplesSent > sampleBytes && _status == Sampling) {
+          if (samplesSent > sampleBytes) {
             _status = Waiting
           }
         case Waiting =>
@@ -213,13 +213,16 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
 
     def blockWasCompressed(block: Block, nanoTime: Long): Unit = {
       if (sampledBlocks.safeContains(block.id)) {
+        if (status != Sampling && status != Waiting) {
+          throw new IllegalStateException("A winner was chosen already, there should be no more samples arriving")
+        }
         // update sampled blocks
         sampledBlocks += block.id -> (sampledBlocks(block.id) :+ block)
         updateSampleData(block, nanoTime)
         if (sampledBlockIsDone(block)) {
           writeBlockWithBestCompression(block)
-          samplesReceived += block.content.length
           sampledBlocks -= block.id
+          samplesReceived += block.content.length
           if (readyToChooseWinner()) {
             _status = Done(chooseWinner())
             freeSamplingData()

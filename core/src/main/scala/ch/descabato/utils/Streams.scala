@@ -3,7 +3,7 @@ package ch.descabato.utils
 import java.io.{InputStream, OutputStream}
 
 import ch.descabato.CustomByteArrayOutputStream
-import ch.descabato.hashes.RollingBuzHash
+import ch.descabato.hashes.BuzHash
 
 
 object Streams extends Utils {
@@ -67,14 +67,14 @@ object Streams extends Utils {
                                   val maxBlockSize: Int = 4 * 1024 * 1024,
                                   val bitsToChunkOn: Byte = 20) extends ChunkingOutputStream(func, minBlockSize) {
 
-    private val buzhash = new RollingBuzHash()
+    private val buzHash = new BuzHash(64)
 
     override def write(buf: Array[Byte], start: Int, len: Int) {
       val end = start + len
       var pos = start
       while (pos < end) {
         val bytesToFindBoundaryIn = computeBytesToRead(end, pos)
-        val boundary = buzhash.updateAndReportBoundary(buf, pos, bytesToFindBoundaryIn, bitsToChunkOn)
+        val boundary = buzHash.updateAndReportBoundary(buf, pos, bytesToFindBoundaryIn, bitsToChunkOn)
         if (boundary < 0) {
           // no boundary found
           out.write(buf, pos, bytesToFindBoundaryIn)
@@ -96,12 +96,12 @@ object Streams extends Utils {
 
     override def createChunkNow(): Unit = {
       super.createChunkNow()
-      buzhash.reset()
+      buzHash.reset()
     }
 
     private def computeBytesToRead(end: Int, pos: Int) = {
       val remainingBytes = end - pos
-      val bytesBeforeMaxBlockSize = maxBlockSize - pos
+      val bytesBeforeMaxBlockSize = maxBlockSize - currentChunkSize
       Math.min(bytesBeforeMaxBlockSize, remainingBytes)
     }
   }
