@@ -3,8 +3,10 @@ package ch.descabato.it
 import java.io.{File, FileOutputStream, FileReader}
 
 import org.apache.commons.io.{FileUtils, IOUtils}
+import org.scalatest.Ignore
 import org.scalatest.Matchers._
 
+@Ignore
 class RestoreOlderTest extends IntegrationTestBase {
 
   var input1 = folder("input_old1")
