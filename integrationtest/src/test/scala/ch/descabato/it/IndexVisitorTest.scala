@@ -1,15 +1,16 @@
 package ch.descabato.it
 
-import java.io.{RandomAccessFile, FileOutputStream, File}
+import java.io.{File, FileOutputStream, RandomAccessFile}
 
 import ch.descabato.core_old.OldIndexVisitor
 import ch.descabato.utils.FileUtils
-import ch.descabato.{TestUtils, RichFlatSpecLike}
+import ch.descabato.{RichFlatSpecLike, TestUtils}
 import org.apache.commons.io.IOUtils
-import org.scalatest.{BeforeAndAfter, FlatSpec}
+import org.scalatest.{BeforeAndAfter, FlatSpec, Ignore}
 
 import scala.util.Random
 
+@Ignore
 class IndexVisitorTest extends IntegrationTestBase with BeforeAndAfter {
 
   val file = new File("ignorelist.txt")
