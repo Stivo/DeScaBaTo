@@ -25,6 +25,11 @@ object Hash {
   }
 
   val nul = new Hash(Array.ofDim[Byte](0))
+
+  def apply(hash: Array[Byte]) = {
+    new Hash(hash)
+  }
+
 }
 
 class Hash(val bytes: Array[Byte]) extends AnyVal {
@@ -33,6 +38,12 @@ class Hash(val bytes: Array[Byte]) extends AnyVal {
   def ===(other: Hash): Boolean = java.util.Arrays.equals(bytes, other.bytes)
   def !==(other: Hash): Boolean = !(this === other)
   def wrap(): BytesWrapper = new BytesWrapper(bytes)
+}
+
+object BytesWrapper {
+  def apply(bytes: Array[Byte]): BytesWrapper = {
+    new BytesWrapper(bytes)
+  }
 }
 
 class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {

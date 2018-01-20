@@ -7,6 +7,7 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 // Core dependencies
 libraryDependencies ++= Seq(
     "com.typesafe.akka" %% "akka-actor" % "2.5.8",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.8",
     "org.rogach" %% "scallop" % "3.1.1",
     "org.ocpsoft.prettytime" % "prettytime" % "4.0.1.Final",
     "org.fusesource.jansi" % "jansi" % "1.11",
