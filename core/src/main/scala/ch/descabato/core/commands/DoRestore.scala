@@ -5,6 +5,7 @@ import java.util.Date
 
 import akka.stream.scaladsl.Source
 import ch.descabato.core.Universe
+import ch.descabato.core.actors.MetadataActor.BackupMetaData
 import ch.descabato.core.model.FileMetadata
 import ch.descabato.core_old.{BackupPart, FileAttributes, FolderDescription}
 import ch.descabato.frontend.RestoreConf
@@ -21,18 +22,20 @@ class DoRestore(val universe: Universe) extends Utils {
 
   private val config = universe.config
 
-  def restore(options: RestoreConf, d: Option[Date] = None): Unit = {
-    val startup = Await.result(universe.startup(), 1.minute)
-    if (startup) {
-      restoreImpl(options)
-    }
-    Await.result(universe.finish(), 1.hour)
+  def restoreFromDate(options: RestoreConf, date: Date): Unit = {
+    restore(options, Some(date))
   }
 
-  private def restoreImpl(options: RestoreConf) = {
-    val eventualMetadatas = universe.backupFileActor.backedUpData()
+  def restore(options: RestoreConf, date: Option[Date] = None): Unit = {
+    val startup = Await.result(universe.startup(), 1.minute)
+    val metadata = Await.result(universe.backupFileActor.retrieveBackup(date), 1.minute)
+    if (startup) {
+      restoreImpl(options, metadata)
+    }
+  }
+
+  private def restoreImpl(options: RestoreConf, metadata: BackupMetaData) = {
     implicit val restoreConf: RestoreConf = options
-    val metadata = Await.result(eventualMetadatas, 1.hours)
     val logic = new RestoredPathLogic(metadata.folders, options)
     restoreFolders(logic, metadata.folders)
     restoreFiles(logic, metadata.files)

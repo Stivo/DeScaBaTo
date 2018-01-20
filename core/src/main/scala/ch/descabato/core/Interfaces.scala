@@ -1,6 +1,7 @@
 package ch.descabato.core
 
-import java.io.File
+import java.io.{File, FileOutputStream}
+import java.util.Date
 
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
@@ -22,9 +23,9 @@ trait BlockStorage extends LifeCycle {
 }
 
 trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart {
-  def addDirectory(description: FolderDescription): Future[Boolean]
+  def retrieveBackup(date: Option[Date] = None): Future[BackupMetaData]
 
-  def backedUpData(): Future[BackupMetaData]
+  def addDirectory(description: FolderDescription): Future[Boolean]
 
   def hasAlready(fileDescription: FileDescription): Future[Boolean]
 
@@ -44,6 +45,7 @@ trait JsonUser {
   }
 
   def writeToJson[T](file: File, value: T) = {
+    file.getParentFile.mkdirs()
     val writer = config.newWriter(file)
     val bytes = Json.mapper.writer(new DefaultPrettyPrinter()).writeValueAsBytes(value)
     val compressed: BytesWrapper = CompressedStream.compress(new BytesWrapper(bytes), CompressionMode.deflate)

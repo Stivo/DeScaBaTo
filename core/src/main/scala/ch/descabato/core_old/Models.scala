@@ -86,7 +86,7 @@ class FileAttributes extends util.HashMap[String, Any] with Utils {
 
   def hasBeenModified(file: File): Boolean = {
     val fromMap = get("lastModifiedTime")
-    val lastMod = {
+    val lastMod: Long = {
       Files.getAttribute(file.toPath(), "lastModifiedTime", LinkOption.NOFOLLOW_LINKS) match {
         case x: FileTime => x.toMillis()
         case _ => l.warn("Did not find filetime for " + file); 0L
@@ -94,10 +94,10 @@ class FileAttributes extends util.HashMap[String, Any] with Utils {
     }
 
     val out = Option(fromMap) match {
-      case Some(l: Long) => !(lastMod <= l && l <= lastMod)
-      case Some(l: Int) => !(lastMod <= l && l <= lastMod)
+      case Some(l: Long) => lastMod != l
+      case Some(l: Int) => lastMod != l.toLong
       case Some(ft: String) =>
-        val l = ft.toLong; !(lastMod <= l && l <= lastMod)
+        val l = ft.toLong; lastMod != l
       case None => true
       case x => println("Was modified: " + lastMod + " vs " + x + " " + x.getClass + " "); true
     }
@@ -168,12 +168,12 @@ object FileAttributes extends Utils {
       if (dos.isHidden) {
         add("dos:hidden", true)
       }
-      if (dos.isArchive) {
-        add("dos:archive", true)
-      }
-      if (dos.isSystem) {
-        add("dos:system", true)
-      }
+//      if (dos.isArchive) {
+//        add("dos:archive", true)
+//      }
+//      if (dos.isSystem) {
+//        add("dos:system", true)
+//      }
     } catch {
       case e: UnsupportedOperationException => // ignore, not a dos system
     }
@@ -183,36 +183,42 @@ object FileAttributes extends Utils {
     val path = file.toPath()
     def lookupService = file.toPath().getFileSystem().getUserPrincipalLookupService()
     lazy val posix = Files.getFileAttributeView(path, classOf[PosixFileAttributeView])
-    val dosOnes = "hidden,archive,readonly".split(",").map("dos:"+_).toSet
     for ((name, o) <- attrs.asScala) {
-      try {
-        val toSet: Option[Any] = (name, o) match {
-          case (key, time) if key.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
-          case (s, group) if s == posixGroup =>
-            val g = lookupService.lookupPrincipalByGroupName(group.toString)
-            posix.setGroup(g)
-            None
-          case (s, group) if s == owner =>
-            val g = lookupService.lookupPrincipalByName(group.toString)
-            posix.setOwner(g)
-            None
-          case (s, perms) if s == posixPermissions =>
-            val p = PosixFilePermissions.fromString(perms.toString)
-            posix.setPermissions(p)
-            None
-          case (key, value) if key.startsWith("dos:") =>
-            Some(value)
-        }
-        toSet.foreach { s =>
-          Files.setAttribute(file.toPath(), name, s, LinkOption.NOFOLLOW_LINKS)
-        }
-      } catch {
-        case e: IOException if Files.isSymbolicLink(path) => // Ignore, seems normal on linux
-        case e: IOException => l.warn(s"Failed to restore attribute $name for file $file")
-      }
+      setAttribute(file, path, lookupService, posix, name, o)
+    }
+    val value = attrs.get("lastModifiedTime")
+    if (value != null) {
+      setAttribute(file, path, lookupService, posix,"lastModifiedTime", value)
     }
   }
 
+  private def setAttribute(file: File, path: Path, lookupService: UserPrincipalLookupService, posix: => PosixFileAttributeView, name: String, o: Any) = {
+    try {
+      val toSet: Option[Any] = (name, o) match {
+        case (key, time) if key.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
+        case (s, group) if s == posixGroup =>
+          val g = lookupService.lookupPrincipalByGroupName(group.toString)
+          posix.setGroup(g)
+          None
+        case (s, group) if s == owner =>
+          val g = lookupService.lookupPrincipalByName(group.toString)
+          posix.setOwner(g)
+          None
+        case (s, perms) if s == posixPermissions =>
+          val p = PosixFilePermissions.fromString(perms.toString)
+          posix.setPermissions(p)
+          None
+        case (key, value) if key.startsWith("dos:") =>
+          Some(value)
+      }
+      toSet.foreach { s =>
+        Files.setAttribute(file.toPath(), name, s, LinkOption.NOFOLLOW_LINKS)
+      }
+    } catch {
+      case e: IOException if Files.isSymbolicLink(path) => // Ignore, seems normal on linux
+      case e: IOException => l.warn(s"Failed to restore attribute $name for file $file")
+    }
+  }
 }
 
 trait UpdatePart {

@@ -79,7 +79,7 @@ trait UniverseI extends LifeCycle {
   // Doesn't really matter
   lazy val shutdownOrder: List[LifeCycle] = startUpOrder.reverse
 
-  lazy val _fileManager = new FileManager(this)
+  lazy val _fileManager = new FileManager(journalHandler().usedIdentifiers(), config)
 
   def fileManager(): FileManager = _fileManager
 

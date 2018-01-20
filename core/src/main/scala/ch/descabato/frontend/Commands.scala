@@ -92,7 +92,24 @@ trait BackupRelatedCommand extends Command with Utils {
 
   var lastArgs: Seq[String] = Nil
 
-  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: UniverseI => T): T = {
+  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: Universe => T): T = {
+    var universe: Universe = null
+    try {
+      universe = new Universe(conf)
+      f(universe)
+    } catch {
+      case e: Exception =>
+        logger.error("Exception while backing up")
+        logException(e)
+        throw e
+    } finally {
+      if (universe != null) {
+        universe.finish()
+      }
+    }
+  }
+
+  def withUniverseOld[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: UniverseI => T): T = {
     var universe: UniverseI = null
     try {
       universe = if (akkaAllowed)
@@ -297,36 +314,28 @@ class RestoreCommand extends BackupRelatedCommand {
     validateFilename(t.restoreInfo)
     withUniverse(conf) {
       universe =>
+        //val strings = universe.journalHandler().usedIdentifiers()
+        val fm = new FileManager(Set.empty, universe.config)
+        val restore = new DoRestore(universe)
         if (t.chooseDate()) {
-          val fm = new FileManager(universe)
-          val options = fm.getBackupDates.zipWithIndex
+          val options = fm.getBackupDatesOld.zipWithIndex
           options.foreach {
             case (date, num) => println(s"[$num]: $date")
           }
           val option = askUser("Which backup would you like to restore from?").toInt
-          RestoreRunners.run(conf) { () =>
-            val rh = new RestoreHandler(universe)
-            rh.restoreFromDate(t, options.find(_._2 == option).get._1)
-          }
+          restore.restoreFromDate(t, options.find(_._2 == option).get._1)
         } else if (t.restoreBackup.isSupplied) {
-          val fm = new FileManager(universe)
-          RestoreRunners.run(conf) { () =>
-            val rh = new RestoreHandler(universe)
-            val backupsFound = fm.backup.getFiles().filter(_.getName.equals(t.restoreBackup()))
-            if (backupsFound.isEmpty) {
-              println("Could not find described backup, these are your choices:")
-              fm.backup.getFiles().foreach { f =>
-                println(f)
-              }
-              throw new IllegalArgumentException("Backup not found")
+          val backupsFound = fm.backup.getFiles().filter(_.getName.equals(t.restoreBackup()))
+          if (backupsFound.isEmpty) {
+            println("Could not find described backup, these are your choices:")
+            fm.backup.getFiles().foreach { f =>
+              println(f)
             }
-            rh.restoreFromDate(t, fm.backup.date(backupsFound.head))
+            throw new IllegalArgumentException("Backup not found")
           }
+          restore.restoreFromDate(t, fm.backup.date(backupsFound.head))
 
-        }
-        else {
-          val universe = new Universe(conf)
-          val restore = new DoRestore(universe)
+        } else {
           restore.restore(t)
         }
     }
@@ -340,7 +349,7 @@ class VerifyCommand extends BackupRelatedCommand {
 
   def start(t: T, conf: BackupFolderConfiguration): Unit = {
     println(t.summary)
-    val count = withUniverse(conf, akkaAllowed = false) {
+    val count = withUniverseOld(conf, akkaAllowed = false) {
       u =>
         val rh = new VerifyHandler(u)
         rh.verify(t)

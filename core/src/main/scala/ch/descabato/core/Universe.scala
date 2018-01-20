@@ -1,11 +1,12 @@
 package ch.descabato.core
 
+import java.util.Objects
 import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.actor.{ActorSystem, TypedActor, TypedProps}
 import akka.stream.ActorMaterializer
-import ch.descabato.core.actors.{MetadataActor, BlockStorageIndexActor, ChunkHandler, ChunkStorageActor}
-import ch.descabato.core_old.BackupFolderConfiguration
+import ch.descabato.core.actors._
+import ch.descabato.core_old.{BackupFolderConfiguration, FileManager}
 import ch.descabato.utils.Utils
 
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -13,19 +14,23 @@ import scala.concurrent.duration._
 
 class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCycle {
 
+  Objects.requireNonNull(config)
+
   implicit val system = ActorSystem("Sys")
   implicit val materializer = ActorMaterializer()
-
   val cpuService: ExecutorService = Executors.newFixedThreadPool(Math.min(config.threads, 4))
   implicit val ex = ExecutionContext.fromExecutorService(cpuService)
 
-  private val chunkWriterProps: TypedProps[ChunkStorageActor] = TypedProps.apply[ChunkStorageActor](classOf[ChunkHandler], new ChunkStorageActor(config))
+  val fileManager = new FileManager(Set.empty, config)
+  val context = new BackupContext(config, fileManager, ex)
+
+  private val chunkWriterProps: TypedProps[ChunkStorageActor] = TypedProps.apply[ChunkStorageActor](classOf[ChunkHandler], new ChunkStorageActor(context))
   val chunkWriter: ChunkHandler = TypedActor(system).typedActorOf(chunkWriterProps.withTimeout(5.minutes))
 
-  private val blockStorageProps: TypedProps[BlockStorage] = TypedProps.apply(classOf[BlockStorage], new BlockStorageIndexActor(config, chunkWriter))
+  private val blockStorageProps: TypedProps[BlockStorage] = TypedProps.apply(classOf[BlockStorage], new BlockStorageIndexActor(context, chunkWriter))
   val blockStorageActor: BlockStorage = TypedActor(system).typedActorOf(blockStorageProps.withTimeout(5.minutes))
 
-  private val backupFileActorProps: TypedProps[MetadataActor] = TypedProps.apply[MetadataActor](classOf[BackupFileHandler], new MetadataActor(config))
+  private val backupFileActorProps: TypedProps[MetadataActor] = TypedProps.apply[MetadataActor](classOf[BackupFileHandler], new MetadataActor(context))
   val backupFileActor: BackupFileHandler = TypedActor(system).typedActorOf(backupFileActorProps.withTimeout(5.minutes))
 
   val actors: Seq[LifeCycle] = Seq(backupFileActor, blockStorageActor, chunkWriter)

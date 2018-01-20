@@ -4,6 +4,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 
+import ch.descabato.core.actors.MetadataActor.BackupMetaData
+import ch.descabato.core.model.StoredChunk
 import ch.descabato.utils.{Hash, Utils}
 
 import scala.collection.mutable
@@ -236,19 +238,24 @@ class IndexFileType(val filetype: FileType[_]) extends FileType[Index](filetype.
 /**
   * Provides different file types and does some common backup file operations.
   */
-class FileManager(override val universe: UniverseI) extends UniversePart {
+class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConfiguration) {
+  if (config == null) {
+    throw new NullPointerException("config must be set")
+  }
+
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
   val dateFormatLength: Int = dateFormat.format(new Date()).length()
   val startDate = new Date()
 
-  def usedIdentifiers: Set[String] = universe.journalHandler().usedIdentifiers()
-
   def getDateFormatted: String = dateFormat.format(startDate)
 
-  val volumes = new FileType[Volume]("volume", false, ".kvs", localC = false)
-  val volumeIndex = new IndexFileType(volumes)
+  val volumes_old = new FileType[Volume]("volume", false, ".kvs", localC = false)
+  val volumeIndex_old = new IndexFileType(volumes_old)
+  val volume = new FileType[Volume]("volume", true, ".kvs")
+  val volumeIndex = new FileType[Seq[StoredChunk]]("volumeIndex", true, ".json")
   val hashlists = new FileType[Vector[(Hash, Array[Byte])]]("hashlists", false, ".kvs")
-  val backup = new FileType[BackupDescription]("backup", true, ".kvs", hasDateC = true, useSubfolder = false)
+  val backup_old = new FileType[BackupDescription]("backup", true, ".kvs", hasDateC = true, useSubfolder = false)
+  val backup = new FileType[BackupMetaData]("backup", true, ".json", hasDateC = true, useSubfolder = false)
   val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   //  val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
@@ -257,7 +264,7 @@ class FileManager(override val universe: UniverseI) extends UniversePart {
   //  val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
   //  val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
 
-  private val types = List(volumes, volumeIndex, hashlists, filesDelta, backup)
+  private val types = List(volumes_old, volumeIndex_old, hashlists, filesDelta, backup_old, backup, volumeIndex, volume)
   //, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
   def allFiles(temp: Boolean = true): List[File] = types.flatMap(ft => ft.getFiles() ++ (if (temp) ft.getTempFiles() else Nil))
@@ -278,7 +285,16 @@ class FileManager(override val universe: UniverseI) extends UniversePart {
   //    (complete, !updates.isEmpty)
   //  }
 
-  def getLastBackup(temp: Boolean = false): List[File] = {
+  def getLastBackupOld(temp: Boolean = false): List[File] = {
+    val out = backup_old.getFiles().sortBy(f => (backup_old.date(f), backup_old.numberOf(f))).lastOption.toList
+    if (temp) {
+      out ++ backup_old.getTempFiles().sortBy(backup_old.numberOf)
+    } else {
+      out
+    }
+  }
+
+  def getLastBackup(temp: Boolean = false): Seq[File] = {
     val out = backup.getFiles().sortBy(f => (backup.date(f), backup.numberOf(f))).lastOption.toList
     if (temp) {
       out ++ backup.getTempFiles().sortBy(backup.numberOf)
@@ -287,8 +303,16 @@ class FileManager(override val universe: UniverseI) extends UniversePart {
     }
   }
 
+  def getBackupDatesOld(): Seq[Date] = {
+    backup_old.getFiles().map(backup_old.date).toList.distinct.sorted
+  }
+
   def getBackupDates(): Seq[Date] = {
     backup.getFiles().map(backup.date).toList.distinct.sorted
+  }
+
+  def getBackupForDateOld(d: Date): Seq[File] = {
+    backup_old.getFiles().filter(f => backup_old.date(f) == d)
   }
 
   def getBackupForDate(d: Date): Seq[File] = {

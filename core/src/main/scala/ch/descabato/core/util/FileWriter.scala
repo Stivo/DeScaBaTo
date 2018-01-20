@@ -17,6 +17,7 @@ trait FileWriter {
 }
 
 class SimpleFileWriter(val file: File) extends FileWriter {
+
   private val stream = new FileOutputStream(file)
   var position = 0
 

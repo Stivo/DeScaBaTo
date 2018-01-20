@@ -9,7 +9,7 @@ class BrowseCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new SimpleBackupFolderOption(args)
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
-    withUniverse(conf, false) { universe =>
+    withUniverseOld(conf, false) { universe =>
       val bh = new VfsIndex(universe)
       bh.registerIndex()
       val path = conf.folder.getCanonicalPath()

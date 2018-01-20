@@ -208,8 +208,8 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   def loadBackup(date: Option[java.util.Date]): ch.descabato.core_old.BackupDescription = {
     loadedBackup = date match {
-      case Some(d) => fileManager.getBackupForDate(d)
-      case None => fileManager.getLastBackup(temp = true)
+      case Some(d) => fileManager.getBackupForDateOld(d)
+      case None => fileManager.getLastBackupOld(temp = true)
     }
     current = BackupDescription()
     val kvstores = loadedBackup.view.map(getReaderForLocation)
@@ -270,7 +270,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
         out
     }
 
-  lazy val fileType: FileType[BackupDescription] = universe.fileManager().backup
+  lazy val fileType: FileType[BackupDescription] = universe.fileManager().backup_old
 
   override def fileFinished(): Unit = {
     universe.journalHandler().finishedFile(currentlyWritingFile.file, fileType) // TODO
@@ -302,7 +302,7 @@ class KvStoreHashListHandler extends HashKvStoreHandler[Vector[(Hash, Array[Byte
 }
 
 class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler with Utils {
-  lazy val fileType: FileType[Volume] = fileManager.volumes
+  lazy val fileType: FileType[Volume] = fileManager.volumes_old
 
   private val byteCounter = new MaxValueCounter() {
     var compressedBytes = 0L
@@ -384,7 +384,7 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
 
   def createIndex(): Unit = {
     if (config.createIndexes) {
-      val indexFile = fileManager.volumeIndex.indexForFile(currentlyWritingFile.file)
+      val indexFile = fileManager.volumeIndex_old.indexForFile(currentlyWritingFile.file)
       indexFile.getParentFile.mkdirs()
       val indexWriter = new KvStoreStorageMechanismWriter(indexFile, config.passphrase)
       indexWriter.setup(universe)
@@ -398,12 +398,12 @@ class KvStoreBlockHandler extends HashKvStoreHandler[Volume] with BlockHandler w
       val compressed = CompressedStream.compress(jsonList.wrap, CompressionMode.deflate)
       indexWriter.add("list".getBytes, compressed)
       indexWriter.close()
-      universe.journalHandler.finishedFile(indexFile, fileManager.volumeIndex)
+      universe.journalHandler.finishedFile(indexFile, fileManager.volumeIndex_old)
     }
   }
 
   override def loadFile(file: File): Unit = {
-    val indexFile = universe.fileManager().volumeIndex.indexForFile(file)
+    val indexFile = universe.fileManager().volumeIndex_old.indexForFile(file)
     if (indexFile.exists()) {
       val reader = new KvStoreStorageMechanismReader(indexFile, config.passphrase)
       val key = "list".getBytes()
