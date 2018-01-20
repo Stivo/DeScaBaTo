@@ -2,17 +2,16 @@ package ch.descabato.core_old
 
 import java.io.{File, IOException}
 import java.math.{BigDecimal => JBigDecimal}
-import java.nio.ByteBuffer
-import java.nio.file.attribute.{BasicFileAttributes, FileTime, PosixFileAttributeView, PosixFileAttributes, PosixFilePermissions}
+import java.nio.file.attribute._
 import java.nio.file.{Files, LinkOption, Path}
 import java.security.{MessageDigest, Principal}
 import java.util
 import java.util.regex.Pattern
 
 import akka.util.ByteString
+import ch.descabato.CompressionMode
 import ch.descabato.core.util.{FileReader, FileWriter, SimpleFileReader, SimpleFileWriter}
 import ch.descabato.remote.RemoteOptions
-import ch.descabato.{CompressionMode, RemoteMode}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -117,18 +116,27 @@ object FileAttributes extends Utils {
   val lastModified = "lastModifiedTime"
   val creationTime = "creationTime"
 
+  private def readAttributes[T <: BasicFileAttributes](path: Path)(implicit m: Manifest[T]) =
+    Files.readAttributes[T](path, m.runtimeClass.asInstanceOf[Class[T]], LinkOption.NOFOLLOW_LINKS)
+
   def apply(path: Path): FileAttributes = {
     val out = new FileAttributes()
-    def add(attr: String, o: Object) = o match {
+    def add(attr: String, o: Any) = o match {
       case ft: FileTime => out.put(attr, ft.toMillis())
+      case x: Boolean => out.put(attr, x)
       case x: String => out.put(attr, x)
       case p: Principal => out.put(attr, p.getName())
     }
 
-    def readAttributes[T <: BasicFileAttributes](implicit m: Manifest[T]) =
-      Files.readAttributes[T](path, m.runtimeClass.asInstanceOf[Class[T]], LinkOption.NOFOLLOW_LINKS)
+    readBasicAttributes(path, add _)
+    readPosixAttributes(add _, path)
+    readDosAttributes(add _, path)
 
-    val attrs = readAttributes[BasicFileAttributes]
+    out
+  }
+
+  private def readBasicAttributes(path: Path, add: (String, Any) => Any) = {
+    val attrs = readAttributes[BasicFileAttributes](path)
 
     val keys = List(lastModified, creationTime)
     keys.foreach { k =>
@@ -136,9 +144,11 @@ object FileAttributes extends Utils {
       m.setAccessible(true)
       add(k, m.invoke(attrs))
     }
+  }
 
+  def readPosixAttributes(add: (String, Object) => Any, path: Path) = {
     try {
-      val posix = readAttributes[PosixFileAttributes]
+      val posix = readAttributes[PosixFileAttributes](path)
       if (posix != null) {
         add(owner, posix.owner())
         add(posixGroup, posix.group())
@@ -147,19 +157,36 @@ object FileAttributes extends Utils {
     } catch {
       case e: UnsupportedOperationException => // ignore, not a posix system
     }
+  }
 
-    out
+  private def readDosAttributes(add: (String, Any) => Any, path: Path) = {
+    try {
+      val dos = readAttributes[DosFileAttributes](path)
+      if (dos.isReadOnly) {
+        add("dos:readonly", true)
+      }
+      if (dos.isHidden) {
+        add("dos:hidden", true)
+      }
+      if (dos.isArchive) {
+        add("dos:archive", true)
+      }
+      if (dos.isSystem) {
+        add("dos:system", true)
+      }
+    } catch {
+      case e: UnsupportedOperationException => // ignore, not a dos system
+    }
   }
 
   def restore(attrs: FileAttributes, file: File) {
     val path = file.toPath()
     def lookupService = file.toPath().getFileSystem().getUserPrincipalLookupService()
     lazy val posix = Files.getFileAttributeView(path, classOf[PosixFileAttributeView])
-    val dosOnes = "hidden,archive,readonly".split(",").toSet
-    for ((k, o) <- attrs.asScala) {
+    val dosOnes = "hidden,archive,readonly".split(",").map("dos:"+_).toSet
+    for ((name, o) <- attrs.asScala) {
       try {
-        val name = if (dosOnes.safeContains(k)) "dos:" + k else k
-        val toSet: Option[Any] = (k, o) match {
+        val toSet: Option[Any] = (name, o) match {
           case (key, time) if key.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
           case (s, group) if s == posixGroup =>
             val g = lookupService.lookupPrincipalByGroupName(group.toString)
@@ -173,13 +200,15 @@ object FileAttributes extends Utils {
             val p = PosixFilePermissions.fromString(perms.toString)
             posix.setPermissions(p)
             None
+          case (key, value) if key.startsWith("dos:") =>
+            Some(value)
         }
         toSet.foreach { s =>
           Files.setAttribute(file.toPath(), name, s, LinkOption.NOFOLLOW_LINKS)
         }
       } catch {
         case e: IOException if Files.isSymbolicLink(path) => // Ignore, seems normal on linux
-        case e: IOException => l.warn("Failed to restore attribute " + k + " for file " + file)
+        case e: IOException => l.warn(s"Failed to restore attribute $name for file $file")
       }
     }
   }
@@ -205,6 +234,10 @@ object FileDeleted {
 }
 
 case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Hash = Hash.nul) extends BackupPart {
+
+  def this(file: File) = {
+    this(file.getAbsolutePath, file.length(), FileAttributes(file.toPath))
+  }
   var hasHashList: Boolean = false
 
   @JsonIgnore def isFolder = false
@@ -225,6 +258,13 @@ class Block(val id: BlockId, val content: BytesWrapper) {
   var hash: Hash = Hash.nul
   var mode: CompressionMode = _
   var compressed: BytesWrapper = _
+}
+
+object FolderDescription {
+  def apply(dir: File): FolderDescription =  {
+    if (!dir.isDirectory) throw new IllegalArgumentException(s"Must be a directory, $dir is a file")
+    FolderDescription(dir.toString(), FileAttributes(dir.toPath))
+  }
 }
 
 case class FolderDescription(path: String, attrs: FileAttributes) extends BackupPart {

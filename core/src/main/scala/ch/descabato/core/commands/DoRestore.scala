@@ -4,19 +4,20 @@ import java.io.{File, FileOutputStream}
 import java.util.Date
 
 import akka.stream.scaladsl.Source
-import akka.util.ByteString
 import ch.descabato.core.Universe
+import ch.descabato.core.model.FileMetadata
+import ch.descabato.core_old.{BackupPart, FileAttributes, FolderDescription}
 import ch.descabato.frontend.RestoreConf
-import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash, Utils}
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.{CompressedStream, FileUtils, Hash, Utils}
 
-import scala.concurrent.{Await, Future}
+import scala.collection.mutable
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 class DoRestore(val universe: Universe) extends Utils {
 
-  import universe.ex
-  import universe.materializer
+  import universe.{ex, materializer}
 
   private val config = universe.config
 
@@ -29,34 +30,150 @@ class DoRestore(val universe: Universe) extends Utils {
   }
 
   private def restoreImpl(options: RestoreConf) = {
-    val restoreDest = new File("restored")
-    restoreDest.mkdirs()
-    var finished: Boolean = false
-    val eventualMetadatas = universe.backupFileActor.backedUpFiles()
-    eventualMetadatas.foreach { files =>
-      logger.info(s"Restoring ${files.size} files")
-      for (file <- files) {
-        val restoreDestination = new File(restoreDest, file.fd.path.replace(':', '_').replace('/', '_').replace('\\', '_'))
-        restoreDestination.getParentFile.mkdirs()
-        val stream = new FileOutputStream(restoreDestination)
-        val source = Source.fromIterator[BytesWrapper](() => file.blocks.bytes.grouped(config.hashLength).map(_.wrap))
-        Await.result(source.mapAsync(10) { hashBytes =>
-          val hash = Hash(hashBytes.asArray())
-          universe.blockStorageActor.read(hash)
-        }.mapAsync(10) { bs =>
-          Future(CompressedStream.decompressToBytes(bs))
-        }.runForeach { x =>
-          stream.write(x)
-        }, 1.hour)
-        stream.close()
-        restoreDestination.setLastModified(file.fd.lastModified)
-      }
-      finished = true
+    val eventualMetadatas = universe.backupFileActor.backedUpData()
+    implicit val restoreConf: RestoreConf = options
+    val metadata = Await.result(eventualMetadatas, 1.hours)
+    val logic = new RestoredPathLogic(metadata.folders, options)
+    restoreFolders(logic, metadata.folders)
+    restoreFiles(logic, metadata.files)
+    restoreFolders(logic, metadata.folders)
+  }
+
+  private def restoreFolders(logic: RestoredPathLogic, folders: Seq[FolderDescription]) = {
+    for (folder <- folders) {
+      val restoredFile = logic.makePath(folder.path)
+      restoredFile.mkdirs()
+      folder.applyAttrsTo(restoredFile)
     }
-    while (!finished) {
-      Thread.sleep(500)
+  }
+
+  private def restoreFiles(logic: RestoredPathLogic, files: Seq[FileMetadata]): Unit = {
+    logger.info(s"Restoring ${files.size} files")
+    for (file <- files) {
+      val fd = file.fd
+      val restoredFile = logic.makePath(fd.path)
+      restoredFile.getParentFile.mkdirs()
+      if (restoredFile.exists()) {
+        if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
+          return
+        }
+        l.debug(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
+        l.info("File exists, but has been modified, so overwrite")
+      }
+      val stream = new FileOutputStream(restoredFile)
+      val source = Source.fromIterator[Array[Byte]](() => file.blocks.bytes.grouped(config.hashLength))
+      Await.result(source.mapAsync(10) { hashBytes =>
+        val hash = Hash(hashBytes)
+        universe.blockStorageActor.read(hash)
+      }.mapAsync(10) { bs =>
+        Future(CompressedStream.decompressToBytes(bs))
+      }.runForeach { x =>
+        stream.write(x)
+      }, 1.hour)
+      stream.close()
+      FileAttributes.restore(fd.attrs, restoredFile)
+    }
+  }
+
+
+}
+
+class RestoredPathLogic(val folders: Seq[FolderDescription], val restoreConf: RestoreConf) {
+
+  sealed trait Result
+
+  case object IsSubFolder extends Result
+
+  case object IsTopFolder extends Result
+
+  case object IsUnrelated extends Result
+
+  case object IsSame extends Result
+
+  def isRelated(folder: BackupPart, relatedTo: BackupPart): Result = {
+    var folderParts = folder.pathParts.toList
+    var relatedParts = relatedTo.pathParts.toList
+    while (relatedParts.nonEmpty && relatedParts.headOption == folderParts.headOption) {
+      relatedParts = relatedParts.tail
+      folderParts = folderParts.tail
+    }
+    if (folderParts.lengthCompare(folder.pathParts.size) == 0) {
+      IsUnrelated
+    } else {
+      (folderParts, relatedParts) match {
+        case (Nil, x :: _) => IsSubFolder
+        case (x :: _, Nil) => IsTopFolder
+        case (x :: _, y :: _) => IsUnrelated
+        case _ => IsSame
+      }
+    }
+  }
+
+  def detectRoots(folders: Iterable[BackupPart]): Seq[FolderDescription] = {
+    var candidates = mutable.Buffer[BackupPart]()
+    folders.view.filter(_.isFolder).foreach {
+      folder =>
+        if (folder.path == "/") return List(folder.asInstanceOf[FolderDescription])
+        // compare with each candidate
+        var foundACandidate = false
+        candidates = candidates.map {
+          candidate =>
+            // case1: This folder is a subfolder of candidate
+            //		=> nothing changes, but search is aborted
+            // case2: this folder is a parent of candidate
+            //		=> this folder should replace that candidate, search is aborted
+            // case3: this folder is not related to any candidate
+            //		=> folder is added to candidates
+            isRelated(candidate, folder) match {
+              case IsUnrelated => candidate
+              case IsTopFolder =>
+                foundACandidate = true; folder
+              case IsSubFolder =>
+                foundACandidate = true; candidate
+              case IsSame => throw new IllegalStateException("Duplicate entry found: " + folder + " " + candidate)
+            }
+        }.distinct
+        if (!foundACandidate) {
+          candidates += folder
+        }
+    }
+    candidates.flatMap {
+      case x: FolderDescription => List(x)
+    }.toList
+  }
+
+  private val roots: Iterable[FolderDescription] = detectRoots(folders)
+  private val relativeToRoot: Boolean = roots.size == 1 || roots.map(_.name).toList.distinct.lengthCompare(roots.size) == 0
+
+  def getRoot(sub: String): Option[FolderDescription] = {
+    // TODO this asks for a refactoring
+    val fd = FolderDescription(sub, null)
+    roots.find {
+      x => val r = isRelated(x, fd); r == IsSubFolder || r == IsSame
+    }
+  }
+
+
+  def makePath(path: String, maybeOutside: Boolean = false): File = {
+    if (restoreConf.restoreToOriginalPath()) {
+      return new File(path)
     }
 
+    def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
+
+    val dest = new File(restoreConf.restoreToFolder())
+    if (relativeToRoot) {
+      val relativeTo = getRoot(path) match {
+        case Some(x: BackupPart) => x.path
+        // this is outside, so we return the path
+        case None if !maybeOutside => throw new IllegalStateException("This should be inside the roots, some error")
+        case None => return new File(path)
+      }
+      FileUtils.getRelativePath(dest, new File(relativeTo), path)
+    } else {
+      new File(dest, cleaned(path))
+    }
   }
+
 
 }

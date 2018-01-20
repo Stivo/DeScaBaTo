@@ -60,7 +60,7 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart], ignoreFile: Option[Fi
 
   override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult = {
     if (pathIsNotIgnored(dir)) {
-      handleFile(FolderDescription(dir.toRealPath().toString(), FileAttributes(dir)),
+      handleFile(FolderDescription(dir.toFile),
         dir, attrs)
       super.preVisitDirectory(dir, attrs)
     } else {
@@ -75,8 +75,7 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart], ignoreFile: Option[Fi
           SymbolicLink(file.toRealPath(LinkOption.NOFOLLOW_LINKS).toString(),
             file.getParent.resolve(Files.readSymbolicLink(file)).toRealPath().toString(), FileAttributes(file))
         } else {
-          val out = FileDescription(file.toRealPath().toString(), file.toFile().length(),
-            FileAttributes(file))
+          val out = new FileDescription(file.toFile)
           out
         }
       },

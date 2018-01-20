@@ -1,53 +1,34 @@
 package ch.descabato.core
 
 import java.io.File
-import java.util.concurrent.CompletableFuture
 
 import akka.actor.TypedActor
-import akka.util.ByteString
 import ch.descabato.CompressionMode
-import ch.descabato.core.model.{Block, FileDescription, FileMetadata, StoredChunk}
+import ch.descabato.core.actors.MetadataActor.BackupMetaData
+import ch.descabato.core.model.{Block, FileMetadata, StoredChunk}
 import ch.descabato.core.util.Json
-import ch.descabato.core_old.BackupFolderConfiguration
+import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription}
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 
-import scala.compat.java8.FutureConverters
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
 
 trait BlockStorage extends LifeCycle {
   def read(hash: Hash): Future[BytesWrapper]
 
   def hasAlready(block: Block): Future[Boolean]
-  def hasAlreadyJava(block: Block): CompletableFuture[Block] = {
-    val fut = new CompletableFuture[Block]()
-    hasAlready(block).map { bool =>
-      block.isAlreadySaved = bool
-      fut.complete(block)
-    }
-    fut
-  }
 
   def save(storedChunk: StoredChunk): Future[Boolean]
-
-  def saveJava(storedChunk: StoredChunk): CompletableFuture[Boolean] = {
-    FutureConverters.toJava(save(storedChunk)).toCompletableFuture
-  }
-
-
 }
 
 trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart {
-  def backedUpFiles(): Future[Seq[FileMetadata]]
+  def addDirectory(description: FolderDescription): Future[Boolean]
+
+  def backedUpData(): Future[BackupMetaData]
 
   def hasAlready(fileDescription: FileDescription): Future[Boolean]
 
   def saveFile(fileMetadata: FileMetadata): Future[Boolean]
-
-  def saveFileJava(fileMetadata: FileMetadata): CompletableFuture[java.lang.Boolean] = {
-    FutureConverters.toJava(saveFile(fileMetadata).map(_.asInstanceOf[java.lang.Boolean])).toCompletableFuture
-  }
 
   def saveFileSameAsBefore(fd: FileDescription): Future[Boolean]
 }

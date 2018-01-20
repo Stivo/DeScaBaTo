@@ -9,6 +9,7 @@ import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Merge, RunnableG
 import akka.stream.{ClosedShape, OverflowStrategy}
 import ch.descabato.core.Universe
 import ch.descabato.core.model._
+import ch.descabato.core_old.{FileDescription, FolderDescription}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
 
@@ -44,40 +45,13 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
 
   private def setupFlow(pathsToBackup: Seq[Path]) = {
     val (files, dirs) = pathsToBackup.partition(x => Files.isRegularFile(x))
+    val dirsSaved: Future[Done] = Source.fromIterator[Path](() => dirs.iterator).mapAsync(5) { path =>
+      universe.backupFileActor.addDirectory(FolderDescription(path.toFile))
+    }.runWith(Sink.ignore)
+    Await.result(dirsSaved, 1.hours)
     Source.fromIterator[Path](() => files.iterator).mapAsync(5) { path =>
       backupFile(path)
     }.runWith(Sink.ignore)
-  }
-
-  private def mapToUnit() = Flow[Any].map(_ => ())
-
-  private def hashAndCreateBlocks(fd: FileDescription) = Flow[BytesWrapper].zipWithIndex.mapAsync(10) { case (x, i) =>
-    Future {
-      val digest = config.createMessageDigest()
-      digest.update(x)
-      val hash = Hash(digest.digest())
-      Block(BlockId(fd, i.toInt), x, hash)
-    }
-  }
-
-  private val sendToWriter = Flow[Block].mapAsync(2) { b =>
-    universe.chunkWriter.saveBlock(b)
-  }
-
-  private val sendToBlockIndex = Flow[StoredChunk].mapAsync(2) { b =>
-    universe.blockStorageActor.save(b)
-  }
-
-  private def newBuffer[T](bufferSize: Int = 100) = Flow[T].buffer(bufferSize, OverflowStrategy.backpressure)
-
-  private val filterNonExistingBlocksAndCompress = Flow[Block].mapAsync(5) { x =>
-    universe.blockStorageActor.hasAlready(x).map { fut =>
-      (x, fut)
-    }
-  }.filter(!_._2).map(_._1).mapAsync(8)(x => Future(x.compress(config)))
-
-  private def createCompressAndSaveBlocks(fd: FileDescription) = {
-    filterNonExistingBlocksAndCompress.via(newBuffer[Block](20)).via(sendToWriter).via(sendToBlockIndex).via(mapToUnit())
   }
 
 //  def streamCounter[T](name: String) = Flow[T].zipWithIndex.map { case (x, i) =>
@@ -117,6 +91,37 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
 
       }
     }
+  }
+
+  private def mapToUnit() = Flow[Any].map(_ => ())
+
+  private def hashAndCreateBlocks(fd: FileDescription) = Flow[BytesWrapper].zipWithIndex.mapAsync(10) { case (x, i) =>
+    Future {
+      val digest = config.createMessageDigest()
+      digest.update(x)
+      val hash = Hash(digest.digest())
+      Block(BlockId(fd, i.toInt), x, hash)
+    }
+  }
+
+  private val sendToWriter = Flow[Block].mapAsync(2) { b =>
+    universe.chunkWriter.saveBlock(b)
+  }
+
+  private val sendToBlockIndex = Flow[StoredChunk].mapAsync(2) { b =>
+    universe.blockStorageActor.save(b)
+  }
+
+  private def newBuffer[T](bufferSize: Int = 100) = Flow[T].buffer(bufferSize, OverflowStrategy.backpressure)
+
+  private val filterNonExistingBlocksAndCompress = Flow[Block].mapAsync(5) { x =>
+    universe.blockStorageActor.hasAlready(x).map { fut =>
+      (x, fut)
+    }
+  }.filter(!_._2).map(_._1).mapAsync(8)(x => Future(x.compress(config)))
+
+  private def createCompressAndSaveBlocks(fd: FileDescription) = {
+    filterNonExistingBlocksAndCompress.via(newBuffer[Block](20)).via(sendToWriter).via(sendToBlockIndex).via(mapToUnit())
   }
 
   private def createFileMetadataAndSave(fd: FileDescription) = Flow[Seq[Hash]].mapAsync(2) { hashes =>
