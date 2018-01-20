@@ -1,16 +1,14 @@
 package ch.descabato.core.actors
 
 import java.io.File
-import java.util.concurrent.CompletableFuture
 
-import akka.util.ByteString
+import ch.descabato.core.LifeCycle
 import ch.descabato.core.model.{Block, Length, StoredChunk}
 import ch.descabato.core.util.{FileReader, FileWriter}
-import ch.descabato.core_old.{BackupFolderConfiguration, BlockingOperation, LifeCycle}
+import ch.descabato.core_old.BackupFolderConfiguration
 import ch.descabato.utils.BytesWrapper
 import org.slf4j.LoggerFactory
 
-import scala.compat.java8.FutureConverters
 import scala.concurrent.Future
 
 class ChunkStorageActor(val config: BackupFolderConfiguration) extends ChunkHandler {
@@ -42,28 +40,25 @@ class ChunkStorageActor(val config: BackupFolderConfiguration) extends ChunkHand
     Future.successful(StoredChunk(currentFileName, block.hash, posBefore, Length(block.compressed.length)))
   }
 
-  override def finish(): Boolean = {
+  override def finish(): Future[Boolean] = {
     if (_writer != null) {
       writer.finish()
     }
     if (_reader != null) {
       reader.close()
     }
-    true
+    Future.successful(true)
   }
 
-  override def load() {
+  override def startup(): Future[Boolean] = {
     // nothing to do
+    Future.successful(true)
   }
 
   override def read(storedChunk: StoredChunk): Future[BytesWrapper] = {
     Future.successful(reader.readChunk(storedChunk.startPos, storedChunk.length.size))
   }
 
-  override def shutdown(): BlockingOperation = {
-    // nothing to do
-    new BlockingOperation()
-  }
 }
 
 

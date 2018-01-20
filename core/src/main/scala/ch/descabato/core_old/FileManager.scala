@@ -236,7 +236,7 @@ class IndexFileType(val filetype: FileType[_]) extends FileType[Index](filetype.
 /**
   * Provides different file types and does some common backup file operations.
   */
-class FileManager(override val universe: Universe) extends UniversePart {
+class FileManager(override val universe: UniverseI) extends UniversePart {
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd.HHmmss.SSS")
   val dateFormatLength: Int = dateFormat.format(new Date()).length()
   val startDate = new Date()

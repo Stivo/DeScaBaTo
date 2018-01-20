@@ -6,7 +6,7 @@ import akka.util.ByteString
 import ch.descabato.core.{BlockStorage, JsonUser}
 import ch.descabato.core.model.{Block, StoredChunk}
 import ch.descabato.core_old.BackupFolderConfiguration
-import ch.descabato.utils.{BytesWrapper, Hash}
+import ch.descabato.utils.{ByteArrayMap, BytesWrapper, FastHashMap, Hash}
 import org.slf4j.LoggerFactory
 import ch.descabato.utils.Implicits._
 
@@ -19,9 +19,9 @@ class BlockStorageIndexActor(val config: BackupFolderConfiguration, val chunkHan
 
   private var hasChanged = false
 
-  private var map: Map[Hash, StoredChunk] = Map.empty
+  private var map: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
 
-  private var toBeStored: Set[Hash] = Set.empty
+  private var toBeStored: FastHashMap[Boolean] = new FastHashMap[Boolean]()
 
   private val value = "blockIndex"
   val file = new File(config.folder, value + ".json")
@@ -30,7 +30,7 @@ class BlockStorageIndexActor(val config: BackupFolderConfiguration, val chunkHan
     Future {
       if (file.exists()) {
         val seq = readJson[Seq[StoredChunk]](file)
-        map = seq.map(x => (x.hash, x)).toMap
+        map ++= seq.map(x => (x.hash, x))
       }
       true
     }
@@ -39,7 +39,7 @@ class BlockStorageIndexActor(val config: BackupFolderConfiguration, val chunkHan
   override def hasAlready(block: Block): Future[Boolean] = {
     val haveAlready = map.safeContains(block.hash) || toBeStored.safeContains(block.hash)
     if (!haveAlready) {
-      toBeStored += block.hash
+      toBeStored += block.hash -> true
       hasChanged = true
     }
     Future.successful(haveAlready)

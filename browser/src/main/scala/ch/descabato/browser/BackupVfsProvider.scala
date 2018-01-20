@@ -148,7 +148,7 @@ class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFile
 
 }
 
-class VfsIndex(universe: Universe)
+class VfsIndex(universe: UniverseI)
   extends RestoreHandler(universe) {
 
   val backup = universe.backupPartHandler().loadBackup()

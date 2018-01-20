@@ -45,7 +45,7 @@ trait MeasureTime {
 }
 
 trait BackupRelatedHandler {
-  def universe: Universe
+  def universe: UniverseI
 
   def config: BackupFolderConfiguration = universe.config
 
@@ -83,7 +83,7 @@ trait BackupRelatedHandler {
 
 }
 
-class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {
+class BackupHandler(val universe: UniverseI) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {
 
   var counters: ThreadLocal[FileProgress] = new ThreadLocal[FileProgress]() {
     override def initialValue = new FileProgress()
@@ -273,7 +273,7 @@ class BackupHandler(val universe: Universe) extends Utils with BackupRelatedHand
 }
 
 
-class RestoreHandler(val universe: Universe) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {
+class RestoreHandler(val universe: UniverseI) extends Utils with BackupRelatedHandler with BackupProgressReporting with MeasureTime {
 
   val nameOfOperation = "Restoring"
 
@@ -501,7 +501,7 @@ class ProblemCounter extends Counter {
   def name = "Problems"
 }
 
-class VerifyHandler(val universe: Universe)
+class VerifyHandler(val universe: UniverseI)
   extends BackupRelatedHandler with Utils with BackupProgressReporting with MeasureTime {
 
   val nameOfOperation = "Verifying"

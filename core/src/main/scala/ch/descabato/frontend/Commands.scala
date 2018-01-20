@@ -4,12 +4,13 @@ import java.io.{File, FileOutputStream, PrintStream}
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
-import ch.descabato.{CompressionMode, RemoteMode}
+import ch.descabato.core.Universe
+import ch.descabato.core.commands.{DoBackup, DoRestore}
 import ch.descabato.core_old._
 import ch.descabato.frontend.ScallopConverters._
-import ch.descabato.frontend.ScallopConverters.singleArgConverter
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
+import ch.descabato.{CompressionMode, RemoteMode}
 import org.rogach.scallop._
 
 import scala.reflect.runtime.universe
@@ -91,8 +92,8 @@ trait BackupRelatedCommand extends Command with Utils {
 
   var lastArgs: Seq[String] = Nil
 
-  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: Universe => T): T = {
-    var universe: Universe = null
+  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: UniverseI => T): T = {
+    var universe: UniverseI = null
     try {
       universe = if (akkaAllowed)
         Universes.makeUniverse(conf)
@@ -226,7 +227,8 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     if (!path.exists) {
       path = new File(path.getParent() + "/bin", path.getName)
     }
-    val line = s"$path backup "+args.mkString(" ")
+    val line = s"$path backup " + args.mkString(" ")
+
     def writeTo(bat: File) {
       if (!bat.exists) {
         val ps = new PrintStream(new FileOutputStream(bat))
@@ -235,6 +237,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
         l.info("A file " + bat + " has been written to execute this backup again")
       }
     }
+
     writeTo(new File(".", conf.folder.getName() + suffix))
     writeTo(new File(conf.folder, "_" + conf.folder.getName() + suffix))
   }
@@ -245,14 +248,17 @@ class BackupCommand extends BackupRelatedCommand with Utils {
 
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
-    withUniverse(conf) {
-      universe =>
-        val bdh = new BackupHandler(universe)
-        if (!t.noScriptCreation()) {
-          writeBat(t, conf, lastArgs)
-        }
-        bdh.backup(t.folderToBackup() :: Nil)
-    }
+    val universe = new Universe(conf)
+    val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
+    backup.execute()
+    //    withUniverse(conf) {
+    //      universe =>
+    //        val bdh = new BackupHandler(universe)
+    //        if (!t.noScriptCreation()) {
+    //          writeBat(t, conf, lastArgs)
+    //        }
+    //        bdh.backup(t.folderToBackup() :: Nil)
+    //    }
     //    if (conf.redundancyEnabled) {
     //      l.info("Running redundancy creation")
     //      new RedundancyHandler(conf).createFiles
@@ -319,10 +325,9 @@ class RestoreCommand extends BackupRelatedCommand {
 
         }
         else {
-          RestoreRunners.run(conf) { () =>
-            val rh = new RestoreHandler(universe)
-            rh.restore(t)
-          }
+          val universe = new Universe(conf)
+          val restore = new DoRestore(universe)
+          restore.restore(t)
         }
     }
   }

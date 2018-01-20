@@ -248,3 +248,13 @@ class ByteArrayMap[T] extends mutable.HashMap[Array[Byte], T] {
     util.Arrays.equals(key1, key2)
   }
 }
+
+class FastHashMap[T] extends mutable.HashMap[Hash, T] {
+  override protected def elemHashCode(key: Hash): Int = {
+    util.Arrays.hashCode(key.bytes)
+  }
+
+  override protected def elemEquals(key1: Hash, key2: Hash): Boolean = {
+    util.Arrays.equals(key1.bytes, key2.bytes)
+  }
+}

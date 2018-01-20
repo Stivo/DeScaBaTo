@@ -29,7 +29,7 @@ object Counter {
   var i = 0
 }
 
-class AkkaUniverse(val config: BackupFolderConfiguration) extends Universe with Utils {
+class AkkaUniverse(val config: BackupFolderConfiguration) extends UniverseI with Utils {
   implicit val context: ExecutionContextExecutor = ExecutionContext.fromExecutor(ActorStats.tpe)
 
   val reg: Regex = "[^a-zA-Z0-9-_.*$+:@&=,!~';.]".r

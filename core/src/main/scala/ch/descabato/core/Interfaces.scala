@@ -58,8 +58,8 @@ trait JsonUser {
   def readJson[T: Manifest](file: File): T = {
     val reader = config.newReader(file)
     val bs = reader.readAllContent()
-    val decompressed = CompressedStream.decompress(bs)
-    Json.mapper.readValue[T](decompressed)
+    //val decompressed = CompressedStream.decompress(bs)
+    Json.mapper.readValue[T](bs.asArray())
   }
 
   def writeToJson[T](file: File, value: T) = {

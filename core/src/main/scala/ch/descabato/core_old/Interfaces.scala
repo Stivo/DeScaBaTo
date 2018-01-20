@@ -47,7 +47,7 @@ trait PureLifeCycle extends LifeCycle {
 
 trait BackupActor extends UniversePart with LifeCycle
 
-trait Universe extends LifeCycle {
+trait UniverseI extends LifeCycle {
   def config(): BackupFolderConfiguration
 
   def backupPartHandler(): BackupPartHandler

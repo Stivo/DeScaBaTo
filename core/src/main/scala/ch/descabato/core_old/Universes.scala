@@ -16,7 +16,7 @@ import org.apache.commons.compress.utils.IOUtils
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
 object Universes {
-  def makeUniverse(config: BackupFolderConfiguration): Universe with Utils = {
+  def makeUniverse(config: BackupFolderConfiguration): UniverseI with Utils = {
     if (config.threads == 1)
       new SingleThreadUniverse(config)
     else
@@ -25,14 +25,14 @@ object Universes {
 }
 
 trait UniversePart extends AnyRef with PostRestart {
-  protected def universe: Universe = _universe
-  protected var _universe: Universe = _
+  protected def universe: UniverseI = _universe
+  protected var _universe: UniverseI = _
   protected def fileManager: FileManager = universe.fileManager
   protected implicit val executionContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(ActorStats.tpe)
 
   protected def config: BackupFolderConfiguration = universe.config
 
-  def setup(universe: Universe) {
+  def setup(universe: UniverseI) {
     this._universe = universe
     setupInternal()
   }
@@ -44,7 +44,7 @@ trait UniversePart extends AnyRef with PostRestart {
   protected def setupInternal() {}
 }
 
-class SingleThreadUniverse(val config: BackupFolderConfiguration) extends Universe with PureLifeCycle with Utils {
+class SingleThreadUniverse(val config: BackupFolderConfiguration) extends UniverseI with PureLifeCycle with Utils {
   def make[T <: UniversePart](x: T): T = {x.setup(this); x}
   val journalHandler: SimpleJournalHandler = make(new SimpleJournalHandler())
   val backupPartHandler: KvStoreBackupPartHandler = make(new KvStoreBackupPartHandler())
@@ -147,7 +147,7 @@ class SingleThreadRestoreFileHandler(val fd: FileDescription, val destination: F
 class SingleThreadFileHasher extends HashFileHandler with PureLifeCycle {
   val hasher = new SingleThreadHasher()
 
-  override def setup(universe: Universe): Unit = {
+  override def setup(universe: UniverseI): Unit = {
     super.setup(universe)
     hasher.setup(universe)
   }
