@@ -1,4 +1,4 @@
-package ch.descabato.core
+package ch.descabato.core_old
 
 import java.io._
 import java.nio.file.{Files, LinkOption, NoSuchFileException}

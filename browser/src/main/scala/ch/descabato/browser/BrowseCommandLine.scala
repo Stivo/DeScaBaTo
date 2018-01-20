@@ -1,6 +1,6 @@
 package ch.descabato.browser
 
-import ch.descabato.core.BackupFolderConfiguration
+import ch.descabato.core_old.BackupFolderConfiguration
 import ch.descabato.frontend.{BackupRelatedCommand, CLI, SimpleBackupFolderOption}
 
 

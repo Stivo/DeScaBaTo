@@ -1,4 +1,4 @@
-package ch.descabato.core
+package ch.descabato.core_old
 
 import java.io.File
 import java.text.SimpleDateFormat
@@ -34,7 +34,7 @@ object Constants {
   */
 case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implicit val m: Manifest[T]) extends Utils {
 
-  import ch.descabato.core.Constants._
+  import ch.descabato.core_old.Constants._
 
   def globalPrefix: String = config.prefix
 

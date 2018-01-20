@@ -10,8 +10,8 @@ import akka.dispatch.{DispatcherPrerequisites, ExecutorServiceConfigurator, Exec
 import akka.event.Logging
 import akka.pattern.AskTimeoutException
 import akka.routing.{DefaultResizer, RoundRobinPool, Routee}
-import ch.descabato.core.{BackupFolderConfiguration, _}
-import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
+import ch.descabato.core_old.{BackupFolderConfiguration, _}
+import ch.descabato.core_old.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.remote.{NoOpRemoteHandler, SimpleRemoteHandler}
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}

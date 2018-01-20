@@ -5,7 +5,7 @@ import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
 import ch.descabato.{CompressionMode, RemoteMode}
-import ch.descabato.core._
+import ch.descabato.core_old._
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.frontend.ScallopConverters.singleArgConverter
 import ch.descabato.utils.Implicits._
@@ -134,7 +134,7 @@ trait BackupRelatedCommand extends Command with Utils {
   }
 
   def start(t: T) {
-    import ch.descabato.core.BackupVerification._
+    import ch.descabato.core_old.BackupVerification._
     val confHandler = new BackupConfigurationHandler(t)
     var passphrase = t.passphrase.toOption
     confHandler.verify(needsExistingBackup) match {

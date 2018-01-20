@@ -1,10 +1,10 @@
-package ch.descabato.core.kvstore
+package ch.descabato.core_old.kvstore
 
 import java.io.{DataOutputStream, File}
 import java.util
 
 import ch.descabato.CustomByteArrayOutputStream
-import ch.descabato.core.storage.KvStoreLocation
+import ch.descabato.core_old.storage.KvStoreLocation
 import ch.descabato.utils.{BytesWrapper, Utils}
 import ch.descabato.utils.Implicits._
 

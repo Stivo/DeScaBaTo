@@ -2,7 +2,7 @@ package ch.descabato.it
 
 import java.io.{RandomAccessFile, FileOutputStream, File}
 
-import ch.descabato.core.OldIndexVisitor
+import ch.descabato.core_old.OldIndexVisitor
 import ch.descabato.utils.FileUtils
 import ch.descabato.{TestUtils, RichFlatSpecLike}
 import org.apache.commons.io.IOUtils

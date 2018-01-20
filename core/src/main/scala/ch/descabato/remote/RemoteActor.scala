@@ -3,7 +3,7 @@ package ch.descabato.remote
 import java.io._
 import java.util.concurrent.atomic.AtomicLong
 
-import ch.descabato.core._
+import ch.descabato.core_old._
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters, SizeStandardCounter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils

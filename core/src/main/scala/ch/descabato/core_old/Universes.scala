@@ -1,4 +1,4 @@
-package ch.descabato.core
+package ch.descabato.core_old
 
 import java.io.{File, FileOutputStream, OutputStream}
 import java.security.MessageDigest
@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import akka.actor.TypedActor.PostRestart
 import ch.descabato.CompressionMode
 import ch.descabato.akka.{ActorStats, AkkaUniverse}
-import ch.descabato.core.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
+import ch.descabato.core_old.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
 import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.remote.{NoOpRemoteHandler, SingleThreadRemoteHandler}
 import ch.descabato.utils.Implicits._

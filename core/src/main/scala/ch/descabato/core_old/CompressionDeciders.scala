@@ -1,4 +1,4 @@
-package ch.descabato.core
+package ch.descabato.core_old
 
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{CompressedStream, Utils}
@@ -281,7 +281,7 @@ class Smart2CompressionDecider extends CompressionDecider with UniversePart with
 
 class SmartCompressionDecider extends CompressionDecider with UniversePart with Utils {
 
-  import ch.descabato.core.StatisticHelper._
+  import ch.descabato.core_old.StatisticHelper._
 
   val samples = 13
 

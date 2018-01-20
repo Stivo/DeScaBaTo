@@ -4,7 +4,7 @@ import java.io.{InputStream, SequenceInputStream}
 import java.util
 import java.util.{ArrayList, Collection, Date}
 
-import ch.descabato.core.{FileDescription, FolderDescription, _}
+import ch.descabato.core_old.{FileDescription, FolderDescription, _}
 import ch.descabato.utils.{CompressedStream, Utils}
 import org.apache.commons.vfs2.provider._
 import org.apache.commons.vfs2.{Capability, FileName, FileObject, FileSystemOptions, FileType => VfsFileType}

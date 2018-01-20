@@ -1,4 +1,4 @@
-package ch.descabato.core
+package ch.descabato.core_old
 
 import java.io.{File, IOException}
 import java.math.{BigDecimal => JBigDecimal}

@@ -3,7 +3,7 @@ package ch.descabato.frontend
 import java.io.{File, PrintStream}
 import java.security.Security
 
-import ch.descabato.core._
+import ch.descabato.core_old._
 import ch.descabato.utils.{FileUtils, Utils}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 

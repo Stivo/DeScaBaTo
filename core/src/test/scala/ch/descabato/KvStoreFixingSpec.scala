@@ -2,7 +2,7 @@ package ch.descabato
 
 import java.io.{File, RandomAccessFile}
 
-import ch.descabato.core.kvstore.{EntryTypes, KvStoreReaderImpl, KvStoreWriterImpl}
+import ch.descabato.core_old.kvstore.{EntryTypes, KvStoreReaderImpl, KvStoreWriterImpl}
 import ch.descabato.utils.Utils
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpec, Matchers}
 import ch.descabato.utils.Implicits._

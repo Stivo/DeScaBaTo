@@ -2,7 +2,7 @@ package ch.descabato.utils
 
 import java.io.{InputStream, OutputStream}
 
-import ch.descabato.core.{BackupPart, FileDeleted, FileDescription, FolderDescription, SymbolicLink, UpdatePart}
+import ch.descabato.core_old.{BackupPart, FileDeleted, FileDescription, FolderDescription, SymbolicLink, UpdatePart}
 import ch.descabato.utils.Implicits._
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, Version}
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer

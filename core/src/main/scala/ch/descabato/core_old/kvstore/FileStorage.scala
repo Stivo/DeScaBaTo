@@ -1,4 +1,4 @@
-package ch.descabato.core.kvstore
+package ch.descabato.core_old.kvstore
 
 import java.io.{File, RandomAccessFile}
 import java.nio.ByteBuffer
@@ -7,7 +7,7 @@ import java.util
 import javax.crypto.Cipher
 
 import ch.descabato.akka.ActorStats
-import ch.descabato.core.BlockingOperation
+import ch.descabato.core_old.BlockingOperation
 import ch.descabato.utils.{BytesWrapper, Utils}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 

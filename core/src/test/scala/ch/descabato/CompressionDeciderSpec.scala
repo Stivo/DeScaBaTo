@@ -1,12 +1,12 @@
 package ch.descabato
 
-import ch.descabato.core._
+import ch.descabato.core_old._
 import org.scalatest._
 
 import scala.collection.mutable
 
 class CompressionDeciderSpec extends FlatSpec {
-  import ch.descabato.core.StatisticHelper._
+  import ch.descabato.core_old.StatisticHelper._
 
   val toTest = new SmartCompressionDecider()
 

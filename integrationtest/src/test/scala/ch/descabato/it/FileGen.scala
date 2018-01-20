@@ -4,7 +4,7 @@ import java.io.{File, FileOutputStream, IOException, OutputStream, RandomAccessF
 import java.nio.file.Files
 
 import ch.descabato.TestUtils
-import ch.descabato.core.{OldIndexVisitor, Size}
+import ch.descabato.core_old.{OldIndexVisitor, Size}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 

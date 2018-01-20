@@ -1,10 +1,10 @@
-package ch.descabato.core.storage
+package ch.descabato.core_old.storage
 
 import java.io.File
 import java.util
 
-import ch.descabato.core.{MetaInfo, UniversePart}
-import ch.descabato.core.kvstore.{Entry, KvStoreReaderImpl, KvStoreWriterImpl}
+import ch.descabato.core_old.{MetaInfo, UniversePart}
+import ch.descabato.core_old.kvstore.{Entry, KvStoreReaderImpl, KvStoreWriterImpl}
 import ch.descabato.utils.{BytesWrapper, JsonSerialization}
 import ch.descabato.utils.Implicits._
 

@@ -1,9 +1,9 @@
-package ch.descabato.core.storage
+package ch.descabato.core_old.storage
 
 import java.io.File
 
 import ch.descabato.{CompressionMode, CustomByteArrayOutputStream}
-import ch.descabato.core._
+import ch.descabato.core_old._
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
@@ -53,7 +53,7 @@ trait KvStoreHandler[KI, KM, T] extends UniversePart {
     }
   }
 
-  def shutdown(): ch.descabato.core.BlockingOperation = {
+  def shutdown(): ch.descabato.core_old.BlockingOperation = {
     finish()
     new BlockingOperation()
   }
@@ -206,7 +206,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     getUnfinished(block.id.file).blockHashArrived(block)
   }
 
-  def loadBackup(date: Option[java.util.Date]): ch.descabato.core.BackupDescription = {
+  def loadBackup(date: Option[java.util.Date]): ch.descabato.core_old.BackupDescription = {
     loadedBackup = date match {
       case Some(d) => fileManager.getBackupForDate(d)
       case None => fileManager.getLastBackup(temp = true)

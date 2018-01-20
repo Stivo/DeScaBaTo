@@ -1,4 +1,4 @@
-package ch.descabato.core
+package ch.descabato.core_old
 
 import java.io.{File, FileInputStream, FileOutputStream}
 
@@ -140,7 +140,7 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
   }
 
   def verify(existing: Boolean): BackupVerification.VerificationResult = {
-    import ch.descabato.core.BackupVerification._
+    import ch.descabato.core_old.BackupVerification._
     if (existing && !hasOld) {
       return BackupDoesntExist
     }

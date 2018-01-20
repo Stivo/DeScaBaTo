@@ -1,4 +1,4 @@
-package ch.descabato.core.kvstore
+package ch.descabato.core_old.kvstore
 
 import java.math.BigInteger
 import java.security.SecureRandom

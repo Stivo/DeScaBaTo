@@ -1,9 +1,9 @@
-package ch.descabato.core
+package ch.descabato.core_old
 
 import java.io.{File, RandomAccessFile}
 import java.nio.channels.FileLock
 
-import ch.descabato.core.kvstore.{KvStoreReaderImpl, KvStoreWriter}
+import ch.descabato.core_old.kvstore.{KvStoreReaderImpl, KvStoreWriter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 
