@@ -32,11 +32,14 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
 
     var indexFile: File = _
 
+    val volumeFile = new File(config.folder, filename)
+
     private def writeIndex(): Unit = {
       val toSave = notCheckpointed.filter { case (_, block) =>
         block.file == filename
       }
-      indexFile = context.fileManager.volumeIndex.nextFile()
+      val volumeNumber = context.fileManager.volume.numberOf(volumeFile)
+      indexFile = new File(config.folder, context.fileManager.volumeIndex.filenameForNumber(volumeNumber))
       writeToJson(indexFile, toSave.values.toSeq)
       checkpointed ++= toSave
       notCheckpointed --= toSave.keySet
@@ -47,7 +50,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     def tryToFinish(): Unit = {
       if (canWriteIndex() && !indexWritten) {
         writeIndex()
-        context.eventBus.publish(new FileFinished(context.fileManager.volume, new File(config.folder, filename)))
+        context.eventBus.publish(FileFinished(context.fileManager.volume, volumeFile))
         writers -= filename
       }
     }
