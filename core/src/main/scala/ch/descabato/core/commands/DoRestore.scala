@@ -30,6 +30,7 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
     if (startup) {
       restoreImpl(options, metadata)
     }
+    logger.info("Finished restoring files")
   }
 
   private def restoreImpl(options: RestoreConf, metadata: BackupMetaData) = {
@@ -51,26 +52,31 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
   private def restoreFiles(logic: RestoredPathLogic, files: Seq[FileMetadata]): Unit = {
     logger.info(s"Restoring ${files.size} files")
     for (file <- files) {
-      val fd = file.fd
-      val restoredFile = logic.makePath(fd.path)
-      restoredFile.getParentFile.mkdirs()
-      if (restoredFile.exists()) {
-        if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
-          return
-        }
-        l.debug(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
-        l.info("File exists, but has been modified, so overwrite")
+      restoreFile(logic, file)
+    }
+  }
+
+  private def restoreFile(logic: RestoredPathLogic, file: FileMetadata): Unit = {
+    val fd = file.fd
+    val restoredFile = logic.makePath(fd.path)
+    restoredFile.getParentFile.mkdirs()
+    if (restoredFile.exists()) {
+      if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
+        return
       }
-      val stream = new FileOutputStream(restoredFile)
+      l.debug(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
+      l.info("File exists, but has been modified, so overwrite")
+    }
+    val stream = new FileOutputStream(restoredFile)
+    if (file.fd.size > 0) {
       val source = Source.fromIterator[Array[Byte]](() => file.blocks.grouped(config))
       Await.result(getBytestream(source).runForeach { x =>
         stream.write(x)
       }, 1.hour)
-      stream.close()
-      FileAttributes.restore(fd.attrs, restoredFile)
     }
+    stream.close()
+    FileAttributes.restore(fd.attrs, restoredFile)
   }
-
 }
 
 class RestoredPathLogic(val folders: Seq[FolderDescription], val restoreConf: RestoreConf) {

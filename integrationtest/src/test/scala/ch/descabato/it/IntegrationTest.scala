@@ -24,14 +24,15 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
   }
 
 
-//    "backup with redundancy" should "recover" in {
-//      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
-//    }
+  //    "backup with redundancy" should "recover" in {
+  //      testWith(" --volume-size 10mb", "", 1, "20Mb", false, true)
+  //    }
 
 
   def numberOfCheckpoints(): Int = {
-    if (backup1.exists) {
-      backup1.listFiles().count(_.getName().contains("volume_"))
+    val volumeDir = new File(backup1, "volume")
+    if (volumeDir.exists()) {
+      volumeDir.listFiles().count(_.getName().contains("volume_"))
     } else {
       0
     }
@@ -54,7 +55,7 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
         }
       } else {
         l.info("Waiting for 2 new volume before destroying process")
-        Thread.sleep(1000)
+        Thread.sleep(500)
         while ((numberOfCheckpoints() <= checkpoints + 1) && !proc.finished) {
           Thread.sleep(100)
         }
@@ -63,6 +64,7 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
       if (proc.finished) {
         crashes = 10
       }
+      l.info(s"Crashing process now for the $crashes time")
       proc.destroyProcess()
     }
     l.info("Crashes done, letting process finish now")

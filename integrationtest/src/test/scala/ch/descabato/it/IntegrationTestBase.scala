@@ -30,7 +30,7 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
   val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
   val packFolder = new File(descabatoFolder, s"core/target/pack").getAbsoluteFile()
 
-  //  var baseFolder = new File("H:/testdata")
+  // var baseFolder = new File("L:/testdata")
   var baseFolder = {
     new File("integrationtest/testdata")
   }

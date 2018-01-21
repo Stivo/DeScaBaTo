@@ -12,6 +12,7 @@ import ch.descabato.utils.Utils
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 class MetadataActor(val context: BackupContext) extends BackupFileHandler with JsonUser {
   val logger = LoggerFactory.getLogger(getClass)
@@ -40,16 +41,33 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
     Future {
       val files = context.fileManager.backup.getFiles().sortBy(_.getName)
       for (file <- files) {
-        val data = loadFile(file)
-        logger.info(s"Loading metadata from $file, have currently ${previous.size} files from before")
-        previous ++= data.files.map(x => (x.fd.path, x)).toMap
-        previousDirs ++= data.folders.map(x => (x.path, x)).toMap
+        loadFile(file) match {
+          case Success(data) =>
+            previous ++= data.files.map(x => (x.fd.path, x)).toMap
+            previousDirs ++= data.folders.map(x => (x.path, x)).toMap
+            logger.info(s"Loaded metadata from $file, have currently ${previous.size} files from before")
+          case Failure(f) =>
+            logger.info(s"Found corrupt backup description in $file, deleting it")
+            file.delete()
+        }
+      }
+      val tempFiles = context.fileManager.backup.getTempFiles().sortBy(_.getName)
+      for (tempFile <- tempFiles) {
+        loadFile(tempFile) match {
+          case Success(data) =>
+            thisBackupCheckpointed ++= data.files.map(x => (x.fd.path, x)).toMap
+            hasChanged = true
+            logger.info(s"Found checkpointed data in $tempFile, have currently ${thisBackupCheckpointed.size} files from last run")
+          case Failure(f) =>
+            logger.info(s"Found corrupt checkpointed data in $tempFile, deleting it")
+            tempFile.delete()
+        }
       }
       true
     }
   }
 
-  def loadFile(file: File): BackupMetaData = {
+  def loadFile(file: File): Try[BackupMetaData] = {
     readJson[BackupMetaData](file)
   }
 
@@ -64,7 +82,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
         throw new IllegalStateException(s"Did not find any backup files for date $date")
       }
       logger.info(s"Loading backup metadata from $filesToLoad")
-      filesToLoad.map(loadFile).reduce(_.merge(_))
+      filesToLoad.map(loadFile).flatMap(_.toOption).reduce(_.merge(_))
     }
   }
 
@@ -106,7 +124,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   override def finish(): Future[Boolean] = {
     if (hasChanged) {
-      val toSave = thisBackupNotCheckpointed ++ thisBackupNotCheckpointed
+      val toSave = thisBackupNotCheckpointed ++ thisBackupCheckpointed
       logger.info(s"Writing metadata of ${toSave.values.size} files")
       val file = context.fileManager.backup.nextFile()
       val metadata = BackupMetaData(toSave.values.toSeq, thisBackupDirs.values.toSeq)

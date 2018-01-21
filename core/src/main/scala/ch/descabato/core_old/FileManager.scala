@@ -141,6 +141,7 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
       folder.
         listFiles().view.filter(_.isFile()).
         filter(matches).
+        filterNot(isTemp).
         filterNot(_.getName.endsWith(".tmp")).force
     }
   }

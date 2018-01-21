@@ -14,6 +14,7 @@ import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 
 import scala.concurrent.Future
+import scala.util.Try
 
 trait BlockStorage extends LifeCycle {
   def read(hash: Hash): Future[BytesWrapper]
@@ -45,12 +46,17 @@ trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEven
 trait JsonUser {
   def config: BackupFolderConfiguration
 
-  def readJson[T: Manifest](file: File): T = {
+  def readJson[T: Manifest](file: File): Try[T] = {
     val reader = config.newReader(file)
-    val bs = reader.readAllContent()
-    reader.close()
-    //val decompressed = CompressedStream.decompress(bs)
-    Json.mapper.readValue[T](bs.asArray())
+    try {
+      Try {
+        val bs = reader.readAllContent()
+        //val decompressed = CompressedStream.decompress(bs)
+        Json.mapper.readValue[T](bs.asArray())
+      }
+    } finally {
+      reader.close()
+    }
   }
 
   def writeToJson[T](file: File, value: T) = {

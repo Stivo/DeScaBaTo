@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class BlockStorageActor(val context: BackupContext) extends BlockStorage with JsonUser with TypedActor.Receiver {
 
@@ -89,11 +89,10 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     Future {
       deleteVolumesWithoutIndexes()
       for (file <- context.fileManager.volumeIndex.getFiles()) {
-        try {
-          val seq = readJson[Seq[StoredChunk]](file)
-          checkpointed ++= seq.map(x => (x.hash, x))
-        } catch {
-          case e: Exception =>
+        readJson[Seq[StoredChunk]](file) match {
+          case Success(seq) =>
+            checkpointed ++= seq.map(x => (x.hash, x))
+          case Failure(_) =>
             logger.error(s"Could not read index $file, deleting it instead")
             file.delete()
         }
