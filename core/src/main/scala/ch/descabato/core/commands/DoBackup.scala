@@ -5,11 +5,12 @@ import java.nio.file.{Files, Path}
 import java.util.stream.Collectors
 
 import akka.Done
-import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
 import akka.stream.{ClosedShape, OverflowStrategy}
-import ch.descabato.core.model._
 import ch.descabato.core._
+import ch.descabato.core.model._
 import ch.descabato.core_old.{FileDescription, FolderDescription}
+import ch.descabato.frontend._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
 
@@ -32,11 +33,24 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }
   }
 
+  var fileCounter: MaxValueCounter = new StandardMaxValueCounter("Files", 0L)
+    with ETACounter
+
+  lazy val bytesCounter: StandardMaxValueCounter with ETACounter = new StandardMaxValueCounter("Data Read", 0) with ETACounter {
+    override def formatted = s"${readableFileSize(current)}/${readableFileSize(maxValue)} $percent%"
+  }
+
   def execute(): Unit = {
+    ProgressReporters.openGui("Backup", false)
     val universeStartup = universe.startup()
     val fileGathering = gatherFiles()
     val universeStarted = Await.result(universeStartup, 1.minute)
     val files = Await.result(fileGathering, 1.minute)
+    fileCounter.maxValue = files.size
+    bytesCounter.maxValue = files.map(_.toFile.length()).sum
+    ProgressReporters.addCounter(fileCounter)
+    ProgressReporters.addCounter(bytesCounter)
+    ProgressReporters.activeCounters = List(fileCounter, bytesCounter)
     if (universeStarted) {
       Await.result(setupFlow(files), 10.hours)
     }
@@ -50,7 +64,10 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }.runWith(Sink.ignore)
     Await.result(dirsSaved, 1.hours)
     Source.fromIterator[Path](() => files.iterator).mapAsync(5) { path =>
-      backupFile(path)
+      backupFile(path).map(x => (path, x))
+    }.map { case (path, _) =>
+        fileCounter += 1
+        bytesCounter += path.toFile.length()
     }.runWith(Sink.ignore)
   }
 
@@ -69,6 +86,8 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
           universe.blockStorageActor.hasAlready(Hash(bytes))
         }.fold(true)(_ && _).mapAsync(1) { hasAll =>
           if (hasAll) {
+            bytesCounter.maxValue -= fd.size
+            bytesCounter += -fd.size
             universe.backupFileActor.saveFileSameAsBefore(fd).map(_ => Done)
           } else {
             logger.info(s"File $fd is saved but some blocks are missing, so backing up again")
@@ -86,7 +105,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
       sink =>
         import GraphDSL.Implicits._
         val chunkSize = config.blockSize.bytes.toInt
-        val chunkSource = Source.fromIterator[BytesWrapper](() => new FileIterator(path.toFile))
+        val chunkSource = Source.fromIterator[BytesWrapper](() => FileIterator(path.toFile))
 
         val hashedBlocks = builder.add(Broadcast[Block](2))
         val waitForCompletion = builder.add(Merge[Unit](2))

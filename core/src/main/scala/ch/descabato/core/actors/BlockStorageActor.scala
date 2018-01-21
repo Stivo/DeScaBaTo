@@ -7,6 +7,7 @@ import akka.actor.{ActorPath, ActorRef, TypedActor, TypedProps}
 import ch.descabato.core.model.{Block, StoredChunk}
 import ch.descabato.core.{BlockStorage, JsonUser}
 import ch.descabato.core_old.BackupFolderConfiguration
+import ch.descabato.frontend.{ProgressReporters, SizeStandardCounter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, FastHashMap, Hash}
 import org.slf4j.LoggerFactory
@@ -127,6 +128,12 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
 
   var path: ActorPath = _
 
+  private val bytesStoredCounter = new SizeStandardCounter {
+    override def name: String = "Stored"
+  }
+
+  ProgressReporters.addCounter(bytesStoredCounter)
+  
   override def onReceive(message: Any, sender: ActorRef): Unit = {
     message match {
       case x: ActorPath =>
@@ -136,6 +143,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
       case (storedChunk: StoredChunk, promise: Promise[_]) =>
         val infos = writers(storedChunk.file)
         infos.requestsGot += 1
+        bytesStoredCounter.current += storedChunk.length.size
         notCheckpointed += storedChunk.hash -> storedChunk
         infos.tryToFinish()
         promise.asInstanceOf[Promise[Boolean]].complete(Try(true))

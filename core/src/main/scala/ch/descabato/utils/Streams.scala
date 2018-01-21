@@ -93,7 +93,6 @@ object Streams extends Utils {
       }
     }
 
-
     override def createChunkNow(): Unit = {
       super.createChunkNow()
       buzHash.reset()
