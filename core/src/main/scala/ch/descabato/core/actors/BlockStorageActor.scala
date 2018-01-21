@@ -50,7 +50,6 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
       if (canWriteIndex() && !indexWritten) {
         writeIndex()
         context.eventBus.publish(new FileFinished(context.fileManager.volume, new File(config.folder, filename)))
-        context.eventBus.publish(new FileFinished(context.fileManager.volumeIndex, indexFile))
         writers -= filename
       }
     }

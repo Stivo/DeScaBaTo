@@ -6,21 +6,31 @@ import java.security.SecureRandom
 import ch.descabato.core.util._
 import ch.descabato.utils.BytesWrapper
 import org.scalacheck.Gen
-import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import org.scalatest.{BeforeAndAfterAll, FlatSpec}
+
+import scala.util.Random
 
 class EncryptionIOSpec extends FlatSpec with GeneratorDrivenPropertyChecks with BeforeAndAfterAll {
 
   val file = File.createTempFile("desca_original", "test")
   val encrypted = File.createTempFile("desca_encrypted", "test")
-  val bytes: Array[Byte] = Array.ofDim[Byte](100000)
+  val bytes: Array[Byte] = Array.ofDim[Byte](32 * 1024)
+  private val random = new Random()
+  private val password: String = random.nextString(16)
+  println(s"password is $password")
   "io" should "decrypt and encrypt correctly" in {
     setupRandomData()
-    val key = BytesWrapper(bytes, 0, 16).asArray()
-    val writer = new EncryptedFileWriter(encrypted, "password")
-    val startPos = writer.write(BytesWrapper(bytes))
+    val writer = new EncryptedFileWriter(encrypted, password)
+    val startPos = writer.write(BytesWrapper(bytes, 0, 213))
+    var written = 213
+    while (written < bytes.length) {
+      val currentLength = random.nextInt(bytes.length - written + 1)
+      writer.write(BytesWrapper(bytes, written, currentLength))
+      written += currentLength
+    }
     writer.finish()
-    val reader = new EncryptedFileReader(encrypted, "password")
+    val reader = new EncryptedFileReader(encrypted, password)
 
     val myGen = for {
       n <- Gen.choose(0, bytes.length)

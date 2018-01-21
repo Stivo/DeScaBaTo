@@ -6,12 +6,12 @@ import javax.crypto.Cipher
 import akka.util.ByteString
 import ch.descabato.akka.ActorStats.ex
 import ch.descabato.core_old.kvstore.{CryptoUtils, KeyInfo}
-import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.{BytesWrapper, Utils}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class EncryptedFileWriter(val file: File, val passphrase: String) extends CipherUser(passphrase) with FileWriter {
+class EncryptedFileWriter(val file: File, val passphrase: String) extends CipherUser(passphrase) with FileWriter with Utils {
 
   private var position = 0L
 
@@ -38,20 +38,25 @@ class EncryptedFileWriter(val file: File, val passphrase: String) extends Cipher
     header ++= keyDerivationInfo.salt
   }
 
-  var futures: Seq[Future[Array[Byte]]] = Seq.empty
+  private var futures: Seq[Future[(Long, Array[Byte])]] = Seq.empty
 
-  var leftOver: Array[Byte] = Array.emptyByteArray
+  private var leftOver: Array[Byte] = Array.emptyByteArray
 
   def write(bytes: BytesWrapper): Long = {
     val out = position
-    val todoEncrypt: Array[Byte] = leftOver ++ bytes.asArray()
-    val multipleOfBlockLength = (todoEncrypt.length / 32) * 32
-    val toEncrypt = todoEncrypt.slice(0, multipleOfBlockLength)
-    leftOver = todoEncrypt.slice(multipleOfBlockLength, todoEncrypt.length)
-    addFuture(out, toEncrypt)
+    if (leftOver.length + bytes.length > 32) {
+      val startOfBlock = out - leftOver.length
+      val todoEncrypt: Array[Byte] = leftOver ++ bytes.asArray()
+      val multipleOfBlockLength = (todoEncrypt.length / 32) * 32
+      val toEncrypt = todoEncrypt.slice(0, multipleOfBlockLength)
+      leftOver = todoEncrypt.slice(multipleOfBlockLength, todoEncrypt.length)
+      addFuture(startOfBlock, toEncrypt)
+    } else {
+      leftOver ++= bytes.asArray()
+    }
     position += bytes.length
     writeCompletedFutures()
-    while(futures.length > 10) {
+    while (futures.length > 10) {
       Thread.sleep(10)
       writeCompletedFutures()
     }
@@ -61,19 +66,19 @@ class EncryptedFileWriter(val file: File, val passphrase: String) extends Cipher
   private def writeCompletedFutures() = {
     while (!futures.isEmpty && futures.head.isCompleted) {
       val doneFuture = futures.head
-      doneFuture.foreach { x =>
-        outputStream.write(x)
-      }
+      val (position, bytes) = Await.result(doneFuture, 1.second)
+      outputStream.write(bytes)
       futures = futures.tail
     }
   }
 
-  private def addFuture(out: Long, toEncrypt: Array[Byte]) = {
+  private def addFuture(startOfBlock: Long, toEncrypt: Array[Byte]) = {
     futures :+= Future {
-      val iv = CryptoUtils.deriveIv(keyInfo.iv, ((out - encryptionBoundary) / 16).toInt)
+      require((startOfBlock - encryptionBoundary) % 32 == 0)
+      val iv = CryptoUtils.deriveIv(keyInfo.iv, ((startOfBlock - encryptionBoundary) / 16).toInt)
       val cipherHere = Cipher.getInstance("AES/CTR/NoPadding", "BC")
       cipherHere.init(Cipher.ENCRYPT_MODE, CryptoUtils.keySpec(keyInfo), iv)
-      cipherHere.doFinal(toEncrypt)
+      (startOfBlock, cipherHere.doFinal(toEncrypt))
     }
   }
 
@@ -94,10 +99,10 @@ class EncryptedFileWriter(val file: File, val passphrase: String) extends Cipher
   startEncryptedPart(keyHere)
 
   override def finish(): Unit = {
-    addFuture(position, leftOver)
-    for (future <- futures) {
-      val bytes = Await.result(future, 1.minute)
-      outputStream.write(bytes)
+    addFuture(position - leftOver.length, leftOver)
+    while (!futures.isEmpty) {
+      writeCompletedFutures()
+      Thread.sleep(10)
     }
 
     outputStream.close()
