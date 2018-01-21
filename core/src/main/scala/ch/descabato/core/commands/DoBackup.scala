@@ -7,8 +7,8 @@ import java.util.stream.Collectors
 import akka.Done
 import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
 import akka.stream.{ClosedShape, OverflowStrategy}
-import ch.descabato.core.Universe
 import ch.descabato.core.model._
+import ch.descabato.core.{FileNotYetBackedUp, Storing, Universe, FileAlreadyBackedUp}
 import ch.descabato.core_old.{FileDescription, FolderDescription}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
@@ -54,44 +54,54 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }.runWith(Sink.ignore)
   }
 
-//  def streamCounter[T](name: String) = Flow[T].zipWithIndex.map { case (x, i) =>
-//    logger.info(s"$path $name: Element $i")
-//    x
-//  }
+  //  def streamCounter[T](name: String) = Flow[T].zipWithIndex.map { case (x, i) =>
+  //    logger.info(s"$path $name: Element $i")
+  //    x
+  //  }
 
   def backupFile(path: Path): Future[Done] = {
     val fd = new FileDescription(path.toFile)
-    universe.backupFileActor.hasAlready(fd).flatMap { hasAlready =>
-      if (hasAlready) {
-        universe.backupFileActor.saveFileSameAsBefore(fd).map(_ => Done)
-      } else {
-        val graph = RunnableGraph.fromGraph(GraphDSL.create(Sink.ignore) { implicit builder =>
-          sink =>
-            import GraphDSL.Implicits._
-            val chunkSize = config.blockSize.bytes.toInt
-            val chunkSource = FileIO.fromPath(path, chunkSize = chunkSize).map { bytes =>
-              BytesWrapper(bytes.toArray)
-            }
-
-            val hashedBlocks = builder.add(Broadcast[Block](2))
-            val waitForCompletion = builder.add(Merge[Unit](2))
-
-            //val chunker = new Framer()
-
-            /* newBuffer[ByteString](100) ~> chunker  ~> */
-
-            chunkSource ~> hashAndCreateBlocks(fd) ~> newBuffer[Block](20) ~> hashedBlocks
-
-            hashedBlocks ~> createCompressAndSaveBlocks(fd) ~> waitForCompletion.in(0)
-            hashedBlocks ~> createHashlistAndFileMetadataAndSave(fd) ~> waitForCompletion.in(1)
-
-            waitForCompletion.out ~> sink
-            ClosedShape
-        })
-        graph.run()
-
-      }
+    universe.backupFileActor.hasAlready(fd).flatMap {
+      case FileNotYetBackedUp =>
+        backupFile(path, fd)
+      case FileAlreadyBackedUp(metadata) =>
+        Source.fromIterator[Array[Byte]](() => metadata.blocks.grouped(config)).mapAsync(5) { bytes =>
+          universe.blockStorageActor.hasAlready(Hash(bytes))
+        }.fold(true)(_ && _).mapAsync(1) { hasAll =>
+          if (hasAll) {
+            universe.backupFileActor.saveFileSameAsBefore(fd).map(_ => Done)
+          } else {
+            logger.info(s"File $fd is saved but some blocks are missing, so backing up again")
+            backupFile(path, fd)
+          }
+        }.runWith(Sink.ignore)
+      case Storing =>
+        logger.warn(s"Seems we already are saving $fd (symlink?)")
+        Future.successful(Done)
     }
+  }
+
+  private def backupFile(path: Path, fd: FileDescription): Future[Done] = {
+    val graph = RunnableGraph.fromGraph(GraphDSL.create(Sink.ignore) { implicit builder =>
+      sink =>
+        import GraphDSL.Implicits._
+        val chunkSize = config.blockSize.bytes.toInt
+        val chunkSource = FileIO.fromPath(path, chunkSize = chunkSize).map { bytes =>
+          BytesWrapper(bytes.toArray)
+        }
+
+        val hashedBlocks = builder.add(Broadcast[Block](2))
+        val waitForCompletion = builder.add(Merge[Unit](2))
+
+        chunkSource ~> hashAndCreateBlocks(fd) ~> newBuffer[Block](20) ~> hashedBlocks
+
+        hashedBlocks ~> createCompressAndSaveBlocks(fd) ~> waitForCompletion.in(0)
+        hashedBlocks ~> createHashlistAndFileMetadataAndSave(fd) ~> waitForCompletion.in(1)
+
+        waitForCompletion.out ~> sink
+        ClosedShape
+    })
+    graph.run()
   }
 
   private def mapToUnit() = Flow[Any].map(_ => ())

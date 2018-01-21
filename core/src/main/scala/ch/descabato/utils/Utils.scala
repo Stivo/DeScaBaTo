@@ -9,6 +9,7 @@ import java.util
 import javax.xml.bind.DatatypeConverter
 
 import ch.descabato.CustomByteArrayOutputStream
+import ch.descabato.core_old.BackupFolderConfiguration
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 
 import scala.collection.mutable
@@ -38,6 +39,7 @@ class Hash(val bytes: Array[Byte]) extends AnyVal {
   def ===(other: Hash): Boolean = java.util.Arrays.equals(bytes, other.bytes)
   def !==(other: Hash): Boolean = !(this === other)
   def wrap(): BytesWrapper = new BytesWrapper(bytes)
+  def grouped(config: BackupFolderConfiguration): Iterator[Array[Byte]] = bytes.grouped(config.hashLength)
 }
 
 object BytesWrapper {

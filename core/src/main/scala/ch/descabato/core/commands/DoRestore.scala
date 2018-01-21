@@ -62,7 +62,7 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
         l.info("File exists, but has been modified, so overwrite")
       }
       val stream = new FileOutputStream(restoredFile)
-      val source = Source.fromIterator[Array[Byte]](() => file.blocks.bytes.grouped(config.hashLength))
+      val source = Source.fromIterator[Array[Byte]](() => file.blocks.grouped(config))
       Await.result(getBytestream(source).runForeach { x =>
         stream.write(x)
       }, 1.hour)

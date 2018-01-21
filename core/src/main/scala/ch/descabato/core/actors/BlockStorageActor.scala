@@ -27,8 +27,6 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   private var checkpointed: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
   private var notCheckpointed: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
 
-  private var toBeStored: FastHashMap[Boolean] = new FastHashMap[Boolean]()
-
   class WriterInfos(val writer: VolumeWriter, val filename: String, var requestsSent: Int = 0, var requestsGot: Int = 0,
                     var bytesSent: Long = 0L, var finishRequested: Boolean = false, var indexWritten: Boolean = false) {
 
@@ -89,19 +87,40 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
 
   def startup(): Future[Boolean] = {
     Future {
-      val files = context.fileManager.volumeIndex.getFiles(config.folder)
-      for (file <- files) {
-        val seq = readJson[Seq[StoredChunk]](file)
-        checkpointed ++= seq.map(x => (x.hash, x))
+      deleteVolumesWithoutIndexes()
+      for (file <- context.fileManager.volumeIndex.getFiles()) {
+        try {
+          val seq = readJson[Seq[StoredChunk]](file)
+          checkpointed ++= seq.map(x => (x.hash, x))
+        } catch {
+          case e: Exception =>
+            logger.error(s"Could not read index $file, deleting it instead")
+            file.delete()
+        }
       }
+      deleteVolumesWithoutIndexes()
       true
     }
   }
 
-  override def hasAlready(block: Block): Future[Boolean] = {
-    val haveAlready = checkpointed.safeContains(block.hash) || notCheckpointed.safeContains(block.hash) || toBeStored.safeContains(block.hash)
+  private def deleteVolumesWithoutIndexes() = {
+    val indexes = context.fileManager.volumeIndex.getFiles().map(x =>
+      (context.fileManager.volumeIndex.numberOf(x), x)
+    ).toMap
+    val volumes = context.fileManager.volume.getFiles().map(x =>
+      (context.fileManager.volume.numberOf(x), x)
+    ).toMap
+    for ((volumeIndex, volume) <- volumes) {
+      if (!indexes.safeContains(volumeIndex)) {
+        logger.warn(s"Deleting volume $volume because there is no index for it")
+        volume.delete()
+      }
+    }
+  }
+
+  override def hasAlready(hash: Hash): Future[Boolean] = {
+    val haveAlready = checkpointed.safeContains(hash) || notCheckpointed.safeContains(hash)
     if (!haveAlready) {
-      toBeStored += block.hash -> true
       hasChanged = true
     }
     Future.successful(haveAlready)
@@ -119,7 +138,6 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
         val infos = writers(storedChunk.file)
         infos.requestsGot += 1
         notCheckpointed += storedChunk.hash -> storedChunk
-        toBeStored -= storedChunk.hash
         infos.tryToFinish()
         promise.complete(Try(true))
       case x =>

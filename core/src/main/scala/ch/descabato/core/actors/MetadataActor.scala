@@ -3,9 +3,9 @@ package ch.descabato.core.actors
 import java.io.File
 import java.util.Date
 
+import ch.descabato.core._
 import ch.descabato.core.actors.MetadataActor.BackupMetaData
 import ch.descabato.core.model.FileMetadata
-import ch.descabato.core.{BackupFileHandler, JsonUser}
 import ch.descabato.core_old._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
@@ -68,16 +68,23 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
     }
   }
 
-  override def hasAlready(fd: FileDescription): Future[Boolean] = {
-    val haveAlready = toBeStored.safeContains(fd) || thisBackupCheckpointed.safeContains(fd.path) ||
-      thisBackupNotCheckpointed.safeContains(fd.path) || previous.get(fd.path).map { prev =>
-      fd.size == prev.fd.size && !prev.fd.attrs.hasBeenModified(new File(fd.path))
-    }.getOrElse(false)
-    if (!haveAlready) {
-      toBeStored += fd
-      hasChanged = true
+  override def hasAlready(fd: FileDescription): Future[FileAlreadyBackedupResult] = {
+    if (toBeStored.safeContains(fd)) {
+      Future.successful(Storing)
+    } else {
+      val haveAlready = thisBackupCheckpointed.safeContains(fd.path) ||
+        thisBackupNotCheckpointed.safeContains(fd.path) || previous.get(fd.path).map { prev =>
+        fd.size == prev.fd.size && !prev.fd.attrs.hasBeenModified(new File(fd.path))
+      }.getOrElse(false)
+      if (haveAlready) {
+        val metadata = previous.get(fd.path).orElse(thisBackupCheckpointed.get(fd.path)).orElse(thisBackupNotCheckpointed.get(fd.path)).get
+        Future.successful(FileAlreadyBackedUp(metadata))
+      } else {
+        toBeStored += fd
+        hasChanged = true
+        Future.successful(FileNotYetBackedUp)
+      }
     }
-    Future.successful(haveAlready)
   }
 
   override def saveFile(fileMetadata: FileMetadata): Future[Boolean] = {
