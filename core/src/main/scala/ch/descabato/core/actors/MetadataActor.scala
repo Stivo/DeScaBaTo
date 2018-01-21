@@ -21,10 +21,12 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   import context.executionContext
 
   private var hasChanged = false
+  private var hasFinished = false
 
   private var previous: Map[String, FileMetadata] = Map.empty
   private var previousDirs: Map[String, FolderDescription] = Map.empty
-  private var thisBackup: Map[String, FileMetadata] = Map.empty
+  private var thisBackupNotCheckpointed: Map[String, FileMetadata] = Map.empty
+  private var thisBackupCheckpointed: Map[String, FileMetadata] = Map.empty
   private var thisBackupDirs: Map[String, FolderDescription] = Map.empty
 
   private var toBeStored: Set[FileDescription] = Set.empty
@@ -67,7 +69,8 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   }
 
   override def hasAlready(fd: FileDescription): Future[Boolean] = {
-    val haveAlready = toBeStored.safeContains(fd) || thisBackup.safeContains(fd.path) || previous.get(fd.path).map { prev =>
+    val haveAlready = toBeStored.safeContains(fd) || thisBackupCheckpointed.safeContains(fd.path) ||
+      thisBackupNotCheckpointed.safeContains(fd.path) || previous.get(fd.path).map { prev =>
       fd.size == prev.fd.size && !prev.fd.attrs.hasBeenModified(new File(fd.path))
     }.getOrElse(false)
     if (!haveAlready) {
@@ -79,14 +82,14 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   override def saveFile(fileMetadata: FileMetadata): Future[Boolean] = {
     hasChanged = true
-    thisBackup += fileMetadata.fd.path -> fileMetadata
+    thisBackupNotCheckpointed += fileMetadata.fd.path -> fileMetadata
     toBeStored -= fileMetadata.fd
     Future.successful(true)
   }
 
   override def saveFileSameAsBefore(fd: FileDescription): Future[Boolean] = {
     if (previous.safeContains(fd.path)) {
-      thisBackup += fd.path -> previous(fd.path)
+      thisBackupNotCheckpointed += fd.path -> previous(fd.path)
       Future.successful(true)
     } else {
       logger.warn(s"$fd was not part of previous backup, programming error (symlinks)")
@@ -96,11 +99,14 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   override def finish(): Future[Boolean] = {
     if (hasChanged) {
-      logger.info(s"Writing metadata of ${thisBackup.values.size} files")
-      val metadata = BackupMetaData(thisBackup.values.toSeq, thisBackupDirs.values.toSeq)
+      val toSave = thisBackupNotCheckpointed ++ thisBackupNotCheckpointed
+      logger.info(s"Writing metadata of ${toSave.values.size} files")
       val file = context.fileManager.backup.nextFile()
+      val metadata = BackupMetaData(toSave.values.toSeq, thisBackupDirs.values.toSeq)
       writeToJson(file, metadata)
-      logger.info("Done Writing metadata")
+      hasFinished = true
+      logger.info("Done Writing metadata, deleting temp files")
+      context.fileManager.backup.getTempFiles().foreach(_.delete())
     }
     Future.successful(true)
   }
@@ -111,7 +117,18 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   override def receive(myEvent: MyEvent): Unit = {
     myEvent match {
-      case VolumeRolled(x) => logger.info(s"Got volume rolled event to $x")
+      case VolumeRolled(x) =>
+        logger.info(s"Got volume rolled event to $x")
+        if (hasFinished) {
+          logger.info("Ignoring as files are already written")
+        } else {
+          val file = context.fileManager.backup.nextFile(temp = true)
+          val metadata = BackupMetaData(thisBackupNotCheckpointed.values.toSeq, thisBackupDirs.values.toSeq)
+          thisBackupCheckpointed ++= thisBackupNotCheckpointed
+          thisBackupNotCheckpointed = Map.empty
+          writeToJson(file, metadata)
+        }
+      case _ => // ignore unknown message
     }
   }
 }
