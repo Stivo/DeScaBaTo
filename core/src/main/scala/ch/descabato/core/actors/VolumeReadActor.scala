@@ -11,11 +11,13 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.Future
 
 class VolumeWriteActor(val context: BackupContext, val file: File) extends VolumeWriter {
-  val logger = LoggerFactory.getLogger(getClass)
+  private val logger = LoggerFactory.getLogger(getClass)
 
-  private val filename = context.config.folder.toPath.relativize(file.toPath).toString
+  val filename = context.config.folder.toPath.relativize(file.toPath).toString
 
-  var _writer: FileWriter = _
+  private var _writer: FileWriter = _
+
+  private var finished: Boolean = false
 
   private def writer = {
     if (_writer == null) {
@@ -30,8 +32,9 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
   }
 
   override def finish(): Future[Boolean] = {
-    if (_writer != null) {
+    if (_writer != null && !finished) {
       writer.finish()
+      finished = true
     }
     Future.successful(true)
   }
@@ -66,6 +69,8 @@ class VolumeReadActor(val context: BackupContext, val file: File) extends Volume
 
 trait VolumeWriter extends LifeCycle {
   def saveBlock(block: Block): Future[StoredChunk]
+
+  def filename(): String
 }
 
 trait VolumeReader extends LifeCycle {

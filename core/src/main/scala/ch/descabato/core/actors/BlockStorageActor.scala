@@ -24,35 +24,81 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
 
   private var hasChanged = false
 
-  private var previous: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
-  private var current: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
+  private var checkpointed: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
+  private var notCheckpointed: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
 
   private var toBeStored: FastHashMap[Boolean] = new FastHashMap[Boolean]()
 
-  private var _writer: VolumeWriter = _
+  class WriterInfos(val writer: VolumeWriter, val filename: String, var requestsSent: Int = 0, var requestsGot: Int = 0,
+                    var bytesSent: Long = 0L, var finishRequested: Boolean = false, var indexWritten: Boolean = false) {
 
-  private def writer = {
-    if (_writer == null) {
-      val value = TypedProps.apply[VolumeWriter](classOf[VolumeWriter], new VolumeWriteActor(context, context.fileManager.volume.nextFile()))
-      _writer = TypedActor(context.actorSystem).typedActorOf(value.withTimeout(5.minutes))
+    private def writeIndex(): Unit = {
+      if (!indexWritten) {
+        val toSave = notCheckpointed.filter { case (_, block) =>
+          block.file == filename
+        }
+        writeToJson(context.fileManager.volumeIndex.nextFile(), toSave.values.toSeq)
+        checkpointed ++= toSave
+        notCheckpointed --= toSave.keySet
+        logger.info(s"Wrote volume and index for $filename with $requestsGot blocks")
+        indexWritten = true
+      }
     }
-    _writer
+
+    def tryToFinish(): Unit = {
+      if (canWriteIndex()) {
+        writeIndex()
+        writers -= filename
+      }
+    }
+
+    private def canWriteIndex(): Boolean = {
+      finishRequested && requestsSent == requestsGot
+    }
+
+    def requestFinish(): Unit = {
+      finishRequested = true
+      writer.finish().map(_ => sendToSelf(this))
+    }
+
+    override def toString = s"WriterInfos($filename, $requestsSent, $requestsGot, $finishRequested, $indexWritten)"
   }
 
+  private var _currentWriter: WriterInfos = _
+  private var writers: Map[String, WriterInfos] = Map.empty
+
+  val headroomInVolume = 1000
+
+  private def currentWriter = {
+    if (_currentWriter == null) {
+      newWriter()
+    }
+    _currentWriter
+  }
+
+  private def newWriter(): Unit = {
+    val file = context.fileManager.volume.nextFile()
+    val value: TypedProps[VolumeWriter] = TypedProps.apply[VolumeWriter](classOf[VolumeWriter], new VolumeWriteActor(context, file))
+    val writer: VolumeWriter = TypedActor(context.actorSystem).typedActorOf(value.withTimeout(5.minutes))
+    val name = writer.filename
+    val infos = new WriterInfos(writer, name)
+    writers += name -> infos
+    _currentWriter = infos
+  }
 
   def startup(): Future[Boolean] = {
     Future {
       val files = context.fileManager.volumeIndex.getFiles(config.folder)
       for (file <- files) {
         val seq = readJson[Seq[StoredChunk]](file)
-        previous ++= seq.map(x => (x.hash, x))
+        checkpointed ++= seq.map(x => (x.hash, x))
       }
       true
     }
   }
 
   override def hasAlready(block: Block): Future[Boolean] = {
-    val haveAlready = previous.safeContains(block.hash) || current.safeContains(block.hash) || toBeStored.safeContains(block.hash)
+    val haveAlready = checkpointed.safeContains(block.hash) || notCheckpointed.safeContains(block.hash) || toBeStored.safeContains(block.hash)
     if (!haveAlready) {
       toBeStored += block.hash -> true
       hasChanged = true
@@ -66,27 +112,51 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     message match {
       case x: ActorPath =>
         this.path = x
+      case w: WriterInfos =>
+        w.tryToFinish()
       case (storedChunk: StoredChunk, promise: Promise[Boolean]) =>
-        current += storedChunk.hash -> storedChunk
+        val infos = writers(storedChunk.file)
+        infos.requestsGot += 1
+        notCheckpointed += storedChunk.hash -> storedChunk
         toBeStored -= storedChunk.hash
+        infos.tryToFinish()
         promise.complete(Try(true))
       case x =>
         println(s"Got unknown message $x")
     }
   }
 
+  private def rollVolume() = {
+    currentWriter.requestFinish()
+    newWriter()
+  }
+
   override def save(block: Block): Future[Boolean] = {
     val promise = Promise.apply[Boolean]()
-    writer.saveBlock(block).map { storedChunk =>
-      context.actorSystem.actorSelection(path).resolveOne(1.minute).foreach {
-        _ ! (storedChunk, promise)
-      }
+    if (shouldRollBeforeBlock(block)) {
+      rollVolume()
+    }
+    currentWriter.bytesSent += block.content.length
+    currentWriter.requestsSent += 1
+    currentWriter.writer.saveBlock(block).map { storedChunk =>
+      val tuple = (storedChunk, promise)
+      sendToSelf(tuple)
     }
     promise.future
   }
 
+  private def sendToSelf(msg: Any) = {
+    context.actorSystem.actorSelection(path).resolveOne(1.minute).foreach {
+      _ ! msg
+    }
+  }
+
+  private def shouldRollBeforeBlock(block: Block) = {
+    currentWriter.bytesSent + block.compressed.length + headroomInVolume > config.volumeSize.bytes
+  }
+
   def read(hash: Hash): Future[BytesWrapper] = {
-    val chunk: StoredChunk = current.get(hash).orElse(previous.get(hash)).get
+    val chunk: StoredChunk = notCheckpointed.get(hash).orElse(checkpointed.get(hash)).get
     getReader(chunk).read(chunk)
   }
 
@@ -101,17 +171,13 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   }
 
   override def finish(): Future[Boolean] = {
-    Await.result(Future.sequence(_readers.values.map(_.finish())), 1.hour)
-    _readers = Map.empty
-    if (_writer != null) {
-      Await.result(_writer.finish(), 1.hour)
-    }
-    if (hasChanged) {
-      logger.info("Started writing blocks metadata")
-      writeToJson(context.fileManager.volumeIndex.nextFile(), current.values.toSeq)
-      logger.info("Done Writing blocks metadata")
-    }
-    Future.successful(true)
+    closeReaders()
+    writers.foreach(_._2.requestFinish())
+    Future.successful(writers.isEmpty)
   }
 
+  private def closeReaders() = {
+    Await.result(Future.sequence(_readers.values.map(_.finish())), 1.hour)
+    _readers = Map.empty
+  }
 }

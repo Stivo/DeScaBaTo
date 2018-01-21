@@ -9,8 +9,8 @@ import ch.descabato.core.actors._
 import ch.descabato.core_old.{BackupFolderConfiguration, FileManager}
 import ch.descabato.utils.Utils
 
-import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCycle {
 
@@ -33,6 +33,7 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
     val ref = TypedActor(system).getActorRefFor(blockStorageActor)
     ref ! ref.path
   }
+
   initActor()
 
   private val backupFileActorProps: TypedProps[MetadataActor] = TypedProps.apply[MetadataActor](classOf[BackupFileHandler], new MetadataActor(context))
@@ -45,9 +46,21 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   }
 
   override def finish(): Future[Boolean] = {
-    val out = Await.result(Future.sequence(actors.map(_.finish())).map(_.reduce(_ && _)), 1.minute)
+    var actorsToDo: Seq[LifeCycle] = actors
+    while (actorsToDo.nonEmpty) {
+      val futures = actorsToDo.map(x => (x, x.finish()))
+      actorsToDo = Seq.empty
+      for ((actor, future) <- futures) {
+        val hasFinished = Await.result(future, 1.minute)
+        if (!hasFinished) {
+          logger.info("One actor can not finish yet " + actor)
+          actorsToDo :+= actor
+        }
+      }
+      Thread.sleep(500)
+    }
     system.terminate()
     cpuService.shutdown()
-    Future.successful(out)
+    Future.successful(true)
   }
 }
