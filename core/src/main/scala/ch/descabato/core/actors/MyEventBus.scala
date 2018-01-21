@@ -1,9 +1,10 @@
 package ch.descabato.core.actors
 
+import java.io.File
+
 import akka.actor.ActorRef
 import akka.event.{EventBus, LookupClassification}
-
-import scala.concurrent.Future
+import ch.descabato.core_old.FileType
 
 class MyEventBus extends EventBus with LookupClassification {
   type Event = MyEvent
@@ -31,7 +32,7 @@ trait MyEvent {
   def topic: String = MyEvent.globalTopic
 }
 
-case class VolumeRolled(filename: String) extends MyEvent
+case class FileFinished(filetype: FileType[_ <: Any], file: File) extends MyEvent
 
 trait MyEventReceiver {
   def receive(myEvent: MyEvent): Unit

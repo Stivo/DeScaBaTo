@@ -5,10 +5,10 @@ import java.nio.file.{Files, Path}
 import java.util.stream.Collectors
 
 import akka.Done
-import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
 import akka.stream.{ClosedShape, OverflowStrategy}
+import ch.descabato.akka.ActorStats
 import ch.descabato.core._
-import ch.descabato.core.actors.Framer
 import ch.descabato.core.model._
 import ch.descabato.core_old.{FileDescription, FolderDescription}
 import ch.descabato.frontend._
@@ -23,7 +23,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
 
   val config = universe.config
 
-  implicit val executionContext = universe.ex
+  implicit val executionContext = ActorStats.ex
   implicit val materializer = universe.materializer
 
   private def gatherFiles() = {
@@ -64,7 +64,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
       universe.backupFileActor.addDirectory(FolderDescription(path.toFile))
     }.runWith(Sink.ignore)
     Await.result(dirsSaved, 1.hours)
-    Source.fromIterator[Path](() => files.iterator).mapAsync(2) { path =>
+    Source.fromIterator[Path](() => files.iterator).mapAsync(5) { path =>
       backupFile(path).map(x => (path, x))
     }.map { case (path, _) =>
         fileCounter += 1
@@ -107,9 +107,9 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
         import GraphDSL.Implicits._
         val chunkSize = config.blockSize.bytes.toInt
 
-        //val framer = new Framer()
+//        val framer = new Framer()
 
-        //val chunkSource = FileIO.fromPath(path, 256 * 1024).via(framer)
+//        val chunkSource = FileIO.fromPath(path, 256 * 1024).via(framer)
         val chunkSource = Source.fromIterator(() => FileIterator(path.toFile))
 
 

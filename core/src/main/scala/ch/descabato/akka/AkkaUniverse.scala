@@ -10,12 +10,11 @@ import akka.dispatch.{DispatcherPrerequisites, ExecutorServiceConfigurator, Exec
 import akka.event.Logging
 import akka.pattern.AskTimeoutException
 import akka.routing.{DefaultResizer, RoundRobinPool, Routee}
-import ch.descabato.core_old.{BackupFolderConfiguration, _}
 import ch.descabato.core_old.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
+import ch.descabato.core_old.{BackupFolderConfiguration, _}
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.remote.{NoOpRemoteHandler, SimpleRemoteHandler}
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
-import ch.descabato.utils.Implicits._
 import com.google.common.util.concurrent.RateLimiter
 import com.typesafe.config.Config
 
@@ -303,7 +302,7 @@ trait AkkaUniversePart extends UniversePart {
 }
 
 object ActorStats {
-  val tpe: ThreadPoolExecutor = {
+  implicit val tpe: ThreadPoolExecutor = {
     val out = new ThreadPoolExecutor(10, 10, 10, TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue[Runnable]())
     out.setThreadFactory((r: Runnable) => {
@@ -315,6 +314,7 @@ object ActorStats {
     out
   }
 
+  implicit val ex: ExecutionContext = ExecutionContext.fromExecutorService(tpe)
 }
 
 class MyActor(override val uni: AkkaUniverse) extends Actor with AkkaUniversePart {

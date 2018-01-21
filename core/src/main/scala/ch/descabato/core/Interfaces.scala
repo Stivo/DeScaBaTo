@@ -6,7 +6,7 @@ import java.util.Date
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataActor.BackupMetaData
-import ch.descabato.core.actors.MyEventReceiver
+import ch.descabato.core.actors.{BackupContext, FileFinished, MyEventReceiver}
 import ch.descabato.core.model.{Block, FileMetadata}
 import ch.descabato.core.util.Json
 import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription, PasswordWrongException}
@@ -49,6 +49,8 @@ trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEven
 trait JsonUser {
   def config: BackupFolderConfiguration
 
+  def context: BackupContext
+
   def readJson[T: Manifest](file: File): Try[T] = {
     val reader = config.newReader(file)
     try {
@@ -77,6 +79,8 @@ trait JsonUser {
     val compressed: BytesWrapper = CompressedStream.compress(new BytesWrapper(bytes), CompressionMode.deflate)
     writer.write(new BytesWrapper(bytes))
     writer.finish()
+    val filetype = context.fileManager.getFileType(file)
+    context.eventBus.publish(FileFinished(filetype, file))
   }
 }
 

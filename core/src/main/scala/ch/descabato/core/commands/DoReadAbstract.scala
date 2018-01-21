@@ -2,15 +2,14 @@ package ch.descabato.core.commands
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import ch.descabato.akka.ActorStats.ex
 import ch.descabato.core.Universe
 import ch.descabato.core.model.FileMetadata
-import ch.descabato.core_old.BackupFolderConfiguration
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
 
 import scala.concurrent.Future
 
 abstract class DoReadAbstract(val universe: Universe) {
-  import universe.ex
 
   protected val config = universe.config
 

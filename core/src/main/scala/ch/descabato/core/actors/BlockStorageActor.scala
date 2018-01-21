@@ -2,7 +2,6 @@ package ch.descabato.core.actors
 
 import java.io.File
 
-import akka.actor.TypedActor.Receiver
 import akka.actor.{ActorPath, ActorRef, TypedActor, TypedProps}
 import ch.descabato.core.model.{Block, StoredChunk}
 import ch.descabato.core.{BlockStorage, JsonUser}
@@ -31,12 +30,15 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   class WriterInfos(val writer: VolumeWriter, val filename: String, var requestsSent: Int = 0, var requestsGot: Int = 0,
                     var bytesSent: Long = 0L, var finishRequested: Boolean = false, var indexWritten: Boolean = false) {
 
+    var indexFile: File = _
+
     private def writeIndex(): Unit = {
       if (!indexWritten) {
         val toSave = notCheckpointed.filter { case (_, block) =>
           block.file == filename
         }
-        writeToJson(context.fileManager.volumeIndex.nextFile(), toSave.values.toSeq)
+        indexFile = context.fileManager.volumeIndex.nextFile()
+        writeToJson(indexFile, toSave.values.toSeq)
         checkpointed ++= toSave
         notCheckpointed --= toSave.keySet
         logger.info(s"Wrote volume and index for $filename with $requestsGot blocks")
@@ -47,7 +49,8 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     def tryToFinish(): Unit = {
       if (canWriteIndex() && !indexWritten) {
         writeIndex()
-        context.eventBus.publish(new VolumeRolled(filename))
+        context.eventBus.publish(new FileFinished(context.fileManager.volume, new File(config.folder, filename)))
+        context.eventBus.publish(new FileFinished(context.fileManager.volumeIndex, indexFile))
         writers -= filename
       }
     }
@@ -133,7 +136,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   }
 
   ProgressReporters.addCounter(bytesStoredCounter)
-  
+
   override def onReceive(message: Any, sender: ActorRef): Unit = {
     message match {
       case x: ActorPath =>
