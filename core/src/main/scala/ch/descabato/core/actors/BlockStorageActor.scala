@@ -33,17 +33,15 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     var indexFile: File = _
 
     private def writeIndex(): Unit = {
-      if (!indexWritten) {
-        val toSave = notCheckpointed.filter { case (_, block) =>
-          block.file == filename
-        }
-        indexFile = context.fileManager.volumeIndex.nextFile()
-        writeToJson(indexFile, toSave.values.toSeq)
-        checkpointed ++= toSave
-        notCheckpointed --= toSave.keySet
-        logger.info(s"Wrote volume and index for $filename with $requestsGot blocks")
-        indexWritten = true
+      val toSave = notCheckpointed.filter { case (_, block) =>
+        block.file == filename
       }
+      indexFile = context.fileManager.volumeIndex.nextFile()
+      writeToJson(indexFile, toSave.values.toSeq)
+      checkpointed ++= toSave
+      notCheckpointed --= toSave.keySet
+      logger.info(s"Wrote volume and index for $filename with $requestsGot blocks")
+      indexWritten = true
     }
 
     def tryToFinish(): Unit = {
@@ -60,7 +58,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
 
     def requestFinish(): Unit = {
       finishRequested = true
-      writer.finish().map(_ => sendToSelf(this))
+      tryToFinish()
     }
 
     override def toString = s"WriterInfos($filename, $requestsSent, $requestsGot, $finishRequested, $indexWritten)"
@@ -140,8 +138,6 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     message match {
       case x: ActorPath =>
         this.path = x
-      case w: WriterInfos =>
-        w.tryToFinish()
       case (storedChunk: StoredChunk, promise: Promise[_]) =>
         val infos = writers(storedChunk.file)
         infos.requestsGot += 1
