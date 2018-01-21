@@ -264,7 +264,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def newT(args: Seq[String]) = new BackupConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
-    println(t.summary)
+    println(t.filteredSummary(Set("passphrase")))
     val universe = new Universe(conf)
     val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
     backup.execute()
@@ -309,7 +309,7 @@ class RestoreCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new RestoreConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
-    println(t.summary)
+    println(t.filteredSummary(Set("passphrase")))
     validateFilename(t.restoreToFolder)
     validateFilename(t.restoreInfo)
     withUniverse(conf) {
@@ -348,7 +348,7 @@ class VerifyCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new VerifyConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration): Unit = {
-    println(t.summary)
+    println(t.filteredSummary(Set("passphrase")))
     val counter = withUniverse(conf) {
       u =>
         val verify = new DoVerify(u)
