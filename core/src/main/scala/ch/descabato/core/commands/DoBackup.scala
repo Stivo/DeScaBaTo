@@ -8,7 +8,7 @@ import akka.Done
 import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
 import akka.stream.{ClosedShape, OverflowStrategy}
 import ch.descabato.core.model._
-import ch.descabato.core.{FileNotYetBackedUp, Storing, Universe, FileAlreadyBackedUp}
+import ch.descabato.core._
 import ch.descabato.core_old.{FileDescription, FolderDescription}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
@@ -63,7 +63,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     val fd = new FileDescription(path.toFile)
     universe.backupFileActor.hasAlready(fd).flatMap {
       case FileNotYetBackedUp =>
-        backupFile(path, fd)
+        hashAndBackupFile(path, fd)
       case FileAlreadyBackedUp(metadata) =>
         Source.fromIterator[Array[Byte]](() => metadata.blocks.grouped(config)).mapAsync(5) { bytes =>
           universe.blockStorageActor.hasAlready(Hash(bytes))
@@ -72,7 +72,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
             universe.backupFileActor.saveFileSameAsBefore(fd).map(_ => Done)
           } else {
             logger.info(s"File $fd is saved but some blocks are missing, so backing up again")
-            backupFile(path, fd)
+            hashAndBackupFile(path, fd)
           }
         }.runWith(Sink.ignore)
       case Storing =>
@@ -81,14 +81,12 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }
   }
 
-  private def backupFile(path: Path, fd: FileDescription): Future[Done] = {
+  private def hashAndBackupFile(path: Path, fd: FileDescription): Future[Done] = {
     val graph = RunnableGraph.fromGraph(GraphDSL.create(Sink.ignore) { implicit builder =>
       sink =>
         import GraphDSL.Implicits._
         val chunkSize = config.blockSize.bytes.toInt
-        val chunkSource = FileIO.fromPath(path, chunkSize = chunkSize).map { bytes =>
-          BytesWrapper(bytes.toArray)
-        }
+        val chunkSource = Source.fromIterator[BytesWrapper](() => new FileIterator(path.toFile))
 
         val hashedBlocks = builder.add(Broadcast[Block](2))
         val waitForCompletion = builder.add(Merge[Unit](2))
