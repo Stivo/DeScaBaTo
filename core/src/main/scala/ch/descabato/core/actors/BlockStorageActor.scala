@@ -133,12 +133,12 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
         this.path = x
       case w: WriterInfos =>
         w.tryToFinish()
-      case (storedChunk: StoredChunk, promise: Promise[Boolean]) =>
+      case (storedChunk: StoredChunk, promise: Promise[_]) =>
         val infos = writers(storedChunk.file)
         infos.requestsGot += 1
         notCheckpointed += storedChunk.hash -> storedChunk
         infos.tryToFinish()
-        promise.complete(Try(true))
+        promise.asInstanceOf[Promise[Boolean]].complete(Try(true))
       case x =>
         println(s"Got unknown message $x")
     }

@@ -3,11 +3,10 @@ package ch.descabato.core.util
 import java.security.Security
 import javax.crypto.Cipher
 
-import akka.util.ByteString
-import ch.descabato.core_old.kvstore.EncryptionInfo
+import ch.descabato.core_old.kvstore.{CryptoUtils, EncryptionInfo, KeyInfo}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
-class CipherUser(key: ByteString) {
+class CipherUser(key: Array[Byte]) {
 
   Security.addProvider(new BouncyCastleProvider())
   val cipher = Cipher.getInstance("AES/CTR/NoPadding", "BC")

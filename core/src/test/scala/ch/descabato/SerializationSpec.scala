@@ -9,7 +9,7 @@ import ch.descabato.utils._
 import org.scalatest.Matchers._
 import org.scalatest._
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
 
@@ -48,8 +48,8 @@ class SerializationSpec extends FlatSpec with TestUtils {
     val fidAfter = writeAndRead(ser, fid)
     assert(fid === fidAfter)
     assert(fid.hash === fidAfter.hash)
-    assert(fid.attrs.keys === fidAfter.attrs.keys)
-    fidAfter.attrs.keys should contain ("lastModifiedTime")
+    assert(fid.attrs.asScala.keys === fidAfter.attrs.asScala.keys)
+    fidAfter.attrs.asScala.keys should contain ("lastModifiedTime")
     chainMap.map(_._1) should equal (writeAndRead(ser, chainMap).map(_._1))
     assert(fod === writeAndRead(ser, fod))
     assert(symLink === writeAndRead(ser, symLink))

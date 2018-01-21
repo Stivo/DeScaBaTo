@@ -8,9 +8,8 @@ import java.security.{MessageDigest, Principal}
 import java.util
 import java.util.regex.Pattern
 
-import akka.util.ByteString
 import ch.descabato.CompressionMode
-import ch.descabato.core.util.{FileReader, FileWriter, SimpleFileReader, SimpleFileWriter}
+import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
@@ -50,14 +49,13 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
 
   var remoteOptions: RemoteOptions = new RemoteOptions()
 
-  var key: ByteString = _
+  var key: Array[Byte] = _
 
   def newWriter(file: File): FileWriter = {
     if (key == null) {
       new SimpleFileWriter(file)
     } else {
-      ???
-      //new EncryptedFileWriter(file, key)
+      new EncryptedFileWriter(file, key)
     }
   }
 
@@ -65,8 +63,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
     if (key == null) {
       new SimpleFileReader(file)
     } else {
-      ???
-      //new EncryptedFileReader(file, key)
+      new EncryptedFileReader(file, key)
     }
   }
 
@@ -77,7 +74,6 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   def verify(): Unit = {
     remoteOptions.verify()
   }
-
 
 }
 
