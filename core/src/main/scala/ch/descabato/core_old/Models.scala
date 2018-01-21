@@ -52,18 +52,18 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var key: Array[Byte] = _
 
   def newWriter(file: File): FileWriter = {
-    if (key == null) {
+    if (passphrase.isEmpty) {
       new SimpleFileWriter(file)
     } else {
-      new EncryptedFileWriter(file, key)
+      new EncryptedFileWriter(file, passphrase.get)
     }
   }
 
   def newReader(file: File): FileReader = {
-    if (key == null) {
+    if (passphrase.isEmpty) {
       new SimpleFileReader(file)
     } else {
-      new EncryptedFileReader(file, key)
+      new EncryptedFileReader(file, passphrase.get)
     }
   }
 

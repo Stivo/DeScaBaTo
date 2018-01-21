@@ -17,10 +17,10 @@ class EncryptionIOSpec extends FlatSpec with GeneratorDrivenPropertyChecks with 
   "io" should "decrypt and encrypt correctly" in {
     setupRandomData()
     val key = BytesWrapper(bytes, 0, 16).asArray()
-    val writer = new EncryptedFileWriter(encrypted, key)
+    val writer = new EncryptedFileWriter(encrypted, "password")
     val startPos = writer.write(BytesWrapper(bytes))
     writer.finish()
-    val reader = new EncryptedFileReader(encrypted, key)
+    val reader = new EncryptedFileReader(encrypted, "password")
 
     val myGen = for {
       n <- Gen.choose(0, bytes.length)

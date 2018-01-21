@@ -1,6 +1,7 @@
 package ch.descabato.core.util
 
 import java.io.{File, FileOutputStream, OutputStream}
+import java.util.Base64
 import javax.crypto.{Cipher, CipherOutputStream}
 
 import ch.descabato.utils.Implicits._
@@ -8,7 +9,7 @@ import akka.util.ByteString
 import ch.descabato.core_old.kvstore.{CryptoUtils, KeyInfo}
 import ch.descabato.utils.BytesWrapper
 
-class EncryptedFileWriter(val file: File, key: Array[Byte]) extends CipherUser(key) with FileWriter {
+class EncryptedFileWriter(val file: File, val passphrase: String) extends CipherUser(passphrase) with FileWriter {
 
   private var position = 0L
 
@@ -17,13 +18,22 @@ class EncryptedFileWriter(val file: File, key: Array[Byte]) extends CipherUser(k
   var header = ByteString.empty
   header ++= magicMarker
   header ++= kvStoreVersion
-  header :+= 1.toByte // type 1 continues with encryption parameters
+  header :+= 2.toByte // type 2 continues with encryption parameters
 
   private def writeEncryptionInfo() {
     header :+= encryptionInfo.algorithm
     header :+= encryptionInfo.macAlgorithm
     header :+= encryptionInfo.ivLength
     header ++= encryptionInfo.iv
+  }
+
+  private def writeKeyDerivationInfo() {
+    header :+= keyDerivationInfo.algorithm
+    header :+= keyDerivationInfo.iterationsPower
+    header :+= keyDerivationInfo.memoryFactor
+    header :+= keyDerivationInfo.keyLength
+    header :+= keyDerivationInfo.saltLength
+    header ++= keyDerivationInfo.salt
   }
 
   def write(bytes: BytesWrapper): Long = {
@@ -45,8 +55,11 @@ class EncryptedFileWriter(val file: File, key: Array[Byte]) extends CipherUser(k
     write(CryptoUtils.hmac(header.toArray, keyInfo).wrap())
   }
 
+  writeKeyDerivationInfo()
+  val keyHere = CryptoUtils.keyDerive(passphrase, keyDerivationInfo.salt,
+    keyDerivationInfo.keyLength, keyDerivationInfo.iterationsPower, keyDerivationInfo.memoryFactor)
   writeEncryptionInfo()
-  startEncryptedPart(key)
+  startEncryptedPart(keyHere)
 
   override def finish(): Unit = {
     outputStream.close()

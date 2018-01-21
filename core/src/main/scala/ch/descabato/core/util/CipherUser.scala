@@ -3,16 +3,17 @@ package ch.descabato.core.util
 import java.security.Security
 import javax.crypto.Cipher
 
-import ch.descabato.core_old.kvstore.{CryptoUtils, EncryptionInfo, KeyInfo}
+import ch.descabato.core_old.kvstore.{CryptoUtils, EncryptionInfo, KeyDerivationInfo, KeyInfo}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
-class CipherUser(key: Array[Byte]) {
+class CipherUser(passphrase: String) {
 
   Security.addProvider(new BouncyCastleProvider())
   val cipher = Cipher.getInstance("AES/CTR/NoPadding", "BC")
 
   protected var keyInfo: KeyInfo = null
   protected var encryptionBoundary: Long = -1
+  lazy val keyDerivationInfo = new KeyDerivationInfo()
 
   protected var encryptionInfo = new EncryptionInfo()
   protected val magicMarker: Array[Byte] = "KVStore".getBytes("UTF-8")

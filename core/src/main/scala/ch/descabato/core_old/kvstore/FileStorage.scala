@@ -4,6 +4,7 @@ import java.io.{File, RandomAccessFile}
 import java.nio.ByteBuffer
 import java.security.Security
 import java.util
+import java.util.Base64
 import javax.crypto.Cipher
 
 import ch.descabato.akka.ActorStats
@@ -18,6 +19,11 @@ import scala.concurrent.duration._
 class KeyInfo(val key: Array[Byte]) {
   def ivSize = 16
   var iv: Array[Byte] = _
+
+
+
+  override def toString = s"KeyInfo(${new String(Base64.getEncoder.encode(iv))}, " +
+    s"${new String(Base64.getEncoder.encode(key))}, $ivSize)"
 }
 
 trait RandomAccessFileUser extends AutoCloseable {

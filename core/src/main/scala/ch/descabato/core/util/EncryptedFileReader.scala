@@ -2,31 +2,42 @@ package ch.descabato.core.util
 
 import java.io.{File, RandomAccessFile}
 import java.util
+import java.util.Base64
 import javax.crypto.Cipher
 
-import ch.descabato.core_old.kvstore.{EncryptionInfo, KeyInfo}
+import ch.descabato.core_old.PasswordWrongException
+import ch.descabato.core_old.kvstore.{CryptoUtils, EncryptionInfo, KeyInfo}
 import ch.descabato.utils.BytesWrapper
 
-class EncryptedFileReader(val file: File, key: Array[Byte]) extends CipherUser(key) with FileReader {
+class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser(passphrase) with FileReader {
 
   private var position = 0L
 
   private val raf: RandomAccessFile = new RandomAccessFile(file, "r")
 
+  var key: Array[Byte] = null
+
+  def readKeyDerivationInfo() = {
+    val algorithm = raf.readByte()
+    if (algorithm != 0) {
+      throw new IllegalArgumentException(s"algorihtm $algorithm is not implemented")
+    }
+    val iterationsPower = raf.readByte()
+    val memoryFactor = raf.readByte()
+    val keyLength = raf.readByte()
+    val saltLength = raf.readByte()
+    val salt = Array.ofDim[Byte](saltLength)
+    raf.readFully(salt)
+    key = CryptoUtils.keyDerive(passphrase, salt, keyLength, iterationsPower, memoryFactor)
+  }
+
   def readHeader(): Unit = {
-    val bytes = Array.ofDim[Byte](magicMarker.length)
-    raf.readFully(bytes)
-    if (!util.Arrays.equals(bytes, magicMarker)) {
-      throw new IllegalStateException(s"This is not an encrypted file $file")
-    }
-    val version = raf.read()
-    if (version != 0) {
-      throw new IllegalStateException(s"Unknown version $version")
-    }
+    readGeneralHeader()
     val kvStoreType = raf.read()
-    if (kvStoreType != 1) {
+    if (kvStoreType != 2) {
       throw new IllegalStateException(s"TODO: Implement $kvStoreType")
     }
+    readKeyDerivationInfo()
     val algorithm = raf.read()
     if (algorithm != encryptionInfo.algorithm) {
       throw new IllegalStateException(s"TODO: Implement $algorithm")
@@ -43,7 +54,26 @@ class EncryptedFileReader(val file: File, key: Array[Byte]) extends CipherUser(k
     keyInfo = new KeyInfo(key)
     keyInfo.iv = encryptionInfo.iv
     initializeCipher(Cipher.DECRYPT_MODE, keyInfo)
-    // TODO verify hMac
+    val hmacInFile = readChunk(encryptionBoundary, 32)
+    raf.seek(0)
+    val header = Array.ofDim[Byte](encryptionBoundary.toInt)
+    raf.readFully(header)
+    val hmacComputed = CryptoUtils.hmac(header, keyInfo)
+    if (!util.Arrays.equals(hmacInFile.asArray(), hmacComputed)) {
+      throw new PasswordWrongException("Hmac verification failed, either data is corrupt or password is wrong", null)
+    }
+  }
+
+  private def readGeneralHeader() = {
+    val bytes = Array.ofDim[Byte](magicMarker.length)
+    raf.readFully(bytes)
+    if (!util.Arrays.equals(bytes, magicMarker)) {
+      throw new IllegalStateException(s"This is not an encrypted file $file")
+    }
+    val version = raf.read()
+    if (version != 0) {
+      throw new IllegalStateException(s"Unknown version $version")
+    }
   }
 
   readHeader()
@@ -51,11 +81,11 @@ class EncryptedFileReader(val file: File, key: Array[Byte]) extends CipherUser(k
   override def readAllContent(): BytesWrapper = {
     val startOfContent = encryptionBoundary + 32
     val out = readChunk(startOfContent, file.length() - startOfContent)
-    println(s"Read this ${new String(out.asArray())}")
     out
   }
 
   override def readChunk(position: Long, length: Long): BytesWrapper = {
+    require(position >= encryptionBoundary)
     if (length == 0) {
       BytesWrapper.apply(Array.ofDim[Byte](0))
     } else {

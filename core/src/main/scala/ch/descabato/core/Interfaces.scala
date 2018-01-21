@@ -9,12 +9,12 @@ import ch.descabato.core.actors.MetadataActor.BackupMetaData
 import ch.descabato.core.actors.MyEventReceiver
 import ch.descabato.core.model.{Block, FileMetadata}
 import ch.descabato.core.util.Json
-import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription}
+import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription, PasswordWrongException}
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 
 import scala.concurrent.Future
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 trait BlockStorage extends LifeCycle {
   def read(hash: Hash): Future[BytesWrapper]
@@ -27,8 +27,11 @@ trait BlockStorage extends LifeCycle {
 }
 
 sealed trait FileAlreadyBackedupResult
+
 case object FileNotYetBackedUp extends FileAlreadyBackedupResult
+
 case class FileAlreadyBackedUp(fileMetadata: FileMetadata) extends FileAlreadyBackedupResult
+
 case object Storing extends FileAlreadyBackedupResult
 
 trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEventReceiver {
@@ -49,11 +52,19 @@ trait JsonUser {
   def readJson[T: Manifest](file: File): Try[T] = {
     val reader = config.newReader(file)
     try {
-      Try {
+      val f = Try {
         val bs = reader.readAllContent()
         //val decompressed = CompressedStream.decompress(bs)
         Json.mapper.readValue[T](bs.asArray())
       }
+      f match {
+        // in this case we want to throw up as high as possible
+        // this is not a case where we want to delete data because it is invalid
+        case Failure(p@PasswordWrongException(_, _)) =>
+          throw p;
+        case _ =>
+      }
+      f
     } finally {
       reader.close()
     }
@@ -71,5 +82,6 @@ trait JsonUser {
 
 trait LifeCycle {
   def startup(): Future[Boolean]
+
   def finish(): Future[Boolean]
 }
