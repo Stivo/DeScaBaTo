@@ -5,7 +5,7 @@ import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
 import ch.descabato.core.Universe
-import ch.descabato.core.commands.{DoBackup, DoRestore}
+import ch.descabato.core.commands.{DoBackup, DoRestore, DoVerify}
 import ch.descabato.core_old._
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.utils.Implicits._
@@ -349,14 +349,14 @@ class VerifyCommand extends BackupRelatedCommand {
 
   def start(t: T, conf: BackupFolderConfiguration): Unit = {
     println(t.summary)
-    val count = withUniverseOld(conf, akkaAllowed = false) {
+    val counter = withUniverse(conf) {
       u =>
-        val rh = new VerifyHandler(u)
-        rh.verify(t)
+        val verify = new DoVerify(u)
+        verify.verify()
     }
-    CLI.lastErrors = count
-    if (count != 0)
-      CLI.exit(count.toInt)
+    CLI.lastErrors = counter.count
+    if (counter.count != 0)
+      CLI.exit(counter.count.toInt)
   }
 }
 

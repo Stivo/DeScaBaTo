@@ -71,7 +71,7 @@ class RestoreFileActor extends AkkaRestoreFileHandler with Utils with AkkaUniver
       universe.blockHandler().readBlockAsync(blockHash).map({ bytes =>
         universe.scheduleTask { () =>
           val decomp = CompressedStream.decompressToBytes(bytes)
-          val hash = universe.config().createMessageDigest().finish(decomp)
+          val hash = universe.config().createMessageDigest().digest(decomp)
           if (hash !== blockHash) {
             l.warn("Could not reconstruct block "+id+" of file "+destination+" correctly, hash was incorrect")
           }

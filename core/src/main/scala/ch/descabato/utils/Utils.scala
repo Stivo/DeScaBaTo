@@ -150,11 +150,11 @@ object Implicits {
     def update(bytesWrapper: BytesWrapper): Unit = {
       md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
     }
-    def finish(bytesWrapper: BytesWrapper): Hash = {
+    def digest(bytesWrapper: BytesWrapper): Hash = {
       update(bytesWrapper)
-      finish()
+      digest()
     }
-    def finish(): Hash = {
+    def digest(): Hash = {
       new Hash(md.digest())
     }
   }

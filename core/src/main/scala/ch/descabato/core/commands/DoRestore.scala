@@ -10,17 +10,15 @@ import ch.descabato.core.model.FileMetadata
 import ch.descabato.core_old.{BackupPart, FileAttributes, FolderDescription}
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{CompressedStream, FileUtils, Hash, Utils}
+import ch.descabato.utils._
 
 import scala.collection.mutable
+import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 
-class DoRestore(val universe: Universe) extends Utils {
+class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Utils {
 
-  import universe.{ex, materializer}
-
-  private val config = universe.config
+  import universe.materializer
 
   def restoreFromDate(options: RestoreConf, date: Date): Unit = {
     restore(options, Some(date))
@@ -65,19 +63,13 @@ class DoRestore(val universe: Universe) extends Utils {
       }
       val stream = new FileOutputStream(restoredFile)
       val source = Source.fromIterator[Array[Byte]](() => file.blocks.bytes.grouped(config.hashLength))
-      Await.result(source.mapAsync(10) { hashBytes =>
-        val hash = Hash(hashBytes)
-        universe.blockStorageActor.read(hash)
-      }.mapAsync(10) { bs =>
-        Future(CompressedStream.decompressToBytes(bs))
-      }.runForeach { x =>
+      Await.result(getBytestream(source).runForeach { x =>
         stream.write(x)
       }, 1.hour)
       stream.close()
       FileAttributes.restore(fd.attrs, restoredFile)
     }
   }
-
 
 }
 

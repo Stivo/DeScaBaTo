@@ -85,14 +85,14 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
       it should s"backup $i/$iterations" in {
         finishBackup(config)
       }
-      it should s"TODO verify $i/$iterations" in {
+      it should s"verify $i/$iterations" in {
         // verify backup
-        //startAndWait(s"verify$configRestore --percent-of-files-to-check 50 $backup1".split(" ")) should be(0)
+        startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" ")) should be(0)
       }
 
       if (hasPassword) {
         it should s"not verify correctly with a wrong password $i/$iterations" in {
-          startAndWait(s"verify${configRestore}a --percent-of-files-to-check 50 $backup1".split(" ")) should not be (0)
+          startAndWait(s"verify${configRestore}a --percent-of-files-to-check 100 $backup1".split(" ")) should not be (0)
         }
       }
 

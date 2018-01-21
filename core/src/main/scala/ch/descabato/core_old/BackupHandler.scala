@@ -256,7 +256,7 @@ class BackupHandler(val universe: UniverseI) extends Utils with BackupRelatedHan
       val wrapper = new Block(bid, block)
       universe.scheduleTask { () =>
         val md = universe.config.createMessageDigest
-        wrapper.hash = md.finish(wrapper.content)
+        wrapper.hash = md.digest(wrapper.content)
         universe.backupPartHandler.hashComputed(wrapper)
       }
       universe.hashFileHandler.hash(wrapper)
