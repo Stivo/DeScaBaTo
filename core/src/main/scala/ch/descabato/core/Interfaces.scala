@@ -1,12 +1,13 @@
 package ch.descabato.core
 
-import java.io.{File, FileOutputStream}
+import java.io.File
 import java.util.Date
 
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataActor.BackupMetaData
-import ch.descabato.core.model.{Block, FileMetadata, StoredChunk}
+import ch.descabato.core.actors.MyEventReceiver
+import ch.descabato.core.model.{Block, FileMetadata}
 import ch.descabato.core.util.Json
 import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription}
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
@@ -22,7 +23,7 @@ trait BlockStorage extends LifeCycle {
   def save(block: Block): Future[Boolean]
 }
 
-trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart {
+trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEventReceiver {
   def retrieveBackup(date: Option[Date] = None): Future[BackupMetaData]
 
   def addDirectory(description: FolderDescription): Future[Boolean]

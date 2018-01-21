@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
 
-class BlockStorageActor(val context: BackupContext) extends BlockStorage with JsonUser with Receiver {
+class BlockStorageActor(val context: BackupContext) extends BlockStorage with JsonUser with TypedActor.Receiver {
 
   val logger = LoggerFactory.getLogger(getClass)
 
@@ -48,6 +48,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     def tryToFinish(): Unit = {
       if (canWriteIndex()) {
         writeIndex()
+        context.eventBus.publish(new VolumeRolled(filename))
         writers -= filename
       }
     }

@@ -22,8 +22,10 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   val cpuService: ExecutorService = Executors.newFixedThreadPool(Math.min(config.threads, 4))
   implicit val ex = ExecutionContext.fromExecutorService(cpuService)
 
+  val eventBus = new MyEventBus()
+
   val fileManager = new FileManager(Set.empty, config)
-  val context = new BackupContext(config, system, fileManager, ex)
+  val context = new BackupContext(config, system, fileManager, ex, eventBus)
 
   private val blockStorageProps: TypedProps[BlockStorage] = TypedProps.apply(classOf[BlockStorage], new BlockStorageActor(context))
   private val name = "blockStorageActor"
@@ -38,6 +40,8 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
 
   private val backupFileActorProps: TypedProps[MetadataActor] = TypedProps.apply[MetadataActor](classOf[BackupFileHandler], new MetadataActor(context))
   val backupFileActor: BackupFileHandler = TypedActor(system).typedActorOf(backupFileActorProps.withTimeout(5.minutes))
+
+  context.eventBus.subscribe(new MySubscriber(TypedActor(system).getActorRefFor(backupFileActor), backupFileActor), MyEvent.globalTopic)
 
   val actors: Seq[LifeCycle] = Seq(backupFileActor, blockStorageActor)
 

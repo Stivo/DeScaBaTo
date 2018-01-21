@@ -108,6 +108,12 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     logger.error("Actor was restarted", reason)
   }
+
+  override def receive(myEvent: MyEvent): Unit = {
+    myEvent match {
+      case VolumeRolled(x) => logger.info(s"Got volume rolled event to $x")
+    }
+  }
 }
 
 object MetadataActor extends Utils {
@@ -117,7 +123,7 @@ object MetadataActor extends Utils {
                             symlinks: Seq[SymbolicLink] = Seq.empty) {
     def merge(other: BackupMetaData): BackupMetaData = {
       logger.info("Merging BackupMetaData")
-      new BackupMetaData(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks)
+      BackupMetaData(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks)
     }
 
 
