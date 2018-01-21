@@ -15,7 +15,7 @@ object FileIterator {
 
   val minBlockSize = 256 * 1024
   val maxBlockSize = 16 * 1024 * 1024
-  val bits: Byte = 19
+  val bits: Byte = 20
 
   def apply(file: File)(implicit executionContext: ExecutionContext): Iterator[BytesWrapper] = {
     if (file.length() == 0) {

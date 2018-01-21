@@ -19,7 +19,7 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   implicit val system = ActorSystem("Sys")
   implicit val materializer = ActorMaterializer()
 
-  val cpuService: ExecutorService = Executors.newFixedThreadPool(Math.min(config.threads, 4))
+  val cpuService: ExecutorService = Executors.newFixedThreadPool(Math.min(config.threads, 16))
   implicit val ex = ExecutionContext.fromExecutorService(cpuService)
 
   val eventBus = new MyEventBus()

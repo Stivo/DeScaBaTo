@@ -5,9 +5,10 @@ import java.nio.file.{Files, Path}
 import java.util.stream.Collectors
 
 import akka.Done
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
 import akka.stream.{ClosedShape, OverflowStrategy}
 import ch.descabato.core._
+import ch.descabato.core.actors.Framer
 import ch.descabato.core.model._
 import ch.descabato.core_old.{FileDescription, FolderDescription}
 import ch.descabato.frontend._
@@ -63,7 +64,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
       universe.backupFileActor.addDirectory(FolderDescription(path.toFile))
     }.runWith(Sink.ignore)
     Await.result(dirsSaved, 1.hours)
-    Source.fromIterator[Path](() => files.iterator).mapAsync(5) { path =>
+    Source.fromIterator[Path](() => files.iterator).mapAsync(2) { path =>
       backupFile(path).map(x => (path, x))
     }.map { case (path, _) =>
         fileCounter += 1
@@ -105,7 +106,12 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
       sink =>
         import GraphDSL.Implicits._
         val chunkSize = config.blockSize.bytes.toInt
-        val chunkSource = Source.fromIterator[BytesWrapper](() => FileIterator(path.toFile))
+
+        //val framer = new Framer()
+
+        //val chunkSource = FileIO.fromPath(path, 256 * 1024).via(framer)
+        val chunkSource = Source.fromIterator(() => FileIterator(path.toFile))
+
 
         val hashedBlocks = builder.add(Broadcast[Block](2))
         val waitForCompletion = builder.add(Merge[Unit](2))
