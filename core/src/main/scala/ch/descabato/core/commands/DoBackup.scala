@@ -105,11 +105,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }
   }
 
-  private val sendToWriter = Flow[Block].mapAsync(2) { b =>
-    universe.chunkWriter.saveBlock(b)
-  }
-
-  private val sendToBlockIndex = Flow[StoredChunk].mapAsync(2) { b =>
+  private val sendToBlockIndex = Flow[Block].mapAsync(5) { b =>
     universe.blockStorageActor.save(b)
   }
 
@@ -122,7 +118,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
   }.filter(!_._2).map(_._1).mapAsync(8)(x => Future(x.compress(config)))
 
   private def createCompressAndSaveBlocks(fd: FileDescription) = {
-    filterNonExistingBlocksAndCompress.via(newBuffer[Block](20)).via(sendToWriter).via(sendToBlockIndex).via(mapToUnit())
+    filterNonExistingBlocksAndCompress.via(newBuffer[Block](20)).via(sendToBlockIndex).via(mapToUnit())
   }
 
   private def createFileMetadataAndSave(fd: FileDescription) = Flow[Seq[Hash]].mapAsync(2) { hashes =>

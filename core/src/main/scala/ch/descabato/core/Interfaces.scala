@@ -19,7 +19,7 @@ trait BlockStorage extends LifeCycle {
 
   def hasAlready(block: Block): Future[Boolean]
 
-  def save(storedChunk: StoredChunk): Future[Boolean]
+  def save(block: Block): Future[Boolean]
 }
 
 trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart {
