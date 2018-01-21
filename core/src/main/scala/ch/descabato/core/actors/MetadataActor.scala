@@ -86,7 +86,6 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   override def saveFileSameAsBefore(fd: FileDescription): Future[Boolean] = {
     if (previous.safeContains(fd.path)) {
-      logger.info(s"Reusing previously saved result for $fd")
       thisBackup += fd.path -> previous(fd.path)
       Future.successful(true)
     } else {
