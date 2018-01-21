@@ -44,7 +44,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     }
 
     def tryToFinish(): Unit = {
-      if (canWriteIndex()) {
+      if (canWriteIndex() && !indexWritten) {
         writeIndex()
         context.eventBus.publish(new VolumeRolled(filename))
         writers -= filename
