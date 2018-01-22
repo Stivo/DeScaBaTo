@@ -9,6 +9,7 @@ branches:
     - master
     - remote_new
     - streams
+    - streams-working
 jdk:
   - oraclejdk8
 #before_script:
