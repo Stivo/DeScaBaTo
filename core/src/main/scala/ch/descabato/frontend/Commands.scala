@@ -265,9 +265,10 @@ class BackupCommand extends BackupRelatedCommand with Utils {
 
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.filteredSummary(Set("passphrase")))
-    val universe = new Universe(conf)
-    val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
-    backup.execute()
+    withUniverse(conf) { universe =>
+      val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
+      backup.execute()
+    }
     //    withUniverse(conf) {
     //      universe =>
     //        val bdh = new BackupHandler(universe)
