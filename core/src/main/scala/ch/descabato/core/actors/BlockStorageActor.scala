@@ -97,12 +97,13 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     }
     val numberOfVolume = context.fileManager.volume.numberOf(new File(config.folder, currentWriter.filename))
     val volumeIndex = context.fileManager.volumeIndex
-    val indexFile = new File(config.folder, volumeIndex.subfolder + "/" + volumeIndex.filenameForNumber(numberOfVolume))
+    val name = volumeIndex.subfolder + "/" + volumeIndex.filenameForNumber(numberOfVolume)
+    val indexFile = new File(config.folder, name)
     writeToJson(indexFile, toSave.values.toSeq)
+    context.eventBus.publish(new FileFinished(context.fileManager.volume, new File(config.folder, filename)))
     checkpointed ++= toSave
     notCheckpointed --= toSave.keySet
     logger.info(s"Wrote volume and index for $filename")
-    context.eventBus.publish(VolumeRolled(filename))
     _currentWriter = null
   }
 
@@ -112,7 +113,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     }
     val storedChunk = currentWriter.saveBlock(block)
     notCheckpointed += storedChunk.hash -> storedChunk
-    bytesStoredCounter.current += storedChunk.length.size
+    bytesStoredCounter += storedChunk.length.size
 
     Future.successful(true)
   }
