@@ -89,23 +89,26 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     Future.successful(haveAlready)
   }
 
-  private def rollVolume() = {
+  private def finishVolumeAndCreateIndex() = {
     currentWriter.finish()
     val filename = currentWriter.filename
     val toSave = notCheckpointed.filter { case (_, block) =>
       block.file == filename
     }
-    writeToJson(context.fileManager.volumeIndex.nextFile(), toSave.values.toSeq)
+    val numberOfVolume = context.fileManager.volume.numberOf(new File(config.folder, currentWriter.filename))
+    val volumeIndex = context.fileManager.volumeIndex
+    val indexFile = new File(config.folder, volumeIndex.subfolder + "/" + volumeIndex.filenameForNumber(numberOfVolume))
+    writeToJson(indexFile, toSave.values.toSeq)
     checkpointed ++= toSave
     notCheckpointed --= toSave.keySet
     logger.info(s"Wrote volume and index for $filename")
     context.eventBus.publish(VolumeRolled(filename))
-    newWriter()
+    _currentWriter = null
   }
 
   override def save(block: Block): Future[Boolean] = {
-    if (shouldRollBeforeBlock(block)) {
-      rollVolume()
+    if (blockCanNotFitAnymoreIntoCurrentWriter(block)) {
+      finishVolumeAndCreateIndex()
     }
     val storedChunk = currentWriter.saveBlock(block)
     notCheckpointed += storedChunk.hash -> storedChunk
@@ -114,7 +117,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     Future.successful(true)
   }
 
-  private def shouldRollBeforeBlock(block: Block) = {
+  private def blockCanNotFitAnymoreIntoCurrentWriter(block: Block) = {
     currentWriter.currentPosition() + block.compressed.length + headroomInVolume > config.volumeSize.bytes
   }
 
@@ -136,7 +139,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   override def finish(): Future[Boolean] = {
     closeReaders()
     if (_currentWriter != null) {
-      _currentWriter.finish()
+      finishVolumeAndCreateIndex()
     }
     Future.successful(true)
   }
