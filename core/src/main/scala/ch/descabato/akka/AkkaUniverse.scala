@@ -10,12 +10,11 @@ import akka.dispatch.{DispatcherPrerequisites, ExecutorServiceConfigurator, Exec
 import akka.event.Logging
 import akka.pattern.AskTimeoutException
 import akka.routing.{DefaultResizer, RoundRobinPool, Routee}
-import ch.descabato.core_old.{BackupFolderConfiguration, _}
 import ch.descabato.core_old.storage.{KvStoreBackupPartHandler, KvStoreBlockHandler, KvStoreHashListHandler}
+import ch.descabato.core_old.{BackupFolderConfiguration, _}
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.remote.{NoOpRemoteHandler, SimpleRemoteHandler}
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
-import ch.descabato.utils.Implicits._
 import com.google.common.util.concurrent.RateLimiter
 import com.typesafe.config.Config
 
@@ -104,7 +103,7 @@ class AkkaUniverse(val config: BackupFolderConfiguration) extends UniverseI with
 
   counters += new CompressionTasksQueueCounter("CPU Tasks", futureCounter.get())
 
-  val journalHandler: JournalHandler = actorOf[JournalHandler, SimpleJournalHandler]("Journal Writer", dispatcher = "single-dispatcher")
+  val journalHandler: JournalHandlerOld = actorOf[JournalHandlerOld, SimpleJournalHandlerOld]("Journal Writer", dispatcher = "single-dispatcher")
   journalHandler.cleanUnfinishedFiles()
   val backupPartHandler: BackupPartHandler = actorOf[BackupPartHandler, KvStoreBackupPartHandler]("Backup Parts")
   val hashListHandler: HashListHandler = actorOf[HashListHandler, KvStoreHashListHandler]("Hash Lists", dispatcher = "backup-dispatcher")

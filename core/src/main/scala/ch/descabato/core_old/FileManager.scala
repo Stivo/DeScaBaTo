@@ -250,7 +250,7 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
 
   def getDateFormatted: String = dateFormat.format(startDate)
 
-  val volumes_old = new FileType[Volume]("volume", false, ".kvs", localC = false)
+  val volumes_old = new FileType[Volume]("volume_old", false, ".kvs", localC = false)
   val volumeIndex_old = new IndexFileType(volumes_old)
   val volume = new FileType[Volume]("volume", true, ".kvs")
   val volumeIndex = new FileType[Seq[StoredChunk]]("volumeIndex", true, ".json")

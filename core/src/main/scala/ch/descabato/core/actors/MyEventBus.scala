@@ -32,7 +32,7 @@ trait MyEvent {
   def topic: String = MyEvent.globalTopic
 }
 
-case class FileFinished(filetype: FileType[_ <: Any], file: File) extends MyEvent
+case class FileFinished(filetype: FileType[_ <: Any], file: File, isTempFile: Boolean) extends MyEvent
 
 trait MyEventReceiver {
   def receive(myEvent: MyEvent): Unit

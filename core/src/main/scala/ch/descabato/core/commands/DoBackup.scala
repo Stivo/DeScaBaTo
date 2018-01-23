@@ -43,8 +43,9 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
 
   def execute(): Unit = {
     ProgressReporters.openGui("Backup", false)
-
+    universe.journalHandler.cleanUnfinishedFiles()
     val universeStartup = universe.startup()
+    universe.journalHandler.startWriting()
     val fileGathering = gatherFiles()
     val universeStarted = Await.result(universeStartup, 1.minute)
     val files = Await.result(fileGathering, 1.minute)
@@ -54,9 +55,10 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     ProgressReporters.addCounter(bytesCounter)
     ProgressReporters.activeCounters = List(fileCounter, bytesCounter)
     if (universeStarted) {
-      Await.result(setupFlow(files), 10.hours)
+      Await.result(setupFlow(files), Duration.Inf)
     }
     Await.result(universe.finish(), 5.minutes)
+    universe.journalHandler.stopWriting()
   }
 
   private def setupFlow(pathsToBackup: Seq[Path]) = {

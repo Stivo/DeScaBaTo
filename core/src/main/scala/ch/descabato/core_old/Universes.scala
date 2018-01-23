@@ -46,7 +46,7 @@ trait UniversePart extends AnyRef with PostRestart {
 
 class SingleThreadUniverse(val config: BackupFolderConfiguration) extends UniverseI with PureLifeCycle with Utils {
   def make[T <: UniversePart](x: T): T = {x.setup(this); x}
-  val journalHandler: SimpleJournalHandler = make(new SimpleJournalHandler())
+  val journalHandler: SimpleJournalHandlerOld = make(new SimpleJournalHandlerOld())
   val backupPartHandler: KvStoreBackupPartHandler = make(new KvStoreBackupPartHandler())
   val hashListHandler: KvStoreHashListHandler = make(new KvStoreHashListHandler())
   val blockHandler: KvStoreBlockHandler = make(new KvStoreBlockHandler())

@@ -31,6 +31,10 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   private val name = "blockStorageActor"
   val blockStorageActor: BlockStorage = TypedActor(system).typedActorOf(blockStorageProps.withTimeout(5.minutes), name)
 
+  private val journalHandlerProps: TypedProps[JournalHandler] = TypedProps.apply(classOf[JournalHandler], new SimpleJournalHandler(context))
+  val journalHandler: JournalHandler = TypedActor(system).typedActorOf(journalHandlerProps.withTimeout(5.minutes))
+  context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(journalHandler), journalHandler), MyEvent.globalTopic)
+
   private def initActor() {
     val ref = TypedActor(system).getActorRefFor(blockStorageActor)
     ref ! ref.path
@@ -41,7 +45,7 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   private val backupFileActorProps: TypedProps[MetadataActor] = TypedProps.apply[MetadataActor](classOf[BackupFileHandler], new MetadataActor(context))
   val backupFileActor: BackupFileHandler = TypedActor(system).typedActorOf(backupFileActorProps.withTimeout(5.minutes))
 
-  context.eventBus.subscribe(new MySubscriber(TypedActor(system).getActorRefFor(backupFileActor), backupFileActor), MyEvent.globalTopic)
+  context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(backupFileActor), backupFileActor), MyEvent.globalTopic)
 
   val actors: Seq[LifeCycle] = Seq(backupFileActor, blockStorageActor)
 

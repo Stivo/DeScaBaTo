@@ -100,7 +100,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     val name = volumeIndex.subfolder + "/" + volumeIndex.filenameForNumber(numberOfVolume)
     val indexFile = new File(config.folder, name)
     writeToJson(indexFile, toSave.values.toSeq)
-    context.eventBus.publish(new FileFinished(context.fileManager.volume, new File(config.folder, filename)))
+    context.sendFileFinishedEvent(new File(config.folder, filename))
     checkpointed ++= toSave
     notCheckpointed --= toSave.keySet
     logger.info(s"Wrote volume and index for $filename")

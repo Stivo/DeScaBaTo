@@ -6,7 +6,7 @@ import java.util.Date
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataActor.BackupMetaData
-import ch.descabato.core.actors.{BackupContext, FileFinished, MyEventReceiver}
+import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
 import ch.descabato.core.model.{Block, FileMetadata}
 import ch.descabato.core.util.Json
 import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription, PasswordWrongException}
@@ -80,7 +80,7 @@ trait JsonUser {
     writer.write(new BytesWrapper(bytes))
     writer.finish()
     val filetype = context.fileManager.getFileType(file)
-    context.eventBus.publish(new FileFinished(filetype, file))
+    context.sendFileFinishedEvent(file)
   }
 }
 

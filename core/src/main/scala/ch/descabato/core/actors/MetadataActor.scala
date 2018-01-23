@@ -142,7 +142,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   override def receive(myEvent: MyEvent): Unit = {
     myEvent match {
-      case FileFinished(context.fileManager.volume, x) =>
+      case FileFinished(context.fileManager.volume, x, false) =>
         logger.info(s"Got volume rolled event to $x")
         if (hasFinished) {
           logger.info("Ignoring as files are already written")
@@ -153,7 +153,8 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
           thisBackupNotCheckpointed = Map.empty
           writeToJson(file, metadata)
         }
-      case _ => // ignore unknown message
+      case _ =>
+        // ignore unknown message
     }
   }
 }

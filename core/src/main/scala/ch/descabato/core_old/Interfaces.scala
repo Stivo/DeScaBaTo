@@ -58,7 +58,7 @@ trait UniverseI extends LifeCycle {
 
   def hashFileHandler(): HashFileHandler
 
-  def journalHandler(): JournalHandler
+  def journalHandler(): JournalHandlerOld
 
   def remoteHandler(): RemoteHandler
 
@@ -95,7 +95,7 @@ trait UniverseI extends LifeCycle {
   }
 }
 
-trait JournalHandler extends BackupActor {
+trait JournalHandlerOld extends BackupActor {
   // Saves this file in the journal as finished
   // Makes an effort to sync it to the file system
   def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false): BlockingOperation
