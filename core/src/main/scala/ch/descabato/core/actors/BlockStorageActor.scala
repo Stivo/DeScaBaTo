@@ -6,6 +6,7 @@ import akka.actor.{TypedActor, TypedProps}
 import ch.descabato.core.model.{Block, StoredChunk}
 import ch.descabato.core.{BlockStorage, JsonUser}
 import ch.descabato.core_old.BackupFolderConfiguration
+import ch.descabato.frontend.{ProgressReporters, SizeStandardCounter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, FastHashMap, Hash}
 import org.slf4j.LoggerFactory
@@ -29,6 +30,12 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   private var _currentWriter: VolumeWriteActor = null
 
   val headroomInVolume = 1000
+
+  private val bytesStoredCounter = new SizeStandardCounter {
+    override def name: String = "Stored"
+  }
+
+  ProgressReporters.addCounter(bytesStoredCounter)
 
   private def currentWriter = {
     if (_currentWriter == null) {
@@ -102,6 +109,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     }
     val storedChunk = currentWriter.saveBlock(block)
     notCheckpointed += storedChunk.hash -> storedChunk
+    bytesStoredCounter.current += storedChunk.length.size
 
     Future.successful(true)
   }
