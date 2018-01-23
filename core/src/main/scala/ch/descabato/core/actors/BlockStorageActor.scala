@@ -2,8 +2,7 @@ package ch.descabato.core.actors
 
 import java.io.File
 
-import akka.actor.TypedActor.Receiver
-import akka.actor.{ActorPath, ActorRef, TypedActor, TypedProps}
+import akka.actor.{TypedActor, TypedProps}
 import ch.descabato.core.model.{Block, StoredChunk}
 import ch.descabato.core.{BlockStorage, JsonUser}
 import ch.descabato.core_old.BackupFolderConfiguration
@@ -13,10 +12,10 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success}
 
-class BlockStorageActor(val context: BackupContext) extends BlockStorage with JsonUser with TypedActor.Receiver {
+class BlockStorageActor(val context: BackupContext) extends BlockStorage with JsonUser {
 
   val logger = LoggerFactory.getLogger(getClass)
 
@@ -27,44 +26,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   private var checkpointed: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
   private var notCheckpointed: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
 
-  class WriterInfos(val writer: VolumeWriter, val filename: String, var requestsSent: Int = 0, var requestsGot: Int = 0,
-                    var bytesSent: Long = 0L, var finishRequested: Boolean = false, var indexWritten: Boolean = false) {
-
-    private def writeIndex(): Unit = {
-      if (!indexWritten) {
-        val toSave = notCheckpointed.filter { case (_, block) =>
-          block.file == filename
-        }
-        writeToJson(context.fileManager.volumeIndex.nextFile(), toSave.values.toSeq)
-        checkpointed ++= toSave
-        notCheckpointed --= toSave.keySet
-        logger.info(s"Wrote volume and index for $filename with $requestsGot blocks")
-        indexWritten = true
-      }
-    }
-
-    def tryToFinish(): Unit = {
-      if (canWriteIndex() && !indexWritten) {
-        writeIndex()
-        context.eventBus.publish(new VolumeRolled(filename))
-        writers -= filename
-      }
-    }
-
-    private def canWriteIndex(): Boolean = {
-      finishRequested && requestsSent == requestsGot
-    }
-
-    def requestFinish(): Unit = {
-      finishRequested = true
-      writer.finish().map(_ => sendToSelf(this))
-    }
-
-    override def toString = s"WriterInfos($filename, $requestsSent, $requestsGot, $finishRequested, $indexWritten)"
-  }
-
-  private var _currentWriter: WriterInfos = _
-  private var writers: Map[String, WriterInfos] = Map.empty
+  private var _currentWriter: VolumeWriteActor = null
 
   val headroomInVolume = 1000
 
@@ -77,12 +39,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
 
   private def newWriter(): Unit = {
     val file = context.fileManager.volume.nextFile()
-    val value: TypedProps[VolumeWriter] = TypedProps.apply[VolumeWriter](classOf[VolumeWriter], new VolumeWriteActor(context, file))
-    val writer: VolumeWriter = TypedActor(context.actorSystem).typedActorOf(value.withTimeout(5.minutes))
-    val name = writer.filename
-    val infos = new WriterInfos(writer, name)
-    writers += name -> infos
-    _currentWriter = infos
+    _currentWriter = new VolumeWriteActor(context, file)
   }
 
   def startup(): Future[Boolean] = {
@@ -125,57 +82,37 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     Future.successful(haveAlready)
   }
 
-  var path: ActorPath = _
-
-  override def onReceive(message: Any, sender: ActorRef): Unit = {
-    message match {
-      case x: ActorPath =>
-        this.path = x
-      case w: WriterInfos =>
-        w.tryToFinish()
-      case (storedChunk: StoredChunk, promise: Promise[_]) =>
-        val infos = writers(storedChunk.file)
-        infos.requestsGot += 1
-        notCheckpointed += storedChunk.hash -> storedChunk
-        infos.tryToFinish()
-        promise.asInstanceOf[Promise[Boolean]].complete(Try(true))
-      case x =>
-        println(s"Got unknown message $x")
-    }
-  }
-
   private def rollVolume() = {
-    currentWriter.requestFinish()
+    currentWriter.finish()
+    val filename = currentWriter.filename
+    val toSave = notCheckpointed.filter { case (_, block) =>
+      block.file == filename
+    }
+    writeToJson(context.fileManager.volumeIndex.nextFile(), toSave.values.toSeq)
+    checkpointed ++= toSave
+    notCheckpointed --= toSave.keySet
+    logger.info(s"Wrote volume and index for $filename")
+    context.eventBus.publish(VolumeRolled(filename))
     newWriter()
   }
 
   override def save(block: Block): Future[Boolean] = {
-    val promise = Promise.apply[Boolean]()
     if (shouldRollBeforeBlock(block)) {
       rollVolume()
     }
-    currentWriter.bytesSent += block.content.length
-    currentWriter.requestsSent += 1
-    currentWriter.writer.saveBlock(block).map { storedChunk =>
-      val tuple = (storedChunk, promise)
-      sendToSelf(tuple)
-    }
-    promise.future
-  }
+    val storedChunk = currentWriter.saveBlock(block)
+    notCheckpointed += storedChunk.hash -> storedChunk
 
-  private def sendToSelf(msg: Any) = {
-    context.actorSystem.actorSelection(path).resolveOne(1.minute).foreach {
-      _ ! msg
-    }
+    Future.successful(true)
   }
 
   private def shouldRollBeforeBlock(block: Block) = {
-    currentWriter.bytesSent + block.compressed.length + headroomInVolume > config.volumeSize.bytes
+    currentWriter.currentPosition() + block.compressed.length + headroomInVolume > config.volumeSize.bytes
   }
 
   def read(hash: Hash): Future[BytesWrapper] = {
     val chunk: StoredChunk = notCheckpointed.get(hash).orElse(checkpointed.get(hash)).get
-    getReader(chunk).read(chunk)
+    Future(getReader(chunk).read(chunk))
   }
 
   private var _readers: Map[String, VolumeReader] = Map.empty
@@ -190,8 +127,10 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
 
   override def finish(): Future[Boolean] = {
     closeReaders()
-    writers.foreach(_._2.requestFinish())
-    Future.successful(writers.isEmpty)
+    if (_currentWriter != null) {
+      _currentWriter.finish()
+    }
+    Future.successful(true)
   }
 
   private def closeReaders() = {

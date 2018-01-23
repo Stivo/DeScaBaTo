@@ -16,7 +16,6 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
   val filename = context.config.folder.toPath.relativize(file.toPath).toString
 
   private var _writer: FileWriter = _
-
   private var finished: Boolean = false
 
   private def writer = {
@@ -26,17 +25,18 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
     _writer
   }
 
-  override def saveBlock(block: Block): Future[StoredChunk] = {
+  override def saveBlock(block: Block): StoredChunk = {
+    require(!finished)
     val posBefore = writer.write(block.compressed)
-    Future.successful(StoredChunk(filename, block.hash, posBefore, Length(block.compressed.length)))
+    StoredChunk(filename, block.hash, posBefore, Length(block.compressed.length))
   }
 
-  override def finish(): Future[Boolean] = {
+  override def finish(): Boolean = {
     if (_writer != null && !finished) {
       writer.finish()
       finished = true
     }
-    Future.successful(true)
+    true
   }
 
   override def startup(): Future[Boolean] = {
@@ -44,6 +44,9 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
     Future.successful(true)
   }
 
+  override def currentPosition(): Long = {
+    writer.currentPosition()
+  }
 }
 
 class VolumeReadActor(val context: BackupContext, val file: File) extends VolumeReader {
@@ -61,18 +64,20 @@ class VolumeReadActor(val context: BackupContext, val file: File) extends Volume
     Future.successful(true)
   }
 
-  override def read(storedChunk: StoredChunk): Future[BytesWrapper] = {
-    Future.successful(reader.readChunk(storedChunk.startPos, storedChunk.length.size))
+  override def read(storedChunk: StoredChunk): BytesWrapper = {
+    reader.readChunk(storedChunk.startPos, storedChunk.length.size)
   }
 
 }
 
 trait VolumeWriter extends LifeCycle {
-  def saveBlock(block: Block): Future[StoredChunk]
+  def saveBlock(block: Block): StoredChunk
+
+  def currentPosition(): Long
 
   def filename(): String
 }
 
 trait VolumeReader extends LifeCycle {
-  def read(storedChunk: StoredChunk): Future[BytesWrapper]
+  def read(storedChunk: StoredChunk): BytesWrapper
 }

@@ -1,13 +1,12 @@
 package ch.descabato.core.util
 
 import java.io.{File, FileOutputStream, OutputStream}
-import java.util.Base64
 import javax.crypto.{Cipher, CipherOutputStream}
 
-import ch.descabato.utils.Implicits._
 import akka.util.ByteString
 import ch.descabato.core_old.kvstore.{CryptoUtils, KeyInfo}
 import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Implicits._
 
 class EncryptedFileWriter(val file: File, val passphrase: String) extends CipherUser(passphrase) with FileWriter {
 
@@ -43,6 +42,8 @@ class EncryptedFileWriter(val file: File, val passphrase: String) extends Cipher
     out
   }
 
+  override def currentPosition(): Long = position
+
   private def startEncryptedPart(key: Array[Byte]): Unit = {
     outputStream.write(header.toArray)
     outputStream.flush()
@@ -56,9 +57,9 @@ class EncryptedFileWriter(val file: File, val passphrase: String) extends Cipher
   }
 
   writeKeyDerivationInfo()
+  writeEncryptionInfo()
   val keyHere = CryptoUtils.keyDerive(passphrase, keyDerivationInfo.salt,
     keyDerivationInfo.keyLength, keyDerivationInfo.iterationsPower, keyDerivationInfo.memoryFactor)
-  writeEncryptionInfo()
   startEncryptedPart(keyHere)
 
   override def finish(): Unit = {
