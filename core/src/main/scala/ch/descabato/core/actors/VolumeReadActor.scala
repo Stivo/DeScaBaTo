@@ -31,12 +31,12 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
     StoredChunk(filename, block.hash, posBefore, Length(block.compressed.length))
   }
 
-  override def finish(): Boolean = {
+  override def finish(): Future[Boolean] = {
     if (_writer != null && !finished) {
       writer.finish()
       finished = true
     }
-    true
+    Future.successful(true)
   }
 
   override def startup(): Future[Boolean] = {
