@@ -50,7 +50,7 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   }
 
   override def finish(): Future[Boolean] = {
-    if (_finished) {
+    if (!_finished) {
       var actorsToDo: Seq[LifeCycle] = actors
       while (actorsToDo.nonEmpty) {
         val futures = actorsToDo.map(x => (x, x.finish()))

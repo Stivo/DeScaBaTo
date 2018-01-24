@@ -92,7 +92,7 @@ trait BackupRelatedCommand extends Command with Utils {
 
   var lastArgs: Seq[String] = Nil
 
-  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: Universe => T): T = {
+  def withUniverse[T](conf: BackupFolderConfiguration)(f: Universe => T): T = {
     var universe: Universe = null
     try {
       universe = new Universe(conf)
@@ -265,9 +265,10 @@ class BackupCommand extends BackupRelatedCommand with Utils {
 
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.filteredSummary(Set("passphrase")))
-    val universe = new Universe(conf)
-    val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
-    backup.execute()
+    withUniverse(conf) { universe =>
+      val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
+      backup.execute()
+    }
     //    withUniverse(conf) {
     //      universe =>
     //        val bdh = new BackupHandler(universe)
