@@ -19,6 +19,9 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   implicit val system = ActorSystem("Sys")
   implicit val materializer = ActorMaterializer()
 
+  private var _finished = false
+  private var _shutdown = false
+
   val cpuService: ExecutorService = Executors.newFixedThreadPool(Math.min(config.threads, 8))
   implicit val ex = ExecutionContext.fromExecutorService(cpuService)
 
@@ -35,13 +38,6 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   val journalHandler: JournalHandler = TypedActor(system).typedActorOf(journalHandlerProps.withTimeout(5.minutes))
   context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(journalHandler), journalHandler), MyEvent.globalTopic)
 
-  private def initActor() {
-    val ref = TypedActor(system).getActorRefFor(blockStorageActor)
-    ref ! ref.path
-  }
-
-  initActor()
-
   private val backupFileActorProps: TypedProps[MetadataActor] = TypedProps.apply[MetadataActor](classOf[BackupFileHandler], new MetadataActor(context))
   val backupFileActor: BackupFileHandler = TypedActor(system).typedActorOf(backupFileActorProps.withTimeout(5.minutes))
 
@@ -54,21 +50,31 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   }
 
   override def finish(): Future[Boolean] = {
-    var actorsToDo: Seq[LifeCycle] = actors
-    while (actorsToDo.nonEmpty) {
-      val futures = actorsToDo.map(x => (x, x.finish()))
-      actorsToDo = Seq.empty
-      for ((actor, future) <- futures) {
-        val hasFinished = Await.result(future, 1.minute)
-        if (!hasFinished) {
-          logger.info("One actor can not finish yet " + actor)
-          actorsToDo :+= actor
+    if (_finished) {
+      var actorsToDo: Seq[LifeCycle] = actors
+      while (actorsToDo.nonEmpty) {
+        val futures = actorsToDo.map(x => (x, x.finish()))
+        actorsToDo = Seq.empty
+        for ((actor, future) <- futures) {
+          val hasFinished = Await.result(future, 1.minute)
+          if (!hasFinished) {
+            logger.info("One actor can not finish yet " + actor)
+            actorsToDo :+= actor
+          }
         }
+        Thread.sleep(500)
       }
-      Thread.sleep(500)
+      _finished = true
     }
-    system.terminate()
-    cpuService.shutdown()
     Future.successful(true)
+  }
+
+  def shutdown(): Unit = {
+    if (!_shutdown) {
+      Await.result(finish(), 1.minute)
+      system.terminate()
+      cpuService.shutdown()
+      _shutdown = true
+    }
   }
 }

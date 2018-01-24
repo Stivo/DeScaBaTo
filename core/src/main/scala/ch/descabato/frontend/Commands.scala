@@ -104,7 +104,7 @@ trait BackupRelatedCommand extends Command with Utils {
         throw e
     } finally {
       if (universe != null) {
-        universe.finish()
+        universe.shutdown()
       }
     }
   }
