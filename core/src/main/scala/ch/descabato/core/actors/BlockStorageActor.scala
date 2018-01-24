@@ -5,7 +5,7 @@ import java.io.File
 import akka.actor.{TypedActor, TypedProps}
 import ch.descabato.core.model.{Block, StoredChunk}
 import ch.descabato.core.{BlockStorage, JsonUser}
-import ch.descabato.core_old.BackupFolderConfiguration
+import ch.descabato.core_old.{BackupFolderConfiguration, Size}
 import ch.descabato.frontend.{ProgressReporters, SizeStandardCounter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, FastHashMap, Hash}
@@ -142,6 +142,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     if (_currentWriter != null) {
       finishVolumeAndCreateIndex()
     }
+    logger.info(s"Wrote volumes with total of ${Size(bytesStoredCounter.current)}")
     Future.successful(true)
   }
 

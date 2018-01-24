@@ -1,9 +1,7 @@
 package ch.descabato.it.tests
 
 import ch.descabato.it.IntegrationTest
-import org.scalatest.Ignore
 
-@Ignore
 class FullComboTest extends IntegrationTest {
 
   testWith("backup with crashes, encryption, multiple threads and smart compression",

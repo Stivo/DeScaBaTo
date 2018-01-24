@@ -41,6 +41,9 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   private val backupFileActorProps: TypedProps[MetadataActor] = TypedProps.apply[MetadataActor](classOf[BackupFileHandler], new MetadataActor(context))
   val backupFileActor: BackupFileHandler = TypedActor(system).typedActorOf(backupFileActorProps.withTimeout(5.minutes))
 
+  private val compressorProps: TypedProps[Compressor] = TypedProps.apply[Compressor](classOf[Compressor], Compressors(config))
+  val compressor: Compressor = TypedActor(system).typedActorOf(compressorProps.withTimeout(5.minutes))
+
   context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(backupFileActor), backupFileActor), MyEvent.globalTopic)
 
   val actors: Seq[LifeCycle] = Seq(backupFileActor, blockStorageActor)

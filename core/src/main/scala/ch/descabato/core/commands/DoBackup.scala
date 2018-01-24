@@ -2,7 +2,6 @@ package ch.descabato.core.commands
 
 import java.io.File
 import java.nio.file.{Files, Path}
-import java.util.stream.Collectors
 
 import akka.Done
 import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
@@ -10,16 +9,15 @@ import akka.stream.{ClosedShape, OverflowStrategy}
 import ch.descabato.core._
 import ch.descabato.core.actors.Chunker
 import ch.descabato.core.model._
-import ch.descabato.core_old.{FileDescription, FolderDescription}
+import ch.descabato.core_old.{FileDescription, FolderDescription, MeasureTime}
 import ch.descabato.frontend.{ETACounter, MaxValueCounter, ProgressReporters, StandardMaxValueCounter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends Utils {
+class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends Utils with MeasureTime {
 
   val config = universe.config
 
@@ -35,38 +33,42 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
 
   private def gatherFiles() = {
     Future {
-      foldersToBackup.flatMap { folder =>
-        Files.walk(folder.toPath).collect(Collectors.toList()).asScala
+      val collector = new FileVisitorCollector()
+      foldersToBackup.foreach { folder =>
+        Files.walkFileTree(folder.toPath, collector)
       }
+      collector
     }
   }
 
   def execute(): Unit = {
+    startMeasuring()
     ProgressReporters.openGui("Backup", false)
     universe.journalHandler.cleanUnfinishedFiles()
     val universeStartup = universe.startup()
     universe.journalHandler.startWriting()
     val fileGathering = gatherFiles()
     val universeStarted = Await.result(universeStartup, 1.minute)
-    val files = Await.result(fileGathering, 1.minute)
-    fileCounter.maxValue = files.size
-    bytesCounter.maxValue = files.map(_.toFile.length()).sum
+    val fileCollector = Await.result(fileGathering, 1.minute)
+    fileCounter.maxValue = fileCollector.files.size
+    bytesCounter.maxValue = fileCollector.files.map(_.toFile.length()).sum
+    logger.info(s"${fileCounter.maxValue} files collected and program is ready after ${measuredTime()}")
     ProgressReporters.addCounter(fileCounter)
     ProgressReporters.addCounter(bytesCounter)
     ProgressReporters.activeCounters = List(fileCounter, bytesCounter)
     if (universeStarted) {
-      Await.result(setupFlow(files), Duration.Inf)
+      Await.result(setupFlow(fileCollector.files), Duration.Inf)
     }
+    logger.info(s"Files are backed up after ${measuredTime()}, saving ${fileCollector.dirs.size} directories")
+    saveDirectories(fileCollector.dirs)
+    logger.info(s"Backup is done, waiting for writing to finish after ${measuredTime()}")
     Await.result(universe.finish(), 5.minutes)
+    universe.compressor.report()
     universe.journalHandler.stopWriting()
+    logger.info(s"Backup is completely done after ${measuredTime()}")
   }
 
-  private def setupFlow(pathsToBackup: Seq[Path]) = {
-    val (files, dirs) = pathsToBackup.partition(x => Files.isRegularFile(x))
-    val dirsSaved: Future[Done] = Source.fromIterator[Path](() => dirs.iterator).mapAsync(5) { path =>
-      universe.backupFileActor.addDirectory(FolderDescription(path.toFile))
-    }.runWith(Sink.ignore)
-    Await.result(dirsSaved, 1.hours)
+  private def setupFlow(files: Seq[Path]) = {
     Source.fromIterator[Path](() => files.iterator).mapAsync(5) { path =>
       backupFile(path)
         .map(x => (path, x))
@@ -80,6 +82,13 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
   //    logger.info(s"$path $name: Element $i")
   //    x
   //  }
+
+  private def saveDirectories(dirs: Seq[Path]) = {
+    val dirsSaved: Future[Done] = Source.fromIterator[Path](() => dirs.iterator).mapAsync(5) { path =>
+      universe.backupFileActor.addDirectory(FolderDescription(path.toFile))
+    }.runWith(Sink.ignore)
+    Await.result(dirsSaved, 1.hours)
+  }
 
   def backupFile(path: Path): Future[Done] = {
     val fd = new FileDescription(path.toFile)
@@ -148,7 +157,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     universe.blockStorageActor.hasAlready(x).map { fut =>
       (x, fut)
     }
-  }.filter(!_._2).map(_._1).mapAsync(8)(x => Future(x.compress(config)))
+  }.filter(!_._2).map(_._1).mapAsync(8)(block => universe.compressor.compressBlock(block))
 
   private def createCompressAndSaveBlocks(fd: FileDescription) = {
     filterNonExistingBlocksAndCompress.via(newBuffer[Block](20)).via(sendToBlockIndex).via(mapToUnit())
