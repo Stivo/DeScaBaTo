@@ -1,6 +1,6 @@
 package ch.descabato.core.actors
 
-import ch.descabato.core.model.{Block, BlockId}
+import ch.descabato.core.model.Block
 import ch.descabato.core_old.BackupFolderConfiguration
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{CompressedStream, Utils}
@@ -40,8 +40,10 @@ class SimpleCompressor(val mode: CompressionMode) extends Compressor {
 }
 
 sealed trait CompressionDeciderState
-// we still send every block to all 4 compression deciders to see which is best
+// we still send every block to all compression deciders to see which is best
 case object Sampling extends CompressionDeciderState
+// we still send every block to all compression deciders to see which is best
+case object SamplingForLzma extends CompressionDeciderState
 // we send everything to the winner now
 case class Done(winner: CompressionMode) extends CompressionDeciderState
 
@@ -62,9 +64,11 @@ class Smart3Compressor extends Compressor with Utils {
     extensions(extension)
   }
 
-  val algos: Seq[CompressionMode] = Array(CompressionMode.none, CompressionMode.snappy, CompressionMode.lz4hc, CompressionMode.gzip, CompressionMode.lzma)
+  val algosFirstRound: Seq[CompressionMode] = Array(CompressionMode.snappy, CompressionMode.lz4hc, CompressionMode.gzip)
 
   class Extension(val ext: String) {
+
+    var algos: Seq[CompressionMode] = algosFirstRound
 
     var bytesReceived: Long = 0
 
@@ -95,16 +99,13 @@ class Smart3Compressor extends Compressor with Utils {
 
     }
 
-    private var sampledBlocks: Map[BlockId, Seq[Block]] = Map.empty
     private var sampleData: Map[CompressionMode, SampleData] = algos.map(algo => (algo, new SampleData())).toMap
 
-    private var _status: CompressionDeciderState = Sampling
-
-    def status: CompressionDeciderState = _status
+    private[Smart3Compressor] var status: CompressionDeciderState = Sampling
 
     def compressBlock(block: Block): Future[Block] = {
-      _status match {
-        case Sampling =>
+      status match {
+        case Sampling | SamplingForLzma =>
           val blocks = compressWithAllAlgosAndWait(block)
           bytesReceived += block.content.length
           updateSampleData(blocks)
@@ -117,13 +118,32 @@ class Smart3Compressor extends Compressor with Utils {
 
     private def chooseWinnerIfReady() = {
       if (readyToChooseWinner()) {
-        _status = Done(chooseWinner())
-        freeSamplingData()
+        updateStatus()
       }
     }
 
     def freeSamplingData(): Unit = {
       sampleData = Map.empty
+    }
+
+    def updateStatus(): Unit = {
+      val winner = chooseWinner()
+      val newStatus = status match {
+          // try again with lzma if it is:
+          // - at all compressible
+          // - LZMA still has a chance to be 3% better
+          // - We havent already sampled with LZMA in the mix
+        case Sampling if sampleData(winner).ratio < 0.9 && sampleData(winner).ratio > 0.03 && status == Sampling =>
+          bytesReceived = 0
+          algos = Seq(winner, CompressionMode.lzma)
+          sampleData = algos.map(x => (x, new SampleData())).toMap
+          logger.info(s"Doing shootout between $algos for $ext")
+          SamplingForLzma
+        case Sampling | SamplingForLzma =>
+          freeSamplingData()
+          Done(winner)
+      }
+      status = newStatus
     }
 
     def chooseWinner(): CompressionMode = {
@@ -134,6 +154,8 @@ class Smart3Compressor extends Compressor with Utils {
           logger.info(s"Mode $mode (ratio ${data.ratio}) chosen over $winner (ratio ${winnerData.ratio})")
           winner = mode
           winnerData = data
+        } else {
+          logger.info(s"Mode $mode (ratio ${data.ratio}) not chosen over $winner (ratio ${winnerData.ratio})")
         }
       }
       logger.info(s"Sampling for $ext is done and winner is $winner with ${winnerData.ratio}")
