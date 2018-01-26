@@ -33,7 +33,7 @@ class JournalEntry(val typ: String) {
 class FileFinishedJournalEntry(typ: String, val file: String, val md5Hash: Hash) extends JournalEntry(typ) {
   override def toString: String = {
     val value = s"$typ $file ${md5Hash.base64}"
-    (value.length) + " " +value
+    (value.length+1) + " " +value
   }
 }
 
@@ -115,7 +115,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
               _usedIdentifiers += f
               if (!(files safeContains f)) {
                 if (!(f contains "temp."))
-                  l.warn("File is in journal, but not on disk " + f)
+                  logger.warn("File is in journal, but not on disk " + f)
               } else {
                 files -= f
               }
@@ -130,7 +130,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
         }
       }
       files.foreach { f =>
-        l.debug(s"Deleting file $f because Journal does not mention it")
+        logger.info(s"Deleting file $f because Journal does not mention it")
         new File(config.folder, f).delete()
       }
       new BlockingOperation()
@@ -192,7 +192,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
   override def receive(myEvent: MyEvent): Unit = {
     myEvent match {
       case FileFinished(typ, file, tmp, hash) =>
-        finishedFile(file, typ, tmp, hash)
+        finishedFile(file, typ, !tmp, hash)
     }
 
   }

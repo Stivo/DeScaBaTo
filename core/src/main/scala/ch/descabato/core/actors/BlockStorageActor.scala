@@ -45,8 +45,10 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   }
 
   private def newWriter(): Unit = {
-    val file = context.fileManager.volume.nextFile()
-    _currentWriter = new VolumeWriteActor(context, file)
+    val index = context.fileManager.volumeIndex
+    val file = index.nextFile()
+    val indexNumber = index.numberOf(file)
+    _currentWriter = new VolumeWriteActor(context, context.fileManager.volume.fileForNumber(indexNumber))
   }
 
   def startup(): Future[Boolean] = {
@@ -108,8 +110,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   private def computeIndexFileForVolume() = {
     val numberOfVolume = context.fileManager.volume.numberOf(currentWriter.file)
     val volumeIndex = context.fileManager.volumeIndex
-    val name = volumeIndex.subfolder + "/" + volumeIndex.filenameForNumber(numberOfVolume)
-    new File(config.folder, name)
+    volumeIndex.fileForNumber(numberOfVolume)
   }
 
   override def save(block: Block): Future[Boolean] = {

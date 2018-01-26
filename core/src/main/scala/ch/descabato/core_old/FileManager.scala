@@ -194,14 +194,14 @@ case class FileType[T](prefix: String, metadata: Boolean, suffix: String)(implic
     }
   }
 
+  def fileForNumber(number: Int, tempFile: Boolean = false, folder: File = config.folder): File = {
+    new File(folder, subfolder + "/" + filenameForNumber(number, tempFile))
+  }
+
   def filenameForNumber(number: Int, tempFile: Boolean = false): String = {
     val temp = if (tempFile) tempPrefix else ""
     val date = if (hasDate) fileManager.dateFormat.format(fileManager.startDate) + "_" else ""
     s"$temp${prefix}_$date$number$suffix"
-  }
-
-  def fileForNumber(number: Int, temp: Boolean = false): Option[File] = {
-    getFiles().find(x => numberOf(x) == number)
   }
 
   def isTemp(file: File): Boolean = {

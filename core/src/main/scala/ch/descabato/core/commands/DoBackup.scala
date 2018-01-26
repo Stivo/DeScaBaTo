@@ -31,9 +31,11 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     override def formatted = s"${readableFileSize(current)}/${readableFileSize(maxValue)} $percent%"
   }
 
+  ProgressReporters.addCounter(fileCounter, bytesCounter)
+
   private def gatherFiles() = {
     Future {
-      val collector = new FileVisitorCollector()
+      val collector = new FileVisitorCollector(fileCounter, bytesCounter)
       foldersToBackup.foreach { folder =>
         Files.walkFileTree(folder.toPath, collector)
       }
@@ -50,11 +52,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     val fileGathering = gatherFiles()
     val universeStarted = Await.result(universeStartup, 1.minute)
     val fileCollector = Await.result(fileGathering, 1.minute)
-    fileCounter.maxValue = fileCollector.files.size
-    bytesCounter.maxValue = fileCollector.files.map(_.toFile.length()).sum
     logger.info(s"${fileCounter.maxValue} files collected and program is ready after ${measuredTime()}")
-    ProgressReporters.addCounter(fileCounter)
-    ProgressReporters.addCounter(bytesCounter)
     ProgressReporters.activeCounters = List(fileCounter, bytesCounter)
     if (universeStarted) {
       Await.result(setupFlow(fileCollector.files), Duration.Inf)
