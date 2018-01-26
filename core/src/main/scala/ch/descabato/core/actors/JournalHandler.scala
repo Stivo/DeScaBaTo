@@ -30,8 +30,11 @@ class JournalEntry(val typ: String) {
   override def toString: String = (typ.length + 1) + s" $typ"
 }
 
-class FileFinishedJournalEntry(typ: String, val file: String) extends JournalEntry(typ) {
-  override def toString: String = (typ.length + 1 + file.length + 1) + s" $typ $file"
+class FileFinishedJournalEntry(typ: String, val file: String, val md5Hash: Hash) extends JournalEntry(typ) {
+  override def toString: String = {
+    val value = s"$typ $file ${md5Hash.base64}"
+    (value.length) + " " +value
+  }
 }
 
 object JournalEntries {
@@ -39,7 +42,7 @@ object JournalEntries {
   val startWritingTyp = "Start_Writing"
   val stopWritingTyp = "Stop_Writing"
 
-  def fileFinished(file: String) = new FileFinishedJournalEntry(fileFinishedTyp, file: String)
+  def fileFinished(file: String, hash: Hash) = new FileFinishedJournalEntry(fileFinishedTyp, file, hash)
 
   val startWriting = new JournalEntry(startWritingTyp)
   val stopWriting = new JournalEntry(stopWritingTyp)
@@ -53,8 +56,8 @@ object JournalEntries {
         case x if x == stopWritingTyp =>
           return Some(stopWriting)
         case x if x == fileFinishedTyp =>
-          val _ :: filename :: Nil = rest.split(" ", 2).toList
-          return Some(fileFinished(filename))
+          val _ :: filename :: hash :: Nil = rest.split(" ", 3).toList
+          return Some(fileFinished(filename, Hash.fromBase64(hash)))
       }
     }
     None
@@ -164,7 +167,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
 
   def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false, md5Hash: Hash): BlockingOperation = {
     checkLock()
-    val entry = JournalEntries.fileFinished(config.relativePath(file))
+    val entry = JournalEntries.fileFinished(config.relativePath(file), md5Hash)
     writeEntrySynchronized(entry)
     new BlockingOperation()
   }

@@ -24,6 +24,10 @@ trait RealEquality[T] {
 object Hash {
   val empty: Hash = Hash(Array.ofDim(0))
 
+  def fromBase64(hash: String): Hash = {
+    Hash(Utils.decodeBase64Url(hash))
+  }
+
   def isDefined(hash: Hash): Boolean = {
     hash.bytes != null && hash.length > 0
   }
