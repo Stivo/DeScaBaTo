@@ -10,21 +10,22 @@ class EncryptedFileWriter(file: File, passphrase: String) extends EncryptedFileW
 
   writeHeader()
   startEncryptedPart()
+  var cipherOutputStream: CipherOutputStream = _
 
   def write(bytes: BytesWrapper): Long = {
     val out = position
-    outputStream.write(bytes)
+    cipherOutputStream.write(bytes)
     position += bytes.length
     out
   }
 
   private def startEncryptedPart(): Unit = {
     initializeCipher(Cipher.ENCRYPT_MODE, keyInfo)
-    outputStream = new CipherOutputStream(outputStream, cipher)
+    cipherOutputStream = new CipherOutputStream(outputStream, cipher)
     writeHmac()
   }
 
-  override def finish(): Unit = {
-    outputStream.close()
+  override def finishImpl(): Unit = {
+    cipherOutputStream.close()
   }
 }

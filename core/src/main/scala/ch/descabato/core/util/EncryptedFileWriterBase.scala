@@ -1,14 +1,12 @@
 package ch.descabato.core.util
 
-import java.io.{File, FileOutputStream, OutputStream}
+import java.io.File
 
 import akka.util.ByteString
 import ch.descabato.core_old.kvstore.{CryptoUtils, KeyInfo}
 import ch.descabato.utils.{BytesWrapper, Utils}
 
 abstract class EncryptedFileWriterBase(val file: File, val passphrase: String) extends CipherUser(passphrase) with FileWriter with Utils{
-
-  protected var position = 0L
 
   protected val key = CryptoUtils.keyDerive(passphrase, keyDerivationInfo.salt,
     keyDerivationInfo.keyLength, keyDerivationInfo.iterationsPower, keyDerivationInfo.memoryFactor)
@@ -56,9 +54,5 @@ abstract class EncryptedFileWriterBase(val file: File, val passphrase: String) e
   protected def writeHmac() {
     write(BytesWrapper(CryptoUtils.hmac(header.toArray, keyInfo)))
   }
-
-  protected var outputStream: OutputStream = new FileOutputStream(file)
-
-  override def currentPosition(): Long = position
 
 }

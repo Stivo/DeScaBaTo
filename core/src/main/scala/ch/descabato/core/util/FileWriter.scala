@@ -1,37 +1,47 @@
 package ch.descabato.core.util
 
 import java.io.{File, FileOutputStream}
+import java.security.{DigestOutputStream, MessageDigest}
 
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
 
 trait FileWriter {
-
-  def currentPosition(): Long
+  // ----------- Interface ---------------
+  final def currentPosition(): Long = position
 
   def file: File
 
   def write(content: BytesWrapper): Long
 
-  def finish(): Unit
+  final def getMd5Hash(): Array[Byte] = _md5Hash
 
+  final def finish(): Unit = {
+    finishImpl()
+    _md5Hash = outputStream.getMessageDigest.digest()
+  }
+
+  // ----------- Implementation ---------------
+  protected val outputStream = new DigestOutputStream(new FileOutputStream(file), MessageDigest.getInstance("MD5"))
+
+  protected def finishImpl(): Unit
+
+  private var _md5Hash: Array[Byte] = null
+
+  protected var position = 0
 }
 
 class SimpleFileWriter(val file: File) extends FileWriter {
 
-  private val stream = new FileOutputStream(file)
-  private var position = 0
-
-  override def currentPosition(): Long = position
-
   override def write(content: BytesWrapper): Long = {
     val out = position
-    stream.write(content)
+    outputStream.write(content)
     position += content.length
     out
   }
 
-  override def finish(): Unit = {
-    stream.close()
+  override def finishImpl(): Unit = {
+    outputStream.close()
   }
+
 }

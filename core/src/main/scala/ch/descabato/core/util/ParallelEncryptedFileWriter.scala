@@ -63,7 +63,7 @@ class ParallelEncryptedFileWriter(file: File, passphrase: String) extends Encryp
     writeHmac()
   }
 
-  override def finish(): Unit = {
+  override def finishImpl(): Unit = {
     addFuture(position - leftOver.length, leftOver)
     while (!futures.isEmpty) {
       writeCompletedFutures()
