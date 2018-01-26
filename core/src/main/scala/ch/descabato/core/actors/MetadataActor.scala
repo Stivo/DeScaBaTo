@@ -117,8 +117,13 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
       thisBackupNotCheckpointed += fd.path -> previous(fd.path)
       Future.successful(true)
     } else {
-      logger.warn(s"$fd was not part of previous backup, programming error (symlinks)")
-      Future.successful(false)
+      if (thisBackupCheckpointed.safeContains(fd.path) || thisBackupNotCheckpointed.contains(fd.path)) {
+        // nothing to do here
+        Future.successful(true)
+      } else {
+        logger.warn(s"$fd was not part of previous backup, programming error (symlinks)")
+        Future.successful(false)
+      }
     }
   }
 
