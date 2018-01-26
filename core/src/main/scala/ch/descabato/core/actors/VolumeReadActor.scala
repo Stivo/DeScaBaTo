@@ -5,7 +5,7 @@ import java.io.File
 import ch.descabato.core.LifeCycle
 import ch.descabato.core.model.{Block, Length, StoredChunk}
 import ch.descabato.core.util.{FileReader, FileWriter}
-import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.{BytesWrapper, Hash}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
@@ -39,6 +39,8 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
     Future.successful(true)
   }
 
+  override def md5Hash: Future[Hash] = Future.successful(writer.md5Hash())
+
   override def startup(): Future[Boolean] = {
     // nothing to do
     Future.successful(true)
@@ -71,11 +73,14 @@ class VolumeReadActor(val context: BackupContext, val file: File) extends Volume
 }
 
 trait VolumeWriter extends LifeCycle {
+
+  def md5Hash: Future[Hash]
+
   def saveBlock(block: Block): StoredChunk
 
   def currentPosition(): Long
 
-  def filename(): String
+  def filename: String
 }
 
 trait VolumeReader extends LifeCycle {

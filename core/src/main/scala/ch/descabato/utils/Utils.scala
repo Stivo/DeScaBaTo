@@ -22,11 +22,11 @@ trait RealEquality[T] {
 }
 
 object Hash {
+  val empty: Hash = Hash(Array.ofDim(0))
+
   def isDefined(hash: Hash): Boolean = {
     hash.bytes != null && hash.length > 0
   }
-
-  val nul = new Hash(Array.ofDim[Byte](0))
 
   def apply(hash: Array[Byte]) = {
     new Hash(hash)

@@ -80,7 +80,7 @@ trait JsonUser {
     writer.write(new BytesWrapper(bytes))
     writer.finish()
     val filetype = context.fileManager.getFileType(file)
-    context.sendFileFinishedEvent(file)
+    context.sendFileFinishedEvent(writer)
   }
 }
 

@@ -2,11 +2,11 @@ package ch.descabato.core_old.storage
 
 import java.io.File
 
-import ch.descabato.{CompressionMode, CustomByteArrayOutputStream}
 import ch.descabato.core_old._
 import ch.descabato.frontend.{MaxValueCounter, ProgressReporters}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
+import ch.descabato.{CompressionMode, CustomByteArrayOutputStream}
 
 import scala.collection.immutable.{HashMap, TreeMap}
 import scala.collection.mutable
@@ -237,7 +237,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     current = finished.merge(unfinished)
     unfinished.files.foreach {
       file =>
-        createUnfinished(file.copy(hash = Hash.nul))
+        createUnfinished(file.copy(hash = Hash.empty))
     }
     val toCheckpoint = finished
     toCheckpoint.allParts.foreach(writeBackupPart)

@@ -4,7 +4,7 @@ import java.io.{File, FileInputStream, FileOutputStream}
 import java.security.SecureRandom
 
 import ch.descabato.core.util._
-import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.{BytesWrapper, Hash}
 import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
@@ -47,13 +47,13 @@ class FileWriterHashSpec extends FlatSpec with GeneratorDrivenPropertyChecks wit
       written += currentLength
     }
     writer.finish()
-    val computedHashByWriter = BytesWrapper(writer.getMd5Hash())
+    val computedHashByWriter = writer.md5Hash()
     val fis = new FileInputStream(writer.file)
-    val fromFile = BytesWrapper(DigestUtils.md5(fis))
+    val fromFile = Hash(DigestUtils.md5(fis))
     fis.close()
     assert(fromFile === computedHashByWriter)
     if (inputShouldBeSameAsFileContent) {
-      assert(computedHashByWriter === BytesWrapper(DigestUtils.md5(bytes)))
+      assert(computedHashByWriter === Hash(DigestUtils.md5(bytes)))
     }
   }
 

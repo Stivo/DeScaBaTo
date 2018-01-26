@@ -3,7 +3,9 @@ package ch.descabato.core.actors
 import java.io.File
 
 import akka.actor.ActorSystem
+import ch.descabato.core.util.FileWriter
 import ch.descabato.core_old.{BackupFolderConfiguration, FileManager}
+import ch.descabato.utils.Hash
 
 import scala.concurrent.ExecutionContext
 
@@ -13,10 +15,14 @@ class BackupContext(val config: BackupFolderConfiguration,
                     implicit val executionContext: ExecutionContext,
                     val eventBus: MyEventBus) {
 
-  def sendFileFinishedEvent(file: File): Unit = {
+  def sendFileFinishedEvent(fileWriter: FileWriter): Unit = {
+    sendFileFinishedEvent(fileWriter.file, fileWriter.md5Hash())
+  }
+
+  def sendFileFinishedEvent(file: File, md5Hash: Hash): Unit = {
     val typ = fileManager.getFileType(file)
     val isTempFile = typ.isTemp(file)
-    eventBus.publish(FileFinished(typ, file, isTempFile))
+    eventBus.publish(FileFinished(typ, file, isTempFile, md5Hash))
   }
 }
 

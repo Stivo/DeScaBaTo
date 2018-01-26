@@ -142,7 +142,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   override def receive(myEvent: MyEvent): Unit = {
     myEvent match {
-      case FileFinished(context.fileManager.volume, x, false) =>
+      case FileFinished(context.fileManager.volume, x, false, _) =>
         logger.info(s"Got volume rolled event to $x")
         if (hasFinished) {
           logger.info("Ignoring as files are already written")

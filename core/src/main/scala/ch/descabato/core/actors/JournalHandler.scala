@@ -6,7 +6,7 @@ import java.nio.channels.FileLock
 import ch.descabato.core_old.kvstore.KvStoreWriter
 import ch.descabato.core_old.{BackupInUseException, BlockingOperation, FileType}
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{Hash, Utils}
 
 import scala.collection.immutable.HashSet
 
@@ -162,7 +162,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
     }
   }
 
-  def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false): BlockingOperation = {
+  def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false, md5Hash: Hash): BlockingOperation = {
     checkLock()
     val entry = JournalEntries.fileFinished(config.relativePath(file))
     writeEntrySynchronized(entry)
@@ -188,8 +188,8 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
 
   override def receive(myEvent: MyEvent): Unit = {
     myEvent match {
-      case FileFinished(typ, file, tmp) =>
-        finishedFile(file, typ, tmp)
+      case FileFinished(typ, file, tmp, hash) =>
+        finishedFile(file, typ, tmp, hash)
     }
 
   }

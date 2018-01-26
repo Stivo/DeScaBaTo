@@ -235,7 +235,7 @@ object FileDeleted {
   }
 }
 
-case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Hash = Hash.nul) extends BackupPart {
+case class FileDescription(path: String, size: Long, attrs: FileAttributes, hash: Hash = Hash.empty) extends BackupPart {
 
   def this(file: File) = {
     this(file.getAbsolutePath, file.length(), FileAttributes(file.toPath))
@@ -257,7 +257,7 @@ case class BlockId(file: FileDescription, part: Int)
 
 class Block(val id: BlockId, val content: BytesWrapper) {
   val uncompressedLength: Int = content.length
-  var hash: Hash = Hash.nul
+  var hash: Hash = Hash.empty
   var mode: CompressionMode = _
   var compressed: BytesWrapper = _
 }

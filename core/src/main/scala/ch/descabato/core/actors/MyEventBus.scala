@@ -5,6 +5,7 @@ import java.io.File
 import akka.actor.ActorRef
 import akka.event.{EventBus, LookupClassification}
 import ch.descabato.core_old.FileType
+import ch.descabato.utils.Hash
 
 class MyEventBus extends EventBus with LookupClassification {
   type Event = MyEvent
@@ -32,7 +33,7 @@ trait MyEvent {
   def topic: String = MyEvent.globalTopic
 }
 
-case class FileFinished(filetype: FileType[_ <: Any], file: File, isTempFile: Boolean) extends MyEvent
+case class FileFinished(filetype: FileType[_ <: Any], file: File, isTempFile: Boolean, md5hash: Hash) extends MyEvent
 
 trait MyEventReceiver {
   def receive(myEvent: MyEvent): Unit

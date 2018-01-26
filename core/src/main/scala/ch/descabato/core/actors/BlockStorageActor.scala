@@ -90,21 +90,26 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
   }
 
   private def finishVolumeAndCreateIndex() = {
-    currentWriter.finish()
+    val hashFuture = currentWriter.finish().flatMap(_ => currentWriter.md5Hash)
     val filename = currentWriter.filename
     val toSave = notCheckpointed.filter { case (_, block) =>
       block.file == filename
     }
-    val numberOfVolume = context.fileManager.volume.numberOf(new File(config.folder, currentWriter.filename))
-    val volumeIndex = context.fileManager.volumeIndex
-    val name = volumeIndex.subfolder + "/" + volumeIndex.filenameForNumber(numberOfVolume)
-    val indexFile = new File(config.folder, name)
+    val indexFile: File = computeIndexFileForVolume
     writeToJson(indexFile, toSave.values.toSeq)
-    context.sendFileFinishedEvent(new File(config.folder, filename))
+    val hash = Await.result(hashFuture, 10.minutes)
+    context.sendFileFinishedEvent(currentWriter.file, hash)
     checkpointed ++= toSave
     notCheckpointed --= toSave.keySet
     logger.info(s"Wrote volume and index for $filename")
     _currentWriter = null
+  }
+
+  private def computeIndexFileForVolume() = {
+    val numberOfVolume = context.fileManager.volume.numberOf(currentWriter.file)
+    val volumeIndex = context.fileManager.volumeIndex
+    val name = volumeIndex.subfolder + "/" + volumeIndex.filenameForNumber(numberOfVolume)
+    new File(config.folder, name)
   }
 
   override def save(block: Block): Future[Boolean] = {

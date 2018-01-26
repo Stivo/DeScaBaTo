@@ -3,8 +3,8 @@ package ch.descabato.core.util
 import java.io.{File, FileOutputStream}
 import java.security.{DigestOutputStream, MessageDigest}
 
-import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.{BytesWrapper, Hash}
 
 trait FileWriter {
   // ----------- Interface ---------------
@@ -14,11 +14,11 @@ trait FileWriter {
 
   def write(content: BytesWrapper): Long
 
-  final def getMd5Hash(): Array[Byte] = _md5Hash
+  final def md5Hash(): Hash = _md5Hash
 
   final def finish(): Unit = {
     finishImpl()
-    _md5Hash = outputStream.getMessageDigest.digest()
+    _md5Hash = Hash(outputStream.getMessageDigest.digest())
   }
 
   // ----------- Implementation ---------------
@@ -26,7 +26,7 @@ trait FileWriter {
 
   protected def finishImpl(): Unit
 
-  private var _md5Hash: Array[Byte] = null
+  private var _md5Hash: Hash = Hash.empty
 
   protected var position = 0
 }
