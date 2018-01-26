@@ -22,6 +22,7 @@ trait FileWriter {
   }
 
   // ----------- Implementation ---------------
+  file.getParentFile.mkdirs()
   protected val outputStream = new DigestOutputStream(new FileOutputStream(file), MessageDigest.getInstance("MD5"))
 
   protected def finishImpl(): Unit
