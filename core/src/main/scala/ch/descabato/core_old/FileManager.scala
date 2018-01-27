@@ -298,9 +298,9 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   }
 
   def getLastBackup(temp: Boolean = false): Seq[File] = {
-    val out = metadata.getFiles().sortBy(f => (metadata.date(f), metadata.numberOf(f))).lastOption.toList
+    val out = backup.getFiles().sortBy(f => (backup.date(f), backup.numberOf(f))).lastOption.toList
     if (temp) {
-      out ++ metadata.getTempFiles().sortBy(metadata.numberOf)
+      out ++ backup.getTempFiles().sortBy(backup.numberOf)
     } else {
       out
     }
@@ -311,7 +311,7 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   }
 
   def getBackupDates(): Seq[Date] = {
-    metadata.getFiles().map(metadata.date).toList.distinct.sorted
+    backup.getFiles().map(backup.date).toList.distinct.sorted
   }
 
   def getBackupForDateOld(d: Date): Seq[File] = {
@@ -319,7 +319,7 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   }
 
   def getBackupForDate(d: Date): Seq[File] = {
-    metadata.getFiles().filter(f => metadata.date(f) == d)
+    backup.getFiles().filter(f => backup.date(f) == d)
   }
 
 }

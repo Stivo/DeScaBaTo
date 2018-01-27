@@ -7,7 +7,7 @@ import ch.descabato.utils.Hash
 
 import scala.collection.mutable
 
-class BackupDescriptionStored(var fileIds: mutable.Buffer[Long] = mutable.Buffer.empty, var dirIds: mutable.Buffer[Long] = mutable.Buffer.empty)
+class BackupDescriptionStored(var fileIds: mutable.Buffer[java.lang.Long] = mutable.Buffer.empty, var dirIds: mutable.Buffer[java.lang.Long] = mutable.Buffer.empty)
 
 case class HashList(id: Long, hash: Hash) extends StoredPart
 

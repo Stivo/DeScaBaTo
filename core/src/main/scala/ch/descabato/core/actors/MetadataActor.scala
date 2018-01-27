@@ -1,6 +1,5 @@
 package ch.descabato.core.actors
 
-import java.io.File
 import java.util.Date
 
 import ch.descabato.core._
@@ -40,7 +39,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
       val metadata = context.fileManager.metadata
       val files = metadata.getFiles().sortBy(x => metadata.numberOf(x))
       for (file <- files) {
-        loadFile(file) match {
+        readJson[BackupMetaDataStored](file) match {
           case Success(data) =>
             allKnownStoredPartsMemory ++= data
           case Failure(f) =>
@@ -52,24 +51,20 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
     }
   }
 
-  def loadFile(file: File): Try[BackupMetaDataStored] = {
-    readJson[BackupMetaDataStored](file)
-  }
-
   def retrieveBackup(date: Option[Date] = None): Future[BackupDescription] = {
-    Future {
-      val filesToLoad = date match {
-        case Some(d) =>
-          context.fileManager.getBackupForDate(d)
-        case None => context.fileManager.getLastBackup()
-      }
-      if (filesToLoad.isEmpty) {
-        throw new IllegalStateException(s"Did not find any backup files for date $date")
-      }
-      logger.info(s"Loading backup metadata from $filesToLoad")
-      val stored = filesToLoad.map(loadFile).flatMap(_.toOption).reduce(_.merge(_))
-      BackupDescription(stored.files, stored.folders.map(_.folderDescription))
+    val filesToLoad = date match {
+      case Some(d) =>
+        context.fileManager.getBackupForDate(d)
+      case None => context.fileManager.getLastBackup()
     }
+    if (filesToLoad.isEmpty || filesToLoad.size > 1) {
+      throw new IllegalStateException(s"Did not find any backup files for date $date or too many")
+    }
+    logger.info(s"Loading backup metadata from $filesToLoad")
+    val tryToLoad = readJson[BackupDescriptionStored](filesToLoad(0)).flatMap { bds =>
+      Try(allKnownStoredPartsMemory.putTogether(bds))
+    }
+    Future.fromTry(tryToLoad)
   }
 
   override def hasAlready(fd: FileDescription): Future[FileAlreadyBackedupResult] = {
@@ -157,6 +152,16 @@ object MetadataActor extends Utils {
   class AllKnownStoredPartsMemory() {
     private var _mapById: Map[Long, StoredPart] = Map.empty
     private var _mapByPath: Map[String, StoredPartWithPath] = Map.empty
+
+
+    def putTogether(bds: BackupDescriptionStored): BackupDescription = {
+      val files = bds.fileIds
+        .map(fileId =>
+          _mapById(fileId)
+            .asInstanceOf[FileMetadataStored])
+      val folders = bds.dirIds.map(_.toLong).map(dirId => _mapById(dirId).asInstanceOf[FolderMetadataStored].folderDescription)
+      BackupDescription(files, folders)
+    }
 
     def +=(storedPart: StoredPart): Unit = {
       _mapById += storedPart.id -> storedPart

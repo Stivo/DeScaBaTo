@@ -326,15 +326,15 @@ class RestoreCommand extends BackupRelatedCommand {
           val option = askUser("Which backup would you like to restore from?").toInt
           restore.restoreFromDate(t, options.find(_._2 == option).get._1)
         } else if (t.restoreBackup.isSupplied) {
-          val backupsFound = fm.metadata.getFiles().filter(_.getName.equals(t.restoreBackup()))
+          val backupsFound = fm.backup.getFiles().filter(_.getName.equals(t.restoreBackup()))
           if (backupsFound.isEmpty) {
             println("Could not find described backup, these are your choices:")
-            fm.metadata.getFiles().foreach { f =>
+            fm.backup.getFiles().foreach { f =>
               println(f)
             }
             throw new IllegalArgumentException("Backup not found")
           }
-          restore.restoreFromDate(t, fm.metadata.date(backupsFound.head))
+          restore.restoreFromDate(t, fm.backup.date(backupsFound.head))
 
         } else {
           restore.restore(t)
