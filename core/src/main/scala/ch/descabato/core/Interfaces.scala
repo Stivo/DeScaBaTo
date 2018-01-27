@@ -65,8 +65,8 @@ trait JsonUser {
     try {
       val f = Try {
         val bs = reader.readAllContent()
-        //val decompressed = CompressedStream.decompress(bs)
-        Json.mapper.readValue[T](bs.asArray())
+        val decompressed = CompressedStream.decompress(bs)
+        Json.mapper.readValue[T](decompressed)
       }
       f match {
         // in this case we want to throw up as high as possible
@@ -85,8 +85,8 @@ trait JsonUser {
     file.getParentFile.mkdirs()
     val writer = config.newWriter(file)
     val bytes = Json.mapper.writer(new DefaultPrettyPrinter()).writeValueAsBytes(value)
-    val compressed: BytesWrapper = CompressedStream.compress(new BytesWrapper(bytes), CompressionMode.deflate)
-    writer.write(new BytesWrapper(bytes))
+    val compressed: BytesWrapper = CompressedStream.compress(new BytesWrapper(bytes), CompressionMode.gzip)
+    writer.write(compressed)
     writer.finish()
     val filetype = context.fileManager.getFileType(file)
     context.sendFileFinishedEvent(writer)

@@ -9,6 +9,7 @@ import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
 import ch.descabato.utils.{BytesWrapper, Utils}
 import org.bouncycastle.crypto.generators.SCrypt
 
+
 object CryptoUtils extends Utils {
   def deriveIv(iv: Array[Byte], offset: Int): IvParameterSpec = {
     var bigInt = new BigInteger(iv)

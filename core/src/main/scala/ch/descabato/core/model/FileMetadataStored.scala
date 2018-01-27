@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 case class FileMetadataStored(id: Long, fd: FileDescription,
-                              @JsonDeserialize(contentAs = classOf[java.lang.Long]) hashListIds: Seq[Long]) extends StoredPartWithPath {
+                              @JsonDeserialize(contentAs = classOf[java.lang.Long]) chunkIds: Seq[Long]) extends StoredPartWithPath {
   @JsonIgnore
   def path = fd.path
 
