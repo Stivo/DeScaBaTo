@@ -1,7 +1,7 @@
 package ch.descabato.core.commands
 
 import java.io.File
-import java.nio.file.{Files, Path}
+import java.nio.file.Path
 
 import akka.Done
 import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Merge, RunnableGraph, Sink, Source}
@@ -35,9 +35,9 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
 
   private def gatherFiles() = {
     Future {
-      val collector = new FileVisitorCollector(fileCounter, bytesCounter)
+      val collector = new FileVisitorCollector(config.ignoreFile, fileCounter, bytesCounter)
       foldersToBackup.foreach { folder =>
-        Files.walkFileTree(folder.toPath, collector)
+        collector.walk(folder.toPath)
       }
       collector
     }

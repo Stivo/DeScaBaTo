@@ -99,7 +99,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     }
     val hash = Await.result(hashFuture, 10.minutes)
     context.sendFileFinishedEvent(currentWriter.file, hash)
-    val indexFile: File = computeIndexFileForVolume
+    val indexFile: File = computeIndexFileForVolume()
     writeToJson(indexFile, toSave.values.toSeq)
     checkpointed ++= toSave
     notCheckpointed --= toSave.keySet
