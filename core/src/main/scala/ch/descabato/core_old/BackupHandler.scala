@@ -48,6 +48,10 @@ trait MeasureTime {
 
 }
 
+class StandardMeasureTime extends MeasureTime {
+  startMeasuring()
+}
+
 trait BackupRelatedHandler {
   def universe: UniverseI
 

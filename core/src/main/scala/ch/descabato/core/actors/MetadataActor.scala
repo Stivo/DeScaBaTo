@@ -7,7 +7,7 @@ import ch.descabato.core.actors.MetadataActor.{AllKnownStoredPartsMemory, Backup
 import ch.descabato.core.model._
 import ch.descabato.core_old._
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{FastHashMap, Hash, Utils}
+import ch.descabato.utils.Utils
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -36,7 +36,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   def startup(): Future[Boolean] = {
     Future {
-      val mt = new MeasureTime {}
+      val mt = new StandardMeasureTime()
       mt.startMeasuring()
       val metadata = context.fileManager.metadata
       val files = metadata.getFiles().sortBy(x => metadata.numberOf(x))
@@ -87,21 +87,11 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
     }
   }
 
-  override def saveFile(fileDescription: FileDescription, hashList: Hash): Future[Boolean] = {
+  override def saveFile(fileDescription: FileDescription, hashList: Seq[Long]): Future[Boolean] = {
     // TODO check if we have file already under another id and reuse it if possible
     hasChanged = true
     val id = BackupIds.nextId()
-    val hashListId = allKnownStoredPartsMemory.hashes.get(hashList) match {
-      case Some(hashList) => hashList.id
-      case None =>
-        val newHashList = HashList(BackupIds.nextId(), hashList)
-        notCheckpointed.hashLists :+= newHashList
-        allKnownStoredPartsMemory += newHashList
-        newHashList.id
-    }
-
-    val metadata = FileMetadataStored(id, fileDescription, hashListId)
-    metadata.blocks = hashList
+    val metadata = FileMetadataStored(id, fileDescription, hashList)
     allKnownStoredPartsMemory += metadata
     notCheckpointed.files :+= metadata
     toBeStored -= metadata.fd
@@ -166,12 +156,10 @@ object MetadataActor extends Utils {
   class AllKnownStoredPartsMemory() {
     private var _mapById: Map[Long, StoredPart] = Map.empty
     private var _mapByPath: Map[String, StoredPartWithPath] = Map.empty
-    private var _hashes: FastHashMap[HashList] = new FastHashMap()
 
     def putTogether(bds: BackupDescriptionStored): BackupDescription = {
       val files = bds.fileIds.map(fileId => _mapById(fileId).asInstanceOf[FileMetadataStored])
       val folders = bds.dirIds.map(dirId => _mapById(dirId).asInstanceOf[FolderMetadataStored].folderDescription)
-      setupBlocks(files)
       BackupDescription(files, folders)
     }
 
@@ -180,8 +168,6 @@ object MetadataActor extends Utils {
       storedPart match {
         case storedPartWithPath: StoredPartWithPath =>
           _mapByPath += storedPartWithPath.path -> storedPartWithPath
-        case hashList: HashList =>
-          _hashes += hashList.hash -> hashList
         case _ =>
         // nothing further
       }
@@ -199,12 +185,6 @@ object MetadataActor extends Utils {
         _mapByPath += file.path -> file
         maxId = Math.max(maxId, file.id)
       }
-      for (hashList <- backupMetaDataStored.hashLists) {
-        _mapById += hashList.id -> hashList
-        _hashes += hashList.hash -> hashList
-        maxId = Math.max(maxId, hashList.id)
-      }
-      setupBlocks(backupMetaDataStored.files)
       BackupIds.maxId(maxId)
     }
 
@@ -212,13 +192,6 @@ object MetadataActor extends Utils {
 
     def mapByPath = _mapByPath
 
-    def hashes = _hashes
-
-    private def setupBlocks(files: Seq[FileMetadataStored]) = {
-      for (file <- files) {
-        file.blocks = _mapById(file.hashListId).asInstanceOf[HashList].hash
-      }
-    }
   }
 
 

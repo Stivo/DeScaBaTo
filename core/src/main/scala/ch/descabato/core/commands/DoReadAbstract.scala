@@ -5,7 +5,7 @@ import akka.stream.scaladsl.Source
 import ch.descabato.core.Universe
 import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.frontend.{ProgressReporters, StandardByteCounter}
-import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
+import ch.descabato.utils.{BytesWrapper, CompressedStream}
 
 import scala.concurrent.Future
 
@@ -20,14 +20,13 @@ abstract class DoReadAbstract(val universe: Universe) {
   ProgressReporters.addCounter(readBytesCounter)
   ProgressReporters.openGui("Reading", false)
 
-  def hashesForFile(file: FileMetadataStored): Source[Array[Byte], NotUsed] = {
-    Source.fromIterator[Array[Byte]](() => file.blocks.bytes.grouped(config.hashLength))
+  def hashesForFile(file: FileMetadataStored): Source[Long, NotUsed] = {
+    Source.fromIterator[Long](() => file.hashListIds.iterator)
   }
 
-  def getBytestream(source: Source[Array[Byte], NotUsed]): Source[BytesWrapper, NotUsed] = {
-    source.mapAsync(10) { hashBytes =>
-      val hash = Hash(hashBytes)
-      universe.blockStorageActor.read(hash)
+  def getBytestream(source: Source[Long, NotUsed]): Source[BytesWrapper, NotUsed] = {
+    source.mapAsync(10) { chunkId =>
+      universe.blockStorageActor.read(chunkId)
     }.mapAsync(10) { bs =>
       Future {
         val out = CompressedStream.decompressToBytes(bs)

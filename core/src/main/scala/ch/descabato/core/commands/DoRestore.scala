@@ -3,7 +3,6 @@ package ch.descabato.core.commands
 import java.io.{File, FileOutputStream}
 import java.util.Date
 
-import akka.stream.scaladsl.Source
 import ch.descabato.core.Universe
 import ch.descabato.core.actors.MetadataActor.BackupDescription
 import ch.descabato.core.model.FileMetadataStored
@@ -69,7 +68,7 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
     }
     val stream = new FileOutputStream(restoredFile)
     if (file.fd.size > 0) {
-      val source = Source.fromIterator[Array[Byte]](() => file.blocks.grouped(config))
+      val source = hashesForFile(file)
       Await.result(getBytestream(source).runForeach { x =>
         stream.write(x)
       }, 1.hour)

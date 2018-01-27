@@ -45,8 +45,10 @@ class DoVerify(_universe: Universe) extends DoReadAbstract(_universe) with Utils
   }
 
   def checkContentIsSaved(file: FileMetadataStored, metadata: BackupDescription, counter: ProblemCounter) = {
-    val bytestream = getBytestream(hashesForFile(file))
-    val withHashes = bytestream.zip(hashesForFile(file)).zipWithIndex
+    val value = hashesForFile(file)
+    val hashes = value.mapAsync(2)(id => universe.blockStorageActor.getHashForId(id))
+    val bytestream = getBytestream(value)
+    val withHashes = bytestream.zip(hashes).zipWithIndex
     val future = withHashes.runForeach { case ((bytes, savedHash), index) =>
       val calculatedHash = config.createMessageDigest().digest(bytes)
       if (calculatedHash !== Hash(savedHash)) {

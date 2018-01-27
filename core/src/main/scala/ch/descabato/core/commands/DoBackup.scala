@@ -94,8 +94,8 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
       case FileNotYetBackedUp =>
         hashAndBackupFile(path, fd)
       case FileAlreadyBackedUp(metadata) =>
-        Source.fromIterator[Array[Byte]](() => metadata.blocks.grouped(config)).mapAsync(5) { bytes =>
-          universe.blockStorageActor.hasAlready(Hash(bytes))
+        Source.fromIterator[Long](() => metadata.hashListIds.iterator).mapAsync(5) { id =>
+          universe.blockStorageActor.hasAlready(id)
         }.fold(true)(_ && _).mapAsync(1) { hasAll =>
           if (hasAll) {
             bytesCounter.maxValue -= fd.size
@@ -120,13 +120,13 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
         val chunker = new Chunker()
         val chunkSource = FileIO.fromPath(path, chunkSize = 256 * 1024) ~> chunker
 
-        val hashedBlocks = builder.add(Broadcast[Block](2))
+        val hashedBlocks = builder.add(Broadcast[(Block, ChunkIdResult)](2))
         val waitForCompletion = builder.add(Merge[Unit](2))
 
-        chunkSource ~> hashAndCreateBlocks(fd) ~> newBuffer[Block](20) ~> hashedBlocks
+        chunkSource ~> hashAndCreateBlocks(fd) ~> newBuffer[Block](20) ~> assignIds ~> hashedBlocks
 
         hashedBlocks ~> createCompressAndSaveBlocks(fd) ~> waitForCompletion.in(0)
-        hashedBlocks ~> createHashlistAndFileMetadataAndSave(fd) ~> waitForCompletion.in(1)
+        hashedBlocks ~> gatherHashIdsAndSave(fd) ~> waitForCompletion.in(1)
 
         waitForCompletion.out ~> sink
         ClosedShape
@@ -145,39 +145,38 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }
   }
 
-  private val sendToBlockIndex = Flow[Block].mapAsync(5) { b =>
-    universe.blockStorageActor.save(b)
+  private val sendToBlockIndex = Flow[(Block, Long)].mapAsync(5) { case (b, i) =>
+    universe.blockStorageActor.save(b, i)
   }
 
   private def newBuffer[T](bufferSize: Int = 100) = Flow[T].buffer(bufferSize, OverflowStrategy.backpressure)
 
-  private val filterNonExistingBlocksAndCompress = Flow[Block].mapAsync(5) { x =>
-    universe.blockStorageActor.hasAlready(x).map { fut =>
+  private val assignIds = Flow[Block].mapAsync(5) { x =>
+    universe.blockStorageActor.chunkId(x, true).map { fut =>
       (x, fut)
     }
-  }.filter(!_._2).map(_._1).mapAsync(8)(block => universe.compressor.compressBlock(block))
+  }
+
+  private val filterNonExistingBlocksAndCompress = Flow[(Block, ChunkIdResult)]
+    .collect {
+      case (block, ChunkIdAssigned(id)) => (block, id)
+    }.mapAsync(8){ case (block, id) => universe.compressor.compressBlock(block).map(x => (x, id))}
 
   private def createCompressAndSaveBlocks(fd: FileDescription) = {
-    filterNonExistingBlocksAndCompress.via(newBuffer[Block](20)).via(sendToBlockIndex).via(mapToUnit())
+    filterNonExistingBlocksAndCompress.via(newBuffer[(Block, Long)](20)).via(sendToBlockIndex).via(mapToUnit())
   }
 
-  private def createFileMetadataAndSave(fd: FileDescription) = Flow[Seq[Hash]].mapAsync(2) { hashes =>
-    Future {
-      val length = config.hashLength
-      val hashlist = Array.ofDim[Byte](hashes.size * length)
-      hashes.zipWithIndex.foreach {
-        case (bytes, i) => System.arraycopy(bytes.bytes, 0, hashlist, length * i, length)
-      }
-      (fd, Hash(hashlist))
-    }.flatMap { case (fd, hash) =>
-      universe.backupFileActor.saveFile(fd, hash)
-    }
+  private def createFileMetadataAndSave(fd: FileDescription) = Flow[Seq[Long]].mapAsync(2) { hashes =>
+      universe.backupFileActor.saveFile(fd, hashes)
   }
 
-  private val concatHashes = Flow[Block].map(x => Seq(x.hash)).fold(Seq.empty[Hash])(_ ++ _)
+  private val gatherIds = Flow[(Block, ChunkIdResult)].map(_._2).map {
+    case ChunkIdAssigned(id) => id
+    case ChunkFound(id) => id
+  }.fold(Vector.empty[Long])(_ :+ _)
 
-  private def createHashlistAndFileMetadataAndSave(fd: FileDescription) = {
+  private def gatherHashIdsAndSave(fd: FileDescription) = {
     val createFileDescription = createFileMetadataAndSave(fd)
-    concatHashes.via(createFileDescription).via(mapToUnit())
+    gatherIds.via(createFileDescription).via(mapToUnit())
   }
 }

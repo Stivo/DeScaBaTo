@@ -16,14 +16,23 @@ import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 import scala.concurrent.Future
 import scala.util.{Failure, Try}
 
+trait ChunkIdResult
+case object ChunkUnknown extends ChunkIdResult
+case class ChunkIdAssigned(id: Long) extends ChunkIdResult
+case class ChunkFound(id: Long) extends ChunkIdResult
+
 trait BlockStorage extends LifeCycle {
-  def read(hash: Hash): Future[BytesWrapper]
+  def read(id: Long): Future[BytesWrapper]
 
-  def hasAlready(block: Block): Future[Boolean] = hasAlready(block.hash)
+  def hasAlready(id: Long): Future[Boolean]
 
-  def hasAlready(hash: Hash): Future[Boolean]
+  def getHashForId(id: Long): Future[Hash]
 
-  def save(block: Block): Future[Boolean]
+  def chunkId(block: Block, assignIdIfNotFound: Boolean): Future[ChunkIdResult] = chunkId(block.hash, assignIdIfNotFound)
+
+  def chunkId(hash: Hash, assignIdIfNotFound: Boolean): Future[ChunkIdResult]
+
+  def save(block: Block, id: Long): Future[Boolean]
 }
 
 sealed trait FileAlreadyBackedupResult
@@ -41,7 +50,7 @@ trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEven
 
   def hasAlready(fileDescription: FileDescription): Future[FileAlreadyBackedupResult]
 
-  def saveFile(fileDescription: FileDescription, hashes: Hash): Future[Boolean]
+  def saveFile(fileDescription: FileDescription, hashes: Seq[Long]): Future[Boolean]
 
   def saveFileSameAsBefore(fileMetadataStored: FileMetadataStored): Future[Boolean]
 }
