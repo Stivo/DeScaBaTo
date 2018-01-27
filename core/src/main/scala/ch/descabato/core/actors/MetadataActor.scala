@@ -5,10 +5,10 @@ import java.util.Date
 
 import ch.descabato.core._
 import ch.descabato.core.actors.MetadataActor.BackupMetaData
-import ch.descabato.core.model.FileMetadata
+import ch.descabato.core.model.{BackupIds, FileMetadata}
 import ch.descabato.core_old._
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{Hash, Utils}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
@@ -105,10 +105,12 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
     }
   }
 
-  override def saveFile(fileMetadata: FileMetadata): Future[Boolean] = {
+  override def saveFile(fileDescription: FileDescription, hashList: Hash): Future[Boolean] = {
     hasChanged = true
-    thisBackupNotCheckpointed += fileMetadata.fd.path -> fileMetadata
-    toBeStored -= fileMetadata.fd
+    val id = BackupIds.nextId()
+    val metadata = FileMetadata(id, fileDescription, hashList)
+    thisBackupNotCheckpointed += metadata.fd.path -> metadata
+    toBeStored -= metadata.fd
     Future.successful(true)
   }
 

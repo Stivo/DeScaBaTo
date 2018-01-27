@@ -41,7 +41,7 @@ trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEven
 
   def hasAlready(fileDescription: FileDescription): Future[FileAlreadyBackedupResult]
 
-  def saveFile(fileMetadata: FileMetadata): Future[Boolean]
+  def saveFile(fileDescription: FileDescription, hashes: Hash): Future[Boolean]
 
   def saveFileSameAsBefore(fd: FileDescription): Future[Boolean]
 }

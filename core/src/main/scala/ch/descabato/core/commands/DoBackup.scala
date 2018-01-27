@@ -168,9 +168,9 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
       hashes.zipWithIndex.foreach {
         case (bytes, i) => System.arraycopy(bytes.bytes, 0, hashlist, length * i, length)
       }
-      FileMetadata(fd, Hash(hashlist))
-    }.flatMap { out =>
-      universe.backupFileActor.saveFile(out)
+      (fd, Hash(hashlist))
+    }.flatMap { case (fd, hash) =>
+      universe.backupFileActor.saveFile(fd, hash)
     }
   }
 
