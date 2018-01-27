@@ -4,6 +4,7 @@ import java.util.{Date, TimerTask}
 import javax.swing.SwingUtilities
 
 import ch.descabato.akka.ActorStats
+import ch.descabato.core_old.Size
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
@@ -116,6 +117,10 @@ trait Counter {
 }
 
 class StandardCounter(val name: String) extends Counter
+
+class StandardByteCounter(val name: String) extends Counter {
+  override def formatted: String = Size(current).toString
+}
 
 trait ETACounter extends MaxValueCounter with Utils {
   def window = 60

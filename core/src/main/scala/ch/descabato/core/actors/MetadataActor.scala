@@ -36,6 +36,8 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
   def startup(): Future[Boolean] = {
     Future {
+      val mt = new MeasureTime {}
+      mt.startMeasuring()
       val metadata = context.fileManager.metadata
       val files = metadata.getFiles().sortBy(x => metadata.numberOf(x))
       for (file <- files) {
@@ -47,6 +49,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
             file.delete()
         }
       }
+      logger.info(s"Took ${mt.measuredTime()} to read the metadata")
       true
     }
   }
@@ -206,7 +209,9 @@ object MetadataActor extends Utils {
     }
 
     def mapById = _mapById
+
     def mapByPath = _mapByPath
+
     def hashes = _hashes
 
     private def setupBlocks(files: Seq[FileMetadataStored]) = {
