@@ -7,7 +7,7 @@ import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataActor.BackupDescription
 import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
-import ch.descabato.core.model.{Block, FileMetadata}
+import ch.descabato.core.model.{Block, FileMetadataStored}
 import ch.descabato.core.util.Json
 import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription, PasswordWrongException}
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
@@ -30,7 +30,7 @@ sealed trait FileAlreadyBackedupResult
 
 case object FileNotYetBackedUp extends FileAlreadyBackedupResult
 
-case class FileAlreadyBackedUp(fileMetadata: FileMetadata) extends FileAlreadyBackedupResult
+case class FileAlreadyBackedUp(fileMetadata: FileMetadataStored) extends FileAlreadyBackedupResult
 
 case object Storing extends FileAlreadyBackedupResult
 
@@ -43,7 +43,7 @@ trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEven
 
   def saveFile(fileDescription: FileDescription, hashes: Hash): Future[Boolean]
 
-  def saveFileSameAsBefore(fd: FileDescription): Future[Boolean]
+  def saveFileSameAsBefore(fileMetadataStored: FileMetadataStored): Future[Boolean]
 }
 
 trait JsonUser {

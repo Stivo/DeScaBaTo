@@ -4,18 +4,16 @@ import java.io.File
 import java.util.Date
 
 import ch.descabato.core._
-import ch.descabato.core.actors.MetadataActor.{BackupDescription, BackupMetaDataStored}
-import ch.descabato.core.model.{BackupIds, FileMetadata, FolderMetadataStored, HashList}
+import ch.descabato.core.actors.MetadataActor.{AllKnownStoredPartsMemory, BackupDescription, BackupMetaDataStored}
+import ch.descabato.core.model._
 import ch.descabato.core_old._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Hash, Utils}
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-class MetadataActor(val context: BackupContext) extends BackupFileHandler with JsonUser {
-  val logger = LoggerFactory.getLogger(getClass)
+class MetadataActor(val context: BackupContext) extends BackupFileHandler with JsonUser with Utils {
 
   val config = context.config
 
@@ -24,44 +22,30 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   private var hasChanged = false
   private var hasFinished = false
 
-  private var previous: Map[String, FileMetadata] = Map.empty
-  private var previousDirs: Map[String, FolderMetadataStored] = Map.empty
-  private var thisBackupNotCheckpointed: Map[String, FileMetadata] = Map.empty
-  private var thisBackupCheckpointed: Map[String, FileMetadata] = Map.empty
-  private var thisBackupDirs: Map[String, FolderMetadataStored] = Map.empty
+  private var allKnownStoredPartsMemory = new AllKnownStoredPartsMemory()
+  private var thisBackup: BackupDescriptionStored = new BackupDescriptionStored()
+  private var notCheckpointed: BackupMetaDataStored = new BackupMetaDataStored()
 
   private var toBeStored: Set[FileDescription] = Set.empty
 
   def addDirectory(description: FolderDescription): Future[Boolean] = {
     val stored = FolderMetadataStored(BackupIds.nextId(), description)
-    thisBackupDirs += description.path -> stored
+    notCheckpointed.folders :+= stored
+    thisBackup.dirIds += stored.id
     Future.successful(true)
   }
 
   def startup(): Future[Boolean] = {
     Future {
-      val files = context.fileManager.backup.getFiles().sortBy(_.getName)
+      val metadata = context.fileManager.metadata
+      val files = metadata.getFiles().sortBy(x => metadata.numberOf(x))
       for (file <- files) {
         loadFile(file) match {
           case Success(data) =>
-            previous ++= data.files.map(x => (x.fd.path, x)).toMap
-            previousDirs ++= data.folders.map(x => (x.folderDescription.path, x)).toMap
-            logger.info(s"Loaded metadata from $file, have currently ${previous.size} files from before")
+            allKnownStoredPartsMemory ++= data
           case Failure(f) =>
-            logger.info(s"Found corrupt backup description in $file, deleting it")
+            logger.info(s"Found corrupt backup metadata in $file, deleting it. Exception: ${f.getMessage}")
             file.delete()
-        }
-      }
-      val tempFiles = context.fileManager.backup.getTempFiles().sortBy(_.getName)
-      for (tempFile <- tempFiles) {
-        loadFile(tempFile) match {
-          case Success(data) =>
-            thisBackupCheckpointed ++= data.files.map(x => (x.fd.path, x)).toMap
-            hasChanged = true
-            logger.info(s"Found checkpointed data in $tempFile, have currently ${thisBackupCheckpointed.size} files from last run")
-          case Failure(f) =>
-            logger.info(s"Found corrupt checkpointed data in $tempFile, deleting it")
-            tempFile.delete()
         }
       }
       true
@@ -92,13 +76,11 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
     if (toBeStored.safeContains(fd)) {
       Future.successful(Storing)
     } else {
-      val haveAlready = thisBackupCheckpointed.safeContains(fd.path) ||
-        thisBackupNotCheckpointed.safeContains(fd.path) || previous.get(fd.path).map { prev =>
-        fd.size == prev.fd.size && !prev.fd.attrs.hasBeenModified(new File(fd.path))
-      }.getOrElse(false)
+      val metadata = allKnownStoredPartsMemory.mapByPath.get(fd.path)
+
+      val haveAlready = metadata.map(_.checkIfMatch(fd)).getOrElse(false)
       if (haveAlready) {
-        val metadata = previous.get(fd.path).orElse(thisBackupCheckpointed.get(fd.path)).orElse(thisBackupNotCheckpointed.get(fd.path)).get
-        Future.successful(FileAlreadyBackedUp(metadata))
+        Future.successful(FileAlreadyBackedUp(metadata.get.asInstanceOf[FileMetadataStored]))
       } else {
         toBeStored += fd
         hasChanged = true
@@ -110,43 +92,37 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   override def saveFile(fileDescription: FileDescription, hashList: Hash): Future[Boolean] = {
     hasChanged = true
     val id = BackupIds.nextId()
-    val metadata = FileMetadata(id, fileDescription, hashList)
-    thisBackupNotCheckpointed += metadata.fd.path -> metadata
+    val metadata = FileMetadataStored(id, fileDescription, hashList)
+    allKnownStoredPartsMemory += metadata
+    notCheckpointed.files :+= metadata
     toBeStored -= metadata.fd
+    thisBackup.fileIds += id
     Future.successful(true)
   }
 
-  override def saveFileSameAsBefore(fd: FileDescription): Future[Boolean] = {
-    if (previous.safeContains(fd.path)) {
-      thisBackupNotCheckpointed += fd.path -> previous(fd.path)
-      Future.successful(true)
-    } else {
-      if (thisBackupCheckpointed.safeContains(fd.path) || thisBackupNotCheckpointed.contains(fd.path)) {
-        // nothing to do here
-        Future.successful(true)
-      } else {
-        logger.warn(s"$fd was not part of previous backup, programming error (symlinks)")
-        Future.successful(false)
-      }
-    }
+  override def saveFileSameAsBefore(fileMetadataStored: FileMetadataStored): Future[Boolean] = {
+    thisBackup.fileIds += fileMetadataStored.id
+    Future.successful(false)
   }
 
   override def finish(): Future[Boolean] = {
     if (hasChanged) {
-      val toSave = thisBackupNotCheckpointed ++ thisBackupCheckpointed
-      logger.info(s"Writing metadata of ${toSave.values.size} files")
+      checkpointMetadata()
       val file = context.fileManager.backup.nextFile()
-      val metadata = BackupMetaDataStored(toSave.values.toSeq, thisBackupDirs.values.toSeq)
-      writeToJson(file, metadata)
+      writeToJson(file, thisBackup)
       hasFinished = true
-      logger.info("Done Writing metadata, deleting temp files")
-      context.fileManager.backup.getTempFiles().foreach(_.delete())
     }
     Future.successful(true)
   }
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     logger.error("Actor was restarted", reason)
+  }
+
+  def checkpointMetadata(): Unit = {
+    val file = context.fileManager.metadata.nextFile()
+    writeToJson(file, notCheckpointed)
+    notCheckpointed = new BackupMetaDataStored()
   }
 
   override def receive(myEvent: MyEvent): Unit = {
@@ -156,33 +132,63 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
         if (hasFinished) {
           logger.info("Ignoring as files are already written")
         } else {
-          val file = context.fileManager.backup.nextFile(temp = true)
-          val metadata = BackupMetaDataStored(thisBackupNotCheckpointed.values.toSeq, thisBackupDirs.values.toSeq)
-          thisBackupCheckpointed ++= thisBackupNotCheckpointed
-          thisBackupNotCheckpointed = Map.empty
-          writeToJson(file, metadata)
+          checkpointMetadata()
         }
       case _ =>
-        // ignore unknown message
+      // ignore unknown message
     }
   }
 }
 
 object MetadataActor extends Utils {
 
-  case class BackupMetaDataStored(files: Seq[FileMetadata] = Seq.empty,
-                                  folders: Seq[FolderMetadataStored] = Seq.empty,
-                                  symlinks: Seq[SymbolicLink] = Seq.empty,
-                                  hashLists: Seq[HashList] = Seq.empty
-                           ) {
+  class BackupMetaDataStored(var files: Seq[FileMetadataStored] = Seq.empty,
+                             var folders: Seq[FolderMetadataStored] = Seq.empty,
+                             var symlinks: Seq[SymbolicLink] = Seq.empty,
+                             var hashLists: Seq[HashList] = Seq.empty
+                            ) {
     def merge(other: BackupMetaDataStored): BackupMetaDataStored = {
       logger.info("Merging BackupMetaData")
-      BackupMetaDataStored(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks, hashLists ++ other.hashLists)
+      new BackupMetaDataStored(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks, hashLists ++ other.hashLists)
     }
 
   }
 
+  class AllKnownStoredPartsMemory() {
+    private var _mapById: Map[Long, StoredPart] = Map.empty
+    private var _mapByPath: Map[String, StoredPartWithPath] = Map.empty
+
+    def +=(storedPart: StoredPart): Unit = {
+      _mapById += storedPart.id -> storedPart
+      storedPart match {
+        case storedPartWithPath: StoredPartWithPath =>
+          _mapByPath += storedPartWithPath.path -> storedPartWithPath
+        case _ =>
+        // nothing further
+      }
+    }
+
+    def ++=(backupMetaDataStored: BackupMetaDataStored): Unit = {
+      var maxId: Long = 0
+      for (folder <- backupMetaDataStored.folders) {
+        _mapById += folder.id -> folder
+        _mapByPath += folder.path -> folder
+        maxId = Math.max(maxId, folder.id)
+      }
+      for (file <- backupMetaDataStored.files) {
+        _mapById += file.id -> file
+        _mapByPath += file.path -> file
+        maxId = Math.max(maxId, file.id)
+      }
+      BackupIds.maxId(maxId)
+    }
+
+    def mapById = _mapById
+
+    def mapByPath = _mapByPath
+  }
+
   // TODO symlinks
-  case class BackupDescription(files: Seq[FileMetadata], folders: Seq[FolderDescription])
+  case class BackupDescription(files: Seq[FileMetadataStored], folders: Seq[FolderDescription])
 
 }

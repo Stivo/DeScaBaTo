@@ -5,7 +5,7 @@ import java.util.Date
 
 import ch.descabato.core.Universe
 import ch.descabato.core.actors.MetadataActor.BackupDescription
-import ch.descabato.core.model.FileMetadata
+import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 
@@ -39,12 +39,12 @@ class DoVerify(_universe: Universe) extends DoReadAbstract(_universe) with Utils
     }
   }
 
-  private def verifyFileIsSaved(file: FileMetadata, metadata: BackupDescription, counter: ProblemCounter) = {
+  private def verifyFileIsSaved(file: FileMetadataStored, metadata: BackupDescription, counter: ProblemCounter) = {
     checkParentIsSaved(file, metadata, counter)
     checkContentIsSaved(file, metadata, counter)
   }
 
-  def checkContentIsSaved(file: FileMetadata, metadata: BackupDescription, counter: ProblemCounter) = {
+  def checkContentIsSaved(file: FileMetadataStored, metadata: BackupDescription, counter: ProblemCounter) = {
     val bytestream = getBytestream(hashesForFile(file))
     val withHashes = bytestream.zip(hashesForFile(file)).zipWithIndex
     val future = withHashes.runForeach { case ((bytes, savedHash), index) =>
@@ -56,7 +56,7 @@ class DoVerify(_universe: Universe) extends DoReadAbstract(_universe) with Utils
     Await.result(future, 1.hours)
   }
 
-  private def checkParentIsSaved(file: FileMetadata, metadata: BackupDescription, counter: ProblemCounter) = {
+  private def checkParentIsSaved(file: FileMetadataStored, metadata: BackupDescription, counter: ProblemCounter) = {
     val parent = Paths.get(file.fd.path).getParent
     if (metadata.folders.find(x => Paths.get(x.path) == parent).isEmpty) {
       counter.addProblem(s"Could not find folder for ${file.fd}")

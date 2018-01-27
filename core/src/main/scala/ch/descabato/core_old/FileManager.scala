@@ -4,7 +4,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import ch.descabato.core.actors.MetadataActor.BackupMetaDataStored
+import ch.descabato.core.actors.MetadataActor.{BackupDescription, BackupMetaDataStored}
 import ch.descabato.core.model.StoredChunk
 import ch.descabato.utils.{Hash, Utils}
 
@@ -250,13 +250,15 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
 
   def getDateFormatted: String = dateFormat.format(startDate)
 
+  val backup = new FileType[BackupDescription]("backup", true, ".json", hasDateC = true, useSubfolder = false)
+  val volume = new FileType[Volume]("volume", true, ".kvs", localC = false)
+  val volumeIndex = new FileType[Seq[StoredChunk]]("volumeIndex", true, ".json")
+  val metadata = new FileType[BackupMetaDataStored]("metadata", true, ".json")
+
   val volumes_old = new FileType[Volume]("volume_old", false, ".kvs", localC = false)
   val volumeIndex_old = new IndexFileType(volumes_old)
-  val volume = new FileType[Volume]("volume", true, ".kvs")
-  val volumeIndex = new FileType[Seq[StoredChunk]]("volumeIndex", true, ".json")
   val hashlists = new FileType[Vector[(Hash, Array[Byte])]]("hashlists", false, ".kvs")
   val backup_old = new FileType[BackupDescriptionOld]("backup_old", true, ".kvs", hasDateC = true, useSubfolder = false)
-  val backup = new FileType[BackupMetaDataStored]("backup", true, ".json", hasDateC = true, useSubfolder = false)
   val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   //  val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)
@@ -265,7 +267,7 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   //  val par2ForFiles = new FileType[Parity]("par_files_", true, ".par2", localC = false, redundantC = true)
   //  val par2ForFilesDelta = new FileType[Parity]("par_filesdelta_", true, ".par2", localC = false, redundantC = true)
 
-  private val types = List(volumes_old, volumeIndex_old, hashlists, filesDelta, backup_old, backup, volumeIndex, volume)
+  private val types = List(volumes_old, volumeIndex_old, hashlists, filesDelta, backup_old, metadata, volumeIndex, volume, backup)
   //, par2ForFiles, par2ForVolumes, par2ForHashLists, par2ForFilesDelta, par2File)
 
   def allFiles(temp: Boolean = true): List[File] = types.flatMap(ft => ft.getFiles() ++ (if (temp) ft.getTempFiles() else Nil))
@@ -296,9 +298,9 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   }
 
   def getLastBackup(temp: Boolean = false): Seq[File] = {
-    val out = backup.getFiles().sortBy(f => (backup.date(f), backup.numberOf(f))).lastOption.toList
+    val out = metadata.getFiles().sortBy(f => (metadata.date(f), metadata.numberOf(f))).lastOption.toList
     if (temp) {
-      out ++ backup.getTempFiles().sortBy(backup.numberOf)
+      out ++ metadata.getTempFiles().sortBy(metadata.numberOf)
     } else {
       out
     }
@@ -309,7 +311,7 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   }
 
   def getBackupDates(): Seq[Date] = {
-    backup.getFiles().map(backup.date).toList.distinct.sorted
+    metadata.getFiles().map(metadata.date).toList.distinct.sorted
   }
 
   def getBackupForDateOld(d: Date): Seq[File] = {
@@ -317,7 +319,7 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   }
 
   def getBackupForDate(d: Date): Seq[File] = {
-    backup.getFiles().filter(f => backup.date(f) == d)
+    metadata.getFiles().filter(f => metadata.date(f) == d)
   }
 
 }

@@ -3,8 +3,7 @@ package ch.descabato.core.commands
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import ch.descabato.core.Universe
-import ch.descabato.core.model.FileMetadata
-import ch.descabato.core_old.BackupFolderConfiguration
+import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
 
 import scala.concurrent.Future
@@ -14,7 +13,7 @@ abstract class DoReadAbstract(val universe: Universe) {
 
   protected val config = universe.config
 
-  def hashesForFile(file: FileMetadata): Source[Array[Byte], NotUsed] = {
+  def hashesForFile(file: FileMetadataStored): Source[Array[Byte], NotUsed] = {
     Source.fromIterator[Array[Byte]](() => file.blocks.bytes.grouped(config.hashLength))
   }
 

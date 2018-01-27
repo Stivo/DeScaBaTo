@@ -6,7 +6,7 @@ import java.util.Date
 import akka.stream.scaladsl.Source
 import ch.descabato.core.Universe
 import ch.descabato.core.actors.MetadataActor.BackupDescription
-import ch.descabato.core.model.FileMetadata
+import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.core_old.{BackupPart, FileAttributes, FolderDescription}
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils.Implicits._
@@ -49,14 +49,14 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
     }
   }
 
-  private def restoreFiles(logic: RestoredPathLogic, files: Seq[FileMetadata]): Unit = {
+  private def restoreFiles(logic: RestoredPathLogic, files: Seq[FileMetadataStored]): Unit = {
     logger.info(s"Restoring ${files.size} files")
     for (file <- files) {
       restoreFile(logic, file)
     }
   }
 
-  private def restoreFile(logic: RestoredPathLogic, file: FileMetadata): Unit = {
+  private def restoreFile(logic: RestoredPathLogic, file: FileMetadataStored): Unit = {
     val fd = file.fd
     val restoredFile = logic.makePath(fd.path)
     restoredFile.getParentFile.mkdirs()

@@ -100,7 +100,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
           if (hasAll) {
             bytesCounter.maxValue -= fd.size
             bytesCounter += -fd.size
-            universe.backupFileActor.saveFileSameAsBefore(fd).map(_ => Done)
+            universe.backupFileActor.saveFileSameAsBefore(metadata).map(_ => Done)
           } else {
             logger.info(s"File $fd is saved but some blocks are missing, so backing up again")
             hashAndBackupFile(path, fd)
