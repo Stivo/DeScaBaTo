@@ -7,7 +7,7 @@ import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
-import ch.descabato.core.model.{Block, FileMetadataStored}
+import ch.descabato.core.model.{Block, FileMetadataStored, StoredPartWithPath}
 import ch.descabato.core.util.Json
 import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription, PasswordWrongException}
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
@@ -44,9 +44,12 @@ case class FileAlreadyBackedUp(fileMetadata: FileMetadataStored) extends FileAlr
 case object Storing extends FileAlreadyBackedupResult
 
 trait MetadataStorage extends LifeCycle with TypedActor.PreRestart with MyEventReceiver {
+
   def retrieveBackup(date: Option[Date] = None): Future[BackupDescription]
 
   def addDirectory(description: FolderDescription): Future[Boolean]
+
+  def getKnownFiles(): Map[String, FileMetadataStored]
 
   def hasAlready(fileDescription: FileDescription): Future[FileAlreadyBackedupResult]
 

@@ -24,6 +24,8 @@ trait JournalHandler extends MyEventReceiver {
   def startWriting(): BlockingOperation
 
   def stopWriting(): BlockingOperation
+
+  def finish(): Boolean
 }
 
 class JournalEntry(val typ: String) {

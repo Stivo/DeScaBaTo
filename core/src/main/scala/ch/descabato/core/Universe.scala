@@ -76,6 +76,7 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   def shutdown(): Unit = {
     if (!_shutdown) {
       Await.result(finish(), 1.minute)
+      journalHandler.finish()
       system.terminate()
       cpuService.shutdown()
       _shutdown = true

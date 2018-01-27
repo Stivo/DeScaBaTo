@@ -54,6 +54,10 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
     }
   }
 
+  def getKnownFiles(): Map[String, FileMetadataStored] = allKnownStoredPartsMemory.mapByPath.collect {
+    case (x, f: FileMetadataStored) => (x, f)
+  }
+
   def retrieveBackup(date: Option[Date] = None): Future[BackupDescription] = {
     val filesToLoad = date match {
       case Some(d) =>

@@ -6,12 +6,13 @@ import java.nio.file.attribute.BasicFileAttributes
 
 import ch.descabato.frontend.MaxValueCounter
 
+import scala.collection.mutable
 import scala.io.{Codec, Source}
 
 class FileVisitorCollector(ignoreFile: Option[File], fileCounter: MaxValueCounter, bytesCounter: MaxValueCounter) {
   // TODO log exceptions
-  private var _files: Seq[Path] = Seq.empty
-  private var _dirs: Seq[Path] = Seq.empty
+  private var _files: Seq[Path] = mutable.Buffer.empty
+  private var _dirs: Seq[Path] = mutable.Buffer.empty
 
   val ignoredPatterns: Iterable[PathMatcher] = {
     ignoreFile.map { file =>
@@ -42,7 +43,8 @@ class FileVisitorCollector(ignoreFile: Option[File], fileCounter: MaxValueCounte
     }
 
     override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
-      if (pathIsNotIgnored(file)) {
+      // TODO handle symbolic links
+      if (pathIsNotIgnored(file) && !Files.isSymbolicLink(file)) {
         _files :+= file
         fileCounter.maxValue += 1
         bytesCounter.maxValue += file.toFile.length()

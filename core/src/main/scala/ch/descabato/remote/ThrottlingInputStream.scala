@@ -15,7 +15,7 @@ class ThrottlingInputStream(private val stream: InputStream, private val context
   private def readBytes(read: Int): Unit = {
     context.foreach { x =>
       x.rateLimiter.acquire(read)
-      x.progress.current += read
+      x.progress += read
     }
   }
 

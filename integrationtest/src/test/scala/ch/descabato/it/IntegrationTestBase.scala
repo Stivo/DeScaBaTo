@@ -4,14 +4,15 @@ import java.io.{File, RandomAccessFile}
 import java.nio.file.{Files, Path, Paths}
 import java.util.stream.Collectors
 
+import ch.descabato.frontend.CLI
 import ch.descabato.utils.Utils
 import ch.descabato.{RichFlatSpecLike, TestUtils}
 import org.apache.commons.exec.{CommandLine, ExecuteException}
 import org.apache.commons.io.{FileUtils => IO_FileUtils}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.Set
 
 class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
@@ -80,7 +81,9 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
 
   def startAndWait(args: Seq[String], redirect: Boolean = true) = {
     try {
-      createHandler(args, redirect).startAndWait
+      CLI.parseCommandLine(args)
+      0
+      //createHandler(args, redirect).startAndWait
     } catch {
       case e: ExecuteException => e.getExitValue()
     }

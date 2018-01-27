@@ -1,5 +1,6 @@
 package ch.descabato.frontend
 
+import java.util.concurrent.atomic.AtomicLong
 import java.util.{Date, TimerTask}
 import javax.swing.SwingUtilities
 
@@ -25,19 +26,21 @@ object ProgressReporters {
 
   var gui: Option[ProgressGui] = None
 
-  def openGui(nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions = null){
+  def openGui(nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions = null) {
     if (!guiEnabled)
       return
     gui.synchronized {
       counters.synchronized {
-      SwingUtilities.invokeAndWait(new Runnable() {
-        def run() {
-          if (gui.isEmpty) {
-            gui = Some(CreateProgressGui(ActorStats.tpe.getCorePoolSize, nameOfOperation, sliderDisabled, remoteOptions))
-            counters.filterNot(_._1.contains("iles found")).values.foreach{gui.get.add}
+        SwingUtilities.invokeAndWait(new Runnable() {
+          def run() {
+            if (gui.isEmpty) {
+              gui = Some(CreateProgressGui(ActorStats.tpe.getCorePoolSize, nameOfOperation, sliderDisabled, remoteOptions))
+              counters.filterNot(_._1.contains("iles found")).values.foreach {
+                gui.get.add
+              }
+            }
           }
-        }
-      })
+        })
       }
     }
   }
@@ -75,8 +78,8 @@ object ProgressReporters {
 
   def consoleUpdate(names: Boolean = false): String = {
     activeCounters.map {
-      case x: ETACounter => s"""${if (names) x.name+": " else ""}${x.formattedWithEta}"""
-      case x => s"""${if (names) x.name+": " else ""}${x.formatted}"""
+      case x: ETACounter => s"""${if (names) x.name + ": " else ""}${x.formattedWithEta}"""
+      case x => s"""${if (names) x.name + ": " else ""}${x.formatted}"""
     }.mkString(" --- ")
   }
 
@@ -89,21 +92,30 @@ trait ProgressReporting {
 }
 
 trait MaxValueCounter extends Counter {
-  var maxValue = 0L
+  private var _maxValue = new AtomicLong()
 
-  override def formatted = s"$current/$maxValue"
+  def maxValue: Long = _maxValue.get()
+
+  def maxValue_=(newValue: Long): Unit = _maxValue.set(newValue)
+
+  def maxValue_+=(newValue: Long): Unit = _maxValue.addAndGet(newValue)
+
+  override def formatted = s"$current / $maxValue (${percent}%)"
 
   def percent: Int = if (maxValue == 0) 0 else (100 * current / maxValue).toInt
 }
 
 trait Counter {
   def name: String
-  @volatile var current = 0L
 
-  def +=(l: Long) {
-    this.synchronized {
-      current += l
-    }
+  private var _current = new AtomicLong()
+
+  def current: Long = _current.get
+
+  def current_=(newValue: Long): Unit = _current.set(newValue)
+
+  def +=(l: Long): Unit = {
+    _current.addAndGet(l)
   }
 
   def update() {}
@@ -124,10 +136,13 @@ class StandardByteCounter(val name: String) extends Counter {
 
 trait ETACounter extends MaxValueCounter with Utils {
   def window = 60
+
   case class Snapshot(time: Long, l: Double)
+
   val p: PrettyTime = ProgressReporters.newPrettyTime()
   var snapshots: List[Snapshot] = List[Snapshot]()
   var newSnapshotAt = 0L
+
   override def +=(l: Long) {
     super.+=(l)
     val now = System.currentTimeMillis()
@@ -156,11 +171,14 @@ trait ETACounter extends MaxValueCounter with Utils {
 }
 
 trait SizeStandardCounter extends MaxValueCounter with ETACounter {
-  override def formatted: String = { s"${Utils.readableFileSize(current)} / ${Utils.readableFileSize(maxValue)}" }
+  override def formatted: String = {
+    s"${Utils.readableFileSize(current)} / ${Utils.readableFileSize(maxValue)}"
+  }
 }
 
 trait FileCounter extends MaxValueCounter {
   var fileName: String = "filename"
+
   override def formatted = fileName
 }
 
@@ -196,6 +214,7 @@ object AnsiUtil {
   }
 
   def disableAnsi(): Unit = Ansi.setEnabled(false)
+
   def testSetup() {
     disableAnsi
     new ConsoleAppenderWithDeleteSupport()
@@ -204,16 +223,27 @@ object AnsiUtil {
   import org.fusesource.jansi.Ansi.Color._
 
   trait AnsiCharacter
+
   case object Up extends AnsiCharacter
+
   class AnsiColor(val c: Color) extends AnsiCharacter
+
   case object green extends AnsiColor(GREEN)
+
   case object white extends AnsiColor(WHITE)
+
   case object yellow extends AnsiColor(YELLOW)
+
   case object blue extends AnsiColor(BLUE)
+
   case object magenta extends AnsiColor(MAGENTA)
+
   case object cyan extends AnsiColor(CYAN)
+
   case object black extends AnsiColor(BLACK)
+
   case object red extends AnsiColor(RED)
+
   case object default extends AnsiColor(DEFAULT)
 
   case object reset extends AnsiCharacter

@@ -43,10 +43,23 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }
   }
 
+  def backupAlreadyBackedUpFiles(x: Path, knownFiles: Map[String, FileMetadataStored]): Boolean = {
+    knownFiles.get(x.toFile.getAbsolutePath).map { fileStored =>
+      val out = fileStored.checkIfMatch(new FileDescription(x.toFile))
+      if (out) {
+        fileCounter.maxValue += -1
+        bytesCounter.maxValue += -fileStored.fd.size
+        universe.metadataStorageActor.saveFileSameAsBefore(fileStored)
+      }
+      out
+    }.getOrElse(false)
+  }
+
   def execute(): Unit = {
     startMeasuring()
     ProgressReporters.openGui("Backup", false)
     universe.journalHandler.cleanUnfinishedFiles()
+    val lastWasInconsistent = universe.journalHandler.isInconsistentBackup()
     val universeStartup = universe.startup()
     universe.journalHandler.startWriting()
     val fileGathering = gatherFiles()
@@ -55,7 +68,13 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     logger.info(s"${fileCounter.maxValue} files collected and program is ready after ${measuredTime()}")
     ProgressReporters.activeCounters = List(fileCounter, bytesCounter)
     if (universeStarted) {
-      Await.result(setupFlow(fileCollector.files), Duration.Inf)
+      if (!lastWasInconsistent) {
+        val knownFiles = universe.metadataStorageActor.getKnownFiles()
+        val (_, newFiles) = fileCollector.files.par.partition(x => backupAlreadyBackedUpFiles(x, knownFiles))
+        Await.result(setupFlow(newFiles.seq), Duration.Inf)
+      } else {
+        Await.result(setupFlow(fileCollector.files), Duration.Inf)
+      }
     }
     logger.info(s"Files are backed up after ${measuredTime()}, saving ${fileCollector.dirs.size} directories")
     saveDirectories(fileCollector.dirs)
@@ -160,14 +179,14 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
   private val filterNonExistingBlocksAndCompress = Flow[(Block, ChunkIdResult)]
     .collect {
       case (block, ChunkIdAssigned(id)) => (block, id)
-    }.mapAsync(8){ case (block, id) => universe.compressor.compressBlock(block).map(x => (x, id))}
+    }.mapAsync(8) { case (block, id) => universe.compressor.compressBlock(block).map(x => (x, id)) }
 
   private def createCompressAndSaveBlocks(fd: FileDescription) = {
     filterNonExistingBlocksAndCompress.via(newBuffer[(Block, Long)](20)).via(sendToChunkStorage).via(mapToUnit())
   }
 
   private def createFileMetadataAndSave(fd: FileDescription) = Flow[Seq[Long]].mapAsync(2) { hashes =>
-      universe.metadataStorageActor.saveFile(fd, hashes)
+    universe.metadataStorageActor.saveFile(fd, hashes)
   }
 
   private val gatherIds = Flow[(Block, ChunkIdResult)].map(_._2).map {

@@ -78,7 +78,7 @@ enablePlugins(PackPlugin)
 
 packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
 
-packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx1g"))
+packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx2g"))
 
 packJarNameConvention := "original"
 
