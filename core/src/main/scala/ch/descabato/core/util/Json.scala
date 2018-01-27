@@ -1,7 +1,7 @@
 package ch.descabato.core.util
 
 import akka.util.ByteString
-import ch.descabato.core.model.{Length, StoredChunk}
+import ch.descabato.core.model.StoredChunk
 import ch.descabato.utils.{BytesWrapper, Hash}
 import com.fasterxml.jackson.core.{JsonFactory, JsonGenerator, JsonParser, Version}
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
@@ -24,7 +24,7 @@ object Json {
   private def tryMap = {
     var map: Map[Hash, StoredChunk] = Map.empty
     val hash = Hash("Hello".getBytes("UTF-8"))
-    map += hash -> StoredChunk("Hello", hash, 0, Length(500))
+    map += hash -> StoredChunk("Hello", hash, 0, 500)
     roundTrip(map.toSeq)
   }
 

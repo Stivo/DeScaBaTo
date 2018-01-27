@@ -3,7 +3,7 @@ package ch.descabato.core.actors
 import java.io.File
 
 import ch.descabato.core.LifeCycle
-import ch.descabato.core.model.{Block, Length, StoredChunk}
+import ch.descabato.core.model.Block
 import ch.descabato.core.util.{FileReader, FileWriter}
 import ch.descabato.utils.{BytesWrapper, Hash}
 import org.slf4j.LoggerFactory
@@ -25,10 +25,10 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
     _writer
   }
 
-  override def saveBlock(block: Block): StoredChunk = {
+  override def saveBlock(block: Block): FilePosition = {
     require(!finished)
     val posBefore = writer.write(block.compressed)
-    StoredChunk(filename, block.hash, posBefore, Length(block.compressed.length))
+    FilePosition(posBefore, block.compressed.length)
   }
 
   override def finish(): Future[Boolean] = {
@@ -66,17 +66,19 @@ class VolumeReadActor(val context: BackupContext, val file: File) extends Volume
     Future.successful(true)
   }
 
-  override def read(storedChunk: StoredChunk): BytesWrapper = {
-    reader.readChunk(storedChunk.startPos, storedChunk.length.size)
+  override def read(filePosition: FilePosition): BytesWrapper = {
+    reader.readChunk(filePosition.offset, filePosition.length)
   }
 
 }
+
+case class FilePosition(offset: Long, length: Long)
 
 trait VolumeWriter extends LifeCycle {
 
   def md5Hash: Future[Hash]
 
-  def saveBlock(block: Block): StoredChunk
+  def saveBlock(block: Block): FilePosition
 
   def currentPosition(): Long
 
@@ -84,5 +86,5 @@ trait VolumeWriter extends LifeCycle {
 }
 
 trait VolumeReader extends LifeCycle {
-  def read(storedChunk: StoredChunk): BytesWrapper
+  def read(filePosition: FilePosition): BytesWrapper
 }

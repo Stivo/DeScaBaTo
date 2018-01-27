@@ -117,10 +117,10 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
     if (blockCanNotFitAnymoreIntoCurrentWriter(block)) {
       finishVolumeAndCreateIndex()
     }
-    val storedChunk = currentWriter.saveBlock(block)
+    val filePosition = currentWriter.saveBlock(block)
+    val storedChunk = StoredChunk(currentWriter.filename, block.hash, filePosition.offset, filePosition.length)
     notCheckpointed += storedChunk.hash -> storedChunk
-    bytesStoredCounter += storedChunk.length.size
-
+    bytesStoredCounter += storedChunk.length
     Future.successful(true)
   }
 
@@ -130,7 +130,7 @@ class BlockStorageActor(val context: BackupContext) extends BlockStorage with Js
 
   def read(hash: Hash): Future[BytesWrapper] = {
     val chunk: StoredChunk = notCheckpointed.get(hash).orElse(checkpointed.get(hash)).get
-    Future(getReader(chunk).read(chunk))
+    Future(getReader(chunk).read(chunk.asFilePosition()))
   }
 
   private var _readers: Map[String, VolumeReader] = Map.empty
