@@ -36,7 +36,7 @@ trait BackupProgressReporting extends Utils {
   }
   lazy val failureCounter: StandardMaxValueCounter = new StandardMaxValueCounter("Failed files", 0) {}
 
-  def setMaximums(desc: BackupDescription, withGui: Boolean = false) {
+  def setMaximums(desc: BackupDescriptionOld, withGui: Boolean = false) {
     setMaximums(desc.files, withGui)
   }
 

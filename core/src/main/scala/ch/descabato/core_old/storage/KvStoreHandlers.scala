@@ -133,7 +133,7 @@ trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, Array[Byte], V] {
   }
 }
 
-class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescription] with BackupPartHandler with Utils with BackupProgressReporting {
+class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescriptionOld] with BackupPartHandler with Utils with BackupProgressReporting {
 
   override val filecountername = "Files hashed"
   override val bytecountername = "Data hashed"
@@ -142,8 +142,8 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
 
   var loadedBackup: Seq[File] = Nil
 
-  var current: BackupDescription = BackupDescription()
-  var failedObjects = BackupDescription()
+  var current: BackupDescriptionOld = BackupDescriptionOld()
+  var failedObjects = BackupDescriptionOld()
 
   def initMap = new mutable.HashMap[String, KvStoreLocation]()
 
@@ -206,12 +206,12 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     getUnfinished(block.id.file).blockHashArrived(block)
   }
 
-  def loadBackup(date: Option[java.util.Date]): ch.descabato.core_old.BackupDescription = {
+  def loadBackup(date: Option[java.util.Date]): ch.descabato.core_old.BackupDescriptionOld = {
     loadedBackup = date match {
       case Some(d) => fileManager.getBackupForDateOld(d)
       case None => fileManager.getLastBackupOld(temp = true)
     }
-    current = BackupDescription()
+    current = BackupDescriptionOld()
     val kvstores = loadedBackup.view.map(getReaderForLocation)
     kvstores.foreach {
       kvstore =>
@@ -233,7 +233,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
     unfinished.count(!_._2.failed)
   }
 
-  def setFiles(finished: BackupDescription, unfinished: BackupDescription) {
+  def setFiles(finished: BackupDescriptionOld, unfinished: BackupDescriptionOld) {
     current = finished.merge(unfinished)
     unfinished.files.foreach {
       file =>
@@ -270,7 +270,7 @@ class KvStoreBackupPartHandler extends SimpleKvStoreHandler[String, BackupDescri
         out
     }
 
-  lazy val fileType: FileType[BackupDescription] = universe.fileManager().backup_old
+  lazy val fileType: FileType[BackupDescriptionOld] = universe.fileManager().backup_old
 
   override def fileFinished(): Unit = {
     universe.journalHandler().finishedFile(currentlyWritingFile.file, fileType) // TODO

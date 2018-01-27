@@ -1,9 +1,8 @@
 package ch.descabato
 
 import java.io.File
-import java.util
 
-import ch.descabato.core_old.{BackupDescription, FileDescription, FolderDescription, SymbolicLink, _}
+import ch.descabato.core_old.{BackupDescriptionOld, FileDescription, FolderDescription, SymbolicLink, _}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 import org.scalatest.Matchers._
@@ -28,7 +27,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
       val fd = new FileDeleted("asdf")
 	    val symLink = new SymbolicLink("test", "asdf", new FileAttributes())
       val list : Seq[UpdatePart] = List(fid, fod, fd, symLink)
-      val bd = new BackupDescription(fid, fod, symLink, fd)
+      val bd = new BackupDescriptionOld(fid, fod, symLink, fd)
       val baout = new CustomByteArrayOutputStream()
     }
   

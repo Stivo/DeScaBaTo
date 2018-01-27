@@ -255,7 +255,7 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   val volume = new FileType[Volume]("volume", true, ".kvs")
   val volumeIndex = new FileType[Seq[StoredChunk]]("volumeIndex", true, ".json")
   val hashlists = new FileType[Vector[(Hash, Array[Byte])]]("hashlists", false, ".kvs")
-  val backup_old = new FileType[BackupDescription]("backup", true, ".kvs", hasDateC = true, useSubfolder = false)
+  val backup_old = new FileType[BackupDescriptionOld]("backup_old", true, ".kvs", hasDateC = true, useSubfolder = false)
   val backup = new FileType[BackupMetaDataStored]("backup", true, ".json", hasDateC = true, useSubfolder = false)
   val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)

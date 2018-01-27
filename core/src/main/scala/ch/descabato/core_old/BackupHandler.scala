@@ -2,12 +2,9 @@ package ch.descabato.core_old
 
 import java.io._
 import java.nio.file.{Files, LinkOption, NoSuchFileException}
-import java.security.DigestOutputStream
 import java.text.SimpleDateFormat
-import java.util
 import java.util.Date
 
-import ch.descabato.akka.AkkaUniverse
 import ch.descabato.frontend._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.{BlockOutputStream, VariableBlockOutputStream}
@@ -17,9 +14,9 @@ import org.apache.commons.compress.utils.IOUtils
 import scala.collection.mutable
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.concurrent.Await
+import scala.concurrent.duration._
 import scala.language.reflectiveCalls
 import scala.util.Random
-import scala.concurrent.duration._
 
 trait MeasureTime {
   var startTime = 0L
@@ -63,7 +60,7 @@ trait BackupRelatedHandler {
     override def formatted: String = filename
   }
 
-  def statistics(x: BackupDescription): String = {
+  def statistics(x: BackupDescriptionOld): String = {
     val num = x.size
     val totalSize = new Size(x.files.map(_.size).sum)
     var out = f"$num%8d, $totalSize"
@@ -358,7 +355,7 @@ class RestoreHandler(val universe: UniverseI) extends Utils with BackupRelatedHa
     relativeToRoot = roots.size == 1 || roots.map(_.name).toList.distinct.lengthCompare(roots.size) == 0
   }
 
-  def writeRestoreInfo(description: BackupDescription)(implicit options: RestoreConf) {
+  def writeRestoreInfo(description: BackupDescriptionOld)(implicit options: RestoreConf) {
     val format = new SimpleDateFormat()
     val backupFile = universe.backupPartHandler.loadedBackup.head
     val date = universe.fileManager().getFileType(backupFile).date(backupFile)
@@ -508,7 +505,7 @@ class VerifyHandler(val universe: UniverseI)
 
   var problemCounter = new ProblemCounter()
 
-  lazy val backupDesc: BackupDescription = universe.backupPartHandler().loadBackup()
+  lazy val backupDesc: BackupDescriptionOld = universe.backupPartHandler().loadBackup()
 
   def verify(t: VerifyConf): Long = {
     startMeasuring()

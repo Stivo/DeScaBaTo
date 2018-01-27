@@ -291,15 +291,15 @@ case class SymbolicLink(path: String, linkTarget: String, attrs: FileAttributes)
   def isFolder = false
 }
 
-case class BackupDescription(files: Vector[FileDescription] = Vector.empty,
-                             folders: Vector[FolderDescription] = Vector.empty,
-                             symlinks: Vector[SymbolicLink] = Vector.empty, deleted: Vector[FileDeleted] = Vector.empty) {
-  def merge(later: BackupDescription): BackupDescription = {
+case class BackupDescriptionOld(files: Vector[FileDescription] = Vector.empty,
+                                folders: Vector[FolderDescription] = Vector.empty,
+                                symlinks: Vector[SymbolicLink] = Vector.empty, deleted: Vector[FileDeleted] = Vector.empty) {
+  def merge(later: BackupDescriptionOld): BackupDescriptionOld = {
     val set = later.deleted.map(_.path).toSet ++ later.asMap.keySet
     def remove[T <: BackupPart](x: Vector[T]) = {
       x.filterNot(bp => set safeContains bp.path)
     }
-    BackupDescription(remove(files) ++ later.files, remove(folders) ++ later.folders,
+    BackupDescriptionOld(remove(files) ++ later.files, remove(folders) ++ later.folders,
       remove(symlinks) ++ later.symlinks, later.deleted)
   }
 
@@ -311,7 +311,7 @@ case class BackupDescription(files: Vector[FileDescription] = Vector.empty,
     map
   }
   
-  def + (x: UpdatePart): BackupDescription = x match {
+  def + (x: UpdatePart): BackupDescriptionOld = x match {
     case x: FileDescription => this.copy(files = files :+ x)
     case x: FolderDescription => this.copy(folders = folders :+ x)
     case x: SymbolicLink => this.copy(symlinks = symlinks :+ x)

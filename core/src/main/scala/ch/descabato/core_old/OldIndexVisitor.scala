@@ -22,11 +22,11 @@ class OldIndexVisitor(var oldMap: Map[String, BackupPart], ignoreFile: Option[Fi
   }
 
   var root: Path = _
-  var allDesc = BackupDescription()
-  var newDesc = BackupDescription()
-  var unchangedDesc = BackupDescription()
-  lazy val deletedDesc: BackupDescription = {
-    BackupDescription(deleted = oldMap.values.map(x => new FileDeleted(x.path)).toVector)
+  var allDesc = BackupDescriptionOld()
+  var newDesc = BackupDescriptionOld()
+  var unchangedDesc = BackupDescriptionOld()
+  lazy val deletedDesc: BackupDescriptionOld = {
+    BackupDescriptionOld(deleted = oldMap.values.map(x => new FileDeleted(x.path)).toVector)
   }
   
   val symManifest: Manifest[SymbolicLink] = manifest[SymbolicLink]

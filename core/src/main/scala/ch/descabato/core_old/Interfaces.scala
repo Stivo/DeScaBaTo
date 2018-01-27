@@ -161,10 +161,10 @@ trait BackupPartHandler extends BackupActor {
   def loadedBackup: Seq[File]
 
   // reads all the backup parts for the given date
-  def loadBackup(date: Option[Date] = None): BackupDescription
+  def loadBackup(date: Option[Date] = None): BackupDescriptionOld
 
   // sets the backup description that should be saved
-  def setFiles(finishedFiles: BackupDescription, unfinishedFiles: BackupDescription)
+  def setFiles(finishedFiles: BackupDescriptionOld, unfinishedFiles: BackupDescriptionOld)
 
   // sets the hash for this file
   def hashForFile(fd: FileDescription, hash: Hash)
