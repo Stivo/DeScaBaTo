@@ -3,7 +3,7 @@ package ch.descabato.core.actors
 import java.util.Date
 
 import ch.descabato.core._
-import ch.descabato.core.actors.MetadataActor.{AllKnownStoredPartsMemory, BackupDescription, BackupMetaDataStored}
+import ch.descabato.core.actors.MetadataStorageActor.{AllKnownStoredPartsMemory, BackupDescription, BackupMetaDataStored}
 import ch.descabato.core.model._
 import ch.descabato.core_old._
 import ch.descabato.utils.Implicits._
@@ -12,7 +12,7 @@ import ch.descabato.utils.Utils
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-class MetadataActor(val context: BackupContext) extends BackupFileHandler with JsonUser with Utils {
+class MetadataStorageActor(val context: BackupContext) extends MetadataStorage with JsonUser with Utils {
 
   val config = context.config
 
@@ -28,6 +28,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   private var toBeStored: Set[FileDescription] = Set.empty
 
   def addDirectory(description: FolderDescription): Future[Boolean] = {
+    // TODO check if we have folder with same properties already
     val stored = FolderMetadataStored(BackupIds.nextId(), description)
     notCheckpointed.folders :+= stored
     thisBackup.dirIds += stored.id
@@ -37,7 +38,6 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   def startup(): Future[Boolean] = {
     Future {
       val mt = new StandardMeasureTime()
-      mt.startMeasuring()
       val metadata = context.fileManager.metadata
       val files = metadata.getFiles().sortBy(x => metadata.numberOf(x))
       for (file <- files) {
@@ -139,16 +139,15 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   }
 }
 
-object MetadataActor extends Utils {
+object MetadataStorageActor extends Utils {
 
   class BackupMetaDataStored(var files: Seq[FileMetadataStored] = Seq.empty,
                              var folders: Seq[FolderMetadataStored] = Seq.empty,
-                             var symlinks: Seq[SymbolicLink] = Seq.empty,
-                             var hashLists: Seq[HashList] = Seq.empty
+                             var symlinks: Seq[SymbolicLink] = Seq.empty
                             ) {
     def merge(other: BackupMetaDataStored): BackupMetaDataStored = {
       logger.info("Merging BackupMetaData")
-      new BackupMetaDataStored(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks, hashLists ++ other.hashLists)
+      new BackupMetaDataStored(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks)
     }
 
   }

@@ -4,7 +4,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import ch.descabato.core.actors.MetadataActor.{BackupDescription, BackupMetaDataStored}
+import ch.descabato.core.actors.MetadataStorageActor.{BackupDescription, BackupMetaDataStored}
 import ch.descabato.core.model.StoredChunk
 import ch.descabato.utils.{Hash, Utils}
 

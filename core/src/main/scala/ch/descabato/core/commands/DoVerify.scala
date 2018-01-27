@@ -4,7 +4,7 @@ import java.nio.file.Paths
 import java.util.Date
 
 import ch.descabato.core.Universe
-import ch.descabato.core.actors.MetadataActor.BackupDescription
+import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
@@ -21,7 +21,7 @@ class DoVerify(_universe: Universe) extends DoReadAbstract(_universe) with Utils
 
   def verify(date: Option[Date] = None, percentageToVerify: Double = 1): ProblemCounter = {
     val startup = Await.result(universe.startup(), 1.minute)
-    val metadata = Await.result(universe.backupFileActor.retrieveBackup(date), 1.minute)
+    val metadata = Await.result(universe.metadataStorageActor.retrieveBackup(date), 1.minute)
     val counter = new ProblemCounter()
     if (startup) {
       verifyImpl(metadata, percentageToVerify, counter)
@@ -45,8 +45,8 @@ class DoVerify(_universe: Universe) extends DoReadAbstract(_universe) with Utils
   }
 
   def checkContentIsSaved(file: FileMetadataStored, metadata: BackupDescription, counter: ProblemCounter) = {
-    val value = hashesForFile(file)
-    val hashes = value.mapAsync(2)(id => universe.blockStorageActor.getHashForId(id))
+    val value = chunkIdsForFile(file)
+    val hashes = value.mapAsync(2)(id => universe.chunkStorageActor.getHashForId(id))
     val bytestream = getBytestream(value)
     val withHashes = bytestream.zip(hashes).zipWithIndex
     val future = withHashes.runForeach { case ((bytes, savedHash), index) =>

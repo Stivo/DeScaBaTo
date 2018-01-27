@@ -4,7 +4,7 @@ import java.io.{File, FileOutputStream}
 import java.util.Date
 
 import ch.descabato.core.Universe
-import ch.descabato.core.actors.MetadataActor.BackupDescription
+import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.core_old.{BackupPart, FileAttributes, FolderDescription}
 import ch.descabato.frontend.RestoreConf
@@ -25,7 +25,7 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
 
   def restore(options: RestoreConf, date: Option[Date] = None): Unit = {
     val startup = Await.result(universe.startup(), 1.minute)
-    val metadata = Await.result(universe.backupFileActor.retrieveBackup(date), 1.minute)
+    val metadata = Await.result(universe.metadataStorageActor.retrieveBackup(date), 1.minute)
     if (startup) {
       restoreImpl(options, metadata)
     }
@@ -68,7 +68,7 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
     }
     val stream = new FileOutputStream(restoredFile)
     if (file.fd.size > 0) {
-      val source = hashesForFile(file)
+      val source = chunkIdsForFile(file)
       Await.result(getBytestream(source).runForeach { x =>
         stream.write(x)
       }, 1.hour)

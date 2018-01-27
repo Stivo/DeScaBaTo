@@ -5,7 +5,7 @@ import java.util.Date
 
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
-import ch.descabato.core.actors.MetadataActor.BackupDescription
+import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
 import ch.descabato.core.model.{Block, FileMetadataStored}
 import ch.descabato.core.util.Json
@@ -21,7 +21,7 @@ case object ChunkUnknown extends ChunkIdResult
 case class ChunkIdAssigned(id: Long) extends ChunkIdResult
 case class ChunkFound(id: Long) extends ChunkIdResult
 
-trait BlockStorage extends LifeCycle {
+trait ChunkStorage extends LifeCycle {
   def read(id: Long): Future[BytesWrapper]
 
   def hasAlready(id: Long): Future[Boolean]
@@ -43,7 +43,7 @@ case class FileAlreadyBackedUp(fileMetadata: FileMetadataStored) extends FileAlr
 
 case object Storing extends FileAlreadyBackedupResult
 
-trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEventReceiver {
+trait MetadataStorage extends LifeCycle with TypedActor.PreRestart with MyEventReceiver {
   def retrieveBackup(date: Option[Date] = None): Future[BackupDescription]
 
   def addDirectory(description: FolderDescription): Future[Boolean]

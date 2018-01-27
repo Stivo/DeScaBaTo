@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-class BlockStorageActor(val context: BackupContext) extends BlockStorage with JsonUser {
+class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with JsonUser {
 
   val logger = LoggerFactory.getLogger(getClass)
 

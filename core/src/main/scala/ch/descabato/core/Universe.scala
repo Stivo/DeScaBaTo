@@ -33,21 +33,21 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   private val journalHandlerProps: TypedProps[JournalHandler] = TypedProps.apply(classOf[JournalHandler], new SimpleJournalHandler(context))
   val journalHandler: JournalHandler = TypedActor(system).typedActorOf(journalHandlerProps.withTimeout(5.minutes))
 
-  private val blockStorageProps: TypedProps[BlockStorage] = TypedProps.apply(classOf[BlockStorage], new BlockStorageActor(context))
+  private val chunkStorageProps: TypedProps[ChunkStorage] = TypedProps.apply(classOf[ChunkStorage], new ChunkStorageActor(context))
   private val name = "blockStorageActor"
-  val blockStorageActor: BlockStorage = TypedActor(system).typedActorOf(blockStorageProps.withTimeout(5.minutes), name)
+  val chunkStorageActor: ChunkStorage = TypedActor(system).typedActorOf(chunkStorageProps.withTimeout(5.minutes), name)
 
   context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(journalHandler), journalHandler), MyEvent.globalTopic)
 
-  private val backupFileActorProps: TypedProps[MetadataActor] = TypedProps.apply[MetadataActor](classOf[BackupFileHandler], new MetadataActor(context))
-  val backupFileActor: BackupFileHandler = TypedActor(system).typedActorOf(backupFileActorProps.withTimeout(5.minutes))
+  private val metadataStorageProps: TypedProps[MetadataStorageActor] = TypedProps.apply[MetadataStorageActor](classOf[MetadataStorage], new MetadataStorageActor(context))
+  val metadataStorageActor: MetadataStorage = TypedActor(system).typedActorOf(metadataStorageProps.withTimeout(5.minutes))
 
   private val compressorProps: TypedProps[Compressor] = TypedProps.apply[Compressor](classOf[Compressor], Compressors(config))
   val compressor: Compressor = TypedActor(system).typedActorOf(compressorProps.withTimeout(5.minutes))
 
-  context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(backupFileActor), backupFileActor), MyEvent.globalTopic)
+  context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(metadataStorageActor), metadataStorageActor), MyEvent.globalTopic)
 
-  val actors: Seq[LifeCycle] = Seq(backupFileActor, blockStorageActor)
+  val actors: Seq[LifeCycle] = Seq(metadataStorageActor, chunkStorageActor)
 
   override def startup(): Future[Boolean] = {
     Future.sequence(actors.map(_.startup())).map(_.reduce(_ && _))

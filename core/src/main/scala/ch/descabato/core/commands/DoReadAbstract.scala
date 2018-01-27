@@ -20,13 +20,13 @@ abstract class DoReadAbstract(val universe: Universe) {
   ProgressReporters.addCounter(readBytesCounter)
   ProgressReporters.openGui("Reading", false)
 
-  def hashesForFile(file: FileMetadataStored): Source[Long, NotUsed] = {
+  def chunkIdsForFile(file: FileMetadataStored): Source[Long, NotUsed] = {
     Source.fromIterator[Long](() => file.hashListIds.iterator)
   }
 
   def getBytestream(source: Source[Long, NotUsed]): Source[BytesWrapper, NotUsed] = {
     source.mapAsync(10) { chunkId =>
-      universe.blockStorageActor.read(chunkId)
+      universe.chunkStorageActor.read(chunkId)
     }.mapAsync(10) { bs =>
       Future {
         val out = CompressedStream.decompressToBytes(bs)

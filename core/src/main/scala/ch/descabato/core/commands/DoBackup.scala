@@ -83,24 +83,24 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
 
   private def saveDirectories(dirs: Seq[Path]) = {
     val dirsSaved: Future[Done] = Source.fromIterator[Path](() => dirs.iterator).mapAsync(5) { path =>
-      universe.backupFileActor.addDirectory(FolderDescription(path.toFile))
+      universe.metadataStorageActor.addDirectory(FolderDescription(path.toFile))
     }.runWith(Sink.ignore)
     Await.result(dirsSaved, 1.hours)
   }
 
   def backupFile(path: Path): Future[Done] = {
     val fd = new FileDescription(path.toFile)
-    universe.backupFileActor.hasAlready(fd).flatMap {
+    universe.metadataStorageActor.hasAlready(fd).flatMap {
       case FileNotYetBackedUp =>
         hashAndBackupFile(path, fd)
       case FileAlreadyBackedUp(metadata) =>
         Source.fromIterator[Long](() => metadata.hashListIds.iterator).mapAsync(5) { id =>
-          universe.blockStorageActor.hasAlready(id)
+          universe.chunkStorageActor.hasAlready(id)
         }.fold(true)(_ && _).mapAsync(1) { hasAll =>
           if (hasAll) {
             bytesCounter.maxValue -= fd.size
             bytesCounter += -fd.size
-            universe.backupFileActor.saveFileSameAsBefore(metadata).map(_ => Done)
+            universe.metadataStorageActor.saveFileSameAsBefore(metadata).map(_ => Done)
           } else {
             logger.info(s"File $fd is saved but some blocks are missing, so backing up again")
             hashAndBackupFile(path, fd)
@@ -145,14 +145,14 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }
   }
 
-  private val sendToBlockIndex = Flow[(Block, Long)].mapAsync(5) { case (b, i) =>
-    universe.blockStorageActor.save(b, i)
+  private val sendToChunkStorage = Flow[(Block, Long)].mapAsync(5) { case (b, i) =>
+    universe.chunkStorageActor.save(b, i)
   }
 
   private def newBuffer[T](bufferSize: Int = 100) = Flow[T].buffer(bufferSize, OverflowStrategy.backpressure)
 
   private val assignIds = Flow[Block].mapAsync(5) { x =>
-    universe.blockStorageActor.chunkId(x, true).map { fut =>
+    universe.chunkStorageActor.chunkId(x, true).map { fut =>
       (x, fut)
     }
   }
@@ -163,11 +163,11 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     }.mapAsync(8){ case (block, id) => universe.compressor.compressBlock(block).map(x => (x, id))}
 
   private def createCompressAndSaveBlocks(fd: FileDescription) = {
-    filterNonExistingBlocksAndCompress.via(newBuffer[(Block, Long)](20)).via(sendToBlockIndex).via(mapToUnit())
+    filterNonExistingBlocksAndCompress.via(newBuffer[(Block, Long)](20)).via(sendToChunkStorage).via(mapToUnit())
   }
 
   private def createFileMetadataAndSave(fd: FileDescription) = Flow[Seq[Long]].mapAsync(2) { hashes =>
-      universe.backupFileActor.saveFile(fd, hashes)
+      universe.metadataStorageActor.saveFile(fd, hashes)
   }
 
   private val gatherIds = Flow[(Block, ChunkIdResult)].map(_._2).map {
