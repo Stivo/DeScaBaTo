@@ -4,7 +4,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import ch.descabato.core.actors.MetadataActor.BackupMetaData
+import ch.descabato.core.actors.MetadataActor.BackupMetaDataStored
 import ch.descabato.core.model.StoredChunk
 import ch.descabato.utils.{Hash, Utils}
 
@@ -256,7 +256,7 @@ class FileManager(val usedIdentifiers: Set[String], val config: BackupFolderConf
   val volumeIndex = new FileType[Seq[StoredChunk]]("volumeIndex", true, ".json")
   val hashlists = new FileType[Vector[(Hash, Array[Byte])]]("hashlists", false, ".kvs")
   val backup_old = new FileType[BackupDescription]("backup", true, ".kvs", hasDateC = true, useSubfolder = false)
-  val backup = new FileType[BackupMetaData]("backup", true, ".json", hasDateC = true, useSubfolder = false)
+  val backup = new FileType[BackupMetaDataStored]("backup", true, ".json", hasDateC = true, useSubfolder = false)
   val filesDelta = new FileType[mutable.Buffer[UpdatePart]]("filesdelta", true, ".kvs", hasDateC = true)
   //val index = new FileType[VolumeIndex]("index_", true, ".zip", redundantC = true)
   //  val par2File = new FileType[Parity]("par_", true, ".par2", localC = false, redundantC = true)

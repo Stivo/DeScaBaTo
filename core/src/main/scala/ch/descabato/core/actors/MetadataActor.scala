@@ -4,8 +4,8 @@ import java.io.File
 import java.util.Date
 
 import ch.descabato.core._
-import ch.descabato.core.actors.MetadataActor.BackupMetaData
-import ch.descabato.core.model.{BackupIds, FileMetadata}
+import ch.descabato.core.actors.MetadataActor.{BackupDescription, BackupMetaDataStored}
+import ch.descabato.core.model.{BackupIds, FileMetadata, FolderMetadataStored, HashList}
 import ch.descabato.core_old._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Hash, Utils}
@@ -25,15 +25,16 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
   private var hasFinished = false
 
   private var previous: Map[String, FileMetadata] = Map.empty
-  private var previousDirs: Map[String, FolderDescription] = Map.empty
+  private var previousDirs: Map[String, FolderMetadataStored] = Map.empty
   private var thisBackupNotCheckpointed: Map[String, FileMetadata] = Map.empty
   private var thisBackupCheckpointed: Map[String, FileMetadata] = Map.empty
-  private var thisBackupDirs: Map[String, FolderDescription] = Map.empty
+  private var thisBackupDirs: Map[String, FolderMetadataStored] = Map.empty
 
   private var toBeStored: Set[FileDescription] = Set.empty
 
   def addDirectory(description: FolderDescription): Future[Boolean] = {
-    thisBackupDirs += description.path -> description
+    val stored = FolderMetadataStored(BackupIds.nextId(), description)
+    thisBackupDirs += description.path -> stored
     Future.successful(true)
   }
 
@@ -44,7 +45,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
         loadFile(file) match {
           case Success(data) =>
             previous ++= data.files.map(x => (x.fd.path, x)).toMap
-            previousDirs ++= data.folders.map(x => (x.path, x)).toMap
+            previousDirs ++= data.folders.map(x => (x.folderDescription.path, x)).toMap
             logger.info(s"Loaded metadata from $file, have currently ${previous.size} files from before")
           case Failure(f) =>
             logger.info(s"Found corrupt backup description in $file, deleting it")
@@ -67,11 +68,11 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
     }
   }
 
-  def loadFile(file: File): Try[BackupMetaData] = {
-    readJson[BackupMetaData](file)
+  def loadFile(file: File): Try[BackupMetaDataStored] = {
+    readJson[BackupMetaDataStored](file)
   }
 
-  def retrieveBackup(date: Option[Date] = None): Future[BackupMetaData] = {
+  def retrieveBackup(date: Option[Date] = None): Future[BackupDescription] = {
     Future {
       val filesToLoad = date match {
         case Some(d) =>
@@ -82,7 +83,8 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
         throw new IllegalStateException(s"Did not find any backup files for date $date")
       }
       logger.info(s"Loading backup metadata from $filesToLoad")
-      filesToLoad.map(loadFile).flatMap(_.toOption).reduce(_.merge(_))
+      val stored = filesToLoad.map(loadFile).flatMap(_.toOption).reduce(_.merge(_))
+      BackupDescription(stored.files, stored.folders.map(_.folderDescription))
     }
   }
 
@@ -134,7 +136,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
       val toSave = thisBackupNotCheckpointed ++ thisBackupCheckpointed
       logger.info(s"Writing metadata of ${toSave.values.size} files")
       val file = context.fileManager.backup.nextFile()
-      val metadata = BackupMetaData(toSave.values.toSeq, thisBackupDirs.values.toSeq)
+      val metadata = BackupMetaDataStored(toSave.values.toSeq, thisBackupDirs.values.toSeq)
       writeToJson(file, metadata)
       hasFinished = true
       logger.info("Done Writing metadata, deleting temp files")
@@ -155,7 +157,7 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
           logger.info("Ignoring as files are already written")
         } else {
           val file = context.fileManager.backup.nextFile(temp = true)
-          val metadata = BackupMetaData(thisBackupNotCheckpointed.values.toSeq, thisBackupDirs.values.toSeq)
+          val metadata = BackupMetaDataStored(thisBackupNotCheckpointed.values.toSeq, thisBackupDirs.values.toSeq)
           thisBackupCheckpointed ++= thisBackupNotCheckpointed
           thisBackupNotCheckpointed = Map.empty
           writeToJson(file, metadata)
@@ -168,15 +170,19 @@ class MetadataActor(val context: BackupContext) extends BackupFileHandler with J
 
 object MetadataActor extends Utils {
 
-  case class BackupMetaData(files: Seq[FileMetadata] = Seq.empty,
-                            folders: Seq[FolderDescription] = Seq.empty,
-                            symlinks: Seq[SymbolicLink] = Seq.empty) {
-    def merge(other: BackupMetaData): BackupMetaData = {
+  case class BackupMetaDataStored(files: Seq[FileMetadata] = Seq.empty,
+                                  folders: Seq[FolderMetadataStored] = Seq.empty,
+                                  symlinks: Seq[SymbolicLink] = Seq.empty,
+                                  hashLists: Seq[HashList] = Seq.empty
+                           ) {
+    def merge(other: BackupMetaDataStored): BackupMetaDataStored = {
       logger.info("Merging BackupMetaData")
-      BackupMetaData(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks)
+      BackupMetaDataStored(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks, hashLists ++ other.hashLists)
     }
 
-
   }
+
+  // TODO symlinks
+  case class BackupDescription(files: Seq[FileMetadata], folders: Seq[FolderDescription])
 
 }

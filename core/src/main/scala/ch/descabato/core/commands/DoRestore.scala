@@ -5,7 +5,7 @@ import java.util.Date
 
 import akka.stream.scaladsl.Source
 import ch.descabato.core.Universe
-import ch.descabato.core.actors.MetadataActor.BackupMetaData
+import ch.descabato.core.actors.MetadataActor.BackupDescription
 import ch.descabato.core.model.FileMetadata
 import ch.descabato.core_old.{BackupPart, FileAttributes, FolderDescription}
 import ch.descabato.frontend.RestoreConf
@@ -33,7 +33,7 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
     logger.info("Finished restoring files")
   }
 
-  private def restoreImpl(options: RestoreConf, metadata: BackupMetaData) = {
+  private def restoreImpl(options: RestoreConf, metadata: BackupDescription) = {
     implicit val restoreConf: RestoreConf = options
     val logic = new RestoredPathLogic(metadata.folders, options)
     restoreFolders(logic, metadata.folders)

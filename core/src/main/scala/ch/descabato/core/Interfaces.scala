@@ -5,7 +5,7 @@ import java.util.Date
 
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
-import ch.descabato.core.actors.MetadataActor.BackupMetaData
+import ch.descabato.core.actors.MetadataActor.BackupDescription
 import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
 import ch.descabato.core.model.{Block, FileMetadata}
 import ch.descabato.core.util.Json
@@ -35,7 +35,7 @@ case class FileAlreadyBackedUp(fileMetadata: FileMetadata) extends FileAlreadyBa
 case object Storing extends FileAlreadyBackedupResult
 
 trait BackupFileHandler extends LifeCycle with TypedActor.PreRestart with MyEventReceiver {
-  def retrieveBackup(date: Option[Date] = None): Future[BackupMetaData]
+  def retrieveBackup(date: Option[Date] = None): Future[BackupDescription]
 
   def addDirectory(description: FolderDescription): Future[Boolean]
 
