@@ -1,14 +1,18 @@
 package ch.descabato.core_old
 
 import java.io.File
+import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.stream.Collectors
 
 import ch.descabato.core.actors.MetadataStorageActor.{BackupDescription, BackupMetaDataStored}
 import ch.descabato.core.model.StoredChunk
 import ch.descabato.utils.{Hash, Utils}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.Try
 
 class VolumeIndex extends mutable.HashMap[String, Int]
 
@@ -24,6 +28,136 @@ object Constants {
   def objectEntry(num: Option[Int] = None): String = {
     val add = num.map(x => "_" + x).getOrElse("")
     s"content$add.obj"
+  }
+}
+
+trait FileTypeNew {
+  def getFiles(): Seq[File]
+
+  def matches(file: File): Boolean
+
+  def isMetadata(): Boolean = true
+
+  def nextFile(): File
+}
+
+trait NumberedFileTypeNew extends FileTypeNew {
+  def numberOfFile(file: File): Int
+
+  def fileForNumber(number: Int): File
+}
+
+trait DatedFileTypeNew extends FileTypeNew {
+  def dateOfFile(file: File): Date
+}
+
+class FileManagerNew(config: BackupFolderConfiguration) {
+  val volume = new StandardNumberedFileType("volume", "json.gz", config)
+  val volumeIndex = new StandardNumberedFileType("volumeIndex", "json.gz", config)
+  val metadata = new StandardNumberedFileType("metadata", "json.gz", config)
+  val backup = new StandardDatedFileType("backup", "json.gz", config)
+
+  private val filetypes = Seq(volume, volumeIndex, metadata, backup)
+
+  def allFiles(): Seq[File] = {
+    filetypes.flatMap(_.getFiles())
+  }
+
+  def fileTypeForFile(file: File): Option[FileTypeNew] = {
+    filetypes.find(_.matches(file))
+  }
+}
+
+/**
+  * Pattern here is: $name/$name_$range/$name_$number
+  */
+class StandardNumberedFileType(name: String, suffix: String, config: BackupFolderConfiguration) extends NumberedFileTypeNew {
+  val mainFolder = new File(config.folder, name)
+  val regex = s"${name}_[0-9]+"
+  val regexWithSuffix = s"${regex}\\.${suffix}"
+
+  val filesPerFolder = 1000
+
+  override def numberOfFile(file: File): Int = {
+    require(matches(file))
+    file.getName.drop(name.length + 1).takeWhile(_.isDigit).toInt
+  }
+
+  override def fileForNumber(number: Int): File = {
+    val subfolderNumber = number / filesPerFolder
+    val nameNumber = f"${number}%06d"
+    new File(mainFolder, s"${name}_$subfolderNumber/${name}_${nameNumber}.${suffix}")
+  }
+
+  override def getFiles(): Seq[File] = {
+    if (mainFolder.exists()) {
+      val files = Files.walk(mainFolder.toPath).collect(Collectors.toList())
+      files.asScala.map(_.toFile).filter(matches)
+    } else {
+      Seq.empty
+    }
+  }
+
+  override def matches(file: File): Boolean = {
+    val nameMatches = file.getName.matches(regexWithSuffix)
+    val parentMatches = file.getParentFile.getName.matches(regex)
+    val parentsParentMatches = file.getParentFile.getParentFile.getName == name
+    nameMatches && parentMatches && parentsParentMatches
+  }
+
+  override def nextFile(): File = {
+    if (mainFolder.exists()) {
+      val last = mainFolder.listFiles().filter(_.isDirectory).filter(x => x.getName.matches(regex)).sorted.last
+      val number = numberOfFile(last.listFiles().filter(matches).sorted.last)
+      fileForNumber(number + 1)
+    } else {
+      fileForNumber(0)
+    }
+  }
+}
+
+/**
+  * Pattern here is
+  * $name_$date.$suffix
+  */
+class StandardDatedFileType(name: String, suffix: String, config: BackupFolderConfiguration) extends DatedFileTypeNew {
+
+  private val dateFormat = "yyyy-MM-dd.HHmmss"
+  private val dateFormatter = new SimpleDateFormat(dateFormat)
+
+  def newestFile(): File = {
+    getFiles().sortBy(_.getName).last
+  }
+
+  def forDate(d: Date): File = {
+    val files = getFiles().filter(x => dateOfFile(x) == d)
+    require(files.size == 1)
+    files.head
+  }
+
+  override def dateOfFile(file: File): Date = {
+    require(matches(file))
+    val date = file.getName.drop(name.length + 1).take(dateFormat.length)
+    dateFormatter.parse(date)
+  }
+
+  override def getFiles(): Seq[File] = {
+    config.folder.listFiles().filter(_.isFile).filter(matches)
+  }
+
+  override def matches(file: File): Boolean = {
+    val fileName = file.getName
+    if (fileName.startsWith(name + "_") && fileName.endsWith("." + suffix)) {
+      val dateString = fileName.drop(name.length + 1).dropRight(suffix.length + 1)
+      Try(dateFormatter.parse(dateString)).isSuccess
+    } else {
+      false
+    }
+  }
+
+  override def nextFile(): File = {
+    val date = new Date()
+    new File(config.folder, s"${name}_${dateFormatter.format(date)}.$suffix")
   }
 }
 

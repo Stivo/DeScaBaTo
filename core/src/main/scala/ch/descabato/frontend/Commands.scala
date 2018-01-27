@@ -315,11 +315,10 @@ class RestoreCommand extends BackupRelatedCommand {
     validateFilename(t.restoreInfo)
     withUniverse(conf) {
       universe =>
-        //val strings = universe.journalHandler().usedIdentifiers()
-        val fm = new FileManager(Set.empty, universe.config)
+        val fm = universe.fileManagerNew
         val restore = new DoRestore(universe)
         if (t.chooseDate()) {
-          val options = fm.getBackupDatesOld.zipWithIndex
+          val options = fm.backup.getFiles().map(fm.backup.dateOfFile).zipWithIndex
           options.foreach {
             case (date, num) => println(s"[$num]: $date")
           }
@@ -334,7 +333,7 @@ class RestoreCommand extends BackupRelatedCommand {
             }
             throw new IllegalArgumentException("Backup not found")
           }
-          restore.restoreFromDate(t, fm.backup.date(backupsFound.head))
+          restore.restoreFromDate(t, fm.backup.dateOfFile(backupsFound.head))
 
         } else {
           restore.restore(t)

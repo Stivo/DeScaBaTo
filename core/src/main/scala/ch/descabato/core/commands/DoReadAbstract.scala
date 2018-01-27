@@ -21,7 +21,7 @@ abstract class DoReadAbstract(val universe: Universe) {
   ProgressReporters.openGui("Reading", false)
 
   def chunkIdsForFile(file: FileMetadataStored): Source[Long, NotUsed] = {
-    Source.fromIterator[Long](() => file.hashListIds.iterator)
+    Source.fromIterator[Long](() => file.chunkIds.iterator)
   }
 
   def getBytestream(source: Source[Long, NotUsed]): Source[BytesWrapper, NotUsed] = {

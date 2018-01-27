@@ -4,7 +4,7 @@ import java.io.{File, RandomAccessFile}
 import java.nio.channels.FileLock
 
 import ch.descabato.core_old.kvstore.KvStoreWriter
-import ch.descabato.core_old.{BackupInUseException, BlockingOperation, FileType}
+import ch.descabato.core_old.{BackupInUseException, BlockingOperation, FileTypeNew}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Hash, Utils}
 
@@ -100,7 +100,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
 
   def cleanUnfinishedFiles(): BlockingOperation = {
     checkLock()
-    var files = fileManager.allFiles().filter(_.isFile()).map(config.relativePath).toSet
+    var files = fileManagerNew.allFiles().filter(_.isFile()).map(config.relativePath).toSet
     randomAccessFile.synchronized {
       randomAccessFile.seek(0)
       var line: String = null
@@ -165,7 +165,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
     }
   }
 
-  def finishedFile(file: File, filetype: FileType[_], journalUpdate: Boolean = false, md5Hash: Hash): BlockingOperation = {
+  def finishedFile(file: File, filetype: FileTypeNew, journalUpdate: Boolean = false, md5Hash: Hash): BlockingOperation = {
     checkLock()
     val entry = JournalEntries.fileFinished(config.relativePath(file), md5Hash)
     writeEntrySynchronized(entry)

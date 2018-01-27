@@ -83,7 +83,7 @@ class BackupFileObject(name: AbstractFileName, index: VfsIndex, fs: AbstractFile
 
   protected override def doGetLastModifiedTime() = {
     if (backupPart.attrs != null) {
-      backupPart.attrs.get("lastModifiedTime").toString.toLong
+      backupPart.attrs.lastModifiedTime.toString.toLong
     } else {
       new Date().getTime()
     }

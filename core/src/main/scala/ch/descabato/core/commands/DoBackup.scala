@@ -94,7 +94,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
       case FileNotYetBackedUp =>
         hashAndBackupFile(path, fd)
       case FileAlreadyBackedUp(metadata) =>
-        Source.fromIterator[Long](() => metadata.hashListIds.iterator).mapAsync(5) { id =>
+        Source.fromIterator[Long](() => metadata.chunkIds.iterator).mapAsync(5) { id =>
           universe.chunkStorageActor.hasAlready(id)
         }.fold(true)(_ && _).mapAsync(1) { hasAll =>
           if (hasAll) {

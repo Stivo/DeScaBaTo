@@ -10,6 +10,6 @@ case class FileMetadataStored(id: Long, fd: FileDescription,
   def path = fd.path
 
   override def checkIfMatch(other: FileDescription): Boolean = {
-    fd.path == other.path && fd.size == other.size && fd.attrs.get("lastModifiedTime") == other.attrs.get("lastModifiedTime")
+    fd.path == other.path && fd.size == other.size && fd.attrs.lastModifiedTime == other.attrs.lastModifiedTime
   }
 }

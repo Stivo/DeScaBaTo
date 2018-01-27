@@ -48,7 +48,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
     assert(fid === fidAfter)
     assert(fid.hash === fidAfter.hash)
     assert(fid.attrs.asScala.keys === fidAfter.attrs.asScala.keys)
-    fidAfter.attrs.asScala.keys should contain ("lastModifiedTime")
+    fidAfter.attrs.asScala.keys should contain (FileAttributes.lastModified)
     chainMap.map(_._1) should equal (writeAndRead(ser, chainMap).map(_._1))
     assert(fod === writeAndRead(ser, fod))
     assert(symLink === writeAndRead(ser, symLink))

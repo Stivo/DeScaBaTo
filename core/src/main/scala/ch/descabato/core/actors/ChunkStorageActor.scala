@@ -27,7 +27,7 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   private var checkpointed: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
   private var notCheckpointed: FastHashMap[StoredChunk] = new FastHashMap[StoredChunk]()
 
-  private var _currentWriter: VolumeWriteActor = null
+  private var _currentWriter: (VolumeWriteActor, File) = null
 
   val headroomInVolume = 1000
 
@@ -45,17 +45,18 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   }
 
   private def newWriter(): Unit = {
-    val index = context.fileManager.volumeIndex
+    val index = context.fileManagerNew.volumeIndex
     val file = index.nextFile()
-    val indexNumber = index.numberOf(file)
-    _currentWriter = new VolumeWriteActor(context, context.fileManager.volume.fileForNumber(indexNumber))
+    val indexNumber = index.numberOfFile(file)
+    val volumeFile = context.fileManagerNew.volume.fileForNumber(indexNumber)
+    _currentWriter = (new VolumeWriteActor(context, volumeFile), volumeFile)
   }
 
   def startup(): Future[Boolean] = {
     Future {
       val measure = new StandardMeasureTime
       deleteVolumesWithoutIndexes()
-      for (file <- context.fileManager.volumeIndex.getFiles()) {
+      for (file <- context.fileManagerNew.volumeIndex.getFiles()) {
         readJson[Seq[StoredChunk]](file) match {
           case Success(seq) =>
             checkpointed ++= seq.map(x => (x.hash, x))
@@ -77,11 +78,11 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   }
 
   private def deleteVolumesWithoutIndexes() = {
-    val indexes = context.fileManager.volumeIndex.getFiles().map(x =>
-      (context.fileManager.volumeIndex.numberOf(x), x)
+    val indexes = context.fileManagerNew.volumeIndex.getFiles().map(x =>
+      (context.fileManagerNew.volumeIndex.numberOfFile(x), x)
     ).toMap
-    val volumes = context.fileManager.volume.getFiles().map(x =>
-      (context.fileManager.volume.numberOf(x), x)
+    val volumes = context.fileManagerNew.volume.getFiles().map(x =>
+      (context.fileManagerNew.volume.numberOfFile(x), x)
     ).toMap
     for ((volumeIndex, volume) <- volumes) {
       if (!indexes.safeContains(volumeIndex)) {
@@ -138,13 +139,13 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   }
 
   private def finishVolumeAndCreateIndex() = {
-    val hashFuture = currentWriter.finish().flatMap(_ => currentWriter.md5Hash)
-    val filename = currentWriter.filename
+    val hashFuture = currentWriter._1.finish().flatMap(_ => currentWriter._1.md5Hash)
+    val filename = currentWriter._1.filename
     val toSave = notCheckpointed.filter { case (_, block) =>
       block.file == filename
     }
     val hash = Await.result(hashFuture, 10.minutes)
-    context.sendFileFinishedEvent(currentWriter.file, hash)
+    context.sendFileFinishedEvent(currentWriter._2, hash)
     val indexFile: File = computeIndexFileForVolume()
     writeToJson(indexFile, toSave.values.toSeq)
     checkpointed ++= toSave
@@ -155,8 +156,8 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   }
 
   private def computeIndexFileForVolume() = {
-    val numberOfVolume = context.fileManager.volume.numberOf(currentWriter.file)
-    val volumeIndex = context.fileManager.volumeIndex
+    val numberOfVolume = context.fileManagerNew.volume.numberOfFile(currentWriter._2)
+    val volumeIndex = context.fileManagerNew.volumeIndex
     volumeIndex.fileForNumber(numberOfVolume)
   }
 
@@ -166,8 +167,8 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
       if (blockCanNotFitAnymoreIntoCurrentWriter(block)) {
         finishVolumeAndCreateIndex()
       }
-      val filePosition = currentWriter.saveBlock(block)
-      val storedChunk = StoredChunk(id, currentWriter.filename, block.hash, filePosition.offset, filePosition.length)
+      val filePosition = currentWriter._1.saveBlock(block)
+      val storedChunk = StoredChunk(id, currentWriter._1.filename, block.hash, filePosition.offset, filePosition.length)
       require(!assignedIds.safeContains(id), s"Should not contain $id")
       alreadyAssignedIds -= block.hash
       assignedIds += id -> storedChunk
@@ -180,7 +181,7 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   }
 
   private def blockCanNotFitAnymoreIntoCurrentWriter(block: Block) = {
-    currentWriter.currentPosition() + block.compressed.length + headroomInVolume > config.volumeSize.bytes
+    currentWriter._1.currentPosition() + block.compressed.length + headroomInVolume > config.volumeSize.bytes
   }
 
   private var _readers: Map[String, VolumeReader] = Map.empty

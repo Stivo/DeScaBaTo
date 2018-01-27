@@ -88,7 +88,7 @@ trait JsonUser {
     val compressed: BytesWrapper = CompressedStream.compress(new BytesWrapper(bytes), CompressionMode.gzip)
     writer.write(compressed)
     writer.finish()
-    val filetype = context.fileManager.getFileType(file)
+    val filetype = context.fileManagerNew.fileTypeForFile(file)
     context.sendFileFinishedEvent(writer)
   }
 }

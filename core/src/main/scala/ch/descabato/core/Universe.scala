@@ -6,7 +6,7 @@ import java.util.concurrent.{ExecutorService, Executors}
 import akka.actor.{ActorSystem, TypedActor, TypedProps}
 import akka.stream.ActorMaterializer
 import ch.descabato.core.actors._
-import ch.descabato.core_old.{BackupFolderConfiguration, FileManager}
+import ch.descabato.core_old.{BackupFolderConfiguration, FileManagerNew}
 import ch.descabato.utils.Utils
 
 import scala.concurrent.duration._
@@ -27,8 +27,8 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
 
   val eventBus = new MyEventBus()
 
-  val fileManager = new FileManager(Set.empty, config)
-  val context = new BackupContext(config, system, fileManager, ex, eventBus)
+  val fileManagerNew = new FileManagerNew(config)
+  val context = new BackupContext(config, system, fileManagerNew, ex, eventBus)
 
   private val journalHandlerProps: TypedProps[JournalHandler] = TypedProps.apply(classOf[JournalHandler], new SimpleJournalHandler(context))
   val journalHandler: JournalHandler = TypedActor(system).typedActorOf(journalHandlerProps.withTimeout(5.minutes))

@@ -38,8 +38,8 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   def startup(): Future[Boolean] = {
     Future {
       val mt = new StandardMeasureTime()
-      val metadata = context.fileManager.metadata
-      val files = metadata.getFiles().sortBy(x => metadata.numberOf(x))
+      val metadata = context.fileManagerNew.metadata
+      val files = metadata.getFiles().sortBy(x => metadata.numberOfFile(x))
       for (file <- files) {
         readJson[BackupMetaDataStored](file) match {
           case Success(data) =>
@@ -57,14 +57,11 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   def retrieveBackup(date: Option[Date] = None): Future[BackupDescription] = {
     val filesToLoad = date match {
       case Some(d) =>
-        context.fileManager.getBackupForDate(d)
-      case None => context.fileManager.getLastBackup()
-    }
-    if (filesToLoad.isEmpty || filesToLoad.size > 1) {
-      throw new IllegalStateException(s"Did not find any backup files for date $date or too many")
+        context.fileManagerNew.backup.forDate(d)
+      case None => context.fileManagerNew.backup.newestFile()
     }
     logger.info(s"Loading backup metadata from $filesToLoad")
-    val tryToLoad = readJson[BackupDescriptionStored](filesToLoad(0)).flatMap { bds =>
+    val tryToLoad = readJson[BackupDescriptionStored](filesToLoad).flatMap { bds =>
       Try(allKnownStoredPartsMemory.putTogether(bds))
     }
     Future.fromTry(tryToLoad)
@@ -107,7 +104,7 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   override def finish(): Future[Boolean] = {
     if (hasChanged) {
       checkpointMetadata()
-      val file = context.fileManager.backup.nextFile()
+      val file = context.fileManagerNew.backup.nextFile()
       writeToJson(file, thisBackup)
       hasFinished = true
     }
@@ -119,14 +116,14 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   }
 
   def checkpointMetadata(): Unit = {
-    val file = context.fileManager.metadata.nextFile()
+    val file = context.fileManagerNew.metadata.nextFile()
     writeToJson(file, notCheckpointed)
     notCheckpointed = new BackupMetaDataStored()
   }
 
   override def receive(myEvent: MyEvent): Unit = {
     myEvent match {
-      case FileFinished(context.fileManager.volume, x, false, _) =>
+      case FileFinished(context.fileManagerNew.volume, x, false, _) =>
         logger.info(s"Got volume rolled event to $x")
         if (hasFinished) {
           logger.info("Ignoring as files are already written")

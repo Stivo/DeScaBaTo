@@ -20,29 +20,36 @@ import scala.collection.JavaConverters._
 case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
 
   def this() = this(null)
+
   @JsonIgnore
   var configFileName: String = prefix + "backup.json"
   var version: String = ch.descabato.version.BuildInfo.version
   var serializerType = "json"
+
   @JsonIgnore
   def serialization(typ: String = serializerType): AbstractJacksonSerialization = typ match {
     case "smile" => new SmileSerialization
     case "json" => new JsonSerialization
   }
+
   var keyLength = 128
   var compressor = CompressionMode.smart
+
   def hashLength: Int = createMessageDigest().getDigestLength()
+
   var hashAlgorithm = "MD5"
+
   @JsonIgnore def createMessageDigest(): MessageDigest = MessageDigest.getInstance(hashAlgorithm)
+
   var blockSize: Size = Size("16Kb")
   var volumeSize: Size = Size("100Mb")
   var threads: Int = 1
-//  val useDeltas = false
+  //  val useDeltas = false
   var hasPassword: Boolean = passphrase.isDefined
-//  var renameDetection = true
-//  var redundancyEnabled = false
-//  var metadataRedundancy: Int = 20
-//  var volumeRedundancy: Int = 5
+  //  var renameDetection = true
+  //  var redundancyEnabled = false
+  //  var metadataRedundancy: Int = 20
+  //  var volumeRedundancy: Int = 5
   var saveSymlinks: Boolean = true
   var createIndexes: Boolean = true
   var ignoreFile: Option[File] = None
@@ -77,13 +84,14 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
 
 }
 
-
 class FileAttributes extends util.HashMap[String, Any] with Utils {
 
+  def lastModifiedTime = get(FileAttributes.lastModified)
+
   def hasBeenModified(file: File): Boolean = {
-    val fromMap = get("lastModifiedTime")
+    val fromMap = lastModifiedTime
     val lastMod: Long = {
-      Files.getAttribute(file.toPath(), "lastModifiedTime", LinkOption.NOFOLLOW_LINKS) match {
+      Files.getAttribute(file.toPath(), FileAttributes.lastModified, LinkOption.NOFOLLOW_LINKS) match {
         case x: FileTime => x.toMillis()
         case _ => l.warn("Did not find filetime for " + file); 0L
       }
@@ -117,6 +125,7 @@ object FileAttributes extends Utils {
 
   def apply(path: Path): FileAttributes = {
     val out = new FileAttributes()
+
     def add(attr: String, o: Any) = o match {
       case ft: FileTime => out.put(attr, ft.toMillis())
       case x: Boolean => out.put(attr, x)
@@ -164,12 +173,12 @@ object FileAttributes extends Utils {
       if (dos.isHidden) {
         add("dos:hidden", true)
       }
-//      if (dos.isArchive) {
-//        add("dos:archive", true)
-//      }
-//      if (dos.isSystem) {
-//        add("dos:system", true)
-//      }
+      //      if (dos.isArchive) {
+      //        add("dos:archive", true)
+      //      }
+      //      if (dos.isSystem) {
+      //        add("dos:system", true)
+      //      }
     } catch {
       case e: UnsupportedOperationException => // ignore, not a dos system
     }
@@ -177,14 +186,16 @@ object FileAttributes extends Utils {
 
   def restore(attrs: FileAttributes, file: File) {
     val path = file.toPath()
+
     def lookupService = file.toPath().getFileSystem().getUserPrincipalLookupService()
+
     lazy val posix = Files.getFileAttributeView(path, classOf[PosixFileAttributeView])
     for ((name, o) <- attrs.asScala) {
       setAttribute(file, path, lookupService, posix, name, o)
     }
-    val value = attrs.get("lastModifiedTime")
+    val value = attrs.lastModifiedTime
     if (value != null) {
-      setAttribute(file, path, lookupService, posix,"lastModifiedTime", value)
+      setAttribute(file, path, lookupService, posix, FileAttributes.lastModified, value)
     }
   }
 
@@ -219,8 +230,11 @@ object FileAttributes extends Utils {
 
 trait UpdatePart {
   def size: Long
+
   def path: String
+
   @JsonIgnore def name: String = pathParts.last
+
   @JsonIgnore def pathParts: Array[String] = path.split("[\\\\/]")
 }
 
@@ -240,10 +254,12 @@ case class FileDescription(path: String, size: Long, attrs: FileAttributes, @Jso
   def this(file: File) = {
     this(file.getAbsolutePath, file.length(), FileAttributes(file.toPath))
   }
+
   @JsonIgnore
   var hasHashList: Boolean = false
 
   @JsonIgnore def isFolder = false
+
   override def equals(x: Any): Boolean = x match {
     case FileDescription(p, s, attributes, h) if p == path && s == size && attributes == attrs => hash === h
     case _ => false
@@ -264,7 +280,7 @@ class Block(val id: BlockId, val content: BytesWrapper) {
 }
 
 object FolderDescription {
-  def apply(dir: File): FolderDescription =  {
+  def apply(dir: File): FolderDescription = {
     if (!dir.isDirectory) throw new IllegalArgumentException(s"Must be a directory, $dir is a file")
     FolderDescription(dir.toString(), FileAttributes(dir.toPath))
   }
@@ -272,13 +288,15 @@ object FolderDescription {
 
 case class FolderDescription(path: String, attrs: FileAttributes) extends BackupPart {
   @JsonIgnore val size = 0L
+
   @JsonIgnore def isFolder = true
 }
 
 trait BackupPart extends UpdatePart {
   @JsonIgnore def isFolder: Boolean
-  
+
   def attrs: FileAttributes
+
   def size: Long
 
   def applyAttrsTo(f: File) {
@@ -289,6 +307,7 @@ trait BackupPart extends UpdatePart {
 
 case class SymbolicLink(path: String, linkTarget: String, attrs: FileAttributes) extends BackupPart {
   def size = 0L
+
   def isFolder = false
 }
 
@@ -297,9 +316,11 @@ case class BackupDescriptionOld(files: Vector[FileDescription] = Vector.empty,
                                 symlinks: Vector[SymbolicLink] = Vector.empty, deleted: Vector[FileDeleted] = Vector.empty) {
   def merge(later: BackupDescriptionOld): BackupDescriptionOld = {
     val set = later.deleted.map(_.path).toSet ++ later.asMap.keySet
+
     def remove[T <: BackupPart](x: Vector[T]) = {
       x.filterNot(bp => set safeContains bp.path)
     }
+
     BackupDescriptionOld(remove(files) ++ later.files, remove(folders) ++ later.folders,
       remove(symlinks) ++ later.symlinks, later.deleted)
   }
@@ -308,20 +329,20 @@ case class BackupDescriptionOld(files: Vector[FileDescription] = Vector.empty,
 
   @JsonIgnore lazy val asMap: Map[String, BackupPart] = {
     var map = Map[String, BackupPart]()
-    allParts.foreach {x => map += ((x.path, x))}
+    allParts.foreach { x => map += ((x.path, x)) }
     map
   }
-  
-  def + (x: UpdatePart): BackupDescriptionOld = x match {
+
+  def +(x: UpdatePart): BackupDescriptionOld = x match {
     case x: FileDescription => this.copy(files = files :+ x)
     case x: FolderDescription => this.copy(folders = folders :+ x)
     case x: SymbolicLink => this.copy(symlinks = symlinks :+ x)
   }
-  
+
   @JsonIgnore def size: Int = files.size + folders.size + symlinks.size
-  
+
   @JsonIgnore def sizeWithDeleted: Int = size + deleted.size
-  
+
   @JsonIgnore def isEmpty(): Boolean = sizeWithDeleted == 0
 }
 
