@@ -16,7 +16,7 @@ object Json {
 
   val mapper = new CustomObjectMapper()
   val smileMapper = new CustomObjectMapper(new SmileFactory())
-
+/*
   def main(args: Array[String]): Unit = {
     tryMap
   }
@@ -42,6 +42,7 @@ object Json {
     val deserialized = mapper.readValue[T](json)
     println(deserialized)
   }
+  */
 }
 
 class CustomObjectMapper(val jsonFactory: JsonFactory = new JsonFactory()) extends ObjectMapper(jsonFactory) with ScalaObjectMapper {
