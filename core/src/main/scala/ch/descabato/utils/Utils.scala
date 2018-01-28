@@ -52,9 +52,11 @@ class Hash private (val bytes: Array[Byte]) extends AnyVal {
   def grouped(config: BackupFolderConfiguration): Iterator[Array[Byte]] = bytes.grouped(config.hashLength)
 }
 
-object BytesWrapper {
+object BytesWrapper extends Utils {
 
   def apply(bytes: Array[Byte], offset: Int = 0, length: Int = -1): BytesWrapper = {
+    require(bytes != null)
+    require(length < bytes.length || length < 0)
     val correctLength = if (length < 0) bytes.length - offset else length
     new BytesWrapper(bytes, offset, correctLength)
   }

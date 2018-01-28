@@ -1,5 +1,6 @@
 package ch.descabato;
 
+import ch.descabato.utils.ByteArrayPool$;
 import ch.descabato.utils.BytesWrapper;
 import ch.descabato.utils.BytesWrapper$;
 import org.slf4j.Logger;
@@ -62,7 +63,7 @@ public class CustomByteArrayOutputStream extends OutputStream {
      */
     private void ensureCapacity(int minCapacity) {
         if (buf == null) {
-            buf = new byte[initialSize];
+            buf = ByteArrayPool$.MODULE$.allocate(initialSize);
         }
         // overflow-conscious code
         if (minCapacity - buf.length > 0)
@@ -86,8 +87,10 @@ public class CustomByteArrayOutputStream extends OutputStream {
                 throw new OutOfMemoryError();
             newCapacity = Integer.MAX_VALUE;
         }
-        byte[] newBuf = new byte[newCapacity];
+        byte[] newBuf = ByteArrayPool$.MODULE$.allocate(newCapacity);;
+
         System.arraycopy(buf, 0, newBuf, 0, count);
+        ByteArrayPool$.MODULE$.recycle(buf);
         buf = newBuf;
     }
 

@@ -7,7 +7,7 @@ import akka.actor.{ActorSystem, TypedActor, TypedProps}
 import akka.stream.ActorMaterializer
 import ch.descabato.core.actors._
 import ch.descabato.core_old.{BackupFolderConfiguration, FileManagerNew}
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{ByteArrayPool, Utils}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -69,6 +69,7 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
         Thread.sleep(500)
       }
       _finished = true
+      ByteArrayPool.reportRecycling()
     }
     Future.successful(true)
   }

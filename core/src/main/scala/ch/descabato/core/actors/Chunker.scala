@@ -3,6 +3,7 @@ package ch.descabato.core.actors
 import akka.stream._
 import akka.stream.stage._
 import akka.util.ByteString
+import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.hashes.BuzHash
 import ch.descabato.utils.BytesWrapper
 
@@ -15,7 +16,7 @@ class Chunker(minChunkSize: Int = 128 * 1024,
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = new GraphStageLogic(shape) {
 
-    private var byteString = ByteString.empty
+    private val outputStream = new CustomByteArrayOutputStream(minChunkSize * 5)
     private val buzHash = new BuzHash(64)
 
     setHandler(out, new OutHandler {
@@ -33,8 +34,8 @@ class Chunker(minChunkSize: Int = 128 * 1024,
     setHandler(in, new InHandler {
 
       private def emitNow(): Unit = {
-        emit(out, BytesWrapper(byteString.toArray))
-        byteString = ByteString.empty
+        emit(out, outputStream.toBytesWrapper)
+        outputStream.reset()
         buzHash.reset()
       }
 
@@ -44,17 +45,17 @@ class Chunker(minChunkSize: Int = 128 * 1024,
         var pos = 0
         val end = array.length
         while (pos < end) {
-          val remainingBytes = Math.min(maxChunkSize - byteString.length, array.length - pos)
+          val remainingBytes = Math.min(maxChunkSize - outputStream.size(), array.length - pos)
           val boundaryPosOrNegative = buzHash.updateAndReportBoundary(array, pos, remainingBytes, bits)
           val readBytes = if (boundaryPosOrNegative >= 0) boundaryPosOrNegative else remainingBytes
-          byteString = byteString ++ chunk.slice(pos, pos + readBytes)
+          outputStream.write(array, pos, readBytes)
           pos += readBytes
           if (boundaryPosOrNegative >= 0) {
-            if (byteString.length >= minChunkSize) {
+            if (outputStream.size() >= minChunkSize) {
               emitNow()
             }
           } else {
-            if (maxChunkSize <= byteString.length) {
+            if (maxChunkSize <= outputStream.size()) {
               emitNow()
             }
           }
