@@ -18,7 +18,6 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
 
   import context.executionContext
 
-  private var hasChanged = false
   private var hasFinished = false
 
   private var allKnownStoredPartsMemory = new AllKnownStoredPartsMemory()
@@ -86,7 +85,6 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
         Future.successful(FileAlreadyBackedUp(metadata.get.asInstanceOf[FileMetadataStored]))
       } else {
         toBeStored += fd
-        hasChanged = true
         Future.successful(FileNotYetBackedUp)
       }
     }
@@ -94,7 +92,6 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
 
   override def saveFile(fileDescription: FileDescription, hashList: Seq[Long]): Future[Boolean] = {
     // TODO check if we have file already under another id and reuse it if possible
-    hasChanged = true
     val id = BackupIds.nextId()
     val metadata = FileMetadataStored(id, fileDescription, hashList)
     allKnownStoredPartsMemory += metadata
@@ -110,12 +107,12 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   }
 
   override def finish(): Future[Boolean] = {
-    if (hasChanged) {
+    if (notCheckpointed.files.nonEmpty || notCheckpointed.folders.nonEmpty) {
       checkpointMetadata()
-      val file = context.fileManagerNew.backup.nextFile()
-      writeToJson(file, thisBackup)
-      hasFinished = true
     }
+    val file = context.fileManagerNew.backup.nextFile()
+    writeToJson(file, thisBackup)
+    hasFinished = true
     Future.successful(true)
   }
 
@@ -167,6 +164,8 @@ object MetadataStorageActor extends Utils {
       BackupDescription(files, folders)
     }
 
+    // I want to do operator overloading here, scalastyle doesn't agree
+    // scalastyle:off
     def +=(storedPart: StoredPart): Unit = {
       _mapById += storedPart.id -> storedPart
       storedPart match {
@@ -192,12 +191,12 @@ object MetadataStorageActor extends Utils {
       BackupIds.maxId(maxId)
     }
 
+    // scalastyle:off
+
     def mapById = _mapById
 
     def mapByPath = _mapByPath
-
   }
-
 
   // TODO symlinks
   case class BackupDescription(files: Seq[FileMetadataStored], folders: Seq[FolderDescription])
