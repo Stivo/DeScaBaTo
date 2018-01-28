@@ -4,7 +4,7 @@ import java.io.File
 
 import akka.actor.{TypedActor, TypedProps}
 import ch.descabato.core._
-import ch.descabato.core.model.{Block, ChunkIds, StoredChunk}
+import ch.descabato.core.model.{ChunkIds, CompressedBlock, StoredChunk}
 import ch.descabato.core_old.{BackupFolderConfiguration, Size, StandardMeasureTime}
 import ch.descabato.frontend.{ProgressReporters, StandardByteCounter}
 import ch.descabato.utils.Implicits._
@@ -159,7 +159,7 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
     volumeIndex.fileForNumber(numberOfVolume)
   }
 
-  override def save(block: Block, id: Long): Future[Boolean] = {
+  override def save(block: CompressedBlock, id: Long): Future[Boolean] = {
     if (notCheckpointed.get(block.hash).orElse(checkpointed.get(block.hash)).isEmpty) {
       require(alreadyAssignedIds(block.hash) == id)
       if (blockCanNotFitAnymoreIntoCurrentWriter(block)) {
@@ -178,7 +178,7 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
     Future.successful(true)
   }
 
-  private def blockCanNotFitAnymoreIntoCurrentWriter(block: Block) = {
+  private def blockCanNotFitAnymoreIntoCurrentWriter(block: CompressedBlock) = {
     currentWriter._1.currentPosition() + block.compressed.length + headroomInVolume > config.volumeSize.bytes
   }
 

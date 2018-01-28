@@ -7,7 +7,7 @@ import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
-import ch.descabato.core.model.{Block, FileMetadataStored}
+import ch.descabato.core.model.{Block, CompressedBlock, FileMetadataStored}
 import ch.descabato.core.util.Json
 import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription, PasswordWrongException}
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
@@ -32,7 +32,7 @@ trait ChunkStorage extends LifeCycle {
 
   def chunkId(hash: Hash, assignIdIfNotFound: Boolean): Future[ChunkIdResult]
 
-  def save(block: Block, id: Long): Future[Boolean]
+  def save(block: CompressedBlock, id: Long): Future[Boolean]
 }
 
 sealed trait FileAlreadyBackedupResult

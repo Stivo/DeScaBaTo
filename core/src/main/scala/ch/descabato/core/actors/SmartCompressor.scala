@@ -1,9 +1,9 @@
 package ch.descabato.core.actors
 
-import ch.descabato.core.model.Block
+import ch.descabato.core.model.{Block, CompressedBlock}
 import ch.descabato.core_old.BackupFolderConfiguration
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{CompressedStream, Utils}
+import ch.descabato.utils.Utils
 import ch.descabato.{CompressionMode, TimingUtil}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -24,15 +24,14 @@ object Compressors {
 }
 
 trait Compressor {
-  def compressBlock(block: Block): Future[Block]
+  def compressBlock(block: Block): Future[CompressedBlock]
   def report(): Unit
 }
 
 class SimpleCompressor(val mode: CompressionMode) extends Compressor {
-  override def compressBlock(block: Block): Future[Block] = {
+  override def compressBlock(block: Block): Future[CompressedBlock] = {
     Future {
-      block.compressed = CompressedStream.compress(block.content, mode)
-      block
+      block.compress(mode)
     }
   }
 
@@ -76,7 +75,7 @@ class Smart3Compressor extends Compressor with Utils {
       private var _compressedBytes = 0
       private var _totalTime = 0L
 
-      def blockArrived(block: Block, time: Long): Unit = {
+      def blockArrived(block: CompressedBlock, time: Long): Unit = {
         _compressedBytes += block.compressed.length
         _totalTime += time
       }
@@ -103,11 +102,11 @@ class Smart3Compressor extends Compressor with Utils {
 
     private[Smart3Compressor] var status: CompressionDeciderState = Sampling
 
-    def compressBlock(block: Block): Future[Block] = {
+    def compressBlock(block: Block): Future[CompressedBlock] = {
       status match {
         case Sampling | SamplingForLzma =>
           val blocks = compressWithAllAlgosAndWait(block)
-          bytesReceived += block.content.length
+          bytesReceived += block.contentLength
           updateSampleData(blocks)
           chooseWinnerIfReady()
           Future.successful(blocks.map(_._1).minBy(_.compressed.length))
@@ -162,7 +161,7 @@ class Smart3Compressor extends Compressor with Utils {
       winner
     }
 
-    private def updateSampleData(blocks: Seq[(Block, CompressionMode, Long)]) = {
+    private def updateSampleData(blocks: Seq[(CompressedBlock, CompressionMode, Long)]) = {
       for ((b, algo, time) <- blocks) {
         sampleData(algo).blockArrived(b, time)
       }
@@ -172,7 +171,7 @@ class Smart3Compressor extends Compressor with Utils {
       bytesReceived >= sampleBytes
     }
 
-    private def compressWithAllAlgosAndWait(block: Block): Seq[(Block, CompressionMode, Long)] = {
+    private def compressWithAllAlgosAndWait(block: Block): Seq[(CompressedBlock, CompressionMode, Long)] = {
       val futures = algos.map { algo =>
         compressBlockAsync(block.copy(), algo)
       }
@@ -182,10 +181,10 @@ class Smart3Compressor extends Compressor with Utils {
 
   private var extensions: Map[String, Extension] = Map.empty
 
-  override def compressBlock(block: Block): Future[Block] = {
-    val mode = if (block.content.length < 256) {
+  override def compressBlock(block: Block): Future[CompressedBlock] = {
+    val mode = if (block.contentLength < 256) {
       Some(CompressionMode.none)
-    } else if (block.content.length < 2048) {
+    } else if (block.contentLength < 2048) {
       Some(CompressionMode.deflate)
     } else {
       None
@@ -198,13 +197,12 @@ class Smart3Compressor extends Compressor with Utils {
     }
   }
 
-  private def compressBlockAsync(block: Block, mode: CompressionMode): Future[(Block, CompressionMode, Long)] = {
+  private def compressBlockAsync(block: Block, mode: CompressionMode): Future[(CompressedBlock, CompressionMode, Long)] = {
     Future {
       val startAt = TimingUtil.getCpuTime
-      val compressed = CompressedStream.compress(block.content, mode)
-      block.compressed = compressed
+      val compressed = block.compress(mode)
       val duration = TimingUtil.getCpuTime - startAt
-      (block, mode, duration)
+      (compressed, mode, duration)
     }
   }
 

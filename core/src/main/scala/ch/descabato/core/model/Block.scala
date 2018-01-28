@@ -1,22 +1,22 @@
 package ch.descabato.core.model
 
-import akka.util.ByteString
-import ch.descabato.core_old.{BackupConfigurationHandler, BackupFolderConfiguration}
-import ch.descabato.frontend.BackupConf
+import ch.descabato.CompressionMode
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
-import net.jpountz.lz4.LZ4Factory
-import org.slf4j.LoggerFactory
 
-case class Block(blockId: BlockId, var content: BytesWrapper, hash: Hash) {
-  val logger = LoggerFactory.getLogger(getClass)
+case class Block(blockId: BlockId, private val content: BytesWrapper, hash: Hash) {
 
-  var isAlreadySaved: Boolean = false
+  def contentLength: Long = content.length
 
-  var compressed: BytesWrapper = _
-
-  def compress(config: BackupFolderConfiguration): Block = {
-    compressed = CompressedStream.compress(content, config.compressor)
-    this
+  def compress(mode: CompressionMode): CompressedBlock = {
+    val compressed = CompressedStream.compress(content, mode)
+    CompressedBlock(blockId, compressed, hash, content.length)
   }
 
+}
+
+case class CompressedBlock(blockId: BlockId, compressed: BytesWrapper, hash: Hash, uncompressedLength: Int) {
+  def decompress(): Block = {
+    val uncompressed = CompressedStream.decompress(compressed)
+    Block(blockId, compressed, hash)
+  }
 }

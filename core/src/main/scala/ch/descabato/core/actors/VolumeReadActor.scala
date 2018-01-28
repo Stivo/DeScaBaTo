@@ -3,7 +3,7 @@ package ch.descabato.core.actors
 import java.io.File
 
 import ch.descabato.core.LifeCycle
-import ch.descabato.core.model.Block
+import ch.descabato.core.model.CompressedBlock
 import ch.descabato.core.util.{FileReader, FileWriter}
 import ch.descabato.utils.{BytesWrapper, Hash}
 import org.slf4j.LoggerFactory
@@ -25,7 +25,7 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
     _writer
   }
 
-  override def saveBlock(block: Block): FilePosition = {
+  override def saveBlock(block: CompressedBlock): FilePosition = {
     require(!finished)
     val posBefore = writer.write(block.compressed)
     FilePosition(posBefore, block.compressed.length)
@@ -78,7 +78,7 @@ trait VolumeWriter extends LifeCycle {
 
   def md5Hash: Future[Hash]
 
-  def saveBlock(block: Block): FilePosition
+  def saveBlock(block: CompressedBlock): FilePosition
 
   def currentPosition(): Long
 
