@@ -212,7 +212,7 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
 }
 
 trait ProgramOption extends ScallopConf {
-  val noGui: ScallopOption[Boolean] = opt[Boolean](short = 'g')
+  val noGui: ScallopOption[Boolean] = opt[Boolean](noshort = true)
   val logfile: ScallopOption[String] = opt[String]()
   val noAnsi: ScallopOption[Boolean] = opt[Boolean]()
 }

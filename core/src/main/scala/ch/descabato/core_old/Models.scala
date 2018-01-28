@@ -249,7 +249,7 @@ object FileDeleted {
   }
 }
 
-case class FileDescription(path: String, size: Long, attrs: FileAttributes, @JsonIgnore hash: Hash = Hash.empty) extends BackupPart {
+case class FileDescription(path: String, size: Long, attrs: FileAttributes, @JacksonAnnotations.JsonIgnore hash: Hash = Hash.empty) extends BackupPart {
 
   def this(file: File) = {
     this(file.getAbsolutePath, file.length(), FileAttributes(file.toPath))

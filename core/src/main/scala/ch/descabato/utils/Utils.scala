@@ -33,12 +33,12 @@ object Hash {
   }
 
   def apply(hash: Array[Byte]) = {
-    new Hash(hash)
-  }
+      new Hash(hash)
+    }
 
 }
 
-class Hash(val bytes: Array[Byte]) extends AnyVal {
+class Hash private (val bytes: Array[Byte]) extends AnyVal {
   def length: Int = bytes.length
 
   def base64: String = Utils.encodeBase64Url(bytes)
@@ -186,7 +186,7 @@ object Implicits {
     }
 
     def digest(): Hash = {
-      new Hash(md.digest())
+      Hash(md.digest())
     }
   }
 

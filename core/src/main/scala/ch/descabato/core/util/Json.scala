@@ -1,7 +1,6 @@
 package ch.descabato.core.util
 
 import akka.util.ByteString
-import ch.descabato.core.model.StoredChunk
 import ch.descabato.utils.{BytesWrapper, Hash}
 import com.fasterxml.jackson.core.{JsonFactory, JsonGenerator, JsonParser, Version}
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
@@ -80,7 +79,8 @@ class CustomObjectMapper(val jsonFactory: JsonFactory = new JsonFactory()) exten
 
   class HashWrapperSerializer extends StdSerializer[Hash](classOf[Hash]) {
     def serialize(ba: Hash, jg: JsonGenerator, prov: SerializerProvider): Unit = {
-      jg.writeBinary(ba.bytes)
+      val wrap = ba.wrap()
+      jg.writeBinary(wrap.array, wrap.offset, wrap.length)
     }
   }
 

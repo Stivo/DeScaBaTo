@@ -7,7 +7,7 @@ import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
-import ch.descabato.core.model.{Block, FileMetadataStored, StoredPartWithPath}
+import ch.descabato.core.model.{Block, FileMetadataStored}
 import ch.descabato.core.util.Json
 import ch.descabato.core_old.{BackupFolderConfiguration, FileDescription, FolderDescription, PasswordWrongException}
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
@@ -91,7 +91,6 @@ trait JsonUser {
     val compressed: BytesWrapper = CompressedStream.compress(new BytesWrapper(bytes), CompressionMode.gzip)
     writer.write(compressed)
     writer.finish()
-    val filetype = context.fileManagerNew.fileTypeForFile(file)
     context.sendFileFinishedEvent(writer)
   }
 }

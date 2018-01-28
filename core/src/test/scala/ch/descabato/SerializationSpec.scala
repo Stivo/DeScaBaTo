@@ -22,7 +22,7 @@ class SerializationSpec extends FlatSpec with TestUtils {
 	    var chainMap : ChainMap = new ChainMap()
 	    chainMap += (("asdf".getBytes.wrap(),"agadfgdsfg".getBytes))
 	    val f = List("README.md", "../README.md").map(new File(_)).filter(_.exists).head
-      val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()), new Hash("adsfasdfasdf".getBytes()))
+      val fid = new FileDescription("test.txt", 0L, FileAttributes(f.toPath()), Hash("adsfasdfasdf".getBytes()))
       val fod = new FolderDescription("test.txt", new FileAttributes())
       val fd = new FileDeleted("asdf")
 	    val symLink = new SymbolicLink("test", "asdf", new FileAttributes())

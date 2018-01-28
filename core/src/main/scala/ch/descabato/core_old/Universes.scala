@@ -97,7 +97,7 @@ class SingleThreadHasher extends HashHandler {
   lazy val md: MessageDigest = universe.config.createMessageDigest
 
   def finish(f: Hash => Unit) {
-    f(new Hash(md.digest()))
+    f(Hash(md.digest()))
     md.reset()
   }
 

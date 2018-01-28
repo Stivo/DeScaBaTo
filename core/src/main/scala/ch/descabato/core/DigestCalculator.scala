@@ -34,7 +34,7 @@ class DigestCalculator(hashMethod: HashMethod) extends GraphStage[FlowShape[Byte
       }
 
       override def onUpstreamFinish(): Unit = {
-        emit(out, new Hash(digest.digest()))
+        emit(out, Hash(digest.digest()))
         completeStage()
       }
     })

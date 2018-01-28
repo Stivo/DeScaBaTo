@@ -1,12 +1,12 @@
 package ch.descabato.core.actors
 
+import akka.stream._
 import akka.stream.stage._
-import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
 import akka.util.ByteString
 import ch.descabato.hashes.BuzHash
 import ch.descabato.utils.BytesWrapper
 
-class Chunker(minChunkSize: Int = 256 * 1024,
+class Chunker(minChunkSize: Int = 128 * 1024,
               maxChunkSize: Int = 16 * 1024 * 1024,
               bits: Byte = 19) extends GraphStage[FlowShape[ByteString, BytesWrapper]] {
   val in = Inlet[ByteString]("Framer.in")
@@ -50,7 +50,7 @@ class Chunker(minChunkSize: Int = 256 * 1024,
           byteString = byteString ++ chunk.slice(pos, pos + readBytes)
           pos += readBytes
           if (i >= 0) {
-            if (pos >= minChunkSize) {
+            if (byteString.length >= minChunkSize) {
               emitNow()
             }
           } else {
@@ -69,4 +69,5 @@ class Chunker(minChunkSize: Int = 256 * 1024,
     })
 
   }
+
 }

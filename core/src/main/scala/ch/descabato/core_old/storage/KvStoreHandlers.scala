@@ -121,7 +121,7 @@ trait HashKvStoreHandler[V] extends KvStoreHandler[Hash, Array[Byte], V] {
 
   def keyInterfaceToKeyMem(k: Hash): Array[Byte] = k.bytes
 
-  def keyMemToKeyInterface(k: Array[Byte]) = new Hash(k)
+  def keyMemToKeyInterface(k: Array[Byte]) = Hash(k)
 
   def keyMemToStorage(k: Array[Byte]): Array[Byte] = k
 
@@ -293,7 +293,7 @@ class KvStoreHashListHandler extends HashKvStoreHandler[Vector[(Hash, Array[Byte
   }
 
   def getHashlist(fileHash: Hash, size: Long): Seq[Hash] = {
-    readEntry(fileHash)._1.asArray().grouped(config.hashLength).toSeq.map(new Hash(_))
+    readEntry(fileHash)._1.asArray().grouped(config.hashLength).toSeq.map(Hash(_))
   }
 
   def fileFinished() {
