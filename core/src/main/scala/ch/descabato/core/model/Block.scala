@@ -14,9 +14,4 @@ case class Block(blockId: BlockId, private val content: BytesWrapper, hash: Hash
 
 }
 
-case class CompressedBlock(blockId: BlockId, compressed: BytesWrapper, hash: Hash, uncompressedLength: Int) {
-  def decompress(): Block = {
-    val uncompressed = CompressedStream.decompress(compressed)
-    Block(blockId, compressed, hash)
-  }
-}
+case class CompressedBlock(blockId: BlockId, compressed: BytesWrapper, hash: Hash, uncompressedLength: Int)

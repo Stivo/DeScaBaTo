@@ -107,12 +107,16 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
 
   override def nextFile(): File = {
     if (mainFolder.exists()) {
-      val last = mainFolder.listFiles().filter(_.isDirectory).filter(x => x.getName.matches(regex)).sorted.last
-      val number = numberOfFile(last.listFiles().filter(matches).sorted.last)
-      fileForNumber(number + 1)
-    } else {
-      fileForNumber(0)
+      val subdirs = mainFolder.listFiles().filter(_.isDirectory).filter(x => x.getName.matches(regex)).sorted
+      if (subdirs.nonEmpty) {
+        val files = subdirs.last.listFiles().filter(matches).sorted
+        if (files.nonEmpty) {
+          val number = numberOfFile(files.last)
+          return fileForNumber(number + 1)
+        }
+      }
     }
+    fileForNumber(0)
   }
 }
 

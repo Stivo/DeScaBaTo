@@ -173,7 +173,7 @@ class Smart3Compressor extends Compressor with Utils {
 
     private def compressWithAllAlgosAndWait(block: Block): Seq[(CompressedBlock, CompressionMode, Long)] = {
       val futures = algos.map { algo =>
-        compressBlockAsync(block.copy(), algo)
+        compressBlockAsync(block, algo)
       }
       Await.result(Future.sequence(futures), 10.minutes)
     }
