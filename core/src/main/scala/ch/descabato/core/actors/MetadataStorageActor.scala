@@ -107,12 +107,16 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   }
 
   override def finish(): Future[Boolean] = {
-    if (notCheckpointed.files.nonEmpty || notCheckpointed.folders.nonEmpty) {
-      checkpointMetadata()
+    if (!hasFinished) {
+      if (notCheckpointed.files.nonEmpty || notCheckpointed.folders.nonEmpty) {
+        checkpointMetadata()
+      }
+      if (thisBackup.dirIds.nonEmpty || thisBackup.fileIds.nonEmpty) {
+        val file = context.fileManagerNew.backup.nextFile()
+        writeToJson(file, thisBackup)
+      }
+      hasFinished = true
     }
-    val file = context.fileManagerNew.backup.nextFile()
-    writeToJson(file, thisBackup)
-    hasFinished = true
     Future.successful(true)
   }
 
