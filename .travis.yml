@@ -10,6 +10,7 @@ branches:
     - remote_new
     - streams
     - streams-working
+    - reuse-byte-arrays
 jdk:
   - oraclejdk8
 #before_script:
