@@ -55,12 +55,14 @@ class Hash private (val bytes: Array[Byte]) extends AnyVal {
 object BytesWrapper {
 
   def apply(bytes: Array[Byte], offset: Int = 0, length: Int = -1): BytesWrapper = {
+    require(bytes != null)
+    require(length <= bytes.length || length < 0)
     val correctLength = if (length < 0) bytes.length - offset else length
     new BytesWrapper(bytes, offset, correctLength)
   }
 }
 
-class BytesWrapper private (val array: Array[Byte], val offset: Int = 0, val length: Int = -1) {
+class BytesWrapper private (val array: Array[Byte], val offset: Int, val length: Int) {
 
   def asInputStream() = new ByteArrayInputStream(array, offset, length)
 
