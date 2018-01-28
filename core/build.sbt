@@ -17,7 +17,7 @@ libraryDependencies ++= Seq(
 // compressors
 libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
-  "net.jpountz.lz4" % "lz4" % "1.3.0",
+  "org.lz4" % "lz4-java" % "1.4.1",
   "org.tukaani" % "xz" % "1.8",
   "org.apache.commons" % "commons-compress" % "1.15"
 )
