@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class ParallelEncryptedFileWriter(file: File, passphrase: String) extends EncryptedFileWriterBase(file, passphrase) {
+class ParallelEncryptedFileWriter(file: File, passphrase: String, keylength: Int) extends EncryptedFileWriterBase(file, passphrase, keylength) {
 
   private var futures: Seq[Future[(Long, Array[Byte])]] = Seq.empty
 

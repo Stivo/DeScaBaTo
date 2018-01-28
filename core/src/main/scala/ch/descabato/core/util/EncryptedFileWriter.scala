@@ -6,7 +6,7 @@ import javax.crypto.{Cipher, CipherOutputStream}
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
 
-class EncryptedFileWriter(file: File, passphrase: String) extends EncryptedFileWriterBase(file, passphrase) {
+class EncryptedFileWriter(file: File, passphrase: String, keylength: Int) extends EncryptedFileWriterBase(file, passphrase, keylength) {
 
   writeHeader()
   startEncryptedPart()

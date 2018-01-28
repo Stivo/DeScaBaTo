@@ -22,13 +22,13 @@ class EncryptionIOSpec extends FlatSpec with GeneratorDrivenPropertyChecks with 
 
   "sequential writer" should "decrypt and encrypt correctly" in {
     setupRandomData()
-    val writer = new EncryptedFileWriter(encrypted, password)
+    val writer = new EncryptedFileWriter(encrypted, password, 128)
     testWriter(writer)
   }
 
   "parallel writer" should "decrypt and encrypt correctly" in {
     setupRandomData()
-    val writer = new ParallelEncryptedFileWriter(encrypted, password)
+    val writer = new ParallelEncryptedFileWriter(encrypted, password, 128)
     testWriter(writer)
   }
 

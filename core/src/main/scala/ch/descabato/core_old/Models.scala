@@ -62,7 +62,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
     if (passphrase.isEmpty) {
       new SimpleFileWriter(file)
     } else {
-      new EncryptedFileWriter(file, passphrase.get)
+      new EncryptedFileWriter(file, passphrase.get, keyLength)
     }
   }
 

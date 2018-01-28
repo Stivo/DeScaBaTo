@@ -93,7 +93,7 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   override def saveFile(fileDescription: FileDescription, hashList: Seq[Long]): Future[Boolean] = {
     // TODO check if we have file already under another id and reuse it if possible
     val id = BackupIds.nextId()
-    val metadata = FileMetadataStored(id, fileDescription, hashList)
+    val metadata = FileMetadataStored(id, fileDescription, hashList.toArray)
     allKnownStoredPartsMemory += metadata
     notCheckpointed.files :+= metadata
     toBeStored -= metadata.fd
