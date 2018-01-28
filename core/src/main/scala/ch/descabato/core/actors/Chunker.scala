@@ -45,11 +45,11 @@ class Chunker(minChunkSize: Int = 128 * 1024,
         val end = array.length
         while (pos < end) {
           val remainingBytes = Math.min(maxChunkSize - byteString.length, array.length - pos)
-          val i = buzHash.updateAndReportBoundary(array, pos, remainingBytes, bits)
-          val readBytes = if (i >= 0) i else remainingBytes
+          val boundaryPosOrNegative = buzHash.updateAndReportBoundary(array, pos, remainingBytes, bits)
+          val readBytes = if (boundaryPosOrNegative >= 0) boundaryPosOrNegative else remainingBytes
           byteString = byteString ++ chunk.slice(pos, pos + readBytes)
           pos += readBytes
-          if (i >= 0) {
+          if (boundaryPosOrNegative >= 0) {
             if (byteString.length >= minChunkSize) {
               emitNow()
             }

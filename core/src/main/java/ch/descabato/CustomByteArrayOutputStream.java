@@ -1,6 +1,7 @@
 package ch.descabato;
 
 import ch.descabato.utils.BytesWrapper;
+import ch.descabato.utils.BytesWrapper$;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,7 +134,7 @@ public class CustomByteArrayOutputStream extends OutputStream {
     }
 
     public BytesWrapper toBytesWrapper() {
-        return new BytesWrapper(buf, 0, count);
+        return BytesWrapper$.MODULE$.apply(buf, 0, count);
     }
 
     /**

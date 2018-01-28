@@ -5,8 +5,8 @@ import java.util
 
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core_old.storage.KvStoreLocation
-import ch.descabato.utils.{BytesWrapper, Utils}
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.{BytesWrapper, Utils}
 
 case class EntryType(markerByte: Byte, parts: Int)
 
@@ -100,7 +100,7 @@ trait IndexedKvStoreReader extends KvStoreReader {
     }.toMap
     
   def readValueForKey(key: Array[Byte]): Array[Byte] = {
-    val pos = index(new BytesWrapper(key))
+    val pos = index(BytesWrapper(key))
     readEntryPartAt(pos).bytes.asArray
   }
 }

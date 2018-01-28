@@ -88,7 +88,7 @@ trait JsonUser {
     file.getParentFile.mkdirs()
     val writer = config.newWriter(file)
     val bytes = Json.mapper.writer(new DefaultPrettyPrinter()).writeValueAsBytes(value)
-    val compressed: BytesWrapper = CompressedStream.compress(new BytesWrapper(bytes), CompressionMode.gzip)
+    val compressed: BytesWrapper = CompressedStream.compress(BytesWrapper(bytes), CompressionMode.gzip)
     writer.write(compressed)
     writer.finish()
     context.sendFileFinishedEvent(writer)

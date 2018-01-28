@@ -60,7 +60,7 @@ class CustomObjectMapper(val jsonFactory: JsonFactory = new JsonFactory()) exten
   class BaWrapperDeserializer extends StdDeserializer[BytesWrapper](classOf[BytesWrapper]) {
     def deserialize(jp: JsonParser, ctx: DeserializationContext): BytesWrapper = {
       val bytes = jp.readValueAs(classOf[Array[Byte]])
-      new BytesWrapper(bytes)
+      BytesWrapper(bytes)
     }
   }
 

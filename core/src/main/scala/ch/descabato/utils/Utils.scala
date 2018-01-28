@@ -47,7 +47,7 @@ class Hash private (val bytes: Array[Byte]) extends AnyVal {
 
   def !==(other: Hash): Boolean = !(this === other)
 
-  def wrap(): BytesWrapper = new BytesWrapper(bytes)
+  def wrap(): BytesWrapper = BytesWrapper(bytes)
 
   def grouped(config: BackupFolderConfiguration): Iterator[Array[Byte]] = bytes.grouped(config.hashLength)
 }
@@ -56,17 +56,13 @@ object BytesWrapper {
 
   def apply(bytes: Array[Byte], offset: Int = 0, length: Int = -1): BytesWrapper = {
     val correctLength = if (length < 0) bytes.length else length
-    new BytesWrapper(bytes, offset, length)
+    new BytesWrapper(bytes, offset, correctLength)
   }
 }
 
-class BytesWrapper(val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {
+class BytesWrapper private (val array: Array[Byte], var offset: Int = 0, var length: Int = -1) {
 
   def asInputStream() = new ByteArrayInputStream(array, offset, length)
-
-  if (length == -1) {
-    length = array.length - offset
-  }
 
   def apply(i: Int) = array(i + offset)
 
@@ -171,7 +167,7 @@ object Implicits {
 
   import scala.language.higherKinds
 
-  implicit def hashToWrapper(a: Hash): BytesWrapper = new BytesWrapper(a.bytes)
+  implicit def hashToWrapper(a: Hash): BytesWrapper = BytesWrapper(a.bytes)
 
   implicit def hashToArray(a: Hash): Array[Byte] = a.bytes
 
@@ -199,7 +195,7 @@ object Implicits {
   implicit class ByteArrayUtils(buf: Array[Byte]) extends RealEquality[Array[Byte]] {
     def ===(other: Array[Byte]): Boolean = java.util.Arrays.equals(buf, other)
 
-    def wrap(): BytesWrapper = new BytesWrapper(buf)
+    def wrap(): BytesWrapper = BytesWrapper(buf)
   }
 
   implicit class InvariantContains[T, CC[X] <: Seq[X]](xs: CC[T]) {
