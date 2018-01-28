@@ -1,10 +1,8 @@
 package ch.descabato.it
 
 import java.io.{File, RandomAccessFile}
-import java.nio.file.{Files, Path, Paths}
-import java.util.stream.Collectors
+import java.nio.file.{Files, Paths}
 
-import ch.descabato.frontend.CLI
 import ch.descabato.utils.Utils
 import ch.descabato.{RichFlatSpecLike, TestUtils}
 import org.apache.commons.exec.{CommandLine, ExecuteException}
@@ -81,9 +79,7 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
 
   def startAndWait(args: Seq[String], redirect: Boolean = true) = {
     try {
-      CLI.parseCommandLine(args)
-      0
-      //createHandler(args, redirect).startAndWait
+      createHandler(args, redirect).startAndWait
     } catch {
       case e: ExecuteException => e.getExitValue()
     }
