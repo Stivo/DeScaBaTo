@@ -191,12 +191,13 @@ trait RedundancyOptions extends BackupFolderOption {
 
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {
   val keylength: ScallopOption[Int] = opt[Int](default = Some(128))
-  val volumeSize: ScallopOption[Size] = opt[Size](default = Some(Size("100Mb")))
+  val volumeSize: ScallopOption[Size] = opt[Size](default = Some(Size("500Mb")))
   val threads: ScallopOption[Int] = opt[Int](default = Some(4))
   val noScriptCreation: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
   //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
   val compression: ScallopOption[CompressionMode] = opt[CompressionMode](default = Some(CompressionMode.smart))
+  // TODO delete
   val createIndexes: ScallopOption[Boolean] = opt[Boolean](default = Some(true))
   val ignoreFile: ScallopOption[File] = opt[File](default = None)
 }
@@ -266,6 +267,9 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.filteredSummary(Set("passphrase")))
     withUniverse(conf) { universe =>
+      if (!t.noScriptCreation()) {
+        writeBat(t, conf, lastArgs)
+      }
       val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
       backup.execute()
     }

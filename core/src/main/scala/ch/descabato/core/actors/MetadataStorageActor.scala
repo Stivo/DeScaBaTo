@@ -28,10 +28,14 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   private var toBeStored: Set[FileDescription] = Set.empty
 
   def addDirectory(description: FolderDescription): Future[Boolean] = {
-    // TODO check if we have folder with same properties already
-    val stored = FolderMetadataStored(BackupIds.nextId(), description)
-    notCheckpointed.folders :+= stored
-    thisBackup.dirIds += stored.id
+    allKnownStoredPartsMemory.mapByPath.get(description.path) match {
+      case Some(FolderMetadataStored(id, fd)) if fd.attrs == description.attrs =>
+        thisBackup.dirIds += id
+      case _ =>
+        val stored = FolderMetadataStored(BackupIds.nextId(), description)
+        notCheckpointed.folders :+= stored
+        thisBackup.dirIds += stored.id
+    }
     Future.successful(true)
   }
 

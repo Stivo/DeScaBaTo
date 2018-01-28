@@ -84,7 +84,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
   }
 
   private def setupFlow(files: Seq[Path]) = {
-    Source.fromIterator[Path](() => files.iterator).mapAsync(5) { path =>
+    Source.fromIterator[Path](() => files.iterator).mapAsync(2) { path =>
       backupFile(path)
         .map(x => (path, x))
     }.map { case (path, _) =>
