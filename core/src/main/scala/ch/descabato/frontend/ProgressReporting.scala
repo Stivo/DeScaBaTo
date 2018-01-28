@@ -170,7 +170,7 @@ trait ETACounter extends MaxValueCounter with Utils {
   def formattedWithEta: String = formatted + " " + calcEta
 }
 
-trait SizeStandardCounter extends MaxValueCounter with ETACounter {
+class SizeStandardCounter(val name: String) extends MaxValueCounter with ETACounter {
   override def formatted: String = {
     s"${Utils.readableFileSize(current)} / ${Utils.readableFileSize(maxValue)}"
   }

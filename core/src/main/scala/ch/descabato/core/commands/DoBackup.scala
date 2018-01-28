@@ -10,7 +10,7 @@ import ch.descabato.core._
 import ch.descabato.core.actors.Chunker
 import ch.descabato.core.model._
 import ch.descabato.core_old.{FileDescription, FolderDescription, MeasureTime}
-import ch.descabato.frontend.{ETACounter, MaxValueCounter, ProgressReporters, StandardMaxValueCounter}
+import ch.descabato.frontend._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, Hash, Utils}
 
@@ -27,9 +27,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
   var fileCounter: MaxValueCounter = new StandardMaxValueCounter("Files", 0L)
     with ETACounter
 
-  lazy val bytesCounter: StandardMaxValueCounter with ETACounter = new StandardMaxValueCounter("Data Read", 0) with ETACounter {
-    override def formatted = s"${readableFileSize(current)}/${readableFileSize(maxValue)} $percent%"
-  }
+  lazy val bytesCounter: SizeStandardCounter = new SizeStandardCounter("Data Read") with ETACounter
 
   ProgressReporters.addCounter(fileCounter, bytesCounter)
 

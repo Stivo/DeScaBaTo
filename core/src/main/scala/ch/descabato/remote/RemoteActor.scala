@@ -219,9 +219,7 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
 
   })
 
-  private val uploaderall: MaxValueCounter = new SizeStandardCounter {
-    override def name: String = "Total Uploads"
-
+  private val uploaderall: MaxValueCounter = new SizeStandardCounter("Total Uploads") {
     override def update(): Unit = {
       current = completedUploads + remoteOptions.uploaderCounter1.current
     }

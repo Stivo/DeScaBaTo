@@ -30,8 +30,5 @@
 	</root>
 
   <logger name="org.apache.ftpserver" level="WARN"/>
-  
-  <logger name="net.java.truevfs" level="WARN"/>
-  <logger name="net.java.truecommons" level="WARN"/>
 
 </configuration>

@@ -3,16 +3,17 @@ package ch.descabato.core
 import java.io.{File, IOException}
 import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.{ArrayList => JArrayList}
 
 import ch.descabato.frontend.MaxValueCounter
 
-import scala.collection.mutable
+import scala.collection.JavaConverters._
 import scala.io.{Codec, Source}
 
 class FileVisitorCollector(ignoreFile: Option[File], fileCounter: MaxValueCounter, bytesCounter: MaxValueCounter) {
   // TODO log exceptions
-  private var _files: Seq[Path] = mutable.Buffer.empty
-  private var _dirs: Seq[Path] = mutable.Buffer.empty
+  private var _files: JArrayList[Path] = new JArrayList[Path]()
+  private var _dirs: JArrayList[Path] = new JArrayList[Path]()
 
   val ignoredPatterns: Iterable[PathMatcher] = {
     ignoreFile.map { file =>
@@ -45,7 +46,7 @@ class FileVisitorCollector(ignoreFile: Option[File], fileCounter: MaxValueCounte
     override def visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult = {
       // TODO handle symbolic links
       if (pathIsNotIgnored(file) && !Files.isSymbolicLink(file)) {
-        _files :+= file
+        _files.add(file)
         fileCounter.maxValue += 1
         bytesCounter.maxValue += file.toFile.length()
       }
@@ -58,7 +59,7 @@ class FileVisitorCollector(ignoreFile: Option[File], fileCounter: MaxValueCounte
 
     override def preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult = {
       if (pathIsNotIgnored(dir)) {
-        _dirs :+= dir
+        _dirs.add(dir)
         FileVisitResult.CONTINUE
       } else {
         FileVisitResult.SKIP_SUBTREE
@@ -66,6 +67,6 @@ class FileVisitorCollector(ignoreFile: Option[File], fileCounter: MaxValueCounte
     }
   }
 
-  def files: Seq[Path] = _files
-  def dirs: Seq[Path] = _dirs
+  lazy val files: Seq[Path] = _files.asScala
+  lazy val dirs: Seq[Path] = _dirs.asScala
 }

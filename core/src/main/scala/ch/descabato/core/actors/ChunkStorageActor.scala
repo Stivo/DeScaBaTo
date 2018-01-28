@@ -6,7 +6,7 @@ import akka.actor.{TypedActor, TypedProps}
 import ch.descabato.core._
 import ch.descabato.core.model.{Block, ChunkIds, StoredChunk}
 import ch.descabato.core_old.{BackupFolderConfiguration, Size, StandardMeasureTime}
-import ch.descabato.frontend.{ProgressReporters, SizeStandardCounter}
+import ch.descabato.frontend.{ProgressReporters, StandardByteCounter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, FastHashMap, Hash}
 import org.slf4j.LoggerFactory
@@ -31,9 +31,7 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
 
   val headroomInVolume = 1000
 
-  private val bytesStoredCounter = new SizeStandardCounter {
-    override def name: String = "Stored"
-  }
+  private val bytesStoredCounter = new StandardByteCounter("Stored")
 
   ProgressReporters.addCounter(bytesStoredCounter)
 
