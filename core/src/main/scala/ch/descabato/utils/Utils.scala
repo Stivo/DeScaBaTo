@@ -136,9 +136,9 @@ object Utils extends LazyLogging {
     new DecimalFormat("#,##0. " + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups)
   }
 
-  private def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes)
+  def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes)
 
-  private def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s)
+  def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s)
 
   def encodeBase64Url(bytes: Array[Byte]): String = encodeBase64(bytes).replace('+', '-').replace('/', '_')
 

@@ -11,6 +11,7 @@ import ch.descabato.utils.{Hash, Utils}
 import scala.collection.immutable.HashSet
 
 trait JournalHandler extends MyEventReceiver {
+  def getMd5ForFile(file: File): Option[Hash]
 
   // Removes all files not mentioned in the journal
   def cleanUnfinishedFiles(): BlockingOperation
@@ -32,10 +33,10 @@ class JournalEntry(val typ: String) {
   override def toString: String = (typ.length + 1) + s" $typ"
 }
 
-class FileFinishedJournalEntry(typ: String, val file: String, val md5Hash: Hash) extends JournalEntry(typ) {
+case class FileFinishedJournalEntry(override val typ: String, val file: String, val md5Hash: Hash) extends JournalEntry(typ) {
   override def toString: String = {
     val value = s"$typ $file ${md5Hash.base64}"
-    (value.length+1) + " " +value
+    (value.length + 1) + " " + value
   }
 }
 
@@ -100,42 +101,58 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
     }
   }
 
-  def cleanUnfinishedFiles(): BlockingOperation = {
-    checkLock()
-    var files = fileManagerNew.allFiles().filter(_.isFile()).map(config.relativePath).toSet
+  private var entries: Seq[JournalEntry] = Seq.empty
+
+  private def parseFile(): Unit = {
     randomAccessFile.synchronized {
       randomAccessFile.seek(0)
       var line: String = null
       var backup = randomAccessFile.getFilePointer
       while ( {
-        line = randomAccessFile.readLine(); line != null
+        line = randomAccessFile.readLine()
+        line != null
       }) {
         if (line != null) {
-          JournalEntries.parseLine(line) match {
-            case Some(x: FileFinishedJournalEntry) =>
-              val f = x.file
-              _usedIdentifiers += f
-              if (!(files safeContains f)) {
-                if (!(f contains "temp."))
-                  logger.warn("File is in journal, but not on disk " + f)
-              } else {
-                files -= f
-              }
-            case Some(x) if x.typ == JournalEntries.startWritingTyp =>
-              backupClean = false
-            case Some(x) if x.typ == JournalEntries.stopWritingTyp =>
-              backupClean = true
-            case None =>
-              randomAccessFile.setLength(backup)
-          }
-          backup = randomAccessFile.getFilePointer
+          val maybeEntry = JournalEntries.parseLine(line)
+          maybeEntry.foreach(entries :+= _)
         }
       }
-      files.foreach { f =>
-        logger.info(s"Deleting file $f because Journal does not mention it")
-        new File(config.folder, f).delete()
+    }
+  }
+  parseFile()
+
+  def cleanUnfinishedFiles(): BlockingOperation = {
+    checkLock()
+    var files = fileManagerNew.allFiles().filter(_.isFile()).map(config.relativePath).toSet
+    for (entry <- entries) {
+      entry match {
+        case x: FileFinishedJournalEntry =>
+          val f = x.file
+          _usedIdentifiers += f
+          if (!(files safeContains f)) {
+            if (!(f contains "temp."))
+              logger.warn("File is in journal, but not on disk " + f)
+          } else {
+            files -= f
+          }
+        case x if x.typ == JournalEntries.startWritingTyp =>
+          backupClean = false
+        case x if x.typ == JournalEntries.stopWritingTyp =>
+          backupClean = true
       }
-      new BlockingOperation()
+    }
+
+    files.foreach { f =>
+      logger.info(s"Deleting file $f because Journal does not mention it")
+      new File(config.folder, f).delete()
+    }
+    new BlockingOperation()
+  }
+
+  def getMd5ForFile(file: File): Option[Hash] = {
+    val str = config.relativePath(file)
+    entries.collectFirst {
+      case FileFinishedJournalEntry(_, fileInJournal, hash) if fileInJournal == str => hash
     }
   }
 

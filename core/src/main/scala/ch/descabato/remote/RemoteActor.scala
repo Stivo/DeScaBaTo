@@ -10,7 +10,9 @@ import ch.descabato.utils.Utils
 import com.amazonaws.RequestClientOptions
 import com.amazonaws.event.{ProgressEvent, ProgressListener}
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.model.{ObjectMetadata, PutObjectRequest, StorageClass}
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder
+import com.fasterxml.jackson.annotation.JsonIgnore
 import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.vfs2.FileObject
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
@@ -105,7 +107,7 @@ class SimpleRemoteHandler extends RemoteHandler with Utils {
         val src = localPath(next.backupPath)
         logger.info(s"Upload ${next.backupPath} started")
         val context = remoteOptions.uploadContext(src.length(), next.backupPath.path)
-        val result = remoteClient.put(src, next.backupPath, Some(context))
+        val result = remoteClient.put(src, next.backupPath, Some(context), None)
         logger.info(s"Upload ${next.backupPath} finished with result $result")
         fileOperationFinishedFromOtherThread(next, result)
         result
@@ -318,7 +320,7 @@ object RemoteClient {
   def forConfig(config: BackupFolderConfiguration): RemoteClient = {
     val uri = config.remoteOptions.uri
     if (uri.startsWith("s3://")) {
-      new S3RemoteClient(uri)
+      S3RemoteClient(uri)
     } else if (uri.startsWith("ftp://")) {
       new VfsRemoteClient(uri)
     } else {
@@ -330,7 +332,7 @@ object RemoteClient {
 trait RemoteClient {
   def get(path: BackupPath, file: File): Try[Unit]
 
-  def put(file: File, path: BackupPath, context: Option[RemoteOperationContext] = None): Try[Unit]
+  def put(file: File, path: BackupPath, context: Option[RemoteOperationContext] = None, md5Hash: Option[Array[Byte]] = None): Try[Unit]
 
   def exists(path: BackupPath): Try[Boolean]
 
@@ -393,6 +395,9 @@ object BackupPath {
 }
 
 class BackupPath private(val path: String) extends AnyVal {
+  @JsonIgnore def pathParts: Array[String] = path.split("[\\\\/]")
+  @JsonIgnore def name: String = pathParts.last
+
   def resolve(s: String): BackupPath = {
     BackupPath((path + "/" + s))
   }
@@ -427,7 +432,7 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
   }
 
 
-  def put(file: File, path: BackupPath, context: Option[RemoteOperationContext]): Try[Unit] = {
+  def put(file: File, path: BackupPath, context: Option[RemoteOperationContext], md5Hash: Option[Array[Byte]]): Try[Unit] = {
     val tmpFile = resolvePath(BackupPath(path.path + ".tmp"))
     // return failure if the file already exists
     exists(path).flatMap { exists =>
@@ -487,13 +492,21 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
   }
 }
 
-class S3RemoteClient(url: String) extends RemoteClient {
+object S3RemoteClient {
+  def apply(url: String): S3RemoteClient = {
+    var prefix = url.split("/", 2)(1)
+    if (!prefix.endsWith("/")) {
+      prefix += "/"
+    }
+    val bucketName = url.split(":").last.takeWhile(_ != '/')
+    new S3RemoteClient(url, bucketName, prefix)
+  }
+}
+
+class S3RemoteClient private(val url: String, val bucketName: String, val prefix: String) extends RemoteClient {
   lazy val client = AmazonS3ClientBuilder.defaultClient()
-  val bucketName = "backuuuup"
 
   override def get(path: BackupPath, file: File): Try[Unit] = ???
-
-  val prefix = "pics/"
 
   override def list(): Try[Seq[RemoteFile]] = {
     Try {
@@ -506,7 +519,7 @@ class S3RemoteClient(url: String) extends RemoteClient {
     }
   }
 
-  override def put(file: File, path: BackupPath, context: Option[RemoteOperationContext]): Try[Unit] = {
+  override def put(file: File, path: BackupPath, context: Option[RemoteOperationContext], md5Hash: Option[Array[Byte]] = None): Try[Unit] = {
     val bufferSize = RequestClientOptions.DEFAULT_STREAM_BUFFER_SIZE
     val remotePath: String = computeRemotePath(path)
     // slow
@@ -520,7 +533,15 @@ class S3RemoteClient(url: String) extends RemoteClient {
     // fast, but no throttling
     Try {
       val manager = TransferManagerBuilder.defaultTransferManager()
-      val upload = manager.upload(bucketName, remotePath, file)
+      val request = new PutObjectRequest(bucketName, remotePath, file)
+      md5Hash.foreach { content =>
+        val str = Utils.encodeBase64(content)
+        val metadata = new ObjectMetadata()
+        metadata.setContentMD5(str)
+        request.setMetadata(metadata)
+      }
+      request.setStorageClass(StorageClass.ReducedRedundancy)
+      val upload = manager.upload(request)
       val integer = new AtomicLong()
       context.foreach { c =>
         upload.addProgressListener(new ProgressListener {
