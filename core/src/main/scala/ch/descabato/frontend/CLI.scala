@@ -3,7 +3,7 @@ package ch.descabato.frontend
 import java.io.{File, PrintStream}
 import java.security.Security
 
-import ch.descabato.core_old._
+import ch.descabato.core._
 import ch.descabato.utils.{FileUtils, Utils}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
@@ -19,7 +19,7 @@ object CLI extends Utils {
     new BackupCommand(),
     new VerifyCommand(),
     new RestoreCommand(),
-    new ReflectionCommand("browse", "ch.descabato.browser.BrowseCommand"),
+    new ReflectionCommand("browse", "ch.descabato.ui.BrowseCommand"),
     new HelpCommand()).map(x => (x.name.toLowerCase, x)).toMap
 
   def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
@@ -41,7 +41,7 @@ object CLI extends Utils {
       System.setProperty("logname", "backup.log")
     try {
       Security.addProvider(new BouncyCastleProvider())
-      if (runsInJar) {
+      if (runsInJar || !args.isEmpty) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
         exit(0)
