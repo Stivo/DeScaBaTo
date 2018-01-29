@@ -49,6 +49,11 @@ trait NumberedFileTypeNew extends FileTypeNew {
 
 trait DatedFileTypeNew extends FileTypeNew {
   def dateOfFile(file: File): Date
+
+  def getDates(): Seq[Date] = {
+    getFiles().map(dateOfFile).sorted
+  }
+
 }
 
 class FileManagerNew(config: BackupFolderConfiguration) {

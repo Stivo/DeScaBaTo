@@ -2,10 +2,13 @@ package ch.descabato.ui
 
 import java.io.IOException
 
-import ch.descabato.core_old.{BackupConfigurationHandler, Universes}
+import ch.descabato.core.Universe
+import ch.descabato.core_old.BackupConfigurationHandler
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils.Utils
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
 import scalafx.Includes._
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.application.{JFXApp, Platform}
@@ -43,9 +46,9 @@ object ScalaFxGui extends JFXApp with Utils {
 
         val handler = new BackupConfigurationHandler(conf)
         val config = handler.configure(None)
-        config.threads = 1
 
-        val universe = Universes.makeUniverse(config)
+        val universe = new Universe(config)
+        Await.result(universe.startup(), 1.minute)
 
         val index = new Index(universe)
         BackupViewModel.index = index

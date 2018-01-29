@@ -1,17 +1,21 @@
 package ch.descabato.core.commands
 
+import java.io.InputStream
+
 import akka.NotUsed
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Sink, Source, StreamConverters}
+import akka.util.ByteString
 import ch.descabato.core.Universe
 import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.frontend.{ProgressReporters, StandardByteCounter}
 import ch.descabato.utils.{BytesWrapper, CompressedStream}
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 abstract class DoReadAbstract(val universe: Universe) {
 
-  import universe.ex
+  import universe.{ex, materializer}
 
   protected val config = universe.config
 
@@ -19,6 +23,12 @@ abstract class DoReadAbstract(val universe: Universe) {
 
   ProgressReporters.addCounter(readBytesCounter)
   ProgressReporters.openGui("Reading", false)
+
+  def getInputStream(file: FileMetadataStored): InputStream = {
+    val sink: Sink[ByteString, InputStream] = StreamConverters.asInputStream(10.minutes)
+    val stream = getBytestream(chunkIdsForFile(file)).map(x => ByteString(x.asArray())).runWith(sink)
+    stream
+  }
 
   def chunkIdsForFile(file: FileMetadataStored): Source[Long, NotUsed] = {
     Source.fromIterator[Long](() => file.chunkIds.iterator)

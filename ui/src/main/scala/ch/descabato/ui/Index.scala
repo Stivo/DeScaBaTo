@@ -1,48 +1,55 @@
 package ch.descabato.ui
 
-import java.io.{InputStream, SequenceInputStream}
+import java.io.InputStream
 import java.util.Date
 
+import ch.descabato.core.Universe
+import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
+import ch.descabato.core.commands.DoReadAbstract
 import ch.descabato.core_old._
-import ch.descabato.utils.CompressedStream
 
-class Index(universe: UniverseI)
-  extends RestoreHandler(universe) {
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
-  def versions = universe.fileManager().getBackupDates()
+class Index(universe: Universe)
+  extends DoReadAbstract(universe) {
 
-  private var _backup = new LoadedBackup(universe.backupPartHandler().loadBackup())
+  def versions = universe.context.fileManagerNew.backup.getDates()
+
+  private var _backup = new LoadedBackup(Await.result(universe.metadataStorageActor.retrieveBackup(None), 1.minute))
 
   def backup = _backup
 
   def loadBackup(date: Date): Unit = {
-    _backup = new LoadedBackup(universe.backupPartHandler().loadBackup(Some(date)))
+    universe.metadataStorageActor.retrieveBackup(Some(date)).foreach( d =>
+      _backup = new LoadedBackup(d)
+    )
   }
 
   def getInputStream(fd: FileDescription): InputStream = {
-    val e = new java.util.Enumeration[InputStream]() {
-      val it = getHashlistForFile(fd).iterator
-      override def hasMoreElements: Boolean = it.hasNext
-
-      override def nextElement(): InputStream = {
-        val b = universe.blockHandler().readBlock(it.next())
-        CompressedStream.decompress(b)
-      }
-    }
-    new SequenceInputStream(e)
+    val stored = _backup.metadataFor(fd)
+    getInputStream(stored)
   }
 
 }
 
-class LoadedBackup(val backup: BackupDescriptionOld) {
+class LoadedBackup(val backup: BackupDescription) {
+  //  val parts = backup.allParts
+  val map = (backup.files.map(_.fd) ++ backup.folders).map(x => (x.path, x)).toMap
+  val fileMetadatas = backup.files.map(x => (x.path, x)).toMap
 
-  val parts = backup.allParts
-  val map = backup.asMap
+  def metadataFor(fd: FileDescription) = {
+    fileMetadatas(fd.path)
+  }
 
   val tree: BackupTreeNode = {
-    val root = new BackupTreeNode(new FakeBackupFolder("/"))
-    parts.foreach { part =>
-      root.insert(part)
+    val root = BackupTreeNode(FakeBackupFolder("/"))
+    backup.folders.foreach {
+      root.insert
+    }
+    backup.files.foreach { f =>
+      root.insert(f.fd)
     }
     root
   }

@@ -3,20 +3,16 @@ name := "ui"
 
 mainClass := Some("ch.descabato.ui.Main")
 
-//unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
-//  Seq(
-//    base / "src/main/resources"
-//  )
-//}
+unmanagedSourceDirectories in Compile += baseDirectory.value / "src/main/resources"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
 libraryDependencies ++= Seq(
-  "org.scalafx" %% "scalafx" % "8.0.102-R11",
-  "org.scalafx" %% "scalafxml-core-sfx8" % "0.3"
+  "org.scalafx" %% "scalafx" % "8.0.144-R12",
+  "org.scalafx" %% "scalafxml-core-sfx8" % "0.4"
 )
 
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
 
 //packSettings
 //
