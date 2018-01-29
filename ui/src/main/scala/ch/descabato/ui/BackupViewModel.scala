@@ -1,8 +1,8 @@
 package ch.descabato.ui
 
-import java.util.{Comparator, Date}
+import java.util.Date
 
-import ch.descabato.core.{BackupPart, FileDescription}
+import ch.descabato.core_old.BackupPart
 
 import scala.collection.mutable
 import scalafx.beans.binding.Bindings

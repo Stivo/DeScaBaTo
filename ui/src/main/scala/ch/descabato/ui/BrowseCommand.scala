@@ -1,6 +1,6 @@
 package ch.descabato.ui
 
-import ch.descabato.core.{BackupFolderConfiguration, FileDescription}
+import ch.descabato.core_old.BackupFolderConfiguration
 import ch.descabato.frontend.{BackupRelatedCommand, SimpleBackupFolderOption}
 
 /**
@@ -11,7 +11,7 @@ class BrowseCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new SimpleBackupFolderOption(args)
   def start(t: T, conf: BackupFolderConfiguration) {
     println(t.summary)
-    withUniverse(conf, false) { universe =>
+    withUniverseOld(conf, false) { universe =>
       val bh = new Index(universe)
       BackupViewModel.index = bh
 

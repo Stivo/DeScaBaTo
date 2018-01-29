@@ -2,13 +2,13 @@ package ch.descabato.ui
 
 import java.io.IOException
 
-import ch.descabato.core.{BackupConfigurationHandler, Universes}
+import ch.descabato.core_old.{BackupConfigurationHandler, Universes}
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils.Utils
 
 import scalafx.Includes._
-import scalafx.application.{JFXApp, Platform}
 import scalafx.application.JFXApp.PrimaryStage
+import scalafx.application.{JFXApp, Platform}
 import scalafx.scene.Scene
 import scalafxml.core.{FXMLView, NoDependencyResolver}
 

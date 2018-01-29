@@ -14,7 +14,7 @@ val commonSettings =
 val core = (project in file("core"))
   .settings(commonSettings)
 
-val browser = (project in file("browser"))
+val ui = (project in file("ui"))
   .dependsOn(core)
   .settings(commonSettings)
 

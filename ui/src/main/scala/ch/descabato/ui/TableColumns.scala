@@ -5,14 +5,12 @@ import java.io._
 import java.util.{Date, Locale}
 import javafx.scene.{control => jfxc}
 
-import scalafx.Includes._
-import ch.descabato.core.{FileDescription, Size}
+import ch.descabato.core_old.{FileDescription, Size}
 
+import scalafx.Includes._
 import scalafx.scene.control._
 import scalafx.scene.control.cell.TextFieldTableCell
 import scalafx.scene.image.{Image, ImageView}
-import scalafx.scene.input.ContextMenuEvent
-import scalafx.stage.{DirectoryChooser, FileChooser}
 import scalafx.util.converter.{DateStringConverter, LongStringConverter}
 
 /**
@@ -132,8 +130,7 @@ object TableColumns {
     }
   }
 
-  def findColumn[T](name: String, tableView: TableView[ObservableBackupPart])
-  : Option[jfxc.TableColumn[ObservableBackupPart, T]] = {
+  def findColumn[T](name: String, tableView: TableView[ObservableBackupPart]): Option[jfxc.TableColumn[ObservableBackupPart, T]] = {
     tableView.columns.find(_.getId == name).map {
       case c: jfxc.TableColumn[ObservableBackupPart, T] =>
         c

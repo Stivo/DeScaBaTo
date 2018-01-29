@@ -5,7 +5,7 @@ package ch.descabato.ui
 import scalafx.Includes._
 import scalafx.scene.control._
 import scalafx.stage.DirectoryChooser
-import scalafxml.core.macros.{nested, sfxml}
+import scalafxml.core.macros.sfxml
 
 @sfxml
 class WelcomeController(
@@ -21,7 +21,7 @@ class WelcomeController(
     open()
   }
 
-  def onChooseFolderButton: Unit = {
+  def onChooseFolderButton(): Unit = {
     val file = new DirectoryChooser().showDialog(chooseFolderButton.getScene.getWindow)
     if (file != null) {
       folderTextfield.text = file.getCanonicalFile.getAbsolutePath

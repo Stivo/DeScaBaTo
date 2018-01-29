@@ -1,13 +1,13 @@
 
-name := "browser"
+name := "ui"
 
-mainClass := Some("ch.descabato.browser.Main")
+mainClass := Some("ch.descabato.ui.Main")
 
-unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
-  Seq(
-    base / "src/main/resources"
-  )
-}
+//unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
+//  Seq(
+//    base / "src/main/resources"
+//  )
+//}
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
@@ -18,13 +18,13 @@ libraryDependencies ++= Seq(
 
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
-packSettings
-
-packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
-
-packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m"))
-
-packJarNameConvention := "full"
-
-packArchivePrefix := "descabato"
-
+//packSettings
+//
+//packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
+//
+//packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m"))
+//
+//packJarNameConvention := "full"
+//
+//packArchivePrefix := "descabato"
+//

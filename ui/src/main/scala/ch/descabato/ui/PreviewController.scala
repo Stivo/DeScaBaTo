@@ -1,6 +1,6 @@
 package ch.descabato.ui
 
-import ch.descabato.core.{FileDescription, Size}
+import ch.descabato.core_old.{FileDescription, Size}
 import ch.descabato.utils.Utils
 
 import scala.io.Source
@@ -103,7 +103,7 @@ class PreviewController(
   private def previewText(fileDescription: FileDescription) = {
     l.info(s"Previewing as text file")
     // text file
-    infoLabel.text = s"Previewing ${fileDescription.path} (${fileDescription.sizeFormatted}) as text file"
+    infoLabel.text = s"Previewing ${fileDescription.path} (${fileDescription.size}) as text file"
     FxUtils.runInBackgroundThread {
       val stream = Source.fromInputStream(BackupViewModel.index.getInputStream(fileDescription))
       val lines = stream.getLines()

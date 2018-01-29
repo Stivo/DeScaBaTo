@@ -3,10 +3,10 @@ package ch.descabato.ui
 import java.io.{InputStream, SequenceInputStream}
 import java.util.Date
 
-import ch.descabato.core._
+import ch.descabato.core_old._
 import ch.descabato.utils.CompressedStream
 
-class Index(universe: Universe)
+class Index(universe: UniverseI)
   extends RestoreHandler(universe) {
 
   def versions = universe.fileManager().getBackupDates()
@@ -34,7 +34,7 @@ class Index(universe: Universe)
 
 }
 
-class LoadedBackup(val backup: BackupDescription) {
+class LoadedBackup(val backup: BackupDescriptionOld) {
 
   val parts = backup.allParts
   val map = backup.asMap

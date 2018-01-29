@@ -2,14 +2,13 @@ package ch.descabato.ui
 
 import java.util.Date
 
-import ch.descabato.core.FileDescription
+import ch.descabato.core_old.FileDescription
 
-import scalafx.scene.control._
-import scalafxml.core.macros.{nested, sfxml}
-import scalafx.Includes._
 import scalafx.application.Platform
 import scalafx.collections.ObservableBuffer
+import scalafx.scene.control._
 import scalafx.scene.layout.BorderPane
+import scalafxml.core.macros.{nested, sfxml}
 
 @sfxml
 class RestoreController(

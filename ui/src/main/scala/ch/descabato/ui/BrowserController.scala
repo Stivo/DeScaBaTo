@@ -1,8 +1,9 @@
 package ch.descabato.ui
 
 
-import ch.descabato.core.{BackupPart, FileDescription, FolderDescription, Size}
-import ch.descabato.frontend.RestoreConf
+import javafx.collections.ObservableList
+
+import ch.descabato.core_old.{BackupPart, FileDescription, FolderDescription, Size}
 
 import scala.collection.mutable
 import scalafx.Includes._
@@ -11,10 +12,9 @@ import scalafx.beans.binding.Bindings
 import scalafx.beans.property.StringProperty
 import scalafx.event.ActionEvent
 import scalafx.scene.control._
-import scalafxml.core.macros.sfxml
-
 import scalafx.scene.input.ContextMenuEvent
 import scalafx.util.Duration
+import scalafxml.core.macros.sfxml
 
 sealed trait SelectedItems {
   def items: Seq[BackupPart]
@@ -76,7 +76,7 @@ class BrowserController(
 
   browserTable.onSort = { _ => model.sortedItems.comparatorProperty().bind(browserTable.comparatorProperty()) }
 
-  val items = browserTable.selectionModel().getSelectedItems
+  val items: ObservableList[ObservableBackupPart] = browserTable.selectionModel().getSelectedItems
 
   val searchText = new StringProperty("")
 
@@ -246,18 +246,19 @@ class BrowserController(
   }
 
   def restoreToOriginal(items: Seq[BackupPart]): Unit = {
-    val configArgs = model.index.universe.config().asCommandLineArgs()
-    // TODO this is quite error prone and ugly
-    val conf = new RestoreConf(Seq("--restore-to-original-path") ++ configArgs)
-    conf.verify()
-    items.foreach { item =>
-      item match {
-        case fd : FileDescription =>
-          model.index.restoreFileDesc(fd)(conf)
-        case fd : FolderDescription =>
-          model.index.restoreFolderDesc(fd)(conf)
-      }
-    }
+    // TODO
+//    val configArgs = model.index.universe.config().asCommandLineArgs()
+//    // TODO this is quite error prone and ugly
+//    val conf = new RestoreConf(Seq("--restore-to-original-path") ++ configArgs)
+//    conf.verify()
+//    items.foreach { item =>
+//      item match {
+//        case fd : FileDescription =>
+//          model.index.restoreFileDesc(fd)(conf)
+//        case fd : FolderDescription =>
+//          model.index.restoreFolderDesc(fd)(conf)
+//      }
+//    }
   }
 
   if (System.getProperty("user.name") == "Stivo") {
