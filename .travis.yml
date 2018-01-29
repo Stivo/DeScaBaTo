@@ -11,6 +11,7 @@ branches:
     - remote_new
     - streams
     - streams-working
+    - streams-working-with-ui
 jdk:
   - oraclejdk8
 #before_script:
