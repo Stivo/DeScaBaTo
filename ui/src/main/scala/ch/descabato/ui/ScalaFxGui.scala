@@ -14,6 +14,7 @@ import scalafx.Includes._
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.application.{JFXApp, Platform}
 import scalafx.scene.Scene
+import scalafx.stage.WindowEvent
 import scalafxml.core.{FXMLView, NoDependencyResolver}
 
 
@@ -79,6 +80,9 @@ object ScalaFxGui extends JFXApp with Utils {
       stage.hide()
       stage.delegate.setScene(new Scene(root))
       stage.show()
+      stage.setOnCloseRequest((event: WindowEvent) => {
+        System.exit(0)
+      })
     }
   }
 }
