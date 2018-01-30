@@ -53,17 +53,14 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   def startup(): Future[Boolean] = {
     Future {
       val measure = new StandardMeasureTime
-      deleteVolumesWithoutIndexes()
       for (file <- context.fileManagerNew.volumeIndex.getFiles()) {
         readJson[Seq[StoredChunk]](file) match {
           case Success(seq) =>
             checkpointed ++= seq.map(x => (x.hash, x))
           case Failure(_) =>
-            logger.error(s"Could not read index $file, deleting it instead")
-            file.delete()
+            logger.warn(s"Could not read index $file, it might be corrupted, some data loss will occur. Backup again.")
         }
       }
-      deleteVolumesWithoutIndexes()
       logger.info(s"Parsed jsons in ${measure.measuredTime()}")
       measure.startMeasuring()
       assignedIds = checkpointed.values.map(x => (x.id, x)).toMap
@@ -72,21 +69,6 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
       }
       logger.info(s"Reconstructing state completed in ${measure.measuredTime()} ")
       true
-    }
-  }
-
-  private def deleteVolumesWithoutIndexes() = {
-    val indexes = context.fileManagerNew.volumeIndex.getFiles().map(x =>
-      (context.fileManagerNew.volumeIndex.numberOfFile(x), x)
-    ).toMap
-    val volumes = context.fileManagerNew.volume.getFiles().map(x =>
-      (context.fileManagerNew.volume.numberOfFile(x), x)
-    ).toMap
-    for ((volumeIndex, volume) <- volumes) {
-      if (!indexes.safeContains(volumeIndex)) {
-        logger.warn(s"Deleting volume $volume because there is no index for it")
-        volume.delete()
-      }
     }
   }
 

@@ -4,6 +4,7 @@ import java.io.IOException
 
 import ch.descabato.core.Universe
 import ch.descabato.core_old.BackupConfigurationHandler
+import ch.descabato.core_old.BackupVerification.{OK, VerificationResult}
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils.Utils
 
@@ -38,24 +39,33 @@ object ScalaFxGui extends JFXApp with Utils {
     stage.scene = new Scene(root)
   }
 
-  def openRestore(folder: String): Unit = {
-    new Thread() {
-      override def run(): Unit = {
-        val conf = new RestoreConf(Seq("--restore-to-original-path", folder))
-        conf.verify()
+  def openRestore(folder: String, passphrase: String): VerificationResult = {
+    var args = Seq("--restore-to-original-path", folder)
+    if (passphrase != null && passphrase.nonEmpty) {
+      args = "--passphrase" +: passphrase +: args
+    }
+    val conf = new RestoreConf(args)
+    conf.verify()
 
-        val handler = new BackupConfigurationHandler(conf)
-        val config = handler.configure(None)
+    val handler = new BackupConfigurationHandler(conf, true)
+    val result = handler.verify()
 
-        val universe = new Universe(config)
-        Await.result(universe.startup(), 1.minute)
+    if (result == OK) {
+      val config = handler.updateAndGetConfiguration()
+      new Thread() {
+        override def run(): Unit = {
 
-        val index = new Index(universe)
-        BackupViewModel.index = index
+          val universe = new Universe(config)
+          Await.result(universe.startup(), 1.minute)
 
-        openBrowser()
-      }
-    }.start()
+          val index = new Index(universe)
+          BackupViewModel.index = index
+
+          openBrowser()
+        }
+      }.start()
+    }
+    result
   }
 
   private def openBrowser() = {

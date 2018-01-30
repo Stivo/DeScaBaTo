@@ -2,6 +2,8 @@ package ch.descabato.ui
 
 
 
+import ch.descabato.core_old.BackupVerification.OK
+
 import scalafx.Includes._
 import scalafx.scene.control._
 import scalafx.stage.DirectoryChooser
@@ -13,12 +15,13 @@ class WelcomeController(
                          private val chooseFolderButton: Button,
                          private val openBackupButton: Button,
                          private val prefixTextField: TextField,
-                         private val passwordTextfield: PasswordField
+                         private val errorLabel: Label,
+                         private val passwordTextField: PasswordField
                        ) {
 
   if (System.getProperty("user.name") == "Stivo") {
     folderTextfield.text = "L:/backup"
-    open()
+//    open()
   }
 
   def onChooseFolderButton(): Unit = {
@@ -29,10 +32,15 @@ class WelcomeController(
   }
 
   def open(): Unit = {
+    errorLabel.text = ""
     openBackupButton.text = "Loading ..."
     openBackupButton.disable = true
-    ScalaFxGui.openRestore(folderTextfield.text())
+    val result = ScalaFxGui.openRestore(folderTextfield.text(), passwordTextField.text())
+    if (result != OK) {
+      openBackupButton.disable = false
+      openBackupButton.text = "Open"
+      errorLabel.text = result.toString
+    }
   }
 
 }
-

@@ -13,7 +13,7 @@ import ch.descabato.utils.{BytesWrapper, CompressedStream}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-abstract class DoReadAbstract(val universe: Universe) {
+abstract class DoReadAbstract(val universe: Universe, private val openGui: Boolean = true) {
 
   import universe.{ex, materializer}
 
@@ -21,8 +21,10 @@ abstract class DoReadAbstract(val universe: Universe) {
 
   protected val readBytesCounter = new StandardByteCounter("Read Bytes")
 
-  ProgressReporters.addCounter(readBytesCounter)
-  ProgressReporters.openGui("Reading", false)
+  if (openGui) {
+    ProgressReporters.addCounter(readBytesCounter)
+    ProgressReporters.openGui("Reading", false)
+  }
 
   def getInputStream(file: FileMetadataStored): InputStream = {
     val sink: Sink[ByteString, InputStream] = StreamConverters.asInputStream(10.minutes)

@@ -2,6 +2,7 @@ package ch.descabato.core_old
 
 import java.io.{File, FileInputStream, FileOutputStream}
 
+import ch.descabato.core_old.BackupVerification.OK
 import ch.descabato.frontend.{BackupFolderOption, ChangeableBackupOptions, CreateBackupOptions}
 import ch.descabato.utils.{JsonSerialization, Utils}
 
@@ -112,7 +113,9 @@ object BackupVerification {
 /**
   * Loads a configuration and verifies the command line arguments
   */
-class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
+class BackupConfigurationHandler(private var supplied: BackupFolderOption, existing: Boolean) extends Utils {
+
+  var passphrase: Option[String] = supplied.passphrase.toOption
 
   val mainFile: String = supplied.prefix() + "backup.json"
   val folder: File = supplied.backupDestination()
@@ -139,17 +142,21 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     // writeObject closes
   }
 
-  def verify(existing: Boolean): BackupVerification.VerificationResult = {
+  def verify(): BackupVerification.VerificationResult = {
     import ch.descabato.core_old.BackupVerification._
     if (existing && !hasOld) {
       return BackupDoesntExist
     }
     if (hasOld) {
-      if (loadOld().get.hasPassword && supplied.passphrase.isEmpty) {
+      if (loadOld().get.hasPassword && passphrase.isEmpty) {
         return PasswordNeeded
       }
     }
     OK
+  }
+
+  def setPassphrase(passphrase: String) = {
+    this.passphrase = Some(passphrase)
   }
 
   def verifyAndInitializeSetup(conf: BackupFolderConfiguration) {
@@ -158,7 +165,8 @@ class BackupConfigurationHandler(supplied: BackupFolderOption) extends Utils {
     //    }
   }
 
-  def configure(passphrase: Option[String]): BackupFolderConfiguration = {
+  def updateAndGetConfiguration(): BackupFolderConfiguration = {
+    assert(verify() == OK)
     if (hasOld) {
       val oldConfig = loadOld().get
       val (out, changed) = InitBackupFolderConfiguration.merge(oldConfig, supplied, passphrase)
