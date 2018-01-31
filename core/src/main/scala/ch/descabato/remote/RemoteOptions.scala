@@ -42,7 +42,6 @@ class RemoteOptions {
 
   @transient
   lazy val uploaderCounter1: FileCounter = new FileCounter {
-    override def name: String = "Uploader 1"
     ProgressReporters.addCounter(this)
   }
 

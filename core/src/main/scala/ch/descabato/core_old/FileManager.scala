@@ -74,7 +74,9 @@ class FileManagerNew(config: BackupFolderConfiguration) {
 }
 
 /**
-  * Pattern here is: $name/$name_$range/$name_$number
+  * Pattern here is:
+  * $name/$name_$number for all < 1000
+  * $name/$name_$range/$name_$number for all >= 1000
   */
 class StandardNumberedFileType(name: String, suffix: String, config: BackupFolderConfiguration) extends NumberedFileTypeNew {
   val mainFolder = new File(config.folder, name)
@@ -91,7 +93,8 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
   override def fileForNumber(number: Int): File = {
     val subfolderNumber = number / filesPerFolder
     val nameNumber = f"${number}%06d"
-    new File(mainFolder, s"${name}_$subfolderNumber/${name}_${nameNumber}.${suffix}")
+    val firstFolder = if (subfolderNumber > 0) s"${name}_$subfolderNumber/" else ""
+    new File(mainFolder, s"$firstFolder${name}_${nameNumber}.${suffix}")
   }
 
   override def getFiles(): Seq[File] = {
@@ -105,23 +108,29 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
 
   override def matches(file: File): Boolean = {
     val nameMatches = file.getName.matches(regexWithSuffix)
-    val parentMatches = file.getParentFile.getName.matches(regex)
-    val parentsParentMatches = file.getParentFile.getParentFile.getName == name
-    nameMatches && parentMatches && parentsParentMatches
+    val scheme1 = {
+      val parentMatches = file.getParentFile.getName.matches(regex)
+      val parentsParentMatches = file.getParentFile.getParentFile.getName == name
+      nameMatches && parentMatches && parentsParentMatches
+    }
+    val scheme2 = {
+      val parentMatches = file.getParentFile.getName == name
+      nameMatches && parentMatches
+    }
+    scheme1 || scheme2
   }
 
   override def nextFile(): File = {
     if (mainFolder.exists()) {
-      val subdirs = mainFolder.listFiles().filter(_.isDirectory).filter(x => x.getName.matches(regex)).sorted
-      if (subdirs.nonEmpty) {
-        val files = subdirs.last.listFiles().filter(matches).sorted
-        if (files.nonEmpty) {
-          val number = numberOfFile(files.last)
-          return fileForNumber(number + 1)
-        }
+      val existing = getFiles().map(numberOfFile)
+      if (existing.nonEmpty) {
+        fileForNumber(existing.max + 1)
+      } else {
+        fileForNumber(0)
       }
+    } else {
+      fileForNumber(0)
     }
-    fileForNumber(0)
   }
 }
 

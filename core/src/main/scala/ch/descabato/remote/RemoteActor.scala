@@ -13,6 +13,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.{ObjectMetadata, PutObjectRequest, StorageClass}
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.google.common.util.concurrent.RateLimiter
 import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.vfs2.FileObject
 import org.apache.commons.vfs2.impl.StandardFileSystemManager
@@ -531,6 +532,7 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
     //      upload.waitForUploadResult()
     //    }
     // fast, but no throttling
+    val log = RateLimiter.create(1)
     Try {
       val manager = TransferManagerBuilder.defaultTransferManager()
       val request = new PutObjectRequest(bucketName, remotePath, file)
@@ -544,11 +546,14 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
       val upload = manager.upload(request)
       val integer = new AtomicLong()
       context.foreach { c =>
+        c.initCounter(file.length(), file.getName)
         upload.addProgressListener(new ProgressListener {
           override def progressChanged(progressEvent: ProgressEvent): Unit = {
             val transferred = progressEvent.getBytesTransferred
-            val after = integer.addAndGet(transferred)
-            c.progress.current = after
+            c.progress += transferred
+            if (log.tryAcquire(5)) {
+              println(c.progress.formatted)
+            }
           }
         })
       }

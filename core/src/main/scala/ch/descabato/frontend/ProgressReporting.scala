@@ -176,10 +176,10 @@ class SizeStandardCounter(val name: String) extends MaxValueCounter with ETACoun
   }
 }
 
-trait FileCounter extends MaxValueCounter {
+class FileCounter extends SizeStandardCounter("filename") {
   var fileName: String = "filename"
 
-  override def formatted = fileName
+  override def formatted = s"$fileName ${super[SizeStandardCounter].formatted} $calcEta"
 }
 
 class StandardMaxValueCounter(val name: String, maxValueIn: Long) extends MaxValueCounter {

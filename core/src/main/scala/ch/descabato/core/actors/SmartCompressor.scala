@@ -63,7 +63,8 @@ class Smart3Compressor extends Compressor with Utils {
     extensions(extension)
   }
 
-  val algosFirstRound: Seq[CompressionMode] = Array(CompressionMode.snappy, CompressionMode.lz4hc, CompressionMode.gzip)
+  val fastAlgos: Set[CompressionMode] = Set(CompressionMode.none, CompressionMode.snappy, CompressionMode.lz4)
+  val algosFirstRound: Seq[CompressionMode] = Array(CompressionMode.none, CompressionMode.snappy, CompressionMode.lz4, CompressionMode.lz4hc, CompressionMode.gzip)
 
   class Extension(val ext: String) {
 
@@ -71,7 +72,7 @@ class Smart3Compressor extends Compressor with Utils {
 
     var bytesReceived: Long = 0
 
-    class SampleData {
+    class SampleData(mode: CompressionMode) {
       private var _compressedBytes = 0
       private var _totalTime = 0L
 
@@ -91,14 +92,18 @@ class Smart3Compressor extends Compressor with Utils {
         }
       }
 
-      // more than a 3 percent gap
+      // more than a 3 percent gap, or if it is one of the fast algos, just the better one
       def isBetterThan(winnerData: SampleData): Boolean = {
-        ratio + 0.03 < winnerData.ratio
+        if (fastAlgos.contains(mode)) {
+          ratio < winnerData.ratio
+        } else {
+          ratio + 0.03 < winnerData.ratio
+        }
       }
 
     }
 
-    private var sampleData: Map[CompressionMode, SampleData] = algos.map(algo => (algo, new SampleData())).toMap
+    private var sampleData: Map[CompressionMode, SampleData] = algos.map(algo => (algo, new SampleData(algo))).toMap
 
     private[Smart3Compressor] var status: CompressionDeciderState = Sampling
 
@@ -135,7 +140,7 @@ class Smart3Compressor extends Compressor with Utils {
         case Sampling if sampleData(winner).ratio < 0.9 && sampleData(winner).ratio > 0.03 && status == Sampling =>
           bytesReceived = 0
           algos = Seq(winner, CompressionMode.lzma)
-          sampleData = algos.map(x => (x, new SampleData())).toMap
+          sampleData = algos.map(x => (x, new SampleData(x))).toMap
           logger.info(s"Doing shootout between $algos for $ext")
           SamplingForLzma
         case Sampling | SamplingForLzma =>
