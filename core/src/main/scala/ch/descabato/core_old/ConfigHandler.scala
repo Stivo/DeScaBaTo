@@ -9,7 +9,7 @@ import ch.descabato.utils.{JsonSerialization, Utils}
 
 object InitBackupFolderConfiguration extends Utils {
   def apply(option: BackupFolderOption, passphrase: Option[String]): BackupFolderConfiguration = {
-    val out = BackupFolderConfiguration(option.backupDestination(), option.prefix(), passphrase)
+    val out = BackupFolderConfiguration(option.backupDestination(), passphrase)
     option match {
       case o: ChangeableBackupOptions =>
         o.keylength.foreach(out.keyLength = _)
@@ -20,7 +20,6 @@ object InitBackupFolderConfiguration extends Utils {
         //        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
         //        o.volumeRedundancy.foreach(out.volumeRedundancy = _)
         //        o.metadataRedundancy.foreach(out.metadataRedundancy = _)
-        o.createIndexes.foreach(b => out.createIndexes = b)
         o.dontSaveSymlinks.foreach(b => out.saveSymlinks = !b)
         o.compression.foreach(x => out.compressor = x)
       case _ =>
@@ -28,7 +27,6 @@ object InitBackupFolderConfiguration extends Utils {
     option match {
       case o: CreateBackupOptions =>
         o.serializerType.foreach(out.serializerType = _)
-        o.blockSize.foreach(out.blockSize = _)
         o.hashAlgorithm.foreach(out.hashAlgorithm = _)
         o.remoteUri.foreach(out.remoteOptions.uri = _)
         o.remoteMode.foreach(out.remoteOptions.mode = _)
@@ -52,10 +50,6 @@ object InitBackupFolderConfiguration extends Utils {
         }
         if (o.threads.isSupplied) {
           o.threads.foreach(old.threads = _)
-          changed = true
-        }
-        if (o.createIndexes.isSupplied) {
-          o.createIndexes.foreach(old.createIndexes = _)
           changed = true
         }
         if (o.ignoreFile.isSupplied) {
@@ -117,7 +111,7 @@ class BackupConfigurationHandler(private var supplied: BackupFolderOption, exist
 
   var passphrase: Option[String] = supplied.passphrase.toOption
 
-  val mainFile: String = supplied.prefix() + "backup.json"
+  val mainFile: String = "backup.json"
   val folder: File = supplied.backupDestination()
 
   private val configFile = new File(folder, mainFile)

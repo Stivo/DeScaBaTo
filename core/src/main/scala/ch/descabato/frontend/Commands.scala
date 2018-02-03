@@ -188,13 +188,11 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
   val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
   val compression: ScallopOption[CompressionMode] = opt[CompressionMode](default = Some(CompressionMode.smart))
   // TODO delete
-  val createIndexes: ScallopOption[Boolean] = opt[Boolean](default = Some(true))
   val ignoreFile: ScallopOption[File] = opt[File](default = None)
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
   val serializerType: ScallopOption[String] = opt[String]()
-  val blockSize: ScallopOption[Size] = opt[Size](default = Some(Size("100Kb")))
   val hashAlgorithm: ScallopOption[String] = opt[String](default = Some("md5"))
   val remoteUri: ScallopOption[String] = opt[String]()
   val remoteMode: ScallopOption[RemoteMode] = opt[RemoteMode]()
@@ -209,17 +207,6 @@ trait ProgramOption extends ScallopConf {
 
 trait BackupFolderOption extends ProgramOption {
   val passphrase: ScallopOption[String] = opt[String](default = None)
-  val prefix: ScallopOption[String] = opt[String](default = Some("")).map {
-    x =>
-      if (x == "") {
-        x
-      } else {
-        x.last match {
-          case '.' | '_' | '-' | ';' => x
-          case _ => x + "_"
-        }
-      }
-  }
   val backupDestination: ScallopOption[File] = trailArg[String](required = true).map(new File(_).getCanonicalFile())
 }
 
@@ -230,7 +217,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   val suffix: String = if (Utils.isWindows) ".bat" else ""
 
   def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]): Unit = {
-    var path = new File(s"${conf.prefix}descabato$suffix").getCanonicalFile
+    var path = new File(s"descabato$suffix").getCanonicalFile
     // TODO the directory should be determined by looking at the classpath
     if (!path.exists) {
       path = new File(path.getParent() + "/bin", path.getName)

@@ -77,7 +77,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
   val journalInZipFile = "journalUpdates.txt"
   val updateMarker = "_withUpdate"
 
-  lazy val journalName: String = config.prefix + "files-journal.txt"
+  lazy val journalName: String = "files-journal.txt"
 
   var backupClean = true
 

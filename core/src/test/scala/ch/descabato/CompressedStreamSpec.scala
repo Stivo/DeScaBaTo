@@ -34,7 +34,7 @@ class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
     }
   }
 
-  class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, "", passphrase) {
+  class FHO(passphrase: Option[String]) extends BackupFolderConfiguration(folder, passphrase) {
     override def toString = s"Compression mode is $compressor, keylength is $keyLength, passphrase is $passphrase"
   }
 

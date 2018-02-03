@@ -133,7 +133,6 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     val graph = RunnableGraph.fromGraph(GraphDSL.create(Sink.ignore) { implicit builder =>
       sink =>
         import GraphDSL.Implicits._
-        val chunkSize = config.blockSize.bytes.toInt
         val chunker = new Chunker()
         val chunkSource = FileIO.fromPath(path, chunkSize = 256 * 1024) ~> chunker
 

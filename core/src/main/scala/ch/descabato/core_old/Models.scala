@@ -17,12 +17,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 
 import scala.collection.JavaConverters._
 
-case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
+case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
 
   def this() = this(null)
 
   @JsonIgnore
-  var configFileName: String = prefix + "backup.json"
+  var configFileName: String = "backup.json"
   var version: String = ch.descabato.version.BuildInfo.version
   var serializerType = "json"
 
@@ -35,13 +35,10 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   var keyLength = 128
   var compressor = CompressionMode.smart
 
-  def hashLength: Int = createMessageDigest().getDigestLength()
-
   var hashAlgorithm = "SHA256"
 
   @JsonIgnore def createMessageDigest(): MessageDigest = MessageDigest.getInstance(hashAlgorithm)
 
-  var blockSize: Size = Size("16Kb")
   var volumeSize: Size = Size("100Mb")
   var threads: Int = 1
   //  val useDeltas = false
@@ -51,7 +48,6 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
   //  var metadataRedundancy: Int = 20
   //  var volumeRedundancy: Int = 5
   var saveSymlinks: Boolean = true
-  var createIndexes: Boolean = true
   var ignoreFile: Option[File] = None
 
   var remoteOptions: RemoteOptions = new RemoteOptions()
@@ -160,7 +156,7 @@ object FileAttributes extends Utils {
         add(posixPermissions, PosixFilePermissions.toString(posix.permissions()))
       }
     } catch {
-      case e: UnsupportedOperationException => // ignore, not a posix system
+      case _: UnsupportedOperationException => // ignore, not a posix system
     }
   }
 
@@ -180,7 +176,7 @@ object FileAttributes extends Utils {
       //        add("dos:system", true)
       //      }
     } catch {
-      case e: UnsupportedOperationException => // ignore, not a dos system
+      case _: UnsupportedOperationException => // ignore, not a dos system
     }
   }
 
@@ -270,15 +266,6 @@ case class FileDescription(path: String, size: Long, attrs: FileAttributes, @Jac
   }
 }
 
-case class BlockId(file: FileDescription, part: Int)
-
-class Block(val id: BlockId, val content: BytesWrapper) {
-  val uncompressedLength: Int = content.length
-  var hash: Hash = Hash.empty
-  var mode: CompressionMode = _
-  var compressed: BytesWrapper = _
-}
-
 object FolderDescription {
   def apply(dir: File): FolderDescription = {
     if (!dir.isDirectory) throw new IllegalArgumentException(s"Must be a directory, $dir is a file")
@@ -311,41 +298,6 @@ case class SymbolicLink(path: String, linkTarget: String, attrs: FileAttributes)
   def isFolder = false
 }
 
-case class BackupDescriptionOld(files: Vector[FileDescription] = Vector.empty,
-                                folders: Vector[FolderDescription] = Vector.empty,
-                                symlinks: Vector[SymbolicLink] = Vector.empty, deleted: Vector[FileDeleted] = Vector.empty) {
-  def merge(later: BackupDescriptionOld): BackupDescriptionOld = {
-    val set = later.deleted.map(_.path).toSet ++ later.asMap.keySet
-
-    def remove[T <: BackupPart](x: Vector[T]) = {
-      x.filterNot(bp => set safeContains bp.path)
-    }
-
-    BackupDescriptionOld(remove(files) ++ later.files, remove(folders) ++ later.folders,
-      remove(symlinks) ++ later.symlinks, later.deleted)
-  }
-
-  @JsonIgnore def allParts: Vector[BackupPart with Product with Serializable] = files ++ folders ++ symlinks
-
-  @JsonIgnore lazy val asMap: Map[String, BackupPart] = {
-    var map = Map[String, BackupPart]()
-    allParts.foreach { x => map += ((x.path, x)) }
-    map
-  }
-
-  def +(x: UpdatePart): BackupDescriptionOld = x match {
-    case x: FileDescription => this.copy(files = files :+ x)
-    case x: FolderDescription => this.copy(folders = folders :+ x)
-    case x: SymbolicLink => this.copy(symlinks = symlinks :+ x)
-  }
-
-  @JsonIgnore def size: Int = files.size + folders.size + symlinks.size
-
-  @JsonIgnore def sizeWithDeleted: Int = size + deleted.size
-
-  @JsonIgnore def isEmpty(): Boolean = sizeWithDeleted == 0
-}
-
 // Domain classes
 case class Size(bytes: Long) {
   override def toString: String = Utils.readableFileSize(bytes)
@@ -369,5 +321,3 @@ object Size {
     new Size(out)
   }
 }
-
-case class MetaInfo(date: String, writingVersion: String)

@@ -48,8 +48,6 @@ class Hash private (val bytes: Array[Byte]) extends AnyVal {
   def !==(other: Hash): Boolean = !(this === other)
 
   def wrap(): BytesWrapper = BytesWrapper(bytes)
-
-  def grouped(config: BackupFolderConfiguration): Iterator[Array[Byte]] = bytes.grouped(config.hashLength)
 }
 
 object BytesWrapper {
