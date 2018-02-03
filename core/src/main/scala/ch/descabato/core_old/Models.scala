@@ -9,11 +9,10 @@ import java.util
 import java.util.regex.Pattern
 
 import ch.descabato.CompressionMode
+import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
-import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
-import com.fasterxml.jackson.annotation.JsonIgnore
 
 import scala.collection.JavaConverters._
 

@@ -1,7 +1,7 @@
 package ch.descabato.core.model
 
+import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.core_old.FileDescription
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 case class FileMetadataStored(id: Long, fd: FileDescription,

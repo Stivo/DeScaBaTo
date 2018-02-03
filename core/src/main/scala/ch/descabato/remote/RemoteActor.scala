@@ -12,7 +12,6 @@
 //import com.amazonaws.services.s3.AmazonS3ClientBuilder
 //import com.amazonaws.services.s3.model.{ObjectMetadata, PutObjectRequest, StorageClass}
 //import com.amazonaws.services.s3.transfer.TransferManagerBuilder
-//import com.fasterxml.jackson.annotation.JsonIgnore
 //import com.google.common.util.concurrent.RateLimiter
 //import org.apache.commons.compress.utils.IOUtils
 //import org.apache.commons.vfs2.FileObject
