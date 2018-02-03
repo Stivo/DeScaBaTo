@@ -6,7 +6,7 @@ import java.util.Date
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
-import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
+import ch.descabato.core.actors.{JournalHandler, MyEventReceiver}
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model._
 import ch.descabato.core.util.Json
@@ -61,7 +61,7 @@ trait MetadataStorage extends LifeCycle with TypedActor.PreRestart with MyEventR
 trait JsonUser {
   def config: BackupFolderConfiguration
 
-  def context: BackupContext
+  def journalHandler: JournalHandler
 
   def readJson[T: Manifest](file: File): Try[T] = {
     val reader = config.newReader(file)
@@ -91,7 +91,7 @@ trait JsonUser {
     val compressed: BytesWrapper = CompressedStream.compress(BytesWrapper(bytes), CompressionMode.gzip)
     writer.write(compressed)
     writer.finish()
-    context.sendFileFinishedEvent(writer)
+    journalHandler.addFileToJournal(file, writer.md5Hash())
   }
 }
 

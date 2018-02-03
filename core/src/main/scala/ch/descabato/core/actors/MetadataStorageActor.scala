@@ -11,7 +11,7 @@ import ch.descabato.utils.{StandardMeasureTime, Utils}
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-class MetadataStorageActor(val context: BackupContext) extends MetadataStorage with JsonUser with Utils {
+class MetadataStorageActor(val context: BackupContext, val journalHandler: JournalHandler) extends MetadataStorage with JsonUser with Utils {
 
   val config = context.config
 
@@ -112,7 +112,8 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   override def finish(): Future[Boolean] = {
     if (!hasFinished) {
       if (notCheckpointed.files.nonEmpty || notCheckpointed.folders.nonEmpty) {
-        checkpointMetadata()
+        writeMetadata(notCheckpointed)
+        notCheckpointed = new BackupMetaDataStored()
       }
       if (thisBackup.dirIds.nonEmpty || thisBackup.fileIds.nonEmpty) {
         val file = context.fileManager.backup.nextFile()
@@ -127,22 +128,27 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
     logger.error("Actor was restarted", reason)
   }
 
-  def checkpointMetadata(): Unit = {
+  private def writeMetadata(metadataStored: BackupMetaDataStored): Unit = {
     val file = context.fileManager.metadata.nextFile()
-    writeToJson(file, notCheckpointed)
-    notCheckpointed = new BackupMetaDataStored()
+    writeToJson(file, metadataStored)
+  }
+
+  private def checkpointMetadata(ids: Set[Long]): Unit = {
+    val (allChunksDone, notAllChunksDone) = notCheckpointed.files.partition(_.chunkIds.forall(ids.safeContains))
+    val stored = new BackupMetaDataStored(files = allChunksDone, folders = notCheckpointed.folders)
+    writeMetadata(stored)
+    notCheckpointed = new BackupMetaDataStored(files = notAllChunksDone)
   }
 
   override def receive(myEvent: MyEvent): Unit = {
     myEvent match {
-      case FileFinished(context.fileManager.volume, x, false, _) =>
-        logger.info(s"Got volume rolled event to $x")
+      case CheckpointedChunks(ids) =>
         if (hasFinished) {
           assert(notCheckpointed.files.isEmpty)
           assert(notCheckpointed.folders.isEmpty)
           logger.info("Ignoring as files are already written")
         } else {
-          checkpointMetadata()
+          checkpointMetadata(ids)
         }
       case _ =>
       // ignore unknown message
@@ -200,7 +206,7 @@ object MetadataStorageActor extends Utils {
       BackupIds.maxId(maxId)
     }
 
-    // scalastyle:off
+    // scalastyle:on
 
     def mapById = _mapById
 

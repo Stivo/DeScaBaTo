@@ -33,7 +33,9 @@ trait MyEvent {
   def topic: String = MyEvent.globalTopic
 }
 
-case class FileFinished(filetype: FileType, file: File, isTempFile: Boolean, md5hash: Hash) extends MyEvent
+case class FileAddedToJournal(filetype: FileType, file: File, md5hash: Hash) extends MyEvent
+
+case class CheckpointedChunks(ids: Set[Long]) extends MyEvent
 
 trait MyEventReceiver {
   def receive(myEvent: MyEvent): Unit

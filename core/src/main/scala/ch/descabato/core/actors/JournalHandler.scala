@@ -12,7 +12,7 @@ import scala.collection.immutable.HashSet
 
 class BlockingOperation
 
-trait JournalHandler extends MyEventReceiver {
+trait JournalHandler {
   def getMd5ForFile(file: File): Option[Hash]
 
   // Removes all files not mentioned in the journal
@@ -21,7 +21,9 @@ trait JournalHandler extends MyEventReceiver {
   // All the identifiers that were once used and are now unsafe to use again
   def usedIdentifiers(): Set[String]
 
-  // Reports whether the last shut down was dirty (crash)
+  def addFileToJournal(file: File, md5Hash: Hash): BlockingOperation
+
+    // Reports whether the last shut down was dirty (crash)
   def isInconsistentBackup(): Boolean
 
   def startWriting(): BlockingOperation
@@ -206,11 +208,10 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
     true
   }
 
-  override def receive(myEvent: MyEvent): Unit = {
-    myEvent match {
-      case FileFinished(typ, file, tmp, hash) =>
-        finishedFile(file, typ, !tmp, hash)
-    }
-
+  override def addFileToJournal(file: File, md5Hash: Hash): BlockingOperation = {
+    val filetype = fileManager.fileTypeForFile(file).get
+    finishedFile(file, filetype, true, md5Hash)
+    context.eventBus.publish(FileAddedToJournal(filetype, file, md5Hash))
+    new BlockingOperation()
   }
 }

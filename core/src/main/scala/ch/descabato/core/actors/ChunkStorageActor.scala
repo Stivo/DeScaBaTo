@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with JsonUser {
+class ChunkStorageActor(val context: BackupContext, val journalHandler: JournalHandler) extends ChunkStorage with JsonUser {
 
   val logger = LoggerFactory.getLogger(getClass)
 
@@ -131,11 +131,12 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
       block.file == filename
     }
     val hash = Await.result(hashFuture, 10.minutes)
-    context.sendFileFinishedEvent(currentWriter._2, hash)
+    journalHandler.addFileToJournal(currentWriter._2, hash)
     val indexFile: File = computeIndexFileForVolume()
     writeToJson(indexFile, toSave.values.toSeq)
     checkpointed ++= toSave
     notCheckpointed --= toSave.keySet
+    context.eventBus.publish(CheckpointedChunks(checkpointed.values.map(_.id).toSet))
     require(notCheckpointed.isEmpty)
     logger.info(s"Wrote volume and index for $filename")
     _currentWriter = null

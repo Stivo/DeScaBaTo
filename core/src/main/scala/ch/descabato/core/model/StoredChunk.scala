@@ -14,7 +14,7 @@ case class StoredChunk(id: Long, file: String, hash: Hash, startPos: Long, lengt
 
 
 object ChunkIds {
-  private var lastId: AtomicLong = new AtomicLong()
+  private val lastId: AtomicLong = new AtomicLong()
 
   def nextId(): Long = {
     lastId.incrementAndGet()

@@ -34,13 +34,11 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   private val journalHandlerProps: TypedProps[JournalHandler] = TypedProps.apply(classOf[JournalHandler], new SimpleJournalHandler(context))
   val journalHandler: JournalHandler = TypedActor(system).typedActorOf(journalHandlerProps.withTimeout(5.minutes))
 
-  private val chunkStorageProps: TypedProps[ChunkStorage] = TypedProps.apply(classOf[ChunkStorage], new ChunkStorageActor(context))
+  private val chunkStorageProps: TypedProps[ChunkStorage] = TypedProps.apply(classOf[ChunkStorage], new ChunkStorageActor(context, journalHandler))
   private val name = "blockStorageActor"
   val chunkStorageActor: ChunkStorage = TypedActor(system).typedActorOf(chunkStorageProps.withTimeout(5.minutes), name)
 
-  context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(journalHandler), journalHandler), MyEvent.globalTopic)
-
-  private val metadataStorageProps: TypedProps[MetadataStorageActor] = TypedProps.apply[MetadataStorageActor](classOf[MetadataStorage], new MetadataStorageActor(context))
+  private val metadataStorageProps: TypedProps[MetadataStorageActor] = TypedProps.apply[MetadataStorageActor](classOf[MetadataStorage], new MetadataStorageActor(context, journalHandler))
   val metadataStorageActor: MetadataStorage = TypedActor(system).typedActorOf(metadataStorageProps.withTimeout(5.minutes))
 
   private val compressorProps: TypedProps[Compressor] = TypedProps.apply[Compressor](classOf[Compressor], Compressors(config))
