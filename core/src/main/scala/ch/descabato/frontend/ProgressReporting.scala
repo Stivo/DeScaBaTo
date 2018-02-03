@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.{Date, TimerTask}
 import javax.swing.SwingUtilities
 
-import ch.descabato.akka.ActorStats
+import ch.descabato.core.ActorStats
 import ch.descabato.core_old.Size
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Implicits._

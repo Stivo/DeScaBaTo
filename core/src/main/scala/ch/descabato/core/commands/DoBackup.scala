@@ -9,10 +9,10 @@ import akka.stream.{ClosedShape, OverflowStrategy}
 import ch.descabato.core._
 import ch.descabato.core.actors.Chunker
 import ch.descabato.core.model._
-import ch.descabato.core_old.{FileDescription, FolderDescription, MeasureTime}
+import ch.descabato.core_old.{FileDescription, FolderDescription}
 import ch.descabato.frontend._
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{BytesWrapper, Hash, Utils}
+import ch.descabato.utils.{BytesWrapper, Hash, MeasureTime, Utils}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}

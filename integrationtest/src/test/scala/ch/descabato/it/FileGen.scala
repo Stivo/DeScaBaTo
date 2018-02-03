@@ -1,10 +1,11 @@
 package ch.descabato.it
 
-import java.io.{File, FileOutputStream, IOException, OutputStream, RandomAccessFile}
+import java.io._
 import java.nio.file.Files
 
 import ch.descabato.TestUtils
-import ch.descabato.core_old.{OldIndexVisitor, Size}
+import ch.descabato.core.FileVisitorCollector
+import ch.descabato.core_old.Size
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 
@@ -55,12 +56,12 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
   }
 
   def rescan() {
-    val index = new OldIndexVisitor(Map.empty, None, recordAll = true)
-    Files.walkFileTree(folder.toPath(), index)
+    val collector = new FileVisitorCollector(None)
+    collector.walk(folder.toPath)
     folderList.clear
-    folderList ++= index.allDesc.folders.map(x => new File(x.path))
+    folderList ++= collector.dirs.map(_.toFile)
     fileList.clear
-    fileList ++= index.allDesc.files.map(x => new File(x.path))
+    fileList ++= collector.files.map(_.toFile)
   }
 
   def changeSome() {

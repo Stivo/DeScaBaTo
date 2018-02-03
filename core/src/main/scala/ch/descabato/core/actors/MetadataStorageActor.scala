@@ -7,7 +7,7 @@ import ch.descabato.core.actors.MetadataStorageActor.{AllKnownStoredPartsMemory,
 import ch.descabato.core.model._
 import ch.descabato.core_old._
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{StandardMeasureTime, Utils}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}

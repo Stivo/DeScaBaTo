@@ -2,6 +2,7 @@ package ch.descabato.core_old.kvstore
 
 import java.math.BigInteger
 import java.security.SecureRandom
+import java.util.Base64
 import java.util.zip.CRC32
 import javax.crypto.Mac
 import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
@@ -67,34 +68,29 @@ object CrcUtil {
   }
 }
 
-/**
- * Zig-zag encoder used to write object sizes to serialization streams.
- * Based on Kryo's integer encoder.
- */
-object ZigZag {
+class EncryptionInfo (
+                       // algorithm 0 is for AES/CTR/NoPadding
+                       val algorithm: Byte = 0,
+                       // algorithm 0 is for HmacSHA256
+                       val macAlgorithm: Byte = 0,
+                       val ivLength: Byte = 16,
+                       val iv: Array[Byte] = CryptoUtils.newStrongRandomByteArray(16)
+                     )
 
-  def writeLong(n: Long, out: EncryptedRandomAccessFileHelpers) {
-    var value = n
-    while((value & ~0x7F) != 0) {
-      out.writeByte(((value & 0x7F) | 0x80).toByte)
-      value >>>= 7
-    }
-    out.writeByte(value.toByte)
-  }
+class KeyDerivationInfo (
+                          // algorithm 0 is for scrypt with 4 14 2 keyLength
+                          val algorithm: Byte = 0,
+                          val iterationsPower: Byte = 12,
+                          val memoryFactor: Byte = 8,
+                          val keyLength: Byte = 16,
+                          val saltLength: Byte = 20,
+                          val salt: Array[Byte] = CryptoUtils.newStrongRandomByteArray(20)
+                        )
 
-  def readLong(in: EncryptedRandomAccessFileHelpers): Long = {
-    var offset = 0
-    var result = 0L
-    while (offset < 32) {
-      val b = in.readByte()
-      result |= ((b & 0x7F) << offset)
-      if ((b & 0x80) == 0) {
-        return result
-      }
-      offset += 7
-    }
-    throw new Exception("Malformed zigzag-encoded integer")
-  }
+class KeyInfo(val key: Array[Byte]) {
+  def ivSize = 16
+  var iv: Array[Byte] = _
+
+  override def toString = s"KeyInfo(${new String(Base64.getEncoder.encode(iv))}, " +
+    s"${new String(Base64.getEncoder.encode(key))}, $ivSize)"
 }
-
-

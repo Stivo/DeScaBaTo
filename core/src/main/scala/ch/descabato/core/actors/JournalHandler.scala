@@ -3,12 +3,13 @@ package ch.descabato.core.actors
 import java.io.{File, RandomAccessFile}
 import java.nio.channels.FileLock
 
-import ch.descabato.core_old.kvstore.KvStoreWriter
-import ch.descabato.core_old.{BackupInUseException, BlockingOperation, FileTypeNew}
+import ch.descabato.core_old.{BackupInUseException, FileTypeNew}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Hash, Utils}
 
 import scala.collection.immutable.HashSet
+
+class BlockingOperation
 
 trait JournalHandler extends MyEventReceiver {
   def getMd5ForFile(file: File): Option[Hash]
@@ -202,14 +203,6 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
       _open = false
     }
     true
-  }
-
-  def createMarkerFile(writer: KvStoreWriter, filesToDelete: Seq[File]): BlockingOperation = {
-    // TODO
-    //    writer.writeEntry(journalInZipFile) { out =>
-    //      out.write(filesToDelete.map(_.getName).mkString("\r\n").getBytes("UTF-8"))
-    //    }
-    new BlockingOperation()
   }
 
   override def receive(myEvent: MyEvent): Unit = {

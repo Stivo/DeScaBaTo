@@ -112,25 +112,6 @@ trait BackupRelatedCommand extends Command with Utils {
     }
   }
 
-  def withUniverseOld[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: UniverseI => T): T = {
-    var universe: UniverseI = null
-    try {
-      universe = if (akkaAllowed)
-        Universes.makeUniverse(conf)
-      else
-        new SingleThreadUniverse(conf)
-      f(universe)
-    } catch {
-      case e: Exception =>
-        logger.error("Exception while backing up")
-        logException(e)
-        throw e
-    } finally {
-      if (universe != null)
-        universe.shutdown
-    }
-  }
-
   final override def execute(args: Seq[String]) {
     try {
       lastArgs = args

@@ -1,15 +1,11 @@
 package ch.descabato.frontend;
 
-import ch.descabato.akka.ActorStats;
+import ch.descabato.core.ActorStats;
 import ch.descabato.remote.RemoteOptions;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 public class ProgressMonitor extends JFrame {
 

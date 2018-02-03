@@ -5,12 +5,14 @@ import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.{ArrayList => JArrayList}
 
-import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.frontend.{MaxValueCounter, StandardMaxValueCounter}
 
 import scala.collection.JavaConverters._
 import scala.io.{Codec, Source}
 
-class FileVisitorCollector(ignoreFile: Option[File], fileCounter: MaxValueCounter, bytesCounter: MaxValueCounter) {
+class FileVisitorCollector(ignoreFile: Option[File],
+                           fileCounter: MaxValueCounter = new StandardMaxValueCounter("files", 0),
+                           bytesCounter: MaxValueCounter = new StandardMaxValueCounter("bytes", 0)) {
   // TODO log exceptions
   private var _files: JArrayList[Path] = new JArrayList[Path]()
   private var _dirs: JArrayList[Path] = new JArrayList[Path]()
