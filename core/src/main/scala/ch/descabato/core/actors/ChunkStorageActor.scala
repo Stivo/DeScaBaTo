@@ -4,8 +4,8 @@ import java.io.File
 
 import akka.actor.{TypedActor, TypedProps}
 import ch.descabato.core._
-import ch.descabato.core.model.{ChunkIds, CompressedBlock, StoredChunk}
-import ch.descabato.core_old.{BackupFolderConfiguration, Size}
+import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model._
 import ch.descabato.frontend.{ProgressReporters, StandardByteCounter}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{BytesWrapper, FastHashMap, Hash, StandardMeasureTime}

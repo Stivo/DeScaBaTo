@@ -2,7 +2,6 @@ package ch.descabato.core.model
 
 import java.util.concurrent.atomic.AtomicLong
 
-import ch.descabato.core_old.{FileDescription, FolderDescription}
 import ch.descabato.utils.Hash
 
 import scala.collection.mutable

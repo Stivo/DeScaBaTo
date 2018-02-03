@@ -3,7 +3,8 @@ package ch.descabato.core.actors
 import java.io.{File, RandomAccessFile}
 import java.nio.channels.FileLock
 
-import ch.descabato.core_old.{BackupInUseException, FileType}
+import ch.descabato.core.BackupInUseException
+import ch.descabato.core.util.FileType
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Hash, Utils}
 

@@ -3,7 +3,7 @@ package ch.descabato.ui
 
 import javafx.collections.ObservableList
 
-import ch.descabato.core_old.{BackupPart, FileDescription, FolderDescription, Size}
+import ch.descabato.core.model.{BackupPart, FileDescription, FolderDescription, Size}
 
 import scala.collection.mutable
 import scalafx.Includes._

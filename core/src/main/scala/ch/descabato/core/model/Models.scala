@@ -1,4 +1,4 @@
-package ch.descabato.core_old
+package ch.descabato.core.model
 
 import java.io.{File, IOException}
 import java.math.{BigDecimal => JBigDecimal}
@@ -16,69 +16,6 @@ import ch.descabato.{CompressionMode, HashAlgorithm}
 import org.bouncycastle.crypto.Digest
 
 import scala.collection.JavaConverters._
-
-case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
-
-  def this() = this(null)
-
-  @JsonIgnore
-  var configFileName: String = "backup.json"
-  var version: String = ch.descabato.version.BuildInfo.version
-  var serializerType = "json"
-
-  @JsonIgnore
-  def serialization(typ: String = serializerType): AbstractJacksonSerialization = typ match {
-    case "smile" => new SmileSerialization
-    case "json" => new JsonSerialization
-  }
-
-  var keyLength = 128
-  var compressor = CompressionMode.smart
-
-  var hashAlgorithm: HashAlgorithm = HashAlgorithm.sha3_256
-
-  @JsonIgnore def createMessageDigest(): Digest = hashAlgorithm.newInstance()
-
-  var volumeSize: Size = Size("100Mb")
-  var threads: Int = 1
-  //  val useDeltas = false
-  var hasPassword: Boolean = passphrase.isDefined
-  //  var renameDetection = true
-  //  var redundancyEnabled = false
-  //  var metadataRedundancy: Int = 20
-  //  var volumeRedundancy: Int = 5
-  var saveSymlinks: Boolean = true
-  var ignoreFile: Option[File] = None
-
-  var remoteOptions: RemoteOptions = new RemoteOptions()
-
-  var key: Array[Byte] = _
-
-  def newWriter(file: File): FileWriter = {
-    if (passphrase.isEmpty) {
-      new SimpleFileWriter(file)
-    } else {
-      new EncryptedFileWriter(file, passphrase.get, keyLength)
-    }
-  }
-
-  def newReader(file: File): FileReader = {
-    if (passphrase.isEmpty) {
-      new SimpleFileReader(file)
-    } else {
-      new EncryptedFileReader(file, passphrase.get)
-    }
-  }
-
-  def relativePath(file: File): String = {
-    folder.toPath.relativize(file.toPath).toString.replace('\\', '/')
-  }
-
-  def verify(): Unit = {
-    remoteOptions.verify()
-  }
-
-}
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {
 

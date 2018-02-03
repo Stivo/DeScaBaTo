@@ -2,11 +2,9 @@ package ch.descabato.core.util
 
 import java.io.{File, RandomAccessFile}
 import java.util
-import java.util.Base64
 import javax.crypto.Cipher
 
-import ch.descabato.core_old.PasswordWrongException
-import ch.descabato.core_old.kvstore.{CryptoUtils, EncryptionInfo, KeyInfo}
+import ch.descabato.core.PasswordWrongException
 import ch.descabato.utils.BytesWrapper
 
 class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser(passphrase) with FileReader {

@@ -2,7 +2,7 @@ package ch.descabato.ui
 
 import java.util.Date
 
-import ch.descabato.core_old.BackupPart
+import ch.descabato.core.model.BackupPart
 
 import scala.collection.mutable
 import scalafx.beans.binding.Bindings

@@ -7,9 +7,9 @@ import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.actors.{BackupContext, MyEventReceiver}
-import ch.descabato.core.model.{Block, CompressedBlock, FileMetadataStored}
+import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model._
 import ch.descabato.core.util.Json
-import ch.descabato.core_old._
 import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 

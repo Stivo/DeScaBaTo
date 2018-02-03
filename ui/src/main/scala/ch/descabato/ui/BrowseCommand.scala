@@ -1,6 +1,6 @@
 package ch.descabato.ui
 
-import ch.descabato.core_old.BackupFolderConfiguration
+import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.{BackupRelatedCommand, SimpleBackupFolderOption}
 
 /**

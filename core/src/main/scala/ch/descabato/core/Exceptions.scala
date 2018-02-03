@@ -1,4 +1,4 @@
-package ch.descabato.core_old
+package ch.descabato.core
 
 import java.io.File
 

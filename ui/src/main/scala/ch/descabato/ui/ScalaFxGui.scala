@@ -3,8 +3,8 @@ package ch.descabato.ui
 import java.io.IOException
 
 import ch.descabato.core.Universe
-import ch.descabato.core_old.BackupConfigurationHandler
-import ch.descabato.core_old.BackupVerification.{OK, VerificationResult}
+import ch.descabato.core.config.BackupConfigurationHandler
+import ch.descabato.core.config.BackupVerification.{OK, VerificationResult}
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils.Utils
 

@@ -1,10 +1,12 @@
-package ch.descabato.core_old
+package ch.descabato.core.util
 
 import java.io.File
 import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.stream.Collectors
+
+import ch.descabato.core.config.BackupFolderConfiguration
 
 import scala.collection.JavaConverters._
 import scala.util.Try

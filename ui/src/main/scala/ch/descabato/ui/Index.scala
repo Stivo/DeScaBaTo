@@ -6,7 +6,7 @@ import java.util.Date
 import ch.descabato.core.Universe
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.commands.DoReadAbstract
-import ch.descabato.core_old._
+import ch.descabato.core.model.{BackupPart, FileAttributes, FileDescription}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global

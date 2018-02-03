@@ -5,7 +5,7 @@ import java.util.{Date, TimerTask}
 import javax.swing.SwingUtilities
 
 import ch.descabato.core.ActorStats
-import ch.descabato.core_old.Size
+import ch.descabato.core.model.Size
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils

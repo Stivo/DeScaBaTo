@@ -4,7 +4,7 @@ import java.io.File
 
 import akka.actor.ActorRef
 import akka.event.{EventBus, LookupClassification}
-import ch.descabato.core_old.FileType
+import ch.descabato.core.util.FileType
 import ch.descabato.utils.Hash
 
 class MyEventBus extends EventBus with LookupClassification {

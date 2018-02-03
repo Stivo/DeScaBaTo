@@ -4,7 +4,7 @@ import java.io.{File, FileOutputStream, FileReader}
 import java.nio.file.Files
 import java.util.stream.Collectors
 
-import ch.descabato.core_old.Size
+import ch.descabato.core.model.Size
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.scalatest.Ignore
 import org.scalatest.Matchers._

@@ -1,7 +1,5 @@
 package ch.descabato.core.model
 
-import ch.descabato.core_old.FileDescription
-
 trait StoredPart {
 
   def id: Long

@@ -2,7 +2,7 @@ package ch.descabato.ui
 
 
 
-import ch.descabato.core_old.BackupVerification.OK
+import ch.descabato.core.config.BackupVerification.OK
 
 import scalafx.Includes._
 import scalafx.scene.control._

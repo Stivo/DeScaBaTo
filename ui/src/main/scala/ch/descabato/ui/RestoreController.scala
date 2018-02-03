@@ -2,7 +2,7 @@ package ch.descabato.ui
 
 import java.util.Date
 
-import ch.descabato.core_old.FileDescription
+import ch.descabato.core.model.FileDescription
 
 import scalafx.application.Platform
 import scalafx.collections.ObservableBuffer

@@ -1,7 +1,7 @@
 package ch.descabato.core.actors
 
+import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.{Block, CompressedBlock}
-import ch.descabato.core_old.BackupFolderConfiguration
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 import ch.descabato.{CompressionMode, TimingUtil}

@@ -2,7 +2,7 @@ package ch.descabato
 
 import java.io.File
 
-import ch.descabato.core_old.{FileDescription, FolderDescription, SymbolicLink, _}
+import ch.descabato.core.model._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 import org.scalatest.Matchers._

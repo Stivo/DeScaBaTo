@@ -5,8 +5,7 @@ import java.util.Date
 
 import ch.descabato.core.Universe
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
-import ch.descabato.core.model.FileMetadataStored
-import ch.descabato.core_old.{BackupPart, FileAttributes, FolderDescription}
+import ch.descabato.core.model.{BackupPart, FileAttributes, FileMetadataStored, FolderDescription}
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._

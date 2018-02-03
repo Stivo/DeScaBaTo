@@ -1,6 +1,6 @@
 package ch.descabato.ui
 
-import ch.descabato.core_old.{FileDescription, Size}
+import ch.descabato.core.model.{FileDescription, Size}
 import ch.descabato.utils.Utils
 
 import scala.io.Source

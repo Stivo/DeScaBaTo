@@ -3,7 +3,6 @@ package ch.descabato.core.util
 import java.io.File
 import javax.crypto.Cipher
 
-import ch.descabato.core_old.kvstore.CryptoUtils
 import ch.descabato.utils.BytesWrapper
 
 import scala.concurrent.ExecutionContext.Implicits.global

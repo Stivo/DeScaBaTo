@@ -2,14 +2,14 @@ package ch.descabato.utils
 
 import java.io.{InputStream, OutputStream}
 
-import ch.descabato.core_old.{BackupPart, FileDeleted, FileDescription, FolderDescription, SymbolicLink, UpdatePart}
+import ch.descabato.core.model._
 import ch.descabato.utils.Implicits._
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, Version}
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
-import com.fasterxml.jackson.databind.{DeserializationContext, DeserializationFeature, ObjectMapper, SerializationFeature, SerializerProvider}
+import com.fasterxml.jackson.databind._
 import com.fasterxml.jackson.dataformat.smile.{SmileFactory, SmileGenerator, SmileParser}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper

@@ -6,7 +6,8 @@ import java.util.concurrent.{ExecutorService, Executors}
 import akka.actor.{ActorSystem, TypedActor, TypedProps}
 import akka.stream.ActorMaterializer
 import ch.descabato.core.actors._
-import ch.descabato.core_old.{BackupFolderConfiguration, FileManager}
+import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.util.FileManager
 import ch.descabato.utils.Utils
 
 import scala.concurrent.duration._

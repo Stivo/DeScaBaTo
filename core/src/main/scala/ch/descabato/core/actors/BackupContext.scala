@@ -3,8 +3,8 @@ package ch.descabato.core.actors
 import java.io.File
 
 import akka.actor.ActorSystem
-import ch.descabato.core.util.FileWriter
-import ch.descabato.core_old.{BackupFolderConfiguration, FileManager}
+import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.util.{FileManager, FileWriter}
 import ch.descabato.utils.Hash
 
 import scala.concurrent.ExecutionContext

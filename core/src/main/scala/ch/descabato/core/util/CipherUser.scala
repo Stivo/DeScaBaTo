@@ -3,7 +3,6 @@ package ch.descabato.core.util
 import java.security.Security
 import javax.crypto.Cipher
 
-import ch.descabato.core_old.kvstore.{CryptoUtils, EncryptionInfo, KeyInfo}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 class CipherUser(passphrase: String) {

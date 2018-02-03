@@ -3,7 +3,6 @@ package ch.descabato.core.util
 import java.io.File
 
 import akka.util.ByteString
-import ch.descabato.core_old.kvstore.{CryptoUtils, KeyDerivationInfo, KeyInfo}
 import ch.descabato.utils.{BytesWrapper, Utils}
 
 abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, keylength: Int) extends CipherUser(passphrase) with FileWriter with Utils{

@@ -4,9 +4,10 @@ import java.io.{File, FileOutputStream, PrintStream}
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
-import ch.descabato.core.Universe
 import ch.descabato.core.commands.{DoBackup, DoRestore, DoVerify}
-import ch.descabato.core_old._
+import ch.descabato.core.config.{BackupConfigurationHandler, BackupFolderConfiguration}
+import ch.descabato.core.model.Size
+import ch.descabato.core.{BackupCorruptedException, BackupException, MisconfigurationException, Universe}
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
@@ -142,7 +143,7 @@ trait BackupRelatedCommand extends Command with Utils {
   }
 
   def start(t: T) {
-    import ch.descabato.core_old.BackupVerification._
+    import ch.descabato.core.config.BackupVerification._
     val confHandler = new BackupConfigurationHandler(t, needsExistingBackup)
     confHandler.verify() match {
       case b@BackupDoesntExist => throw b

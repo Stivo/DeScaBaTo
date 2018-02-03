@@ -3,7 +3,7 @@ package ch.descabato
 import java.io.{File, InputStream}
 import java.util.{List => JList}
 
-import ch.descabato.core_old.BackupFolderConfiguration
+import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
 import org.apache.commons.compress.utils.IOUtils

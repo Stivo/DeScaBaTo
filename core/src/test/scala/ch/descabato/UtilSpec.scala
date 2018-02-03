@@ -3,7 +3,7 @@ package ch.descabato
 import java.io.File
 import java.util.{List => JList}
 
-import ch.descabato.core_old.Size
+import ch.descabato.core.model.Size
 import org.scalatest._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 

@@ -5,7 +5,7 @@ import java.io._
 import java.util.{Date, Locale}
 import javafx.scene.{control => jfxc}
 
-import ch.descabato.core_old.{FileDescription, Size}
+import ch.descabato.core.model.{FileDescription, Size}
 
 import scalafx.Includes._
 import scalafx.scene.control._

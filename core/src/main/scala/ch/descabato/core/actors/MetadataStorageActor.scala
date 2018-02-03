@@ -5,7 +5,6 @@ import java.util.Date
 import ch.descabato.core._
 import ch.descabato.core.actors.MetadataStorageActor.{AllKnownStoredPartsMemory, BackupDescription, BackupMetaDataStored}
 import ch.descabato.core.model._
-import ch.descabato.core_old._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{StandardMeasureTime, Utils}
 

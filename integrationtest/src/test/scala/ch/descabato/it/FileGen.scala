@@ -5,7 +5,7 @@ import java.nio.file.Files
 
 import ch.descabato.TestUtils
 import ch.descabato.core.FileVisitorCollector
-import ch.descabato.core_old.Size
+import ch.descabato.core.model.Size
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 
