@@ -13,8 +13,6 @@ import ch.descabato.utils.Utils
 import ch.descabato.{CompressionMode, RemoteMode}
 import org.rogach.scallop._
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe.TypeTag
 
@@ -106,7 +104,6 @@ trait BackupRelatedCommand extends Command with Utils {
     var universe: Universe = null
     try {
       universe = new Universe(conf)
-      Await.result(universe.startup(), 1.minute)
       f(universe)
     } catch {
       case e: Exception =>
