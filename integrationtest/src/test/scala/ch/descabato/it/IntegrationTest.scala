@@ -119,11 +119,11 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
       }
     }
     if (!redundancy) {
-      it should s"fail to verify if files are messed up" in {
-        messupBackupFiles(backup1)
-        l.info("Verification should fail after files have been messed up")
-        startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" "), false) should not be (0)
-      }
+//      it should s"fail to verify if files are messed up" in {
+//        messupBackupFiles(backup1)
+//        l.info("Verification should fail after files have been messed up")
+//        startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" "), false) should not be (0)
+//      }
     }
   }
 
