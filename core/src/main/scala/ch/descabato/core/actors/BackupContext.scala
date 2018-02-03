@@ -4,14 +4,14 @@ import java.io.File
 
 import akka.actor.ActorSystem
 import ch.descabato.core.util.FileWriter
-import ch.descabato.core_old.{BackupFolderConfiguration, FileManagerNew}
+import ch.descabato.core_old.{BackupFolderConfiguration, FileManager}
 import ch.descabato.utils.Hash
 
 import scala.concurrent.ExecutionContext
 
 class BackupContext(val config: BackupFolderConfiguration,
                     val actorSystem: ActorSystem,
-                    val fileManagerNew: FileManagerNew,
+                    val fileManager: FileManager,
                     implicit val executionContext: ExecutionContext,
                     val eventBus: MyEventBus) {
 
@@ -20,7 +20,7 @@ class BackupContext(val config: BackupFolderConfiguration,
   }
 
   def sendFileFinishedEvent(file: File, md5Hash: Hash): Unit = {
-    val typ = fileManagerNew.fileTypeForFile(file).get
+    val typ = fileManager.fileTypeForFile(file).get
     eventBus.publish(FileFinished(typ, file, false, md5Hash))
   }
 }

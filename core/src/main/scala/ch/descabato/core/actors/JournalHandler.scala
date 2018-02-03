@@ -3,7 +3,7 @@ package ch.descabato.core.actors
 import java.io.{File, RandomAccessFile}
 import java.nio.channels.FileLock
 
-import ch.descabato.core_old.{BackupInUseException, FileTypeNew}
+import ch.descabato.core_old.{BackupInUseException, FileType}
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{Hash, Utils}
 
@@ -128,7 +128,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
 
   def cleanUnfinishedFiles(): BlockingOperation = {
     checkLock()
-    var files = fileManagerNew.allFiles().filter(_.isFile()).map(config.relativePath).toSet
+    var files = fileManager.allFiles().filter(_.isFile()).map(config.relativePath).toSet
     for (entry <- entries) {
       entry match {
         case x: FileFinishedJournalEntry =>
@@ -189,7 +189,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
     }
   }
 
-  def finishedFile(file: File, filetype: FileTypeNew, journalUpdate: Boolean = false, md5Hash: Hash): BlockingOperation = {
+  def finishedFile(file: File, filetype: FileType, journalUpdate: Boolean = false, md5Hash: Hash): BlockingOperation = {
     checkLock()
     val entry = JournalEntries.fileFinished(config.relativePath(file), md5Hash)
     writeEntrySynchronized(entry)

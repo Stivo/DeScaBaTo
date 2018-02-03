@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 class Index(universe: Universe)
   extends DoReadAbstract(universe, false) {
 
-  def versions = universe.context.fileManagerNew.backup.getDates()
+  def versions = universe.context.fileManager.backup.getDates()
 
   private var _backup = new LoadedBackup(Await.result(universe.metadataStorageActor.retrieveBackup(None), 1.minute))
 

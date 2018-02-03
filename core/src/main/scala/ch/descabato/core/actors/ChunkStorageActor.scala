@@ -43,17 +43,17 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   }
 
   private def newWriter(): Unit = {
-    val index = context.fileManagerNew.volumeIndex
+    val index = context.fileManager.volumeIndex
     val file = index.nextFile()
     val indexNumber = index.numberOfFile(file)
-    val volumeFile = context.fileManagerNew.volume.fileForNumber(indexNumber)
+    val volumeFile = context.fileManager.volume.fileForNumber(indexNumber)
     _currentWriter = (new VolumeWriteActor(context, volumeFile), volumeFile)
   }
 
   def startup(): Future[Boolean] = {
     Future {
       val measure = new StandardMeasureTime
-      val files = context.fileManagerNew.volumeIndex.getFiles()
+      val files = context.fileManager.volumeIndex.getFiles()
       val futures = files.map { f =>
         Future {
           (f, readJson[Seq[StoredChunk]](f))
@@ -142,8 +142,8 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   }
 
   private def computeIndexFileForVolume() = {
-    val numberOfVolume = context.fileManagerNew.volume.numberOfFile(currentWriter._2)
-    val volumeIndex = context.fileManagerNew.volumeIndex
+    val numberOfVolume = context.fileManager.volume.numberOfFile(currentWriter._2)
+    val volumeIndex = context.fileManager.volumeIndex
     volumeIndex.fileForNumber(numberOfVolume)
   }
 

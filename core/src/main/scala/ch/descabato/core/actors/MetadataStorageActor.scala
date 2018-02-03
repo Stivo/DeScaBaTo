@@ -41,7 +41,7 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   def startup(): Future[Boolean] = {
     Future {
       val mt = new StandardMeasureTime()
-      val metadata = context.fileManagerNew.metadata
+      val metadata = context.fileManager.metadata
       val files = metadata.getFiles().sortBy(x => metadata.numberOfFile(x))
       for (file <- files) {
         readJson[BackupMetaDataStored](file) match {
@@ -64,8 +64,8 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   def retrieveBackup(date: Option[Date] = None): Future[BackupDescription] = {
     val filesToLoad = date match {
       case Some(d) =>
-        context.fileManagerNew.backup.forDate(d)
-      case None => context.fileManagerNew.backup.newestFile()
+        context.fileManager.backup.forDate(d)
+      case None => context.fileManager.backup.newestFile()
     }
     logger.info(s"Loading backup metadata from $filesToLoad")
     val tryToLoad = readJson[BackupDescriptionStored](filesToLoad).flatMap { bds =>
@@ -112,7 +112,7 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
         checkpointMetadata()
       }
       if (thisBackup.dirIds.nonEmpty || thisBackup.fileIds.nonEmpty) {
-        val file = context.fileManagerNew.backup.nextFile()
+        val file = context.fileManager.backup.nextFile()
         writeToJson(file, thisBackup)
       }
       hasFinished = true
@@ -125,14 +125,14 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   }
 
   def checkpointMetadata(): Unit = {
-    val file = context.fileManagerNew.metadata.nextFile()
+    val file = context.fileManager.metadata.nextFile()
     writeToJson(file, notCheckpointed)
     notCheckpointed = new BackupMetaDataStored()
   }
 
   override def receive(myEvent: MyEvent): Unit = {
     myEvent match {
-      case FileFinished(context.fileManagerNew.volume, x, false, _) =>
+      case FileFinished(context.fileManager.volume, x, false, _) =>
         logger.info(s"Got volume rolled event to $x")
         if (hasFinished) {
           logger.info("Ignoring as files are already written")
