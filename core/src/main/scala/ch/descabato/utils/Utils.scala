@@ -9,8 +9,8 @@ import java.util
 import javax.xml.bind.DatatypeConverter
 
 import ch.descabato.CustomByteArrayOutputStream
-import ch.descabato.core_old.BackupFolderConfiguration
 import com.typesafe.scalalogging.{LazyLogging, Logger}
+import org.bouncycastle.crypto.Digest
 
 import scala.collection.mutable
 import scala.language.implicitConversions
@@ -183,6 +183,23 @@ object Implicits {
 
     def digest(): Hash = {
       Hash(md.digest())
+    }
+  }
+
+  implicit class AwareDigest(md: Digest) {
+    def update(bytesWrapper: BytesWrapper): Unit = {
+      md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
+    }
+
+    def digest(bytesWrapper: BytesWrapper): Hash = {
+      update(bytesWrapper)
+      digest()
+    }
+
+    def digest(): Hash = {
+      val bytes = Array.ofDim[Byte](md.getDigestSize)
+      md.doFinal(bytes, 0)
+      Hash(bytes)
     }
   }
 

@@ -4,15 +4,16 @@ import java.io.{File, IOException}
 import java.math.{BigDecimal => JBigDecimal}
 import java.nio.file.attribute._
 import java.nio.file.{Files, LinkOption, Path}
-import java.security.{MessageDigest, Principal}
+import java.security.Principal
 import java.util
 import java.util.regex.Pattern
 
-import ch.descabato.CompressionMode
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils._
+import ch.descabato.{CompressionMode, HashMethod}
+import org.bouncycastle.crypto.Digest
 
 import scala.collection.JavaConverters._
 
@@ -34,9 +35,9 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   var keyLength = 128
   var compressor = CompressionMode.smart
 
-  var hashAlgorithm = "SHA256"
+  var hashAlgorithm: HashMethod = HashMethod.sha3_256
 
-  @JsonIgnore def createMessageDigest(): MessageDigest = MessageDigest.getInstance(hashAlgorithm)
+  @JsonIgnore def createMessageDigest(): Digest = hashAlgorithm.newInstance()
 
   var volumeSize: Size = Size("100Mb")
   var threads: Int = 1
