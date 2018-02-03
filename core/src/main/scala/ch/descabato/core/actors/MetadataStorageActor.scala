@@ -27,6 +27,7 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   private var toBeStored: Set[FileDescription] = Set.empty
 
   def addDirectory(description: FolderDescription): Future[Boolean] = {
+    require(!hasFinished)
     allKnownStoredPartsMemory.mapByPath.get(description.path) match {
       case Some(FolderMetadataStored(id, fd)) if fd.attrs == description.attrs =>
         thisBackup.dirIds += id
@@ -75,6 +76,7 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   }
 
   override def hasAlready(fd: FileDescription): Future[FileAlreadyBackedupResult] = {
+    require(!hasFinished)
     if (toBeStored.safeContains(fd)) {
       Future.successful(Storing)
     } else {
@@ -91,6 +93,7 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   }
 
   override def saveFile(fileDescription: FileDescription, hashList: Seq[Long]): Future[Boolean] = {
+    require(!hasFinished)
     // TODO check if we have file already under another id and reuse it if possible
     val id = BackupIds.nextId()
     val metadata = FileMetadataStored(id, fileDescription, hashList.toArray)
@@ -102,6 +105,7 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
   }
 
   override def saveFileSameAsBefore(fileMetadataStored: FileMetadataStored): Future[Boolean] = {
+    require(!hasFinished)
     thisBackup.fileIds += fileMetadataStored.id
     Future.successful(false)
   }
@@ -135,6 +139,8 @@ class MetadataStorageActor(val context: BackupContext) extends MetadataStorage w
       case FileFinished(context.fileManager.volume, x, false, _) =>
         logger.info(s"Got volume rolled event to $x")
         if (hasFinished) {
+          assert(notCheckpointed.files.isEmpty)
+          assert(notCheckpointed.folders.isEmpty)
           logger.info("Ignoring as files are already written")
         } else {
           checkpointMetadata()

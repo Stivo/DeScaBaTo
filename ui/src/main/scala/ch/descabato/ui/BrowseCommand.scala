@@ -10,7 +10,7 @@ class BrowseCommand extends BackupRelatedCommand {
   type T = SimpleBackupFolderOption
   def newT(args: Seq[String]) = new SimpleBackupFolderOption(args)
   def start(t: T, conf: BackupFolderConfiguration) {
-    println(t.summary)
+    printConfiguration(t)
     withUniverse(conf) { universe =>
       val bh = new Index(universe)
       BackupViewModel.index = bh

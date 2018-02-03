@@ -49,6 +49,14 @@ trait Command {
 
   def execute(args: Seq[String])
 
+  def printConfiguration[T <: BackupFolderOption](t: T): Unit = {
+    if (t.passphrase.isDefined) {
+      println(t.filteredSummary(Set(t.passphrase.name)))
+    } else {
+      println(t.summary)
+    }
+  }
+
   def askUser(question: String = "Do you want to continue?", mask: Boolean = false): String = {
     println(question)
     if (mask)
@@ -230,7 +238,10 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     if (!path.exists) {
       path = new File(path.getParent() + "/bin", path.getName)
     }
-    val line = s"$path backup " + args.mkString(" ")
+    val line = s"$path backup " + args.map {
+      case x if x.contains(" ") => s""""$x""""
+      case x => x
+    }.mkString(" ")
 
     def writeTo(bat: File) {
       if (!bat.exists) {
@@ -250,7 +261,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def newT(args: Seq[String]) = new BackupConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
-    println(t.filteredSummary(Set("passphrase")))
+    printConfiguration(t)
     withUniverse(conf) { universe =>
       if (!t.noScriptCreation()) {
         writeBat(t, conf, lastArgs)
@@ -258,19 +269,6 @@ class BackupCommand extends BackupRelatedCommand with Utils {
       val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
       backup.execute()
     }
-    //    withUniverse(conf) {
-    //      universe =>
-    //        val bdh = new BackupHandler(universe)
-    //        if (!t.noScriptCreation()) {
-    //          writeBat(t, conf, lastArgs)
-    //        }
-    //        bdh.backup(t.folderToBackup() :: Nil)
-    //    }
-    //    if (conf.redundancyEnabled) {
-    //      l.info("Running redundancy creation")
-    //      new RedundancyHandler(conf).createFiles
-    //      l.info("Redundancy creation finished")
-    //    }
   }
 
   override def needsExistingBackup = false
@@ -299,7 +297,7 @@ class RestoreCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new RestoreConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
-    println(t.filteredSummary(Set("passphrase")))
+    printConfiguration(t)
     validateFilename(t.restoreToFolder)
     validateFilename(t.restoreInfo)
     withUniverse(conf) {
@@ -337,7 +335,7 @@ class VerifyCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new VerifyConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration): Unit = {
-    println(t.filteredSummary(Set("passphrase")))
+    printConfiguration(t)
     val counter = withUniverse(conf) {
       u =>
         val verify = new DoVerify(u)
