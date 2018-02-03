@@ -117,6 +117,10 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
           maybeEntry.foreach(entries :+= _)
         }
       }
+      entries.foreach {
+        case FileFinishedJournalEntry(_, file, _) => _usedIdentifiers += file
+        case _ =>
+      }
     }
   }
   parseFile()

@@ -263,7 +263,7 @@ class BrowserController(
 
   if (System.getProperty("user.name") == "Stivo") {
     showSubfolderFiles.selected = true
-    browserSearch.text = "png"
+    browserSearch.text = ""
   }
 
 }

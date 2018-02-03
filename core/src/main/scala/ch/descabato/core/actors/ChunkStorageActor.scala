@@ -53,15 +53,21 @@ class ChunkStorageActor(val context: BackupContext) extends ChunkStorage with Js
   def startup(): Future[Boolean] = {
     Future {
       val measure = new StandardMeasureTime
-      for (file <- context.fileManagerNew.volumeIndex.getFiles()) {
-        readJson[Seq[StoredChunk]](file) match {
-          case Success(seq) =>
-            checkpointed ++= seq.map(x => (x.hash, x))
-          case Failure(_) =>
-            logger.warn(s"Could not read index $file, it might be corrupted, some data loss will occur. Backup again.")
+      val files = context.fileManagerNew.volumeIndex.getFiles()
+      val futures = files.map { f =>
+        Future {
+          (f, readJson[Seq[StoredChunk]](f))
         }
       }
-      logger.info(s"Parsed jsons in ${measure.measuredTime()}")
+      for (elem <- futures) {
+        Await.result(elem, 1.minute) match {
+          case (_, Success(seq)) =>
+            checkpointed ++= seq.map(x => (x.hash, x))
+          case (f, Failure(_)) =>
+            logger.warn(s"Could not read index $f, it might be corrupted, some data loss will occur. Backup again.")
+        }
+      }
+      logger.info(s"Reconstructed state after ${measure.measuredTime()}")
       measure.startMeasuring()
       assignedIds = checkpointed.values.map(x => (x.id, x)).toMap
       if (assignedIds.nonEmpty) {

@@ -37,7 +37,7 @@ case class BackupFolderConfiguration(folder: File, prefix: String = "", @JsonIgn
 
   def hashLength: Int = createMessageDigest().getDigestLength()
 
-  var hashAlgorithm = "MD5"
+  var hashAlgorithm = "SHA256"
 
   @JsonIgnore def createMessageDigest(): MessageDigest = MessageDigest.getInstance(hashAlgorithm)
 
