@@ -12,7 +12,7 @@ import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils._
-import ch.descabato.{CompressionMode, HashMethod}
+import ch.descabato.{CompressionMode, HashAlgorithm}
 import org.bouncycastle.crypto.Digest
 
 import scala.collection.JavaConverters._
@@ -35,7 +35,7 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   var keyLength = 128
   var compressor = CompressionMode.smart
 
-  var hashAlgorithm: HashMethod = HashMethod.sha3_256
+  var hashAlgorithm: HashAlgorithm = HashAlgorithm.sha3_256
 
   @JsonIgnore def createMessageDigest(): Digest = hashAlgorithm.newInstance()
 

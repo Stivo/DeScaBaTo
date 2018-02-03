@@ -10,7 +10,7 @@ import ch.descabato.core_old._
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
-import ch.descabato.{CompressionMode, HashMethod, RemoteMode}
+import ch.descabato.{CompressionMode, HashAlgorithm, RemoteMode}
 import org.rogach.scallop._
 
 import scala.reflect.runtime.universe
@@ -36,7 +36,7 @@ object ScallopConverters {
   }
 
   implicit val modeConverter: ValueConverter[CompressionMode] = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
-  implicit val hashAlgorithmConverter: ValueConverter[HashMethod] = singleArgConverter[HashMethod](HashMethod.valueOf, "Should be one of " + HashMethod.values.mkString(", "))
+  implicit val hashAlgorithmConverter: ValueConverter[HashAlgorithm] = singleArgConverter[HashAlgorithm](HashAlgorithm.valueOf, "Should be one of " + HashAlgorithm.values.mkString(", "))
   implicit val remoteModeConverter: ValueConverter[RemoteMode] = singleArgConverter[RemoteMode](RemoteMode.fromCli, RemoteMode.message)
   implicit val sizeConverter: ValueConverter[Size] = singleArgConverter[Size](x => Size(x))
 
@@ -194,7 +194,7 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
   val serializerType: ScallopOption[String] = opt[String]()
-  val hashAlgorithm: ScallopOption[HashMethod] = opt[HashMethod](default = Some(HashMethod.sha3_256))
+  val hashAlgorithm: ScallopOption[HashAlgorithm] = opt[HashAlgorithm](default = Some(HashAlgorithm.sha3_256))
   val remoteUri: ScallopOption[String] = opt[String]()
   val remoteMode: ScallopOption[RemoteMode] = opt[RemoteMode]()
   codependent(remoteUri, remoteMode)

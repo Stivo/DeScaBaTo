@@ -4,7 +4,7 @@ import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.bouncycastle.crypto.digests.SHA3Digest;
 
-public enum HashMethod {
+public enum HashAlgorithm {
 
 	blake2b_160("Blake2b_160", 20),
 	blake2b_256("Blake2b_256", 32),
@@ -17,7 +17,7 @@ public enum HashMethod {
 	private final String name;
 	private int digestLength;
 
-	HashMethod(String s, int digestLength) {
+	HashAlgorithm(String s, int digestLength) {
 		this.name = s;
 		this.digestLength = digestLength;
 	}
