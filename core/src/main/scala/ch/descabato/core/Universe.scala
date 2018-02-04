@@ -8,6 +8,7 @@ import akka.stream.ActorMaterializer
 import ch.descabato.core.actors._
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.util.FileManager
+import ch.descabato.remote.{RemoteHandler, SimpleRemoteHandler}
 import ch.descabato.utils.Utils
 
 import scala.concurrent.duration._
@@ -46,30 +47,62 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
 
   context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(metadataStorageActor), metadataStorageActor), MyEvent.globalTopic)
 
-  val actors: Seq[LifeCycle] = Seq(metadataStorageActor, chunkStorageActor)
+  val actors = Seq(metadataStorageActor, chunkStorageActor)
+
+  val remoteActorOption: Option[RemoteHandler] = {
+    if (config.remoteOptions.enabled) {
+      val remoteActorProps: TypedProps[RemoteHandler] = TypedProps.apply[RemoteHandler](classOf[RemoteHandler], new SimpleRemoteHandler(context, journalHandler))
+      val remoteActor: RemoteHandler = TypedActor(system).typedActorOf(remoteActorProps)
+      context.eventBus.subscribe(MySubscriber(TypedActor(system).getActorRefFor(remoteActor), remoteActor), MyEvent.globalTopic)
+      Some(remoteActor)
+    } else {
+      None
+    }
+  }
 
   override def startup(): Future[Boolean] = {
-    Future.sequence(actors.map(_.startup())).map(_.reduce(_ && _))
+    val allActors = actors ++ remoteActorOption
+    Future.sequence(allActors.map(_.startup())).map(_.reduce(_ && _))
   }
 
   override def finish(): Future[Boolean] = {
     if (!_finished) {
-      var actorsToDo: Seq[LifeCycle] = actors
-      while (actorsToDo.nonEmpty) {
-        val futures = actorsToDo.map(x => (x, x.finish()))
-        actorsToDo = Seq.empty
-        for ((actor, future) <- futures) {
-          val hasFinished = Await.result(future, 1.minute)
-          if (!hasFinished) {
-            logger.info("One actor can not finish yet " + actor)
-            actorsToDo :+= actor
-          }
-        }
-        Thread.sleep(500)
-      }
+      waitForNormalActorsToFinish()
+      waitForRemoteActorToFinish()
       _finished = true
     }
     Future.successful(true)
+  }
+
+  private def waitForNormalActorsToFinish() = {
+    var actorsToDo: Seq[LifeCycle] = actors
+    while (actorsToDo.nonEmpty) {
+      val futures = actorsToDo.map(x => (x, x.finish()))
+      actorsToDo = Seq.empty
+      for ((actor, future) <- futures) {
+        val hasFinished = Await.result(future, 1.minute)
+        if (!hasFinished) {
+          logger.info("One actor can not finish yet " + actor)
+          actorsToDo :+= actor
+        }
+      }
+      Thread.sleep(500)
+    }
+  }
+
+  private def waitForRemoteActorToFinish() = {
+    remoteActorOption match {
+      case Some(remote) =>
+        var isFinished = false
+        do {
+          isFinished = Await.result(remote.finish(), 1.minute)
+          if (!isFinished) {
+            Thread.sleep(1000)
+          }
+        } while (!isFinished)
+      case None =>
+        // nothing to do
+    }
   }
 
   def shutdown(): Unit = {

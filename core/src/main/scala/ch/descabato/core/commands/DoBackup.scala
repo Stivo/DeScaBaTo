@@ -54,7 +54,7 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
 
   def execute(): Unit = {
     startMeasuring()
-    ProgressReporters.openGui("Backup", false)
+    ProgressReporters.openGui("Backup", false, config.remoteOptions)
     universe.journalHandler.cleanUnfinishedFiles()
     val lastWasInconsistent = universe.journalHandler.isInconsistentBackup()
     val universeStartup = universe.startup()

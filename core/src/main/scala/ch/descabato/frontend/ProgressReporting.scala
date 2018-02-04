@@ -143,6 +143,10 @@ trait ETACounter extends MaxValueCounter with Utils {
   var snapshots: List[Snapshot] = List[Snapshot]()
   var newSnapshotAt = 0L
 
+  def resetSnapshots(): Unit = {
+    snapshots = List.empty
+  }
+
   override def +=(l: Long) {
     super.+=(l)
     val now = System.currentTimeMillis()

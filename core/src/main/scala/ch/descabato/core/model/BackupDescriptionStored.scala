@@ -6,7 +6,16 @@ import ch.descabato.utils.Hash
 
 import scala.collection.mutable
 
-class BackupDescriptionStored(var fileIds: mutable.Buffer[java.lang.Long] = mutable.Buffer.empty, var dirIds: mutable.Buffer[java.lang.Long] = mutable.Buffer.empty)
+final class BackupDescriptionStored(var fileIds: mutable.Buffer[java.lang.Long] = mutable.Buffer.empty, var dirIds: mutable.Buffer[java.lang.Long] = mutable.Buffer.empty) {
+
+  override def equals(other: Any): Boolean = other match {
+    case that: BackupDescriptionStored =>
+        fileIds.toSet == that.fileIds.toSet &&
+        dirIds.toSet  == that.dirIds.toSet
+    case _ => false
+  }
+
+}
 
 case class HashList(id: Long, hash: Hash) extends StoredPart
 

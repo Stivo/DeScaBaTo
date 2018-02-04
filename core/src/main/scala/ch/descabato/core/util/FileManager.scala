@@ -134,8 +134,8 @@ class StandardDatedFileType(name: String, suffix: String, config: BackupFolderCo
   private val dateFormat = "yyyy-MM-dd.HHmmss"
   private val dateFormatter = new SimpleDateFormat(dateFormat)
 
-  def newestFile(): File = {
-    getFiles().sortBy(_.getName).last
+  def newestFile(): Option[File] = {
+    getFiles().sortBy(_.getName).lastOption
   }
 
   def forDate(d: Date): File = {

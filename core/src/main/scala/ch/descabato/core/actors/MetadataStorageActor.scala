@@ -65,7 +65,8 @@ class MetadataStorageActor(val context: BackupContext, val journalHandler: Journ
     val filesToLoad = date match {
       case Some(d) =>
         context.fileManager.backup.forDate(d)
-      case None => context.fileManager.backup.newestFile()
+      case None =>
+        context.fileManager.backup.newestFile().get
     }
     logger.info(s"Loading backup metadata from $filesToLoad")
     val tryToLoad = readJson[BackupDescriptionStored](filesToLoad).flatMap { bds =>
@@ -109,6 +110,19 @@ class MetadataStorageActor(val context: BackupContext, val journalHandler: Journ
     Future.successful(false)
   }
 
+  private def isDifferentFromLastBackup(thisBackup: BackupDescriptionStored) = {
+    context.fileManager.backup.newestFile() match {
+      case Some(x) =>
+        readJson[BackupDescriptionStored](x) match {
+          case Success(lastBackup) if lastBackup == thisBackup =>
+            false
+          case _ => true
+        }
+      case _ =>
+        true
+    }
+  }
+
   override def finish(): Future[Boolean] = {
     if (!hasFinished) {
       if (notCheckpointed.files.nonEmpty || notCheckpointed.folders.nonEmpty) {
@@ -116,8 +130,13 @@ class MetadataStorageActor(val context: BackupContext, val journalHandler: Journ
         notCheckpointed = new BackupMetaDataStored()
       }
       if (thisBackup.dirIds.nonEmpty || thisBackup.fileIds.nonEmpty) {
-        val file = context.fileManager.backup.nextFile()
-        writeToJson(file, thisBackup)
+        if (isDifferentFromLastBackup(thisBackup)) {
+          // this backup has data and it is different from the last backup
+          val file = context.fileManager.backup.nextFile()
+          writeToJson(file, thisBackup)
+        } else {
+          logger.info("Same files as last backup, skipping creation of new file")
+        }
       }
       hasFinished = true
     }

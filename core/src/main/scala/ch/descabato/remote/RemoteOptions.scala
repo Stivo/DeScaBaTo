@@ -49,6 +49,7 @@ class RemoteOptions {
 
 case class RemoteOperationContext(rateLimiter: RateLimiter, progress: FileCounter) {
   def initCounter(fileSize: Long, fileName: String) = {
+    progress.resetSnapshots()
     progress.fileName = fileName
     progress.maxValue = fileSize
     progress.current = 0
