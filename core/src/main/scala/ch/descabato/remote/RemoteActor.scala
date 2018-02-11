@@ -59,7 +59,6 @@ class SimpleRemoteHandler(backupContext: BackupContext, journalHandler: JournalH
     uploaderall.maxValue += length
     queuedUploads :+= new Upload(path, length, md5hash)
     logger.info(s"Queued upload of ${path}")
-    queuedUploads = queuedUploads.sortBy(_.size)
     scheduleOperations()
   }
 
@@ -82,20 +81,26 @@ class SimpleRemoteHandler(backupContext: BackupContext, journalHandler: JournalH
 
   private def startNextUpload(): Unit = {
     require(ownActorRef.isDefined)
+    queuedUploads = queuedUploads.sortBy(x => (x.failureCounter, x.size))
     while (currentUploads.size < concurrentUploads && queuedUploads.nonEmpty && isUploading) {
       val next = queuedUploads.head
-      logger.info(s"Starting next upload ${next.backupPath}")
-      Future {
-        val src = localPath(next.backupPath)
-        logger.info(s"Upload ${next.backupPath} started")
-        val context = remoteOptions.uploadContext(src.length(), next.backupPath.path)
-        val result = remoteClient.put(src, next.backupPath, Some(context), Some(next.md5Hash))
-        logger.info(s"Upload ${next.backupPath} finished with result $result")
-        ownActorRef.get ! FileOperationFinished(next, result)
-        result
+      if (next.failureCounter >= 10) {
+        logger.warn(s"Aborting upload of ${next.backupPath} due to too many failures")
+        queuedUploads = queuedUploads.tail
+      } else {
+        logger.info(s"Starting next upload ${next.backupPath}")
+        Future {
+          val src = localPath(next.backupPath)
+          logger.info(s"Upload ${next.backupPath} started")
+          val context = remoteOptions.uploadContext(src.length(), next.backupPath.path)
+          val result = remoteClient.put(src, next.backupPath, Some(context), Some(next.md5Hash))
+          logger.info(s"Upload ${next.backupPath} finished with result $result")
+          ownActorRef.get ! FileOperationFinished(next, result)
+          result
+        }
+        currentUploads :+= next
+        queuedUploads = queuedUploads.tail
       }
-      currentUploads :+= next
-      queuedUploads = queuedUploads.tail
     }
   }
 
@@ -139,10 +144,17 @@ class SimpleRemoteHandler(backupContext: BackupContext, journalHandler: JournalH
       case d@Download(_) =>
         currentDownloads = currentDownloads.filterNot(_ == d)
       case u@Upload(_, _, _) =>
-        logger.info(s"Upload of ${u.backupPath} has finished")
         currentUploads = currentUploads.filterNot(_ == u)
-        remoteFiles += u.backupPath -> RemoteFile(u.backupPath, u.size)
-        completedUploads += u.size
+        if (result.isSuccess) {
+          logger.info(s"Upload of ${u.backupPath} has finished")
+          remoteFiles += u.backupPath -> RemoteFile(u.backupPath, u.size)
+          completedUploads += u.size
+        } else {
+          logger.info(s"Upload of ${u.backupPath} has failed for the ${u.failureCounter} time, will retry later")
+          queuedUploads :+= u
+          u.failureCounter += 1
+          Thread.sleep(5000)
+        }
     }
     scheduleOperations()
     operation.promise.complete(result)
@@ -255,6 +267,8 @@ case object Download extends RemoteTransferDirection
 
 sealed abstract class RemoteOperation(typ: RemoteTransferDirection, backupPath: BackupPath, size: Long) {
   val promise: Promise[Unit] = Promise[Unit]
+
+  var failureCounter = 0
 }
 
 case class Download(backupPath: BackupPath) extends RemoteOperation(Download, backupPath, 0)
