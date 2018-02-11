@@ -189,6 +189,7 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
       randomAccessFile.seek(randomAccessFile.length())
       randomAccessFile.writeBytes(entry.toString + "\r\n")
       randomAccessFile.getFD().sync()
+      entries :+= entry
     }
   }
 

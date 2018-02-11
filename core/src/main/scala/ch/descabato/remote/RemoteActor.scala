@@ -89,7 +89,7 @@ class SimpleRemoteHandler(backupContext: BackupContext, journalHandler: JournalH
         val src = localPath(next.backupPath)
         logger.info(s"Upload ${next.backupPath} started")
         val context = remoteOptions.uploadContext(src.length(), next.backupPath.path)
-        val result = remoteClient.put(src, next.backupPath, Some(context), None)
+        val result = remoteClient.put(src, next.backupPath, Some(context), Some(next.md5Hash))
         logger.info(s"Upload ${next.backupPath} finished with result $result")
         ownActorRef.get ! FileOperationFinished(next, result)
         result
@@ -220,7 +220,8 @@ class SimpleRemoteHandler(backupContext: BackupContext, journalHandler: JournalH
 
   private val uploaderall: MaxValueCounter = new SizeStandardCounter("Total Uploads") {
     override def update(): Unit = {
-      current = completedUploads + remoteOptions.uploaderCounter1.current
+      val before = current
+      this += (completedUploads + remoteOptions.uploaderCounter1.current) - before
     }
   }
   ProgressReporters.addCounter(uploaderall)

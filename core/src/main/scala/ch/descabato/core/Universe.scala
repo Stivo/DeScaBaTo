@@ -8,6 +8,7 @@ import akka.stream.ActorMaterializer
 import ch.descabato.core.actors._
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.util.FileManager
+import ch.descabato.frontend.ProgressReporters
 import ch.descabato.remote.{RemoteHandler, SimpleRemoteHandler}
 import ch.descabato.utils.Utils
 
@@ -91,6 +92,7 @@ class Universe(val config: BackupFolderConfiguration) extends Utils with LifeCyc
   }
 
   private def waitForRemoteActorToFinish() = {
+    ProgressReporters.activeCounters = Seq(config.remoteOptions.uploaderCounter1)
     remoteActorOption match {
       case Some(remote) =>
         var isFinished = false

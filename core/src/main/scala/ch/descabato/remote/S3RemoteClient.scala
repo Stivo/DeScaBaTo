@@ -1,13 +1,12 @@
 package ch.descabato.remote
 
 import java.io.{BufferedInputStream, File, FileInputStream, InputStream}
-import java.util.concurrent.atomic.AtomicLong
 
-import ch.descabato.utils.Utils
+import ch.descabato.utils.{Hash, Utils}
 import com.amazonaws.RequestClientOptions
-import com.amazonaws.event.{ProgressEvent, ProgressListener}
+import com.amazonaws.event.{ProgressEvent, ProgressEventType, ProgressListener}
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.services.s3.model.{ObjectMetadata, PutObjectRequest, StorageClass}
+import com.amazonaws.services.s3.model.{ObjectMetadata, PutObjectRequest}
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder
 import org.apache.commons.compress.utils.BoundedInputStream
 
@@ -25,7 +24,7 @@ object S3RemoteClient {
   }
 }
 
-class S3RemoteClient private(val url: String, val bucketName: String, val prefix: String) extends RemoteClient {
+class S3RemoteClient private(val url: String, val bucketName: String, val prefix: String) extends RemoteClient with Utils {
   lazy val client = AmazonS3ClientBuilder.defaultClient()
 
   override def get(path: BackupPath, file: File): Try[Unit] = ???
@@ -51,11 +50,12 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
   override def put(file: File, path: BackupPath, context: Option[RemoteOperationContext], md5Hash: Option[Array[Byte]] = None): Try[Unit] = {
     val bufferSize = RequestClientOptions.DEFAULT_STREAM_BUFFER_SIZE
     val remotePath: String = computeRemotePath(path)
+    md5Hash.foreach(hash => logger.info(s"File $file uploading with hash ${Hash(hash).base64}"))
     // slow
-//    slowUpload(file, context, md5Hash, bufferSize, remotePath)
+    //    slowUpload(file, context, md5Hash, bufferSize, remotePath)
     putMultipartThrottled(file, context, md5Hash, remotePath)
     // fast, but no throttling
-    //    putFast(file, context, md5Hash, remotePath)
+    //        putFast(file, context, md5Hash, remotePath)
   }
 
   private def slowUpload(file: File, context: Option[RemoteOperationContext], md5Hash: Option[Array[Byte]], bufferSize: Int, remotePath: String): Try[Unit] = {
@@ -83,9 +83,7 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
       val manager = TransferManagerBuilder.defaultTransferManager()
       val request = new PutObjectRequest(bucketName, remotePath, file)
       request.setMetadata(createMetadata(md5Hash))
-      request.setStorageClass(StorageClass.ReducedRedundancy)
       val upload = manager.upload(request)
-      val integer = new AtomicLong()
       context.foreach { c =>
         c.initCounter(file.length(), file.getName)
         upload.addProgressListener(new ProgressListener {
@@ -96,6 +94,7 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
         })
       }
       upload.waitForUploadResult()
+      ()
     }
   }
 
@@ -124,7 +123,7 @@ import java.util
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.{AbortMultipartUploadRequest, CompleteMultipartUploadRequest, InitiateMultipartUploadRequest, InitiateMultipartUploadResult, PartETag, UploadPartRequest}
 
-class MultipartUploader(existingBucketName: String, file: File, remotePath: String, context: Option[RemoteOperationContext], metadata: ObjectMetadata) {
+class MultipartUploader(existingBucketName: String, file: File, remotePath: String, context: Option[RemoteOperationContext], metadata: ObjectMetadata) extends Utils {
   val s3Client: AmazonS3 = TransferManagerBuilder.standard().build().getAmazonS3Client()
 
   // Create a list of UploadPartResponse objects. You get one of these for
@@ -138,7 +137,7 @@ class MultipartUploader(existingBucketName: String, file: File, remotePath: Stri
   val initResponse: InitiateMultipartUploadResult = s3Client.initiateMultipartUpload(initRequest)
 
   val contentLength: Long = file.length
-  var partSize: Long = 5 * 1024 * 1024 // Set part size to 5 MB.
+  var partSize: Long = 20 * 1024 * 1024 // Set part size to 5 MB.
 
   try {
     // Step 2: Upload parts.
@@ -149,16 +148,24 @@ class MultipartUploader(existingBucketName: String, file: File, remotePath: Stri
     }) {
       // Last part can be less than 5 MB. Adjust part size.
       partSize = Math.min(partSize, (contentLength - filePosition))
-      val request = new UploadPartRequest()
+      val stream = new ThrottlingInputStream(new PartialInputStream(file, filePosition, partSize), context)
+      val request: UploadPartRequest = new UploadPartRequest()
         .withBucketName(existingBucketName)
         .withKey(remotePath)
         .withUploadId(initResponse.getUploadId)
         .withPartNumber(i)
         .withPartSize(partSize)
-      request.setInputStream(new ThrottlingInputStream(new PartialInputStream(file, filePosition, partSize), context))
+        .withInputStream(stream)
+      request.setGeneralProgressListener((progressEvent: ProgressEvent) => {
+        if (progressEvent.getEventType == ProgressEventType.TRANSFER_PART_COMPLETED_EVENT) {
+          logger.info(s"Closing stream for part ${request.getPartNumber}")
+          request.getInputStream.close()
+        }
+      })
       // Create request to upload a part.
       // Upload part and add response to our list.
-      partETags.add(s3Client.uploadPart(request).getPartETag)
+      val result = s3Client.uploadPart(request)
+      partETags.add(result.getPartETag)
       filePosition += partSize
       i += 1
     }
@@ -175,11 +182,7 @@ class PartialInputStream(file: File, offset: Long, length: Long) extends InputSt
   require(offset + length <= file.length())
   lazy val (in, bounded) = {
     val fis = new FileInputStream(file)
-    var skipped = 0L
-    while (skipped < offset) {
-      skipped += fis.skip(offset - skipped)
-    }
-    require(skipped == offset)
+    fis.skip(offset)
     val bounded = new BoundedInputStream(fis, length)
     (fis, bounded)
   }

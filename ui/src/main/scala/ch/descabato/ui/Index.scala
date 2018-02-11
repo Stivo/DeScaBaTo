@@ -9,7 +9,6 @@ import ch.descabato.core.commands.DoReadAbstract
 import ch.descabato.core.model.{BackupPart, FileAttributes, FileDescription}
 
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class Index(universe: Universe)
@@ -22,9 +21,9 @@ class Index(universe: Universe)
   def backup = _backup
 
   def loadBackup(date: Date): Unit = {
-    universe.metadataStorageActor.retrieveBackup(Some(date)).foreach( d =>
-      _backup = new LoadedBackup(d)
-    )
+    val future = universe.metadataStorageActor.retrieveBackup(Some(date))
+    val result = Await.result(future, 1.minute)
+    _backup = new LoadedBackup(result)
   }
 
   def getInputStream(fd: FileDescription): InputStream = {
