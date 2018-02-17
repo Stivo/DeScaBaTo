@@ -10,8 +10,8 @@ import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.frontend.{ProgressReporters, StandardByteCounter}
 import ch.descabato.utils.{BytesWrapper, CompressedStream}
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 abstract class DoReadAbstract(val universe: Universe, private val openGui: Boolean = true) {
 
@@ -24,6 +24,13 @@ abstract class DoReadAbstract(val universe: Universe, private val openGui: Boole
   if (openGui) {
     ProgressReporters.addCounter(readBytesCounter)
     ProgressReporters.openGui("Reading", false)
+  }
+
+  protected def waitForStartup(): Unit = {
+    val startup = Await.result(universe.startup(), 1.minute)
+    if (!startup) {
+      throw new IllegalArgumentException("Universe failed to start")
+    }
   }
 
   def getInputStream(file: FileMetadataStored): InputStream = {

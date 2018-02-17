@@ -313,6 +313,9 @@ class BackupPath private(val path: String) extends AnyVal {
 
 case class RemoteFile(path: BackupPath, remoteSize: Long)
 
+class S3RemoteFile(path: BackupPath, remoteSize: Long, val etag: String) extends RemoteFile(path, remoteSize) {
+  override def toString: String = super.toString + s", ETag: ${etag}"
+}
 
 object RemoteTest extends App {
   private val client = new VfsRemoteClient("ftp://testdescabato:pass1@localhost/")

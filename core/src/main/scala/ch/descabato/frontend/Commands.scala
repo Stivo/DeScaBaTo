@@ -325,7 +325,7 @@ class VerifyCommand extends BackupRelatedCommand {
     val counter = withUniverse(conf) {
       u =>
         val verify = new DoVerify(u)
-        verify.verify()
+        verify.verifyAll()
     }
     CLI.lastErrors = counter.count
     if (counter.count != 0)

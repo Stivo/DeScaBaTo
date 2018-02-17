@@ -4,11 +4,12 @@ import java.io.File
 
 import akka.actor.{TypedActor, TypedProps}
 import ch.descabato.core._
+import ch.descabato.core.commands.ProblemCounter
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model._
-import ch.descabato.frontend.{ProgressReporters, StandardByteCounter}
+import ch.descabato.frontend.{ETACounter, ProgressReporters, StandardByteCounter}
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{BytesWrapper, FastHashMap, Hash, StandardMeasureTime}
+import ch.descabato.utils._
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -73,9 +74,55 @@ class ChunkStorageActor(val context: BackupContext, val journalHandler: JournalH
       if (assignedIds.nonEmpty) {
         ChunkIds.maxId(assignedIds.keySet.max)
       }
-      logger.info(s"Reconstructing state completed in ${measure.measuredTime()} ")
+      logger.info(s"Reconstructing state completed in ${measure.measuredTime()}, have ${assignedIds.size} chunks")
       true
     }
+  }
+
+  val verifiedCounter = new ETACounter {
+    override def name: String = "Verified chunks"
+  }
+
+  ProgressReporters.addCounter(verifiedCounter)
+
+  override def verifyChunksAreAvailable(chunkIdsToTest: Seq[Long], counter: ProblemCounter, checkVolumeToo: Boolean, checkContent: Boolean): BlockingOperation = {
+    var futures = Seq.empty[Future[Unit]]
+    val distinctIds = chunkIdsToTest.distinct
+    verifiedCounter.maxValue = distinctIds.size
+    for (chunkId <- distinctIds) {
+      var shouldCount = true
+      if (!assignedIds.safeContains(chunkId)) {
+        counter.addProblem(s"Chunk with id $chunkId could not be found")
+      } else {
+        if (checkVolumeToo) {
+          val chunk = assignedIds(chunkId)
+          val file = config.resolveRelativePath(chunk.file)
+          if (file.length() < (chunk.startPos + chunk.length)) {
+            counter.addProblem(s"Chunk ${chunk.id} should be in file ${chunk.file} at ${chunk.startPos} - to ${chunk.startPos + chunk.length}, but file is only ${file.length} long")
+          } else {
+            if (checkContent) {
+              val wrapper = getReader(chunk).read(chunk.asFilePosition())
+              shouldCount = false
+              futures :+= Future {
+                val stream = CompressedStream.decompressToBytes(wrapper)
+                val hashComputed: Hash = config.createMessageDigest().digest(stream)
+                if (hashComputed !== chunk.hash) {
+                  counter.addProblem(s"Chunk ${chunk} was read from volume and does not have the same hash as stored")
+                }
+                verifiedCounter += 1
+              }
+            }
+          }
+        }
+      }
+      if (shouldCount) {
+        verifiedCounter += 1
+      }
+    }
+    for (future <- futures) {
+      Await.result(future, 1.hour)
+    }
+    new BlockingOperation()
   }
 
   def chunkId(hash: Hash, assignIdIfNotFound: Boolean): Future[ChunkIdResult] = {
@@ -186,7 +233,9 @@ class ChunkStorageActor(val context: BackupContext, val journalHandler: JournalH
     if (_currentWriter != null) {
       finishVolumeAndCreateIndex()
     }
-    logger.info(s"Wrote volumes with total of ${Size(bytesStoredCounter.current)}")
+    if (bytesStoredCounter.current > 0) {
+      logger.info(s"Wrote volumes with total of ${Size(bytesStoredCounter.current)}")
+    }
     Future.successful(true)
   }
 

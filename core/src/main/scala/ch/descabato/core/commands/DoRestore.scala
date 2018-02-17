@@ -23,11 +23,9 @@ class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Util
   }
 
   def restore(options: RestoreConf, date: Option[Date] = None): Unit = {
-    val startup = Await.result(universe.startup(), 1.minute)
+    waitForStartup()
     val metadata = Await.result(universe.metadataStorageActor.retrieveBackup(date), 1.minute)
-    if (startup) {
-      restoreImpl(options, metadata)
-    }
+    restoreImpl(options, metadata)
     logger.info("Finished restoring files")
   }
 

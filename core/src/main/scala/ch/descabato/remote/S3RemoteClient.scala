@@ -35,7 +35,7 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
       listing.getObjectSummaries.asScala.map { summary =>
         val path = summary.getKey.replace(prefix, "")
         val size = summary.getSize
-        RemoteFile(BackupPath(path), size)
+        new S3RemoteFile(BackupPath(path), size, summary.getETag)
       }
     }
   }
@@ -52,10 +52,10 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
     val remotePath: String = computeRemotePath(path)
     md5Hash.foreach(hash => logger.info(s"File $file uploading with hash ${Hash(hash).base64}"))
     // slow
-    //    slowUpload(file, context, md5Hash, bufferSize, remotePath)
-    putMultipartThrottled(file, context, md5Hash, remotePath)
+        slowUpload(file, context, md5Hash, bufferSize, remotePath)
+//    putMultipartThrottled(file, context, md5Hash, remotePath)
     // fast, but no throttling
-    //        putFast(file, context, md5Hash, remotePath)
+//            putFast(file, context, md5Hash, remotePath)
   }
 
   private def slowUpload(file: File, context: Option[RemoteOperationContext], md5Hash: Option[Array[Byte]], bufferSize: Int, remotePath: String): Try[Unit] = {

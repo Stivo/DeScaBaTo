@@ -13,7 +13,28 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class DoVerify(_universe: Universe) extends DoReadAbstract(_universe) with Utils {
+
   import universe.materializer
+
+  def verifyAllBackedupIdsHaveMetadata(date: Date, counter: ProblemCounter) = {
+    universe.metadataStorageActor.verifyMetadataForIdsAvailable(date, counter)
+  }
+
+  def verifyAll(): ProblemCounter = {
+    waitForStartup()
+    // verify backup:
+    val counter = new ProblemCounter()
+    //  - check that all metadata for all files and directories are available
+    val files = universe.fileManagerNew.backup.getDates()
+    for (file <- files) {
+      verifyAllBackedupIdsHaveMetadata(file, counter)
+    }
+    //  - check that all chunks of all files are in chunk storage, and in volume
+    val chunkIdsToTest = universe.metadataStorageActor.getAllFileChunkIds()
+    universe.chunkStorageActor.verifyChunksAreAvailable(chunkIdsToTest, counter, checkVolumeToo = true, checkContent = true)
+    logger.info(s"Finished verifying, found ${counter.count} problems")
+    counter
+  }
 
   def verifyDate(date: Date, percentageToVerify: Double = 1): ProblemCounter = {
     verify(Some(date), percentageToVerify)
@@ -71,9 +92,12 @@ class ProblemCounter {
   private var _problems: Seq[String] = Seq.empty
 
   def addProblem(description: String): Unit = {
-    _problems :+= description
-    println(s"$description (now at $count problems)")
+    this.synchronized {
+      _problems :+= description
+      println(s"$description (now at $count problems)")
+    }
   }
+
   def count: Long = _problems.size
 
   def problems: Seq[String] = _problems

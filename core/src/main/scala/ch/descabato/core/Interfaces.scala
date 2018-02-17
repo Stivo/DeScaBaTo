@@ -6,7 +6,8 @@ import java.util.Date
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
-import ch.descabato.core.actors.{JournalHandler, MyEventReceiver}
+import ch.descabato.core.actors.{BlockingOperation, JournalHandler, MyEventReceiver}
+import ch.descabato.core.commands.ProblemCounter
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model._
 import ch.descabato.core.util.Json
@@ -22,6 +23,9 @@ case class ChunkIdAssigned(id: Long) extends ChunkIdResult
 case class ChunkFound(id: Long) extends ChunkIdResult
 
 trait ChunkStorage extends LifeCycle {
+
+  def verifyChunksAreAvailable(chunkIdsToTest: Seq[Long], counter: ProblemCounter, checkVolumeToo: Boolean = true, checkContent: Boolean = false): BlockingOperation
+
   def read(id: Long): Future[BytesWrapper]
 
   def hasAlready(id: Long): Future[Boolean]
@@ -44,6 +48,10 @@ case class FileAlreadyBackedUp(fileMetadata: FileMetadataStored) extends FileAlr
 case object Storing extends FileAlreadyBackedupResult
 
 trait MetadataStorage extends LifeCycle with TypedActor.PreRestart with MyEventReceiver {
+
+  def getAllFileChunkIds(): Seq[Long]
+
+  def verifyMetadataForIdsAvailable(date: Date, counter: ProblemCounter): BlockingOperation
 
   def retrieveBackup(date: Option[Date] = None): Future[BackupDescription]
 

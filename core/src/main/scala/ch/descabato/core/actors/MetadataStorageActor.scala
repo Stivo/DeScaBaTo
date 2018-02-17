@@ -4,6 +4,7 @@ import java.util.Date
 
 import ch.descabato.core._
 import ch.descabato.core.actors.MetadataStorageActor.{AllKnownStoredPartsMemory, BackupDescription, BackupMetaDataStored}
+import ch.descabato.core.commands.ProblemCounter
 import ch.descabato.core.model._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.{StandardMeasureTime, Utils}
@@ -59,6 +60,27 @@ class MetadataStorageActor(val context: BackupContext, val journalHandler: Journ
 
   def getKnownFiles(): Map[String, FileMetadataStored] = allKnownStoredPartsMemory.mapByPath.collect {
     case (x, f: FileMetadataStored) => (x, f)
+  }
+
+  override def verifyMetadataForIdsAvailable(date: Date, counter: ProblemCounter): BlockingOperation = {
+    val future = retrieveBackup(Some(date))
+    future.value match {
+      case Some(Success(backupDescription)) =>
+        // verification successful, as otherwise it would throw an exception if some metadata is missing
+      case Some(Failure(e)) =>
+        counter.addProblem(s"Could not load backup for ${date}")
+      case None =>
+        throw new IllegalStateException("Implementation was updated")
+    }
+    new BlockingOperation()
+  }
+
+  override def getAllFileChunkIds(): Seq[Long] = {
+    allKnownStoredPartsMemory.mapById.collect {
+      case (_, f: FileMetadataStored) => f
+    }.toSeq.flatMap { f: FileMetadataStored =>
+      f.chunkIds.toSeq
+    }
   }
 
   def retrieveBackup(date: Option[Date] = None): Future[BackupDescription] = {

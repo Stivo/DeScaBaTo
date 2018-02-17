@@ -3,11 +3,11 @@ package ch.descabato.core.config
 import java.io.File
 
 import ch.descabato.core.model.Size
-import ch.descabato.core.util._
-import ch.descabato.{CompressionMode, HashAlgorithm}
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
+import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.{AbstractJacksonSerialization, JsonSerialization, SmileSerialization}
+import ch.descabato.{CompressionMode, HashAlgorithm}
 import org.bouncycastle.crypto.Digest
 
 case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
@@ -65,6 +65,10 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
 
   def relativePath(file: File): String = {
     folder.toPath.relativize(file.toPath).toString.replace('\\', '/')
+  }
+
+  def resolveRelativePath(file: String): File = {
+    folder.toPath.resolve(file).toFile
   }
 
   def verify(): Unit = {
