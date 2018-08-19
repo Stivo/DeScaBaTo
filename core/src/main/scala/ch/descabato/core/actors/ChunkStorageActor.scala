@@ -83,9 +83,8 @@ class ChunkStorageActor(val context: BackupContext, val journalHandler: JournalH
     override def name: String = "Verified chunks"
   }
 
-  ProgressReporters.addCounter(verifiedCounter)
-
   override def verifyChunksAreAvailable(chunkIdsToTest: Seq[Long], counter: ProblemCounter, checkVolumeToo: Boolean, checkContent: Boolean): BlockingOperation = {
+    ProgressReporters.addCounter(verifiedCounter)
     var futures = Seq.empty[Future[Unit]]
     val distinctIds = chunkIdsToTest.distinct
     verifiedCounter.maxValue = distinctIds.size

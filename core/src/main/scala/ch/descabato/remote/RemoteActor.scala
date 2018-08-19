@@ -158,6 +158,8 @@ class SimpleRemoteHandler(backupContext: BackupContext, journalHandler: JournalH
     }
     scheduleOperations()
     operation.promise.complete(result)
+    // reset the promise
+    operation.promise = Promise[Unit]()
   }
 
   def read(backupPath: BackupPath): Future[Unit] = {
@@ -266,7 +268,7 @@ case object Upload extends RemoteTransferDirection
 case object Download extends RemoteTransferDirection
 
 sealed abstract class RemoteOperation(typ: RemoteTransferDirection, backupPath: BackupPath, size: Long) {
-  val promise: Promise[Unit] = Promise[Unit]
+  var promise: Promise[Unit] = Promise[Unit]
 
   var failureCounter = 0
 }
