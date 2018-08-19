@@ -3,7 +3,7 @@ package ch.descabato.utils
 import java.io.{InputStream, OutputStream}
 import java.util.zip._
 
-import ch.descabato.{ByteArrayOutputStream, CompressionMode}
+import ch.descabato.{CompressionMode, CustomByteArrayOutputStream}
 import net.jpountz.lz4.{LZ4BlockInputStream, LZ4BlockOutputStream, LZ4Factory}
 import org.apache.commons.compress.compressors.bzip2.{BZip2CompressorInputStream, BZip2CompressorOutputStream}
 import org.apache.commons.compress.utils.IOUtils
@@ -18,7 +18,7 @@ object CompressedStream extends Utils {
   
   def compress(content: BytesWrapper, compressor: CompressionMode) : BytesWrapper = {
     val byte = compressor.getByte()
-    val baos = new ByteArrayOutputStream(content.length+80)
+    val baos = new CustomByteArrayOutputStream(content.length+80)
     baos.write(byte)
     val wrapped = getCompressor(byte, baos, Some(content.length))
     wrapped.write(content)
@@ -42,9 +42,6 @@ object CompressedStream extends Utils {
         opt.setDictSize(1024*1024)
         size.foreach (x => opt.setDictSize(roundUp(x)))
         new XZOutputStream(out, opt)
-      case CompressionMode.bzip2 =>
-        val sizeBzip2 = BZip2CompressorOutputStream.chooseBlockSize(size.getOrElse(-1).toLong)
-        new BZip2CompressorOutputStream(out, sizeBzip2)
       case CompressionMode.snappy => new SnappyFramedOutputStream(out)
       case CompressionMode.deflate => new DeflaterOutputStream(out)
       case CompressionMode.lz4 => new LZ4BlockOutputStream(out, 1<<12, LZ4Factory.fastestJavaInstance().fastCompressor())
@@ -61,7 +58,6 @@ object CompressedStream extends Utils {
     CompressionMode.getByByte(byte) match {
       case CompressionMode.gzip => new GZIPInputStream(in, 65536)
       case CompressionMode.lzma => new XZInputStream(in)
-      case CompressionMode.bzip2 => new BZip2CompressorInputStream(in)
       case CompressionMode.snappy => new SnappyFramedInputStream(in, false)
       case CompressionMode.deflate => new InflaterInputStream(in)
       case CompressionMode.lz4 => new LZ4BlockInputStream(in)
@@ -72,7 +68,7 @@ object CompressedStream extends Utils {
 
   def decompressToBytes(input: BytesWrapper): BytesWrapper = {
     val stream = decompress(input)
-    val baos = new ByteArrayOutputStream()
+    val baos = new CustomByteArrayOutputStream(input.length * 2)
     IOUtils.copy(stream, baos, 100*1024)
     IOUtils.closeQuietly(stream)
     IOUtils.closeQuietly(baos)

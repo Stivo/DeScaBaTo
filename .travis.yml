@@ -7,7 +7,6 @@ scala:
 branches:
   only:
     - master
-    - remote_new
 jdk:
   - oraclejdk8
 #before_script:

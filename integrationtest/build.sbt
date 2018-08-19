@@ -9,4 +9,3 @@ parallelExecution in Test := false
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
 
-test in Test := ((test in Test).dependsOn(pack in core)).value

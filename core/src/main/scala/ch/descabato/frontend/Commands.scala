@@ -4,12 +4,14 @@ import java.io.{File, FileOutputStream, PrintStream}
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
-import ch.descabato.CompressionMode
-import ch.descabato.core._
+import ch.descabato.core.commands.{DoBackup, DoRestore, DoVerify}
+import ch.descabato.core.config.{BackupConfigurationHandler, BackupFolderConfiguration}
+import ch.descabato.core.model.Size
+import ch.descabato.core.{BackupCorruptedException, BackupException, MisconfigurationException, Universe}
 import ch.descabato.frontend.ScallopConverters._
-import ch.descabato.frontend.ScallopConverters.singleArgConverter
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
+import ch.descabato.{CompressionMode, HashAlgorithm, RemoteMode}
 import org.rogach.scallop._
 
 import scala.reflect.runtime.universe
@@ -35,6 +37,8 @@ object ScallopConverters {
   }
 
   implicit val modeConverter: ValueConverter[CompressionMode] = singleArgConverter[CompressionMode](CompressionMode.valueOf, "Should be one of " + CompressionMode.values.mkString(", "))
+  implicit val hashAlgorithmConverter: ValueConverter[HashAlgorithm] = singleArgConverter[HashAlgorithm](HashAlgorithm.valueOf, "Should be one of " + HashAlgorithm.values.mkString(", "))
+  implicit val remoteModeConverter: ValueConverter[RemoteMode] = singleArgConverter[RemoteMode](RemoteMode.fromCli, RemoteMode.message)
   implicit val sizeConverter: ValueConverter[Size] = singleArgConverter[Size](x => Size(x))
 
 }
@@ -44,6 +48,14 @@ trait Command {
   def name: String = this.getClass().getSimpleName().replace("Command", "").toLowerCase()
 
   def execute(args: Seq[String])
+
+  def printConfiguration[T <: BackupFolderOption](t: T): Unit = {
+    if (t.passphrase.isDefined) {
+      println(t.filteredSummary(Set(t.passphrase.name)))
+    } else {
+      println(t.summary)
+    }
+  }
 
   def askUser(question: String = "Do you want to continue?", mask: Boolean = false): String = {
     println(question)
@@ -90,13 +102,10 @@ trait BackupRelatedCommand extends Command with Utils {
 
   var lastArgs: Seq[String] = Nil
 
-  def withUniverse[T](conf: BackupFolderConfiguration, akkaAllowed: Boolean = true)(f: Universe => T): T = {
+  def withUniverse[T](conf: BackupFolderConfiguration)(f: Universe => T): T = {
     var universe: Universe = null
     try {
-      universe = if (akkaAllowed)
-        Universes.makeUniverse(conf)
-      else
-        new SingleThreadUniverse(conf)
+      universe = new Universe(conf)
       f(universe)
     } catch {
       case e: Exception =>
@@ -104,8 +113,9 @@ trait BackupRelatedCommand extends Command with Utils {
         logException(e)
         throw e
     } finally {
-      if (universe != null)
-        universe.shutdown
+      if (universe != null) {
+        universe.shutdown()
+      }
     }
   }
 
@@ -133,15 +143,16 @@ trait BackupRelatedCommand extends Command with Utils {
   }
 
   def start(t: T) {
-    import ch.descabato.core.BackupVerification._
-    val confHandler = new BackupConfigurationHandler(t)
-    var passphrase = t.passphrase.toOption
-    confHandler.verify(needsExistingBackup) match {
+    import ch.descabato.core.config.BackupVerification._
+    val confHandler = new BackupConfigurationHandler(t, needsExistingBackup)
+    confHandler.verify() match {
       case b@BackupDoesntExist => throw b
-      case PasswordNeeded => passphrase = Some(askUser("This backup is passphrase protected. Please type your passphrase.", mask = true))
+      case PasswordNeeded =>
+        val passphrase = askUser("This backup is passphrase protected. Please type your passphrase.", mask = true)
+        confHandler.setPassphrase(passphrase)
       case OK =>
     }
-    val conf = confHandler.configure(passphrase)
+    val conf = confHandler.updateAndGetConfiguration()
     start(t, conf)
   }
 
@@ -172,41 +183,32 @@ trait RedundancyOptions extends BackupFolderOption {
 
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {
   val keylength: ScallopOption[Int] = opt[Int](default = Some(128))
-  val volumeSize: ScallopOption[Size] = opt[Size](default = Some(Size("100Mb")))
+  val volumeSize: ScallopOption[Size] = opt[Size](default = Some(Size("500Mb")))
   val threads: ScallopOption[Int] = opt[Int](default = Some(4))
   val noScriptCreation: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
   //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
   val compression: ScallopOption[CompressionMode] = opt[CompressionMode](default = Some(CompressionMode.smart))
-  val createIndexes: ScallopOption[Boolean] = opt[Boolean](default = Some(true))
+  // TODO delete
   val ignoreFile: ScallopOption[File] = opt[File](default = None)
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
   val serializerType: ScallopOption[String] = opt[String]()
-  val blockSize: ScallopOption[Size] = opt[Size](default = Some(Size("100Kb")))
-  val hashAlgorithm: ScallopOption[String] = opt[String](default = Some("md5"))
+  val hashAlgorithm: ScallopOption[HashAlgorithm] = opt[HashAlgorithm](default = Some(HashAlgorithm.sha3_256))
+  val remoteUri: ScallopOption[String] = opt[String]()
+  val remoteMode: ScallopOption[RemoteMode] = opt[RemoteMode]()
+  codependent(remoteUri, remoteMode)
 }
 
 trait ProgramOption extends ScallopConf {
-  val noGui: ScallopOption[Boolean] = opt[Boolean](short = 'g')
+  val noGui: ScallopOption[Boolean] = opt[Boolean](noshort = true)
   val logfile: ScallopOption[String] = opt[String]()
   val noAnsi: ScallopOption[Boolean] = opt[Boolean]()
 }
 
 trait BackupFolderOption extends ProgramOption {
   val passphrase: ScallopOption[String] = opt[String](default = None)
-  val prefix: ScallopOption[String] = opt[String](default = Some("")).map {
-    x =>
-      if (x == "") {
-        x
-      } else {
-        x.last match {
-          case '.' | '_' | '-' | ';' => x
-          case _ => x + "_"
-        }
-      }
-  }
   val backupDestination: ScallopOption[File] = trailArg[String](required = true).map(new File(_).getCanonicalFile())
 }
 
@@ -217,12 +219,16 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   val suffix: String = if (Utils.isWindows) ".bat" else ""
 
   def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]): Unit = {
-    var path = new File(s"${conf.prefix}descabato$suffix").getCanonicalFile
+    var path = new File(s"descabato$suffix").getCanonicalFile
     // TODO the directory should be determined by looking at the classpath
     if (!path.exists) {
       path = new File(path.getParent() + "/bin", path.getName)
     }
-    val line = s"$path backup "+args.mkString(" ")
+    val line = s"$path backup " + args.map {
+      case x if x.contains(" ") => s""""$x""""
+      case x => x
+    }.mkString(" ")
+
     def writeTo(bat: File) {
       if (!bat.exists) {
         val ps = new PrintStream(new FileOutputStream(bat))
@@ -231,6 +237,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
         l.info("A file " + bat + " has been written to execute this backup again")
       }
     }
+
     writeTo(new File(".", conf.folder.getName() + suffix))
     writeTo(new File(conf.folder, "_" + conf.folder.getName() + suffix))
   }
@@ -240,20 +247,14 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def newT(args: Seq[String]) = new BackupConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
-    println(t.summary)
-    withUniverse(conf) {
-      universe =>
-        val bdh = new BackupHandler(universe)
-        if (!t.noScriptCreation()) {
-          writeBat(t, conf, lastArgs)
-        }
-        bdh.backup(t.folderToBackup() :: Nil)
+    printConfiguration(t)
+    withUniverse(conf) { universe =>
+      if (!t.noScriptCreation()) {
+        writeBat(t, conf, lastArgs)
+      }
+      val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
+      backup.execute()
     }
-    //    if (conf.redundancyEnabled) {
-    //      l.info("Running redundancy creation")
-    //      new RedundancyHandler(conf).createFiles
-    //      l.info("Redundancy creation finished")
-    //    }
   }
 
   override def needsExistingBackup = false
@@ -282,43 +283,33 @@ class RestoreCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new RestoreConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
-    println(t.summary)
+    printConfiguration(t)
     validateFilename(t.restoreToFolder)
     validateFilename(t.restoreInfo)
     withUniverse(conf) {
       universe =>
+        val fm = universe.fileManagerNew
+        val restore = new DoRestore(universe)
         if (t.chooseDate()) {
-          val fm = new FileManager(universe)
-          val options = fm.getBackupDates.zipWithIndex
+          val options = fm.backup.getFiles().map(fm.backup.dateOfFile).zipWithIndex
           options.foreach {
             case (date, num) => println(s"[$num]: $date")
           }
           val option = askUser("Which backup would you like to restore from?").toInt
-          RestoreRunners.run(conf) { () =>
-            val rh = new RestoreHandler(universe)
-            rh.restoreFromDate(t, options.find(_._2 == option).get._1)
-          }
+          restore.restoreFromDate(t, options.find(_._2 == option).get._1)
         } else if (t.restoreBackup.isSupplied) {
-          val fm = new FileManager(universe)
-          RestoreRunners.run(conf) { () =>
-            val rh = new RestoreHandler(universe)
-            val backupsFound = fm.backup.getFiles().filter(_.getName.equals(t.restoreBackup()))
-            if (backupsFound.isEmpty) {
-              println("Could not find described backup, these are your choices:")
-              fm.backup.getFiles().foreach { f =>
-                println(f)
-              }
-              throw new IllegalArgumentException("Backup not found")
+          val backupsFound = fm.backup.getFiles().filter(_.getName.equals(t.restoreBackup()))
+          if (backupsFound.isEmpty) {
+            println("Could not find described backup, these are your choices:")
+            fm.backup.getFiles().foreach { f =>
+              println(f)
             }
-            rh.restoreFromDate(t, fm.backup.date(backupsFound.head))
+            throw new IllegalArgumentException("Backup not found")
           }
+          restore.restoreFromDate(t, fm.backup.dateOfFile(backupsFound.head))
 
-        }
-        else {
-          RestoreRunners.run(conf) { () =>
-            val rh = new RestoreHandler(universe)
-            rh.restore(t)
-          }
+        } else {
+          restore.restore(t)
         }
     }
   }
@@ -330,15 +321,15 @@ class VerifyCommand extends BackupRelatedCommand {
   def newT(args: Seq[String]) = new VerifyConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration): Unit = {
-    println(t.summary)
-    val count = withUniverse(conf, akkaAllowed = false) {
+    printConfiguration(t)
+    val counter = withUniverse(conf) {
       u =>
-        val rh = new VerifyHandler(u)
-        rh.verify(t)
+        val verify = new DoVerify(u)
+        verify.verifyAll()
     }
-    CLI.lastErrors = count
-    if (count != 0)
-      CLI.exit(count.toInt)
+    CLI.lastErrors = counter.count
+    if (counter.count != 0)
+      CLI.exit(counter.count.toInt)
   }
 }
 

@@ -2,10 +2,10 @@ package ch.descabato
 
 import java.util.Base64
 
-import ch.descabato.utils.{ByteArrayMap, BytesWrapper, Hash}
+import ch.descabato.utils.Implicits._
+import ch.descabato.utils.{ByteArrayMap, Hash}
 import org.scalatest.FlatSpec
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import ch.descabato.utils.Implicits._
 
 class ByteArrayMapSpec extends FlatSpec with GeneratorDrivenPropertyChecks {
 
@@ -18,7 +18,7 @@ class ByteArrayMapSpec extends FlatSpec with GeneratorDrivenPropertyChecks {
       val string = encoder.encodeToString(toEncode)
       val contained = strings safeContains string
       // check that the byte arrays say the same
-      assert(contained === (wrappers safeContains new Hash(toEncode)))
+      assert(contained === (wrappers safeContains Hash(toEncode)))
       assert(contained === (wrappers safeContains toEncode))
       // add them to the set and map
       strings += string
@@ -26,7 +26,7 @@ class ByteArrayMapSpec extends FlatSpec with GeneratorDrivenPropertyChecks {
     }
     for (wrapper <- wrappers.keys) {
       assert(wrappers safeContains (wrapper))
-      assert(wrappers safeContains (new Hash(wrapper)))
+      assert(wrappers safeContains (Hash(wrapper)))
     }
   }
 

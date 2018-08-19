@@ -1,8 +1,7 @@
 package ch.descabato.it
 
 import java.io.{File, RandomAccessFile}
-import java.nio.file.{Files, Path, Paths}
-import java.util.stream.Collectors
+import java.nio.file.{Files, Paths}
 
 import ch.descabato.utils.Utils
 import ch.descabato.{RichFlatSpecLike, TestUtils}
@@ -10,8 +9,8 @@ import org.apache.commons.exec.{CommandLine, ExecuteException}
 import org.apache.commons.io.{FileUtils => IO_FileUtils}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.Set
 
 class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
@@ -30,7 +29,7 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
   val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
   val packFolder = new File(descabatoFolder, s"core/target/pack").getAbsoluteFile()
 
-  //  var baseFolder = new File("H:/testdata")
+  // var baseFolder = new File("L:/testdata")
   var baseFolder = {
     new File("integrationtest/testdata")
   }

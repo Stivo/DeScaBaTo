@@ -60,7 +60,7 @@
    <parameter name="maxParameters"><![CDATA[8]]></parameter>
   </parameters>
  </check>
- <check level="warning" class="org.scalastyle.scalariform.MagicNumberChecker" enabled="true">
+ <check level="warning" class="org.scalastyle.scalariform.MagicNumberChecker" enabled="false">
   <parameters>
    <parameter name="ignore"><![CDATA[-1,0,1,2,3]]></parameter>
   </parameters>
@@ -76,6 +76,11 @@
  <check level="warning" class="org.scalastyle.file.RegexChecker" enabled="true">
   <parameters>
    <parameter name="regex"><![CDATA[println]]></parameter>
+  </parameters>
+ </check>
+ <check level="error" class="org.scalastyle.file.RegexChecker" enabled="true">
+  <parameters>
+   <parameter name="regex"><![CDATA[import com.fasterxml.jackson.annotation.]]></parameter>
   </parameters>
  </check>
  <check level="warning" class="org.scalastyle.scalariform.NumberOfTypesChecker" enabled="true">
@@ -98,10 +103,10 @@
  </check>
  <check level="warning" class="org.scalastyle.scalariform.MethodLengthChecker" enabled="true">
   <parameters>
-   <parameter name="maxLength"><![CDATA[50]]></parameter>
+   <parameter name="maxLength"><![CDATA[100]]></parameter>
   </parameters>
  </check>
- <check level="warning" class="org.scalastyle.scalariform.MethodNamesChecker" enabled="true">
+ <check level="warning" class="org.scalastyle.scalariform.MethodNamesChecker" enabled="true" id="methodname">
   <parameters>
    <parameter name="regex"><![CDATA[^[a-z][A-Za-z0-9]*$]]></parameter>
   </parameters>
@@ -118,11 +123,11 @@
  <check level="warning" class="org.scalastyle.scalariform.VarFieldChecker" enabled="false"></check>
  <check level="warning" class="org.scalastyle.scalariform.VarLocalChecker" enabled="false"></check>
  <check level="warning" class="org.scalastyle.scalariform.RedundantIfChecker" enabled="false"></check>
- <check level="warning" class="org.scalastyle.scalariform.TokenChecker" enabled="false">
-  <parameters>
-   <parameter name="regex"><![CDATA[println]]></parameter>
-  </parameters>
- </check>
+ <!--<check level="warning" class="org.scalastyle.scalariform.TokenChecker" enabled="false">-->
+  <!--<parameters>-->
+   <!--<parameter name="regex"><![CDATA[println]]></parameter>-->
+  <!--</parameters>-->
+ <!--</check>-->
  <check level="warning" class="org.scalastyle.scalariform.DeprecatedJavaChecker" enabled="true"></check>
  <check level="warning" class="org.scalastyle.scalariform.EmptyClassChecker" enabled="true"></check>
  <check level="warning" class="org.scalastyle.scalariform.ClassTypeParameterChecker" enabled="true">
@@ -130,7 +135,7 @@
    <parameter name="regex"><![CDATA[^[A-Z_]$]]></parameter>
   </parameters>
  </check>
- <check level="warning" class="org.scalastyle.scalariform.UnderscoreImportChecker" enabled="true"></check>
+ <check level="warning" class="org.scalastyle.scalariform.UnderscoreImportChecker" enabled="false"></check>
  <check level="warning" class="org.scalastyle.scalariform.LowercasePatternMatchChecker" enabled="true"></check>
  <check level="warning" class="org.scalastyle.scalariform.MultipleStringLiteralsChecker" enabled="true">
   <parameters>
@@ -138,5 +143,5 @@
    <parameter name="ignoreRegex"><![CDATA[^""$]]></parameter>
   </parameters>
  </check>
- <check level="warning" class="org.scalastyle.scalariform.ImportGroupingChecker" enabled="true"></check>
+ <check level="warning" class="org.scalastyle.scalariform.ImportGroupingChecker" enabled="false"></check>
 </scalastyle>

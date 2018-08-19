@@ -3,7 +3,8 @@ package ch.descabato.frontend
 import java.io.{File, PrintStream}
 import java.security.Security
 
-import ch.descabato.core._
+import ch.descabato.core.PasswordWrongException
+import ch.descabato.core.config.BackupVerification
 import ch.descabato.utils.{FileUtils, Utils}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
@@ -19,7 +20,7 @@ object CLI extends Utils {
     new BackupCommand(),
     new VerifyCommand(),
     new RestoreCommand(),
-    new ReflectionCommand("browse", "ch.descabato.browser.BrowseCommand"),
+    new ReflectionCommand("browse", "ch.descabato.ui.BrowseCommand"),
     new HelpCommand()).map(x => (x.name.toLowerCase, x)).toMap
 
   def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
@@ -41,7 +42,7 @@ object CLI extends Utils {
       System.setProperty("logname", "backup.log")
     try {
       Security.addProvider(new BouncyCastleProvider())
-      if (runsInJar) {
+      if (runsInJar || !args.isEmpty) {
         java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
         parseCommandLine(args)
         exit(0)
@@ -53,6 +54,15 @@ object CLI extends Utils {
         } catch {
           case x: Exception =>
         }
+//        parseCommandLine("restore --restore-backup backup_2018-01-07.191120.444_0.kvs --restore-info restore-info.txt --restore-to-folder C:\\Users\\Stivo\\workspace\\DeScaBaTo\\integrationtest\\testdata\\restore_old1 C:\\Users\\Stivo\\workspace\\DeScaBaTo\\integrationtest\\testdata\\backup_old1".split(" "))
+        val destination = "e:/temp/desca9"
+        FileUtils.deleteAll(new File(destination))
+        val file = new File("testdata/backup")
+        FileUtils.deleteAll(file)
+        file.mkdirs()
+        val remoteMode=""
+        //val remoteMode="--remote-uri=ftp://testdescabato:pass1@localhost/backup/ --remote-mode=both"
+        parseCommandLine(s"backup --threads 5 --volume-size 10mb --compression smart $remoteMode $destination D:\\pics\\tosort\\dontknow".split(" ").filterNot(_.isEmpty))
 //        parseCommandLine("backup --threads 1 --serializer-type json --hash-algorithm md5 --compression none --volume-size 10mb C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/input".split(" "))
         //
 //        parseCommandLine("backup --threads 6 --compression gzip L:\\testdata\\backup1 L:\\testdata\\input1".split(" "))
@@ -72,7 +82,6 @@ object CLI extends Utils {
 //         parseCommandLine("backup --serializer-type json --compression gzip --volume-size 50mb l:/testdata/backup1 l:/testdata/input1".split(" "))
 
         // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
-        //parseCommandLine("backup --serializer-type json --hash-algorithm sha-256 --compression gzip --volume-size 100mb e:/temp/desca9 d:/pics/tosort".split(" "))
 
 //        parseCommandLine("backup --passphrase testasdf --threads 10 --serializer-type json --compression lz4 --volume-size 100mb L:/desca8 L:/tmp".split(" "))
 

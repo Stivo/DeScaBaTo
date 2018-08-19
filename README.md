@@ -39,9 +39,7 @@ To backup a directory:
     
 Once a backup is executed, a batch file will be created to restart this backup. You don't need to set any options, but you can. The options are:
 
-    -b, --block-size  <arg>         (default = 100.0KB)  *
     -c, --compression  <arg>        (default = smart)
-        --create-indexes
     -d, --dont-save-symlinks
     -h, --hash-algorithm  <arg>     (default = md5)      *
     -k, --keylength  <arg>          (default = 128)
@@ -50,7 +48,6 @@ Once a backup is executed, a batch file will be created to restart this backup. 
         --no-script-creation
     -n, --no-ansi
     -p, --passphrase  <arg>                              *
-        --prefix  <arg>             (default = )         *
     -s, --serializer-type  <arg>
     -t, --threads  <arg>            (default = 2)
     -v, --volume-size  <arg>        (default = 100.0MB)
@@ -65,7 +62,6 @@ These options apply to backup only. The options with a star in the end can only 
     -g, --no-gui
     -n, --no-ansi
     -p, --passphrase  <arg>
-        --prefix  <arg>               (default = )
         --restore-to-folder  <arg>
     -r, --restore-to-original-path
         --help                       Show help message
@@ -77,7 +73,6 @@ Browse will launch an interactive browser to look at the files contained in the 
     browse [options] backupFolder
     
     -p, --passphrase  <arg>
-        --prefix  <arg>        (default = )
         --help                Show help message
 
 To use encryption with longer keylength than 128, install the jce policy files (google it). MD5 is old and unsafe, but will do fine here and saves space. SHA1, SHA256 are also supported.

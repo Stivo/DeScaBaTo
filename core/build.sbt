@@ -6,7 +6,8 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-actor" % "2.5.8",
+    "com.typesafe.akka" %% "akka-actor" % "2.5.9",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.9",
     "org.rogach" %% "scallop" % "3.1.1",
     "org.ocpsoft.prettytime" % "prettytime" % "4.0.1.Final",
     "org.fusesource.jansi" % "jansi" % "1.11",
@@ -16,7 +17,7 @@ libraryDependencies ++= Seq(
 // compressors
 libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
-  "net.jpountz.lz4" % "lz4" % "1.3.0",
+  "org.lz4" % "lz4-java" % "1.4.1",
   "org.tukaani" % "xz" % "1.8",
   "org.apache.commons" % "commons-compress" % "1.15"
 )
@@ -30,8 +31,8 @@ libraryDependencies ++= Seq(
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.2",
-	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.2"
+	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.4",
+	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.4"
 )
 
 // UI Dependencies
@@ -40,9 +41,18 @@ libraryDependencies ++= Seq(
   "com.miglayout" % "miglayout-swing" % "5.0"
 )
 
+// remote dependencies
+libraryDependencies ++= Seq(
+  "org.apache.commons" % "commons-vfs2" % "2.2",
+  "commons-net" % "commons-net" % "3.6",
+  "com.google.guava" % "guava" % "16.0.1",
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.271"
+)
+
+
 // Test dependencies
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.0.4" % "test->*"
+  "org.scalatest" %% "scalatest" % "3.0.5" % "test->*"
     excludeAll(
     ExclusionRule(organization = "org.seleniumhq.selenium"),
     ExclusionRule(organization = "org.eclipse.jetty"),
@@ -60,11 +70,7 @@ parallelExecution in Test := false
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
-buildInfoSettings
-
-sourceGenerators in Compile <+= buildInfo
-
-buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
+enablePlugins(BuildInfoPlugin)
 
 buildInfoPackage := "ch.descabato.version"
 
@@ -72,7 +78,7 @@ enablePlugins(PackPlugin)
 
 packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
 
-packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx1g"))
+packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx2g"))
 
 packJarNameConvention := "original"
 
