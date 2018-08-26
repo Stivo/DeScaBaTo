@@ -6,12 +6,12 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-actor" % "2.5.9",
-    "com.typesafe.akka" %% "akka-stream" % "2.5.9",
-    "org.rogach" %% "scallop" % "3.1.1",
-    "org.ocpsoft.prettytime" % "prettytime" % "4.0.1.Final",
-    "org.fusesource.jansi" % "jansi" % "1.11",
-    "org.bouncycastle" % "bcprov-jdk15on" % "1.59"
+    "com.typesafe.akka" %% "akka-actor" % "2.5.15",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.15",
+    "org.rogach" %% "scallop" % "3.1.3",
+    "org.ocpsoft.prettytime" % "prettytime" % "4.0.2.Final",
+    "org.fusesource.jansi" % "jansi" % "1.17.1",
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.60"
 )
 
 // compressors
@@ -19,26 +19,26 @@ libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
   "org.lz4" % "lz4-java" % "1.4.1",
   "org.tukaani" % "xz" % "1.8",
-  "org.apache.commons" % "commons-compress" % "1.15"
+  "org.apache.commons" % "commons-compress" % "1.18"
 )
 
 // Logging
 libraryDependencies ++= Seq(
 	"ch.qos.logback" % "logback-classic" % "1.2.3",
-	"com.typesafe.scala-logging" %% "scala-logging" % "3.7.2",
+	"com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
   "org.scala-lang" % "scala-reflect" % Common.scalaVersion
 )
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.4",
-	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.4"
+	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.6",
+	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.6"
 )
 
 // UI Dependencies
 libraryDependencies ++= Seq(
   "com.nativelibs4java" % "bridj" % "0.7.0" exclude("com.google.android.tools", "dx"),
-  "com.miglayout" % "miglayout-swing" % "5.0"
+  "com.miglayout" % "miglayout-swing" % "5.2"
 )
 
 // remote dependencies
@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-vfs2" % "2.2",
   "commons-net" % "commons-net" % "3.6",
   "com.google.guava" % "guava" % "16.0.1",
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.271"
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.396"
 )
 
 
@@ -61,7 +61,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.easymock"),
     ExclusionRule(organization = "org.mockito")
     ),
-  "org.scalacheck" %% "scalacheck" % "1.13.5" % "test"
+  "org.scalacheck" %% "scalacheck" % "1.14.0" % "test"
 )
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
