@@ -9,6 +9,7 @@ import ch.descabato.utils.BytesWrapper
 class Chunker(minChunkSize: Int = 128 * 1024,
               maxChunkSize: Int = 16 * 1024 * 1024,
               bits: Byte = 19) extends GraphStage[FlowShape[ByteString, BytesWrapper]] {
+
   val in = Inlet[ByteString]("Framer.in")
   val out = Outlet[BytesWrapper]("Framer.out")
   override val shape = FlowShape.of(in, out)

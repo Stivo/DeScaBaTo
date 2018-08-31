@@ -28,13 +28,7 @@ class FileWriterHashSpec extends FlatSpec with GeneratorDrivenPropertyChecks wit
 
   "encrypted writer" should "compute correct hash" in {
     setupRandomData()
-    val writer = new ParallelEncryptedFileWriter(encrypted, password, 128)
-    testWriter(writer)
-  }
-
-  "encrypted parallel writer" should "compute correct hash" in {
-    setupRandomData()
-    val writer = new ParallelEncryptedFileWriter(encrypted, password, 128)
+    val writer = new EncryptedFileWriter(encrypted, password, 128)
     testWriter(writer)
   }
 

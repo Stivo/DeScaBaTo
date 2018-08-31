@@ -6,8 +6,8 @@ import java.nio.file.Files
 import java.security.MessageDigest
 import java.text.DecimalFormat
 import java.util
-import javax.xml.bind.DatatypeConverter
 
+import javax.xml.bind.DatatypeConverter
 import ch.descabato.CustomByteArrayOutputStream
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.bouncycastle.crypto.Digest
@@ -48,6 +48,8 @@ class Hash private (val bytes: Array[Byte]) extends AnyVal {
   def !==(other: Hash): Boolean = !(this === other)
 
   def wrap(): BytesWrapper = BytesWrapper(bytes)
+
+  def hashContent(): Int = util.Arrays.hashCode(bytes)
 }
 
 object BytesWrapper {

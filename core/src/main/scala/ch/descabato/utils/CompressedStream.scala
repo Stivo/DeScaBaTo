@@ -26,7 +26,7 @@ object CompressedStream extends Utils {
     baos.toBytesWrapper()
   }
 
-  def roundUp(x: Int): Int = {
+  private def roundUp(x: Int): Int = {
     var z = 4096
     while (z < x) {
       z = z * 2

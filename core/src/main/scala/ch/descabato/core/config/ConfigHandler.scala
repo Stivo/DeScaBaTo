@@ -27,7 +27,6 @@ object InitBackupFolderConfiguration extends Utils {
     }
     option match {
       case o: CreateBackupOptions =>
-        o.serializerType.foreach(out.serializerType = _)
         o.hashAlgorithm.foreach(out.hashAlgorithm = _)
         o.remoteUri.foreach(out.remoteOptions.uri = _)
         o.remoteMode.foreach(out.remoteOptions.mode = _)

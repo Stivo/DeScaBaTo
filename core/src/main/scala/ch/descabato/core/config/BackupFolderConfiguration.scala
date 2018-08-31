@@ -6,7 +6,6 @@ import ch.descabato.core.model.Size
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
-import ch.descabato.utils.{AbstractJacksonSerialization, JsonSerialization, SmileSerialization}
 import ch.descabato.{CompressionMode, HashAlgorithm}
 import org.bouncycastle.crypto.Digest
 
@@ -17,13 +16,6 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   @JsonIgnore
   var configFileName: String = "backup.json"
   var version: String = ch.descabato.version.BuildInfo.version
-  var serializerType = "json"
-
-  @JsonIgnore
-  def serialization(typ: String = serializerType): AbstractJacksonSerialization = typ match {
-    case "smile" => new SmileSerialization
-    case "json" => new JsonSerialization
-  }
 
   var keyLength = 128
   var compressor = CompressionMode.smart

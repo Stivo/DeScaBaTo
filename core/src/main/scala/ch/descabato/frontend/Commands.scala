@@ -194,7 +194,6 @@ trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions 
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
-  val serializerType: ScallopOption[String] = opt[String]()
   val hashAlgorithm: ScallopOption[HashAlgorithm] = opt[HashAlgorithm](default = Some(HashAlgorithm.sha3_256))
   val remoteUri: ScallopOption[String] = opt[String]()
   val remoteMode: ScallopOption[RemoteMode] = opt[RemoteMode]()

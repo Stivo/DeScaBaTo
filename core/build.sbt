@@ -31,8 +31,7 @@ libraryDependencies ++= Seq(
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.6",
-	"com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.6"
+	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.6"
 )
 
 // UI Dependencies

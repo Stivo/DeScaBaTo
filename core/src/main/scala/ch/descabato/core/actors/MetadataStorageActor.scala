@@ -208,6 +208,11 @@ object MetadataStorageActor extends Utils {
       new BackupMetaDataStored(files ++ other.files, folders ++ other.folders, symlinks ++ other.symlinks)
     }
 
+    override def equals(obj: scala.Any): Boolean = obj match {
+      case x: BackupMetaDataStored => files == x.files && folders == x.folders && symlinks == x.symlinks
+      case _ => false
+    }
+
   }
 
   class AllKnownStoredPartsMemory() {

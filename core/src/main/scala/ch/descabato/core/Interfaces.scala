@@ -18,25 +18,28 @@ import scala.concurrent.Future
 import scala.util.{Failure, Try}
 
 trait ChunkIdResult
-case object ChunkUnknown extends ChunkIdResult
-case class ChunkIdAssigned(id: Long) extends ChunkIdResult
 case class ChunkFound(id: Long) extends ChunkIdResult
+case class ChunkIdAssigned(id: Long) extends ChunkIdResult
+case object ChunkUnknown extends ChunkIdResult
 
 trait ChunkStorage extends LifeCycle {
 
-  def verifyChunksAreAvailable(chunkIdsToTest: Seq[Long], counter: ProblemCounter, checkVolumeToo: Boolean = true, checkContent: Boolean = false): BlockingOperation
+  // writing
+  def hasAlready(id: Long): Future[Boolean]
+
+  def chunkId(block: Block, assignIdIfNotFound: Boolean): Future[ChunkIdResult]
+
+  def save(block: CompressedBlock, id: Long): Future[Boolean]
+
+  // reading
+  def getHashForId(id: Long): Future[Hash]
 
   def read(id: Long): Future[BytesWrapper]
 
-  def hasAlready(id: Long): Future[Boolean]
+  // verification
+  def verifyChunksAreAvailable(chunkIdsToTest: Seq[Long], counter: ProblemCounter, checkVolumeToo: Boolean = true,
+                               checkContent: Boolean = false): BlockingOperation
 
-  def getHashForId(id: Long): Future[Hash]
-
-  def chunkId(block: Block, assignIdIfNotFound: Boolean): Future[ChunkIdResult] = chunkId(block.hash, assignIdIfNotFound)
-
-  def chunkId(hash: Hash, assignIdIfNotFound: Boolean): Future[ChunkIdResult]
-
-  def save(block: CompressedBlock, id: Long): Future[Boolean]
 }
 
 sealed trait FileAlreadyBackedupResult

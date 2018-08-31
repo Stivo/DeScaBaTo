@@ -178,29 +178,18 @@ case class FileDeleted(path: String) extends UpdatePart {
 object FileDeleted {
   def apply(x: BackupPart): FileDeleted = x match {
     case FolderDescription(path, _) => new FileDeleted(path)
-    case FileDescription(path, _, _, _) => new FileDeleted(path)
+    case FileDescription(path, _, _) => new FileDeleted(path)
   }
 }
 
-case class FileDescription(path: String, size: Long, attrs: FileAttributes, @JacksonAnnotations.JsonIgnore hash: Hash = Hash.empty) extends BackupPart {
+case class FileDescription(path: String, size: Long, attrs: FileAttributes) extends BackupPart {
 
   def this(file: File) = {
     this(file.getAbsolutePath, file.length(), FileAttributes(file.toPath))
   }
 
-  @JsonIgnore
-  var hasHashList: Boolean = false
-
   @JsonIgnore def isFolder = false
 
-  override def equals(x: Any): Boolean = x match {
-    case FileDescription(p, s, attributes, h) if p == path && s == size && attributes == attrs => hash === h
-    case _ => false
-  }
-
-  override def hashCode(): Int = {
-    path.hashCode
-  }
 }
 
 object FolderDescription {

@@ -26,12 +26,6 @@ class EncryptionIOSpec extends FlatSpec with GeneratorDrivenPropertyChecks with 
     testWriter(writer)
   }
 
-  "parallel writer" should "decrypt and encrypt correctly" in {
-    setupRandomData()
-    val writer = new ParallelEncryptedFileWriter(encrypted, password, 128)
-    testWriter(writer)
-  }
-
   private def testWriter(writer: FileWriter) = {
     val startPos = writer.write(BytesWrapper(bytes, 0, 213))
     var written = 213

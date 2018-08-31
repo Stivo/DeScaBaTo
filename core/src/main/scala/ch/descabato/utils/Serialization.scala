@@ -107,16 +107,3 @@ abstract class AbstractJacksonSerialization extends Serialization {
 class JsonSerialization(override val indent: Boolean = true) extends AbstractJacksonSerialization {
   lazy val mapper = new ObjectMapper() with ScalaObjectMapper
 }
-
-class SmileSerialization extends AbstractJacksonSerialization {
-
-  lazy val fac: SmileFactory = {
-    val out = new SmileFactory
-    out.disable(SmileParser.Feature.REQUIRE_HEADER)
-    out.disable(SmileGenerator.Feature.WRITE_HEADER)
-    out
-  }
-
-  lazy val mapper = new ObjectMapper(fac) with ScalaObjectMapper
-}
-

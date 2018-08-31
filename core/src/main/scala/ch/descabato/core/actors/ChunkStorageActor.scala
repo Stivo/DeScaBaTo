@@ -79,58 +79,13 @@ class ChunkStorageActor(val context: BackupContext, val journalHandler: JournalH
     }
   }
 
-  val verifiedCounter = new ETACounter {
-    override def name: String = "Verified chunks"
-  }
-
-  override def verifyChunksAreAvailable(chunkIdsToTest: Seq[Long], counter: ProblemCounter, checkVolumeToo: Boolean, checkContent: Boolean): BlockingOperation = {
-    ProgressReporters.addCounter(verifiedCounter)
-    var futures = Seq.empty[Future[Unit]]
-    val distinctIds = chunkIdsToTest.distinct
-    verifiedCounter.maxValue = distinctIds.size
-    for (chunkId <- distinctIds) {
-      var shouldCount = true
-      if (!assignedIds.safeContains(chunkId)) {
-        counter.addProblem(s"Chunk with id $chunkId could not be found")
-      } else {
-        if (checkVolumeToo) {
-          val chunk = assignedIds(chunkId)
-          val file = config.resolveRelativePath(chunk.file)
-          if (file.length() < (chunk.startPos + chunk.length)) {
-            counter.addProblem(s"Chunk ${chunk.id} should be in file ${chunk.file} at ${chunk.startPos} - to ${chunk.startPos + chunk.length}, but file is only ${file.length} long")
-          } else {
-            if (checkContent) {
-              val wrapper = getReader(chunk).read(chunk.asFilePosition())
-              shouldCount = false
-              futures :+= Future {
-                val stream = CompressedStream.decompressToBytes(wrapper)
-                val hashComputed: Hash = config.createMessageDigest().digest(stream)
-                if (hashComputed !== chunk.hash) {
-                  counter.addProblem(s"Chunk ${chunk} was read from volume and does not have the same hash as stored")
-                }
-                verifiedCounter += 1
-              }
-            }
-          }
-        }
-      }
-      if (shouldCount) {
-        verifiedCounter += 1
-      }
-    }
-    for (future <- futures) {
-      Await.result(future, 1.hour)
-    }
-    new BlockingOperation()
-  }
-
-  def chunkId(hash: Hash, assignIdIfNotFound: Boolean): Future[ChunkIdResult] = {
+  def chunkId(block: Block, assignIdIfNotFound: Boolean): Future[ChunkIdResult] = {
     Future.successful {
-      chunkIdInternal(hash, assignIdIfNotFound)
+      chunkIdInternal(block.hash, assignIdIfNotFound)
     }
   }
 
-  private def chunkIdInternal(hash: Hash, assignIdIfNotFound: Boolean) = {
+  private def chunkIdInternal(hash: Hash, assignIdIfNotFound: Boolean): ChunkIdResult = {
     val existingId = checkpointed.get(hash).orElse(notCheckpointed.get(hash))
     val alreadyAssigned = alreadyAssignedIds.get(hash)
     (existingId, alreadyAssigned) match {
@@ -242,4 +197,50 @@ class ChunkStorageActor(val context: BackupContext, val journalHandler: JournalH
     Await.result(Future.sequence(_readers.values.map(_.finish())), 1.hour)
     _readers = Map.empty
   }
+
+  val verifiedCounter = new ETACounter {
+    override def name: String = "Verified chunks"
+  }
+
+  override def verifyChunksAreAvailable(chunkIdsToTest: Seq[Long], counter: ProblemCounter, checkVolumeToo: Boolean, checkContent: Boolean): BlockingOperation = {
+    ProgressReporters.addCounter(verifiedCounter)
+    var futures = Seq.empty[Future[Unit]]
+    val distinctIds = chunkIdsToTest.distinct
+    verifiedCounter.maxValue = distinctIds.size
+    for (chunkId <- distinctIds) {
+      var shouldCount = true
+      if (!assignedIds.safeContains(chunkId)) {
+        counter.addProblem(s"Chunk with id $chunkId could not be found")
+      } else {
+        if (checkVolumeToo) {
+          val chunk = assignedIds(chunkId)
+          val file = config.resolveRelativePath(chunk.file)
+          if (file.length() < (chunk.startPos + chunk.length)) {
+            counter.addProblem(s"Chunk ${chunk.id} should be in file ${chunk.file} at ${chunk.startPos} - to ${chunk.startPos + chunk.length}, but file is only ${file.length} long")
+          } else {
+            if (checkContent) {
+              val wrapper = getReader(chunk).read(chunk.asFilePosition())
+              shouldCount = false
+              futures :+= Future {
+                val stream = CompressedStream.decompressToBytes(wrapper)
+                val hashComputed: Hash = config.createMessageDigest().digest(stream)
+                if (hashComputed !== chunk.hash) {
+                  counter.addProblem(s"Chunk ${chunk} was read from volume and does not have the same hash as stored")
+                }
+                verifiedCounter += 1
+              }
+            }
+          }
+        }
+      }
+      if (shouldCount) {
+        verifiedCounter += 1
+      }
+    }
+    for (future <- futures) {
+      Await.result(future, 1.hour)
+    }
+    new BlockingOperation()
+  }
+
 }
