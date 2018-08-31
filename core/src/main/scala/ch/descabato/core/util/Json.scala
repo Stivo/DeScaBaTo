@@ -7,14 +7,12 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.{DeserializationContext, JavaType, ObjectMapper, SerializerProvider}
-import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 
 object Json {
 
   val mapper = new CustomObjectMapper()
-  val smileMapper = new CustomObjectMapper(new SmileFactory())
 /*
   def main(args: Array[String]): Unit = {
     tryMap
