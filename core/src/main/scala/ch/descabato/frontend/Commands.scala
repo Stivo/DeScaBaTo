@@ -357,7 +357,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   mutuallyExclusive(restoreBackup, chooseDate)
 }
 
-class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
+class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {
   val percentOfFilesToCheck: ScallopOption[Int] = opt[Int](default = Some(5), descr = "How many percent of files to check")
   validate(percentOfFilesToCheck) {
     case x if x > 0 && x <= 100 => Right(Unit)
