@@ -134,6 +134,13 @@ trait BackupRelatedCommand extends Command with Utils {
       if (t.noAnsi.isSupplied) {
         AnsiUtil.ansiDisabled = t.noAnsi()
       }
+      t match {
+        case ng : NoGuiOption =>
+          if (ng.noGui.isSupplied && ng.noGui()) {
+            ProgressReporters.guiEnabled = false
+          }
+        case _ => // pass
+      }
       start(t)
     } catch {
       case e@MisconfigurationException(message) =>
@@ -181,8 +188,7 @@ trait RedundancyOptions extends BackupFolderOption {
   //  val noRedundancy = opt[Boolean](default = Some(false))
 }
 
-trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {
-  val noGui: ScallopOption[Boolean] = opt[Boolean](noshort = true, descr = "Disables the user interface")
+trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions with NoGuiOption {
   val keylength: ScallopOption[Int] = opt[Int](descr = "Length of the AES encryption key", default = Some(128))
   val volumeSize: ScallopOption[Size] = opt[Size](descr = "Maximum size of the main data files", default = Some(Size("500Mb")))
   val threads: ScallopOption[Int] = opt[Int](descr = "How many threads should be used for the backup", default = Some(4))
@@ -203,6 +209,10 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
 trait ProgramOption extends ScallopConf {
   val logfile: ScallopOption[String] = opt[String](descr = "Destination of the logfile of this backup")
   val noAnsi: ScallopOption[Boolean] = opt[Boolean](descr = "Disables Ansi features", hidden = true)
+}
+
+trait NoGuiOption extends ScallopConf {
+  val noGui: ScallopOption[Boolean] = opt[Boolean](noshort = true, descr = "Disables the progress report window")
 }
 
 trait BackupFolderOption extends ProgramOption {
@@ -243,9 +253,6 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def newT(args: Seq[String]) = new BackupConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
-    if (t.noGui.isSupplied && t.noGui()) {
-      ProgressReporters.guiEnabled = false
-    }
     printConfiguration(t)
     withUniverse(conf) { universe =>
       if (!t.noScriptCreation()) {
@@ -338,7 +345,7 @@ class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupO
   val folderToBackup: ScallopOption[File] = trailArg[File](descr = "Folder to be backed up").map(_.getCanonicalFile())
 }
 
-class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
+class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {
   val restoreToOriginalPath: ScallopOption[Boolean] = opt[Boolean](descr = "Restore files to original path.")
   val chooseDate: ScallopOption[Boolean] = opt[Boolean](descr = "Choose the date you want to restore from a list.")
   val restoreToFolder: ScallopOption[String] = opt[String](descr = "Restore to a given folder")

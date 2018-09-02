@@ -48,7 +48,7 @@ Once a backup is executed, a batch file will be created to restart this backup. 
     -i, --ignore-file  <arg>      File with ignore patterns
     -k, --keylength  <arg>        Length of the AES encryption key (default = 128)
     -l, --logfile  <arg>          Destination of the logfile of this backup
-        --no-gui                  Disables the user interface
+        --no-gui                   Disables the progress report window
         --no-script-creation      Disables creating a script to repeat the backup.
     -p, --passphrase  <arg>       The password to use for the backup. If none is
                                   supplied, encryption is turned off
@@ -65,7 +65,7 @@ These options apply to backup only. The options with a star in the end can only 
     -c, --choose-date                Choose the date you want to restore from a
                                      list.
     -l, --logfile  <arg>             Destination of the logfile of this backup
-        --no-gui                     Disables the user interface
+        --no-gui                     Disables the progress report window
     -p, --passphrase  <arg>          The password to use for the backup. If none
                                      is supplied, encryption is turned off
         --restore-backup  <arg>      Filename of the backup to restore.
