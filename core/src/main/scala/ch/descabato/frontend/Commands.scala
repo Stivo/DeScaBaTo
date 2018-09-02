@@ -11,6 +11,7 @@ import ch.descabato.core.{BackupCorruptedException, BackupException, Misconfigur
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
+import ch.descabato.version.BuildInfo
 import ch.descabato.{CompressionMode, HashAlgorithm, RemoteMode}
 import org.rogach.scallop._
 
@@ -123,10 +124,9 @@ trait BackupRelatedCommand extends Command with Utils {
     try {
       lastArgs = args
       val t = newT(args)
+      t.appendDefaultToDescription = true
+      t.banner(s"DeScaBaTo ${BuildInfo.version}")
       t.verify()
-      if (t.noGui.isSupplied && t.noGui()) {
-        ProgressReporters.guiEnabled = false
-      }
       if (t.logfile.isSupplied) {
         validateFilename(t.logfile)
         System.setProperty("logname", t.logfile())
@@ -182,36 +182,33 @@ trait RedundancyOptions extends BackupFolderOption {
 }
 
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions {
-  val keylength: ScallopOption[Int] = opt[Int](default = Some(128))
-  val volumeSize: ScallopOption[Size] = opt[Size](default = Some(Size("500Mb")))
-  val threads: ScallopOption[Int] = opt[Int](default = Some(4))
-  val noScriptCreation: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
+  val noGui: ScallopOption[Boolean] = opt[Boolean](noshort = true, descr = "Disables the user interface")
+  val keylength: ScallopOption[Int] = opt[Int](descr = "Length of the AES encryption key", default = Some(128))
+  val volumeSize: ScallopOption[Size] = opt[Size](descr = "Maximum size of the main data files", default = Some(Size("500Mb")))
+  val threads: ScallopOption[Int] = opt[Int](descr = "How many threads should be used for the backup", default = Some(4))
+  val noScriptCreation: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disables creating a script to repeat the backup.")
   //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
-  val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false))
-  val compression: ScallopOption[CompressionMode] = opt[CompressionMode](default = Some(CompressionMode.smart))
-  // TODO delete
-  val ignoreFile: ScallopOption[File] = opt[File](default = None)
+  val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disable backing up symlinks")
+  val compression: ScallopOption[CompressionMode] = opt[CompressionMode](descr = "The compressor to use. Smart chooses best compressor by file extension", default = Some(CompressionMode.smart))
+  val ignoreFile: ScallopOption[File] = opt[File](descr = "File with ignore patterns", default = None)
 }
 
 trait CreateBackupOptions extends ChangeableBackupOptions {
-  val hashAlgorithm: ScallopOption[HashAlgorithm] = opt[HashAlgorithm](default = Some(HashAlgorithm.sha3_256))
-  val remoteUri: ScallopOption[String] = opt[String]()
-  val remoteMode: ScallopOption[RemoteMode] = opt[RemoteMode]()
+  val hashAlgorithm: ScallopOption[HashAlgorithm] = opt[HashAlgorithm](descr = "The hash algorithm to use for deduplication.", default = Some(HashAlgorithm.sha3_256))
+  val remoteUri: ScallopOption[String] = opt[String](hidden = true)
+  val remoteMode: ScallopOption[RemoteMode] = opt[RemoteMode](hidden = true)
   codependent(remoteUri, remoteMode)
 }
 
 trait ProgramOption extends ScallopConf {
-  val noGui: ScallopOption[Boolean] = opt[Boolean](noshort = true)
-  val logfile: ScallopOption[String] = opt[String]()
-  val noAnsi: ScallopOption[Boolean] = opt[Boolean]()
+  val logfile: ScallopOption[String] = opt[String](descr = "Destination of the logfile of this backup")
+  val noAnsi: ScallopOption[Boolean] = opt[Boolean](descr = "Disables Ansi features", hidden = true)
 }
 
 trait BackupFolderOption extends ProgramOption {
-  val passphrase: ScallopOption[String] = opt[String](default = None)
-  val backupDestination: ScallopOption[File] = trailArg[String](required = true).map(new File(_).getCanonicalFile())
+  val passphrase: ScallopOption[String] = opt[String](descr = "The password to use for the backup. If none is supplied, encryption is turned off", default = None)
+  val backupDestination: ScallopOption[File] = trailArg[String](descr = "Root folder of the backup", required = true).map(new File(_).getCanonicalFile())
 }
-
-class SubCommandBase(name: String) extends Subcommand(name) with BackupFolderOption
 
 class BackupCommand extends BackupRelatedCommand with Utils {
 
@@ -246,6 +243,9 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def newT(args: Seq[String]) = new BackupConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
+    if (t.noGui.isSupplied && t.noGui()) {
+      ProgressReporters.guiEnabled = false
+    }
     printConfiguration(t)
     withUniverse(conf) { universe =>
       if (!t.noScriptCreation()) {
@@ -335,15 +335,15 @@ class VerifyCommand extends BackupRelatedCommand {
 class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
 
 class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
-  val folderToBackup: ScallopOption[File] = trailArg[File]().map(_.getCanonicalFile())
+  val folderToBackup: ScallopOption[File] = trailArg[File](descr = "Folder to be backed up").map(_.getCanonicalFile())
 }
 
 class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
-  val restoreToOriginalPath: ScallopOption[Boolean] = opt[Boolean]()
-  val chooseDate: ScallopOption[Boolean] = opt[Boolean]()
-  val restoreToFolder: ScallopOption[String] = opt[String]()
-  val restoreBackup: ScallopOption[String] = opt[String]()
-  val restoreInfo: ScallopOption[String] = opt[String]()
+  val restoreToOriginalPath: ScallopOption[Boolean] = opt[Boolean](descr = "Restore files to original path.")
+  val chooseDate: ScallopOption[Boolean] = opt[Boolean](descr = "Choose the date you want to restore from a list.")
+  val restoreToFolder: ScallopOption[String] = opt[String](descr = "Restore to a given folder")
+  val restoreBackup: ScallopOption[String] = opt[String](descr = "Filename of the backup to restore.")
+  val restoreInfo: ScallopOption[String] = opt[String](descr = "Destination of a short summary of the restore process.")
   //  val overwriteExisting = toggle(default = Some(false))
   //  val pattern = opt[String]()
   requireOne(restoreToOriginalPath, restoreToFolder)
@@ -351,7 +351,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
 }
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
-  val percentOfFilesToCheck: ScallopOption[Int] = opt[Int](default = Some(5))
+  val percentOfFilesToCheck: ScallopOption[Int] = opt[Int](default = Some(5), descr = "How many percent of files to check")
   validate(percentOfFilesToCheck) {
     case x if x > 0 && x <= 100 => Right(Unit)
     case _ => Left("Needs to be percent")
@@ -367,10 +367,27 @@ class HelpCommand extends Command {
       case _ =>
         val commands = CLI.getCommands().keys.mkString(", ")
         println(
-          s"""The available commands are: $commands
+          s"""Welcome to DeScaBaTo.
+The available commands are: $commands
 For further help about a specific command type 'help backup' or 'backup --help'.
 For general usage guide go to https://github.com/Stivo/DeScaBaTo""")
     }
+  }
+}
+
+
+class VersionCommand extends Command {
+  val T = ScallopConf
+
+  override def name: String = "--version"
+
+  override def execute(args: Seq[String]) {
+    println(
+      s"""|DeScaBaTo version ${BuildInfo.version}
+          |Scala ${BuildInfo.scalaVersion}
+          |Java ${System.getProperty("java.version")}.
+          |System "${System.getProperty("os.name")}", version ${System.getProperty("os.version")}
+       """.stripMargin)
   }
 }
 

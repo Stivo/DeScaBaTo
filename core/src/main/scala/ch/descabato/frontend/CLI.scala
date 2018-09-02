@@ -21,9 +21,11 @@ object CLI extends Utils {
     new VerifyCommand(),
     new RestoreCommand(),
     new ReflectionCommand("browse", "ch.descabato.ui.BrowseCommand"),
-    new HelpCommand()).map(x => (x.name.toLowerCase, x)).toMap
+    new HelpCommand(),
+    new VersionCommand()
+  ).map(x => (x.name, x)).toMap
 
-  def getCommand(name: String): Command = getCommands.get(name.toLowerCase()) match {
+  def getCommand(name: String): Command = getCommands().get(name.toLowerCase()) match {
     case Some(x) => x
     case None => l.warn("No command named " + name + " exists."); new HelpCommand()
   }
@@ -38,62 +40,13 @@ object CLI extends Utils {
   }
 
   def main(args: Array[String]) {
-    if (System.getProperty("logname") == null)
+    if (System.getProperty("logname") == null) {
       System.setProperty("logname", "backup.log")
+    }
     try {
       Security.addProvider(new BouncyCastleProvider())
-      if (runsInJar || !args.isEmpty) {
-        java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
-        parseCommandLine(args)
-        exit(0)
-      } else {
-        //Thread.sleep(10000)
-        try {
-//          FileUtils.deleteAll(new File("L:/testdata/restore1"))
-//            FileUtils.deleteAll(new File("L:/asdf2"))
-        } catch {
-          case x: Exception =>
-        }
-//        parseCommandLine("restore --restore-backup backup_2018-01-07.191120.444_0.kvs --restore-info restore-info.txt --restore-to-folder C:\\Users\\Stivo\\workspace\\DeScaBaTo\\integrationtest\\testdata\\restore_old1 C:\\Users\\Stivo\\workspace\\DeScaBaTo\\integrationtest\\testdata\\backup_old1".split(" "))
-        val destination = "e:/temp/desca9"
-        FileUtils.deleteAll(new File(destination))
-        val file = new File("testdata/backup")
-        FileUtils.deleteAll(file)
-        file.mkdirs()
-        val remoteMode=""
-        //val remoteMode="--remote-uri=ftp://testdescabato:pass1@localhost/backup/ --remote-mode=both"
-        parseCommandLine(s"backup --threads 5 --volume-size 10mb --compression smart $remoteMode $destination D:\\pics\\tosort\\dontknow".split(" ").filterNot(_.isEmpty))
-//        parseCommandLine("backup --threads 1 --serializer-type json --hash-algorithm md5 --compression none --volume-size 10mb C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/input".split(" "))
-        //
-//        parseCommandLine("backup --threads 6 --compression gzip L:\\testdata\\backup1 L:\\testdata\\input1".split(" "))
-//        parseCommandLine("backup --threads 6 --compression gzip L:\\testdata\\backup1 L:\\testdata\\input1".split(" "))
-        //        parseCommandLine("verify --percent-of-files-to-check 100 L:\\testdata\\backup1".split(" "))
-//         parseCommandLine("restore --restore-to-folder L:\\testdata\\restore1 L:\\testdata\\backup1".split(" "))
-
-        //        parseCommandLine("backup --threads 1 --compression gzip L:/asdf2 l:/testdata".split(" "))
-        //        parseCommandLine("restore --no-ansi --no-gui --restore-backup backup_2015-02-21.070952.095_0.kvs --restore-to-folder L:\\testdata\\restore_old1 L:\\testdata\\backup_old1".split(" "))
-//          parseCommandLine("restore --restore-to-folder L:/asdf2 D:/temp/backupasdf".split(" "))
-
-//        parseCommandLine("backup --threads 40 --compression gzip D:/testdata/backup1 L:/testdata/input1".split(" "))
-//        parseCommandLine("restore --restore-to-folder L:/testdata/restore1 L:/testdata/backup1".split(" "))
-
-        //parseCommandLine("restore --restore-to-folder C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/restore1 C:/Users/Stivo/workspace-luna/DeScaBaTo/integrationtest/testdata/backup1".split(" "))
-
-//         parseCommandLine("backup --serializer-type json --compression gzip --volume-size 50mb l:/testdata/backup1 l:/testdata/input1".split(" "))
-
-        // parseCommandLine("backup --serializer-type json --volume-size 5mb backups ..\\testdata".split(" "))
-
-//        parseCommandLine("backup --passphrase testasdf --threads 10 --serializer-type json --compression lz4 --volume-size 100mb L:/desca8 L:/tmp".split(" "))
-
-//        parseCommandLine("verify --passphrase testasdf --percent-of-files-to-check 100 L:\\desca8".split(" "))
-//        parseCommandLine("restore --restore-to-folder F:/restore f:/desca8".split(" "))
-        // parseCommandLine("backup --no-redundancy --serializer-type json --compression none --volume-size 5mb backups /home/stivo/progs/eclipse-fresh".split(" "))
-        //        parseCommandLine("verify e:\\backups\\pics".split(" "))
-        //              parseCommandLine("restore --help".split(" "))
-//                      parseCommandLine("browse -p testasdf L:/desca8".split(" "))
-        //        parseCommandLine("restore --passphrase mypasshere --restore-to-folder restore --relative-to-folder . backups".split(" "))
-        exit(0)
-      }
+      java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
+      parseCommandLine(args)
     } catch {
       case e@PasswordWrongException(m, cause) =>
         l.warn(m)

@@ -28,7 +28,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
       val mapper = jp.getCodec().asInstanceOf[ObjectMapper]
       val root = mapper.readTree(jp).asInstanceOf[ObjectNode]
       val fields = root.fieldNames().asScala.toSet
-      if (!fields.exists(_ == "attrs")) {
+      if (!fields.safeContains("attrs")) {
         mapper.convertValue(root, classOf[FileDeleted])
       } else if (fields.safeContains("hash")) {
         mapper.convertValue(root, classOf[FileDescription])
