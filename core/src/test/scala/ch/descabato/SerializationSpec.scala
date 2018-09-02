@@ -59,9 +59,9 @@ class SerializationSpec extends FlatSpec with TestUtils {
     val f = fixture
     import f._
     s.writeObject(t, baout)
-    println("Serialization size of "+t+" with "+s.getClass().getSimpleName()+" is "+baout.size())
+//    println("Serialization size of "+t+" with "+s.getClass().getSimpleName()+" is "+baout.size())
     val in = replay(baout)
-    println("Serialized value is "+new String(baout.toBytesWrapper.asArray()))
+//    println("Serialized value is "+new String(baout.toBytesWrapper.asArray()))
     val t2 = s.readObject[T](in).left.get
     t2
   }
