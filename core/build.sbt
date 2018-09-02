@@ -10,7 +10,6 @@ libraryDependencies ++= Seq(
     "com.typesafe.akka" %% "akka-stream" % "2.5.16",
     "org.rogach" %% "scallop" % "3.1.3",
     "org.ocpsoft.prettytime" % "prettytime" % "4.0.2.Final",
-    "org.fusesource.jansi" % "jansi" % "1.17.1",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.60"
 )
 

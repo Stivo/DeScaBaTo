@@ -14,13 +14,12 @@ libraryDependencies ++= Seq(
 
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
 
-//packSettings
-//
 packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
-//
-//packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx500m"))
-//
-//packJarNameConvention := "full"
-//
-//packArchivePrefix := "descabato"
-//
+
+packJvmOpts := Map("descabato" -> Seq("-Xms1g", "-Xmx2g"))
+
+packJarNameConvention := "full"
+
+packArchivePrefix := "descabato"
+
+packResourceDir += (baseDirectory.value / "../README.md" -> "README.md")

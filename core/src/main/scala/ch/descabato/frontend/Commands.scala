@@ -131,9 +131,6 @@ trait BackupRelatedCommand extends Command with Utils {
         validateFilename(t.logfile)
         System.setProperty("logname", t.logfile())
       }
-      if (t.noAnsi.isSupplied) {
-        AnsiUtil.ansiDisabled = t.noAnsi()
-      }
       t match {
         case ng : NoGuiOption =>
           if (ng.noGui.isSupplied && ng.noGui()) {
@@ -208,7 +205,6 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
 
 trait ProgramOption extends ScallopConf {
   val logfile: ScallopOption[String] = opt[String](descr = "Destination of the logfile of this backup")
-  val noAnsi: ScallopOption[Boolean] = opt[Boolean](descr = "Disables Ansi features", hidden = true)
 }
 
 trait NoGuiOption extends ScallopConf {

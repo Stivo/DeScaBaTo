@@ -55,7 +55,6 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(friendlyTestName + ".log")
-    cmdLine.addArgument("--no-ansi")
     cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
@@ -69,7 +68,6 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(friendlyTestName + ".log")
-    cmdLine.addArgument("--no-ansi")
     cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
