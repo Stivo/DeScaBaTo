@@ -6,8 +6,8 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-actor" % "2.5.15",
-    "com.typesafe.akka" %% "akka-stream" % "2.5.15",
+    "com.typesafe.akka" %% "akka-actor" % "2.5.16",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.16",
     "org.rogach" %% "scallop" % "3.1.3",
     "org.ocpsoft.prettytime" % "prettytime" % "4.0.2.Final",
     "org.fusesource.jansi" % "jansi" % "1.17.1",
@@ -44,8 +44,7 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-vfs2" % "2.2",
   "commons-net" % "commons-net" % "3.6",
-  "com.google.guava" % "guava" % "16.0.1",
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.396"
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.401"
 )
 
 
