@@ -46,7 +46,7 @@ class RestoreOlderTest extends IntegrationTestBase {
   }
 
   it should "backup 1/3" in {
-    startAndWait(s"backup --compression gzip $backup1 $input3".split(" ")) should be(0)
+    startAndWait(s"backup --no-gui --compression gzip $backup1 $input3".split(" ")) should be(0)
   }
 
   it should getNextPartName() in {
@@ -56,7 +56,7 @@ class RestoreOlderTest extends IntegrationTestBase {
   }
 
   it should "backup 2/3" in {
-    startAndWait(s"backup --ignore-file ${ignoreFile.getAbsolutePath} $backup1 $input3".split(" ")) should be(0)
+    startAndWait(s"backup --no-gui --ignore-file ${ignoreFile.getAbsolutePath} $backup1 $input3".split(" ")) should be(0)
   }
 
   it should getNextPartName() in {
@@ -66,7 +66,7 @@ class RestoreOlderTest extends IntegrationTestBase {
   }
 
   it should "backup 3/3" in {
-    startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
+    startAndWait(s"backup --no-gui $backup1 $input3".split(" ")) should be(0)
   }
 
   var backupFiles: List[String] = List.empty
