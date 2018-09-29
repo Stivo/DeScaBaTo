@@ -6,8 +6,8 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-actor" % "2.5.16",
-    "com.typesafe.akka" %% "akka-stream" % "2.5.16",
+    "com.typesafe.akka" %% "akka-actor" % "2.5.17",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.17",
     "org.rogach" %% "scallop" % "3.1.3",
     "org.ocpsoft.prettytime" % "prettytime" % "4.0.2.Final",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.60"
@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
 // compressors
 libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
-  "org.lz4" % "lz4-java" % "1.4.1",
+  "org.lz4" % "lz4-java" % "1.5.0",
   "org.tukaani" % "xz" % "1.8",
   "org.apache.commons" % "commons-compress" % "1.18"
 )
@@ -30,7 +30,7 @@ libraryDependencies ++= Seq(
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.6"
+	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.7"
 )
 
 // UI Dependencies
@@ -43,7 +43,7 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-vfs2" % "2.2",
   "commons-net" % "commons-net" % "3.6",
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.401"
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.419"
 )
 
 
