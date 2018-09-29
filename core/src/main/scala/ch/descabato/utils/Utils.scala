@@ -6,8 +6,8 @@ import java.nio.file.Files
 import java.security.MessageDigest
 import java.text.DecimalFormat
 import java.util
+import java.util.Base64
 
-import javax.xml.bind.DatatypeConverter
 import ch.descabato.CustomByteArrayOutputStream
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.bouncycastle.crypto.Digest
@@ -136,9 +136,9 @@ object Utils extends LazyLogging {
     new DecimalFormat("#,##0. " + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups)
   }
 
-  def encodeBase64(bytes: Array[Byte]) = DatatypeConverter.printBase64Binary(bytes)
+  def encodeBase64(bytes: Array[Byte]): String = Base64.getEncoder.encodeToString(bytes)
 
-  def decodeBase64(s: String) = DatatypeConverter.parseBase64Binary(s)
+  def decodeBase64(s: String): Array[Byte] = Base64.getDecoder.decode(s)
 
   def encodeBase64Url(bytes: Array[Byte]): String = encodeBase64(bytes).replace('+', '-').replace('/', '_')
 
