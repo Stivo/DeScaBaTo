@@ -14,10 +14,10 @@ val commonSettings =
 val core = (project in file("core"))
   .settings(commonSettings)
 
-//val ui = (project in file("ui"))
-//  .dependsOn(core)
-//  .settings(commonSettings)
-//
+val ui = (project in file("ui"))
+  .dependsOn(core)
+  .settings(commonSettings)
+
 
 val it = (project in file("integrationtest"))
   .dependsOn(core % "test->test")
