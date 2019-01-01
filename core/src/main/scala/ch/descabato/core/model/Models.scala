@@ -76,12 +76,8 @@ object FileAttributes extends Utils {
   private def readBasicAttributes(path: Path, add: (String, Any) => Any) = {
     val attrs = readAttributes[BasicFileAttributes](path)
 
-    val keys = List(lastModified, creationTime)
-    keys.foreach { k =>
-      val m = attrs.getClass().getMethod(k)
-      m.setAccessible(true)
-      add(k, m.invoke(attrs))
-    }
+    add(lastModified, attrs.lastModifiedTime())
+    add(creationTime, attrs.creationTime())
   }
 
   def readPosixAttributes(add: (String, Object) => Any, path: Path) = {
@@ -239,7 +235,7 @@ object Size {
     val map = List(("GB", 3), ("MB", 2), ("KB", 1), ("B", 0)).toMap
     if (matcher.find()) {
       val number = matcher.group(1)
-      val pow = map.get(matcher.group(2).toUpperCase()).get
+      val pow = map(matcher.group(2).toUpperCase())
       var bytes = new BigDecimal(new JBigDecimal(number))
       bytes = bytes.*(BigDecimal.valueOf(1024).pow(pow))
       out = bytes.longValue()
