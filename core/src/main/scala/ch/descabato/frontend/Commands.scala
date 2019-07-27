@@ -150,7 +150,7 @@ trait BackupRelatedCommand extends Command with Utils {
     import ch.descabato.core.config.BackupVerification._
     val confHandler = new BackupConfigurationHandler(t, needsExistingBackup)
     confHandler.verify() match {
-      case b@BackupDoesntExist => throw b
+      case b@BackupDoesntExist => throw BackupDoesntExist
       case PasswordNeeded =>
         val passphrase = askUser("This backup is passphrase protected. Please type your passphrase.", mask = true)
         confHandler.setPassphrase(passphrase)
@@ -356,7 +356,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {
   val percentOfFilesToCheck: ScallopOption[Int] = opt[Int](default = Some(5), descr = "How many percent of files to check")
   validate(percentOfFilesToCheck) {
-    case x if x > 0 && x <= 100 => Right(Unit)
+    case x if x > 0 && x <= 100 => Right(())
     case _ => Left("Needs to be percent")
   }
 }

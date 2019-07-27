@@ -13,24 +13,24 @@ abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, k
     keyDerivationInfo.keyLength, keyDerivationInfo.iterationsPower, keyDerivationInfo.memoryFactor)
 
   private var header = ByteString.empty
-  header ++= magicMarker
-  header ++= kvStoreVersion
-  header :+= 2.toByte // type 2 continues with encryption parameters
+  header ++= ByteString(magicMarker)
+  header ++= ByteString(kvStoreVersion)
+  header ++= ByteString(2.toByte) // type 2 continues with encryption parameters
 
   private def writeEncryptionInfo() {
-    header :+= encryptionInfo.algorithm
-    header :+= encryptionInfo.macAlgorithm
-    header :+= encryptionInfo.ivLength
-    header ++= encryptionInfo.iv
+    header ++= ByteString(encryptionInfo.algorithm)
+    header ++= ByteString(encryptionInfo.macAlgorithm)
+    header ++= ByteString(encryptionInfo.ivLength)
+    header ++= ByteString(encryptionInfo.iv)
   }
 
   private def writeKeyDerivationInfo() {
-    header :+= keyDerivationInfo.algorithm
-    header :+= keyDerivationInfo.iterationsPower
-    header :+= keyDerivationInfo.memoryFactor
-    header :+= keyDerivationInfo.keyLength
-    header :+= keyDerivationInfo.saltLength
-    header ++= keyDerivationInfo.salt
+    header ++= ByteString(keyDerivationInfo.algorithm)
+    header ++= ByteString(keyDerivationInfo.iterationsPower)
+    header ++= ByteString(keyDerivationInfo.memoryFactor)
+    header ++= ByteString(keyDerivationInfo.keyLength)
+    header ++= ByteString(keyDerivationInfo.saltLength)
+    header ++= ByteString(keyDerivationInfo.salt)
   }
 
   private def writeHeaderToStream() = {

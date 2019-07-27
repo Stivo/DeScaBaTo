@@ -69,6 +69,6 @@ class FileVisitorCollector(ignoreFile: Option[File],
     }
   }
 
-  lazy val files: Seq[Path] = _files.asScala
-  lazy val dirs: Seq[Path] = _dirs.asScala
+  lazy val files: Seq[Path] = _files.asScala.toSeq
+  lazy val dirs: Seq[Path] = _dirs.asScala.toSeq
 }

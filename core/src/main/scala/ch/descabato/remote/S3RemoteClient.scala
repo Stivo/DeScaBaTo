@@ -32,7 +32,7 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
   override def list(): Try[Seq[RemoteFile]] = {
     Try {
       val listing = client.listObjects(bucketName, prefix)
-      listing.getObjectSummaries.asScala.map { summary =>
+      listing.getObjectSummaries.asScala.toSeq.map { summary =>
         val path = summary.getKey.replace(prefix, "")
         val size = summary.getSize
         new S3RemoteFile(BackupPath(path), size, summary.getETag)

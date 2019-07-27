@@ -220,8 +220,8 @@ object MetadataStorageActor extends Utils {
     private var _mapByPath: Map[String, StoredPartWithPath] = Map.empty
 
     def putTogether(bds: BackupDescriptionStored): BackupDescription = {
-      val files = bds.fileIds.map(fileId => _mapById(fileId).asInstanceOf[FileMetadataStored])
-      val folders = bds.dirIds.map(dirId => _mapById(dirId).asInstanceOf[FolderMetadataStored].folderDescription)
+      val files = bds.fileIds.map(fileId => _mapById(fileId).asInstanceOf[FileMetadataStored]).toSeq
+      val folders = bds.dirIds.map(dirId => _mapById(dirId).asInstanceOf[FolderMetadataStored].folderDescription).toSeq
       BackupDescription(files, folders)
     }
 

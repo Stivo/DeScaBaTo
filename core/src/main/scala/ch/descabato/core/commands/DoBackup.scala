@@ -67,8 +67,8 @@ class DoBackup(val universe: Universe, val foldersToBackup: Seq[File]) extends U
     if (universeStarted) {
       if (!lastWasInconsistent) {
         val knownFiles = universe.metadataStorageActor.getKnownFiles()
-        val (_, newFiles) = fileCollector.files.par.partition(x => backupAlreadyBackedUpFiles(x, knownFiles))
-        Await.result(setupFlow(newFiles.seq), Duration.Inf)
+        val (_, newFiles) = fileCollector.files.partition(x => backupAlreadyBackedUpFiles(x, knownFiles))
+        Await.result(setupFlow(newFiles), Duration.Inf)
       } else {
         Await.result(setupFlow(fileCollector.files), Duration.Inf)
       }

@@ -296,21 +296,22 @@ trait Utils extends LazyLogging {
 }
 
 class ByteArrayMap[T] extends mutable.HashMap[Array[Byte], T] {
-  override protected def elemHashCode(key: Array[Byte]): Int = {
-    util.Arrays.hashCode(key)
-  }
-
-  override protected def elemEquals(key1: Array[Byte], key2: Array[Byte]): Boolean = {
-    util.Arrays.equals(key1, key2)
-  }
+//
+//  override protected def elemHashCode(key: Array[Byte]): Int = {
+//    util.Arrays.hashCode(key)
+//  }
+//
+//  override protected def elemEquals(key1: Array[Byte], key2: Array[Byte]): Boolean = {
+//    util.Arrays.equals(key1, key2)
+//  }
 }
 
 class FastHashMap[T] extends mutable.HashMap[Hash, T] {
-  override protected def elemHashCode(key: Hash): Int = {
-    util.Arrays.hashCode(key.bytes)
-  }
-
-  override protected def elemEquals(key1: Hash, key2: Hash): Boolean = {
-    util.Arrays.equals(key1.bytes, key2.bytes)
-  }
+//  override protected def elemHashCode(key: Hash): Int = {
+//    util.Arrays.hashCode(key.bytes)
+//  }
+//
+//  override protected def elemEquals(key1: Hash, key2: Hash): Boolean = {
+//    util.Arrays.equals(key1.bytes, key2.bytes)
+//  }
 }

@@ -238,7 +238,7 @@ object Size {
       val pow = map(matcher.group(2).toUpperCase())
       var bytes = new BigDecimal(new JBigDecimal(number))
       bytes = bytes.*(BigDecimal.valueOf(1024).pow(pow))
-      out = bytes.longValue()
+      out = bytes.longValue
     }
     new Size(out)
   }
