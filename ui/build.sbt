@@ -5,12 +5,14 @@ mainClass := Some("ch.descabato.ui.Main")
 
 unmanagedSourceDirectories in Compile += baseDirectory.value / "src/main/resources"
 
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
+resourceDirectory in Compile := (scalaSource in Compile).value
+
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint", "-Ymacro-annotations")
 
 // Add dependency on ScalaFX library
-libraryDependencies += "org.scalafx" %% "scalafx" % "11-R16"
+libraryDependencies += "org.scalafx" %% "scalafx" % "12.0.2-R18"
 
-libraryDependencies += "org.scalafx" %% "scalafxml-macwire-sfx8" % "0.4"
+libraryDependencies += "org.scalafx" %% "scalafxml-core-sfx8" % "0.5"
 
 // Determine OS version of JavaFX binaries
 lazy val osName = System.getProperty("os.name") match {
@@ -23,10 +25,10 @@ lazy val osName = System.getProperty("os.name") match {
 lazy val javaFXModules = Seq("base", "controls", "fxml", "graphics", "media", "swing", "web")
 
 libraryDependencies ++= javaFXModules.map( m =>
-  "org.openjfx" % s"javafx-$m" % "11.0.1" classifier osName
+  "org.openjfx" % s"javafx-$m" % "12.0.2" classifier osName
 )
 
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+fork := true
 
 enablePlugins(PackPlugin)
 

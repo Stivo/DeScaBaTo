@@ -88,16 +88,17 @@ class BrowserController(
 
   val selected = Bindings.createObjectBinding[SelectedItems]({ () =>
     println("Updating selection")
-    if (items.isEmpty) {
+    val itemsHere = items.toSeq
+    if (itemsHere.isEmpty) {
       NoneSelected
-    } else if (items.size() == 1) {
-      if (items(0).backupPart.isFolder) {
-        SelectedFolder(items(0).backupPart)
+    } else if (itemsHere.size == 1) {
+      if (itemsHere(0).backupPart.isFolder) {
+        SelectedFolder(itemsHere(0).backupPart)
       } else {
-        SelectedFile(items(0).backupPart.asInstanceOf[FileDescription])
+        SelectedFile(itemsHere(0).backupPart.asInstanceOf[FileDescription])
       }
     } else {
-      val (folders, files) = items.map(_.backupPart).partition(_.isFolder)
+      val (folders, files) = itemsHere.map(_.backupPart).partition(_.isFolder)
       if (folders.size == 0) {
         SelectedFiles(files.map(_.asInstanceOf[FileDescription]))
       } else if (files.size == 0) {

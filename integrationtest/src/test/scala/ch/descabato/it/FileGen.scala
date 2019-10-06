@@ -9,6 +9,7 @@ import ch.descabato.core.model.Size
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 
+import scala.collection.mutable
 import scala.collection.mutable.Buffer
 import scala.util.Random
 
@@ -124,7 +125,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     l.debug("File was changed "+file)
   }
 
-  def select[T](x: Seq[T]) = x.size match {
+  def select[T](x: mutable.Buffer[T]) = x.size match {
     case 0 => throw new IllegalArgumentException("Not possible")
     case i if i >= 1 => x(random.nextInt(i))
   }
@@ -153,7 +154,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
   }
 
   def selectFolderOrFile() = {
-    select(List(selectFile, selectFolder))
+    select(mutable.Buffer(selectFile, selectFolder))
   }
 
   def generateName(): String = {

@@ -3,11 +3,12 @@
 sudo: false
 language: scala
 scala:
-  - 2.12.7
+  - 2.13.0
 branches:
   only:
     - master
     - openjdk-11
+    - feature/scala2.13
 jdk:
   - oraclejdk8
   - openjdk11

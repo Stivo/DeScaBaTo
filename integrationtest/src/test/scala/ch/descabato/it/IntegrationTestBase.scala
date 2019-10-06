@@ -91,14 +91,14 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
       l.info("Messing up " + f + " length " + f.length())
       val raf = new RandomAccessFile(f, "rw")
       raf.seek(raf.length() / 2)
-      raf.write(("\0").getBytes)
+      raf.write(("\u0000").getBytes)
       raf.close()
     }
     files.filter(_.getName.startsWith(prefix + "volume")).filter(_.length > 100 * 1024).foreach { f =>
       l.info("Messing up " + f)
       val raf = new RandomAccessFile(f, "rw")
       raf.seek(raf.length() / 2)
-      raf.write(("\0" * 100).getBytes)
+      raf.write(("\u0000" * 100).getBytes)
       raf.close()
     }
   }
