@@ -6,11 +6,11 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-actor" % "2.5.23",
-    "com.typesafe.akka" %% "akka-stream" % "2.5.23",
+    "com.typesafe.akka" %% "akka-actor" % "2.5.25",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.25",
     "org.rogach" %% "scallop" % "3.3.1",
     "org.ocpsoft.prettytime" % "prettytime" % "4.0.2.Final",
-    "org.bouncycastle" % "bcprov-jdk15on" % "1.62"
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.63"
 )
 
 // compressors
@@ -18,7 +18,7 @@ libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
   "org.lz4" % "lz4-java" % "1.6.0",
   "org.tukaani" % "xz" % "1.8",
-  "org.apache.commons" % "commons-compress" % "1.18"
+  "org.apache.commons" % "commons-compress" % "1.19"
 )
 
 // Logging
@@ -30,7 +30,7 @@ libraryDependencies ++= Seq(
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.9"
+	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.10"
 )
 
 // UI Dependencies
@@ -41,9 +41,9 @@ libraryDependencies ++= Seq(
 
 // remote dependencies
 libraryDependencies ++= Seq(
-  "org.apache.commons" % "commons-vfs2" % "2.4",
+  "org.apache.commons" % "commons-vfs2" % "2.4.1",
   "commons-net" % "commons-net" % "3.6",
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.600"
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.645"
 )
 
 
@@ -58,7 +58,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.easymock"),
     ExclusionRule(organization = "org.mockito")
     ),
-  "org.scalacheck" %% "scalacheck" % "1.14.0" % "test"
+  "org.scalacheck" %% "scalacheck" % "1.14.2" % "test"
 )
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
