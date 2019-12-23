@@ -8,10 +8,6 @@ import ch.descabato.core.config.BackupVerification
 import ch.descabato.frontend.Command
 import ch.descabato.frontend.CreateBackupOptions
 import ch.descabato.frontend.HelpCommand
-import ch.descabato.frontend.ReflectionCommand
-import ch.descabato.frontend.RestoreCommand
-import ch.descabato.frontend.VerifyCommand
-import ch.descabato.frontend.VersionCommand
 import ch.descabato.utils.Utils
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
@@ -24,12 +20,12 @@ object Main extends Utils {
   def runsInJar: Boolean = classOf[CreateBackupOptions].getResource("CreateBackupOptions.class").toString.startsWith("jar:")
 
   def getCommands(): Map[String, Command] = List(
-    //    new BackupNewCommand(),
-    new VerifyCommand(),
-    new RestoreCommand(),
-    new ReflectionCommand("browse", "ch.descabato.ui.BrowseCommand"),
-    new HelpCommand(),
-    new VersionCommand()
+    new BackupCommand(),
+    //    new VerifyCommand(),
+    //    new RestoreCommand(),
+    //    new ReflectionCommand("browse", "ch.descabato.ui.BrowseCommand"),
+    //    new HelpCommand(),
+    //    new VersionCommand()
   ).map(x => (x.name, x)).toMap
 
   def getCommand(name: String): Command = getCommands().get(name.toLowerCase()) match {

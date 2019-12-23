@@ -4,11 +4,11 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util
 
-import ch.rocksbackup.protobuf.keys.FileMetadataKey
-import ch.rocksbackup.protobuf.keys.FileMetadataValue
-import ch.rocksbackup.protobuf.keys.RevisionValue
-import ch.rocksbackup.protobuf.keys.ValueLogIndex
-import ch.rocksbackup.protobuf.keys.ValueLogStatusValue
+import ch.descabato.rocks.protobuf.keys.FileMetadataKey
+import ch.descabato.rocks.protobuf.keys.FileMetadataValue
+import ch.descabato.rocks.protobuf.keys.RevisionValue
+import ch.descabato.rocks.protobuf.keys.ValueLogIndex
+import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import org.rocksdb.ColumnFamilyDescriptor
 import org.rocksdb.ColumnFamilyHandle
 import org.rocksdb.ColumnFamilyOptions

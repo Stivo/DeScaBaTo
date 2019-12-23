@@ -7,10 +7,10 @@ import java.io.InputStream
 import java.io.RandomAccessFile
 import java.io.SequenceInputStream
 
-import ch.rocksbackup.protobuf.keys.FileMetadataValue
-import ch.rocksbackup.protobuf.keys.Status
-import ch.rocksbackup.protobuf.keys.ValueLogIndex
-import ch.rocksbackup.protobuf.keys.ValueLogStatusValue
+import ch.descabato.rocks.protobuf.keys.FileMetadataValue
+import ch.descabato.rocks.protobuf.keys.Status
+import ch.descabato.rocks.protobuf.keys.ValueLogIndex
+import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import com.github.luben.zstd.Zstd
 import com.typesafe.scalalogging.LazyLogging
 

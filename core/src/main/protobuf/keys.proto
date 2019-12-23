@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ch.rocksbackup.protobuf;
+package ch.descabato.rocks.protobuf;
 
 option java_package = "ch.descabato.rocks.protobuf";
 option java_outer_classname = "Messages";

@@ -45,13 +45,10 @@ class BackupCommand extends BackupRelatedCommand with Utils {
   def start(t: T, conf: BackupFolderConfiguration) {
     printConfiguration(t)
 
-    withUniverse(conf) { universe =>
-      if (!t.noScriptCreation()) {
-        writeBat(t, conf, lastArgs)
-      }
-      //      val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
-      //      backup.execute()
+    if (!t.noScriptCreation()) {
+      writeBat(t, conf, lastArgs)
     }
+    new RunBackup(conf).run(t.folderToBackup())
   }
 
   override def needsExistingBackup = false

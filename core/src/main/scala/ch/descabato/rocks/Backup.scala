@@ -11,10 +11,10 @@ import java.security.MessageDigest
 
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.hashes.BuzHash
-import ch.rocksbackup.protobuf.keys.FileMetadataKey
-import ch.rocksbackup.protobuf.keys.FileMetadataValue
-import ch.rocksbackup.protobuf.keys.FileType
-import ch.rocksbackup.protobuf.keys.RevisionValue
+import ch.descabato.rocks.protobuf.keys.FileMetadataKey
+import ch.descabato.rocks.protobuf.keys.FileMetadataValue
+import ch.descabato.rocks.protobuf.keys.FileType
+import ch.descabato.rocks.protobuf.keys.RevisionValue
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
@@ -32,10 +32,10 @@ object Backup {
 
 class RunBackup(config: BackupFolderConfiguration) {
 
-  def run(): Unit = {
+  def run(file: File): Unit = {
     val rocksEnv = RocksEnv.apply(config)
     val backupper = new Backupper(rocksEnv)
-    //    backupper.backup(config.backupConfig.inputFolders: _*)
+    backupper.backup(file)
     backupper.printStatistics()
     //    val totalSize = listFiles(dbFolder).map(_.toFile.length()).sum
     //    val files = listFiles(dbFolder).size

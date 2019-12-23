@@ -9,7 +9,7 @@ import java.io.InputStream
 import java.util
 import java.util.Base64
 
-import ch.rocksbackup.protobuf.keys.FileMetadataKey
+import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 
 trait Key
 
