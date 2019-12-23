@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ch.rocksbackup.protobuf;
 
-option java_package = "ch.rocksbackup.protobuf";
+option java_package = "ch.descabato.rocks.protobuf";
 option java_outer_classname = "Messages";
 
 message ValueLogIndex {

@@ -1,4 +1,4 @@
-package ch.backuprocks
+package ch.descabato.rocks
 
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -7,7 +7,6 @@ import java.io.InputStream
 import java.io.RandomAccessFile
 import java.io.SequenceInputStream
 
-import ch.descabato.rocks.RocksEnv
 import ch.rocksbackup.protobuf.keys.FileMetadataValue
 import ch.rocksbackup.protobuf.keys.Status
 import ch.rocksbackup.protobuf.keys.ValueLogIndex

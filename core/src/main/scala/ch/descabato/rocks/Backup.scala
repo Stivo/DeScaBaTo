@@ -1,4 +1,4 @@
-package ch.backuprocks
+package ch.descabato.rocks
 
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -11,7 +11,6 @@ import java.security.MessageDigest
 
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.hashes.BuzHash
-import ch.descabato.rocks.RocksEnv
 import ch.rocksbackup.protobuf.keys.FileMetadataKey
 import ch.rocksbackup.protobuf.keys.FileMetadataValue
 import ch.rocksbackup.protobuf.keys.FileType

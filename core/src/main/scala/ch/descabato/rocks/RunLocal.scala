@@ -1,4 +1,4 @@
-//package ch.backuprocks
+//package ch.descabato.rocks
 //
 //object RunLocal {
 //

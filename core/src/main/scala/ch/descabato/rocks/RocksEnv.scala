@@ -2,8 +2,6 @@ package ch.descabato.rocks
 
 import java.io.File
 
-import ch.backuprocks.RocksDbKeyValueStore
-import ch.backuprocks.ValueLogReader
 import ch.descabato.core.config.BackupFolderConfiguration
 import com.typesafe.scalalogging.LazyLogging
 
