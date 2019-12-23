@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package ch.rocksbackup.protobuf;
+
+option java_package = "ch.rocksbackup.protobuf";
+option java_outer_classname = "Messages";
+
+message ValueLogIndex {
+    string filename = 1;
+    int64 from = 2;
+    int32 lengthUncompressed = 3;
+    int32 lengthCompressed = 4;
+}
+
+enum FileType {
+    UNKNOWN_TYPE = 0;
+    FILE = 1;
+    FOLDER = 2;
+}
+
+message FileMetadataKey {
+    FileType filetype = 1;
+    string path = 2;
+    uint64 changed = 3;
+}
+
+message RevisionValue {
+    uint64 created = 1;
+    repeated FileMetadataKey files = 2;
+}
+
+message FileMetadataValue {
+    // general ones
+    uint64 created = 1;
+    FileType filetype = 2;
+    bool fromunix = 3;
+    bool fromwindows = 4;
+    // file ones
+    uint64 length = 8;
+    bytes hashes = 9;
+    // unix
+    uint32 unixmode = 16;
+    string unixowner = 17;
+    // dos / windows
+    bool dosIsReadonly = 32;
+    bool dosIsArchive = 33;
+    bool dosIsHidden = 34;
+    bool dosIsSystem = 35;
+}
+
+enum Status {
+    UNKNOWN_STATUS = 0;
+    WRITING = 1;
+    FINISHED = 2;
+    MARKED_FOR_DELETION = 3;
+    DELETED = 4;
+}
+
+message ValueLogStatusValue {
+    Status status = 1;
+    uint64 size = 2;
+}

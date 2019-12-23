@@ -24,4 +24,3 @@ val it = (project in file("integrationtest"))
   .settings(commonSettings, name := "it",
     test in Test := ((test in Test).dependsOn(pack in core)).value
   )
-

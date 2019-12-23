@@ -1,5 +1,8 @@
 package ch.descabato.hashes;
 
+import java.util.LinkedList;
+import java.util.List;
+
 /**
  * Created by josh on 16/04/2014.
  * Not thread-safe, not nothin not nohow :)
@@ -103,6 +106,20 @@ public class BuzHash {
             buffer[i] = seedByte;
             seedByte++;
         }
+    }
+
+    public List<Integer> updateAndReportBoundaries(byte[] bs, int len, byte boundaryBits) {
+        long bitmask = createBitmask(boundaryBits);
+        LinkedList<Integer> retVal = new LinkedList<>();
+        for (int i = 0; i < len; i++) {
+            byte b = bs[i];
+            addByte(b);
+            if ((bitmask & state) == 0 && state != 0) {
+                retVal.add(i);
+                reset();
+            }
+        }
+        return retVal;
     }
 
     public int updateAndReportBoundary(byte[] bs, int offset, int len, byte boundaryBits) {
