@@ -6,7 +6,7 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import com.typesafe.scalalogging.LazyLogging
 
 
-class RocksEnv(private val config: BackupFolderConfiguration) extends LazyLogging {
+class RocksEnv(private val config: BackupFolderConfiguration, private val readOnly: Boolean) extends LazyLogging {
   val backupFolder: File = config.folder
   lazy val reader: ValueLogReader = new ValueLogReader(this)
   val valuelogsFolder = new File(backupFolder, "valuelogs")
@@ -19,11 +19,11 @@ class RocksEnv(private val config: BackupFolderConfiguration) extends LazyLoggin
     logger.info(s"Creating folders for valuelogs at ${valuelogsFolder}")
     backupFolder.mkdir()
   }
-  val rocks: RocksDbKeyValueStore = RocksDbKeyValueStore(rocksFolder)
+  val rocks: RocksDbKeyValueStore = RocksDbKeyValueStore(rocksFolder, readOnly)
 }
 
 object RocksEnv extends LazyLogging {
-  def apply(c: BackupFolderConfiguration): RocksEnv = {
-    new RocksEnv(c)
+  def apply(c: BackupFolderConfiguration, readOnly: Boolean): RocksEnv = {
+    new RocksEnv(c, readOnly)
   }
 }

@@ -1,12 +1,13 @@
 package ch.descabato.it
 
-import java.io.{File, FileOutputStream, FileReader}
+import java.io.File
+import java.io.FileOutputStream
 import java.nio.file.Files
 import java.util.stream.Collectors
 
 import ch.descabato.core.model.Size
-import org.apache.commons.io.{FileUtils, IOUtils}
-import org.scalatest.Ignore
+import org.apache.commons.io.FileUtils
+import org.apache.commons.io.IOUtils
 import org.scalatest.Matchers._
 
 import scala.collection.JavaConverters._
@@ -106,4 +107,5 @@ class RestoreOlderTest extends IntegrationTestBase {
 //    assert(string.contains(filename))
   }
 
+  override def mainClass: String = "ch.descabato.frontend.CLI"
 }

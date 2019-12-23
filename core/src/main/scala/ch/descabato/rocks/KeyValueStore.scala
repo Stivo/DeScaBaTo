@@ -27,17 +27,17 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
 object RocksDbKeyValueStore {
-  def apply(folder: File): RocksDbKeyValueStore = {
+  def apply(folder: File, readOnly: Boolean): RocksDbKeyValueStore = {
     val options = new Options()
     options.setCreateIfMissing(true)
     options.setCreateMissingColumnFamilies(true)
     options.setCompressionType(CompressionType.ZSTD_COMPRESSION)
 
-    new RocksDbKeyValueStore(options, folder)
+    new RocksDbKeyValueStore(options, folder, readOnly)
   }
 }
 
-class RocksDbKeyValueStore(options: Options, path: File) {
+class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) {
 
   var currentRevision: Revision = null
 
@@ -63,7 +63,13 @@ class RocksDbKeyValueStore(options: Options, path: File) {
   )
   columnFamilies.foreach(x => descriptors.add(x.descriptor))
 
-  private val db = OptimisticTransactionDB.open(new DBOptions(options), path.getAbsolutePath, descriptors, handles)
+  private val db: RocksDB = {
+    if (readOnly) {
+      RocksDB.openReadOnly(new DBOptions(options), path.getAbsolutePath, descriptors, handles)
+    } else {
+      OptimisticTransactionDB.open(new DBOptions(options), path.getAbsolutePath, descriptors, handles)
+    }
+  }
 
   private val defaultWriteOptions = {
     new WriteOptions().setSync(true)
@@ -82,7 +88,9 @@ class RocksDbKeyValueStore(options: Options, path: File) {
   openTransaction()
 
   private def openTransaction(): Unit = {
-    transaction = db.beginTransaction(defaultWriteOptions)
+    if (!readOnly) {
+      transaction = db.asInstanceOf[OptimisticTransactionDB].beginTransaction(defaultWriteOptions)
+    }
   }
 
   private def lookupColumnFamily[K <: Key, V](key: Key): ColumnFamily[K, V] = {
@@ -155,7 +163,11 @@ class RocksDbKeyValueStore(options: Options, path: File) {
 
   private def read[K <: Key, V](key: K): Option[V] = {
     val cf = lookupColumnFamily[K, V](key)
-    val bytes = transaction.get(cf.handle, defaultReadOptions, cf.encodeKey(key))
+    val bytes: Array[Byte] = if (readOnly) {
+      db.get(cf.handle, cf.encodeKey(key))
+    } else {
+      transaction.get(cf.handle, defaultReadOptions, cf.encodeKey(key))
+    }
     Option(bytes)
       .map(cf.decodeValue)
   }

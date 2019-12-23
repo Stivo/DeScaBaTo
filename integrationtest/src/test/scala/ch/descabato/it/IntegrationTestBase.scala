@@ -1,11 +1,15 @@
 package ch.descabato.it
 
-import java.io.{File, RandomAccessFile}
-import java.nio.file.{Files, Paths}
+import java.io.File
+import java.io.RandomAccessFile
+import java.nio.file.Files
+import java.nio.file.Paths
 
 import ch.descabato.utils.Utils
-import ch.descabato.{RichFlatSpecLike, TestUtils}
-import org.apache.commons.exec.{CommandLine, ExecuteException}
+import ch.descabato.RichFlatSpecLike
+import ch.descabato.TestUtils
+import org.apache.commons.exec.CommandLine
+import org.apache.commons.exec.ExecuteException
 import org.apache.commons.io.{FileUtils => IO_FileUtils}
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers._
@@ -13,7 +17,9 @@ import org.scalatest.Matchers._
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Set
 
-class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
+abstract class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
+
+  def mainClass: String
 
   val suffix = if (Utils.isWindows) ".bat" else ""
 
@@ -51,7 +57,7 @@ class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils 
     val libFolder = new File(packFolder, "lib")
     cmdLine.addArgument(s"-cp")
     cmdLine.addArgument(s"$libFolder/*")
-    cmdLine.addArgument("ch.descabato.frontend.CLI")
+    cmdLine.addArgument(mainClass)
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(friendlyTestName + ".log")

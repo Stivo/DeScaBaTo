@@ -22,7 +22,7 @@ object Main extends Utils {
   def getCommands(): Map[String, Command] = List(
     new BackupCommand(),
     //    new VerifyCommand(),
-    //    new RestoreCommand(),
+    new RestoreCommand(),
     //    new ReflectionCommand("browse", "ch.descabato.ui.BrowseCommand"),
     //    new HelpCommand(),
     //    new VersionCommand()

@@ -1,7 +1,6 @@
 package ch.descabato.it
 
 import java.io.File
-import java.util.{List => JList}
 
 import org.scalatest.Matchers._
 import org.scalatest._
@@ -9,7 +8,9 @@ import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 import scala.util.Random
 
-class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with BeforeAndAfterAll with GeneratorDrivenPropertyChecks {
+abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with BeforeAndAfterAll with GeneratorDrivenPropertyChecks {
+
+  val verifyEnabled: Boolean = true
 
   var input = folder("input1")
   val backup1 = folder("backup1")
@@ -87,9 +88,11 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
       it should s"backup $i/$iterations" in {
         finishBackup(config)
       }
-      it should s"verify $i/$iterations" in {
-        // verify backup
-        startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" ")) should be(0)
+      if (verifyEnabled) {
+        it should s"verify $i/$iterations" in {
+          // verify backup
+          startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" ")) should be(0)
+        }
       }
 
       if (hasPassword) {
@@ -119,11 +122,11 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
       }
     }
     if (!redundancy) {
-//      it should s"fail to verify if files are messed up" in {
-//        messupBackupFiles(backup1)
-//        l.info("Verification should fail after files have been messed up")
-//        startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" "), false) should not be (0)
-//      }
+      //      it should s"fail to verify if files are messed up" in {
+      //        messupBackupFiles(backup1)
+      //        l.info("Verification should fail after files have been messed up")
+      //        startAndWait(s"verify$configRestore --percent-of-files-to-check 100 $backup1".split(" "), false) should not be (0)
+      //      }
     }
   }
 
@@ -144,5 +147,7 @@ class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with Befor
     // no temp files in backup
     input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
   }
+
+  override def mainClass: String = "ch.descabato.frontend.CLI"
 }
 

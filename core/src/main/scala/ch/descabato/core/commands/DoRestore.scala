@@ -1,11 +1,15 @@
 package ch.descabato.core.commands
 
-import java.io.{File, FileOutputStream}
+import java.io.File
+import java.io.FileOutputStream
 import java.util.Date
 
 import ch.descabato.core.Universe
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
-import ch.descabato.core.model.{BackupPart, FileAttributes, FileMetadataStored, FolderDescription}
+import ch.descabato.core.model.BackupPart
+import ch.descabato.core.model.FileAttributes
+import ch.descabato.core.model.FileMetadataStored
+import ch.descabato.core.model.FolderDescription
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
@@ -87,7 +91,7 @@ class RestoredPathLogic(val folders: Seq[FolderDescription], val restoreConf: Re
 
   case object IsSame extends Result
 
-  def isRelated(folder: BackupPart, relatedTo: BackupPart): Result = {
+  private def isRelated(folder: BackupPart, relatedTo: BackupPart): Result = {
     var folderParts = folder.pathParts.toList
     var relatedParts = relatedTo.pathParts.toList
     while (relatedParts.nonEmpty && relatedParts.headOption == folderParts.headOption) {
@@ -106,7 +110,7 @@ class RestoredPathLogic(val folders: Seq[FolderDescription], val restoreConf: Re
     }
   }
 
-  def detectRoots(folders: Iterable[BackupPart]): Seq[FolderDescription] = {
+  private def detectRoots(folders: Iterable[BackupPart]): Seq[FolderDescription] = {
     var candidates = mutable.Buffer[BackupPart]()
     folders.view.filter(_.isFolder).foreach {
       folder =>
@@ -142,14 +146,13 @@ class RestoredPathLogic(val folders: Seq[FolderDescription], val restoreConf: Re
   private val roots: Iterable[FolderDescription] = detectRoots(folders)
   private val relativeToRoot: Boolean = roots.size == 1 || roots.map(_.name).toList.distinct.lengthCompare(roots.size) == 0
 
-  def getRoot(sub: String): Option[FolderDescription] = {
+  private def getRoot(sub: String): Option[FolderDescription] = {
     // TODO this asks for a refactoring
     val fd = FolderDescription(sub, null)
     roots.find {
       x => val r = isRelated(x, fd); r == IsSubFolder || r == IsSame
     }
   }
-
 
   def makePath(path: String, maybeOutside: Boolean = false): File = {
     if (restoreConf.restoreToOriginalPath()) {

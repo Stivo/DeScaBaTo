@@ -33,7 +33,7 @@ object Backup {
 class RunBackup(config: BackupFolderConfiguration) {
 
   def run(file: File): Unit = {
-    val rocksEnv = RocksEnv.apply(config)
+    val rocksEnv = RocksEnv.apply(config, readOnly = false)
     val backupper = new Backupper(rocksEnv)
     backupper.backup(file)
     backupper.printStatistics()
