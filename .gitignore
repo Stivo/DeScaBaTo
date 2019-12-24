@@ -29,4 +29,4 @@ restore/
 /compression 3
 /compression3.txt
 /testimg
-/core/src/main/scala/ch/descabato/rocks/RunLocal.scala
+/ftp/src/main/scala/ch/descabato/rocks/ftp/RunLocal.scala
