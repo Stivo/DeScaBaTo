@@ -18,6 +18,10 @@ val ui = (project in file("ui"))
   .dependsOn(core)
   .settings(commonSettings)
 
+val ftp = (project in file("ftp"))
+  .dependsOn(core)
+  .settings(commonSettings)
+
 
 val it = (project in file("integrationtest"))
   .dependsOn(core % "test->test")

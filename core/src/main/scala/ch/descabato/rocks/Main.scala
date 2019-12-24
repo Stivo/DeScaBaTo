@@ -8,6 +8,7 @@ import ch.descabato.core.config.BackupVerification
 import ch.descabato.frontend.Command
 import ch.descabato.frontend.CreateBackupOptions
 import ch.descabato.frontend.HelpCommand
+import ch.descabato.frontend.ReflectionCommand
 import ch.descabato.utils.Utils
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
@@ -23,7 +24,7 @@ object Main extends Utils {
     new BackupCommand(),
     //    new VerifyCommand(),
     new RestoreCommand(),
-    //    new ReflectionCommand("browse", "ch.descabato.ui.BrowseCommand"),
+    new ReflectionCommand("ftp", "ch.descabato.rocks.ftp.ServeCommand"),
     //    new HelpCommand(),
     //    new VersionCommand()
   ).map(x => (x.name, x)).toMap
@@ -50,7 +51,7 @@ object Main extends Utils {
       Security.addProvider(new BouncyCastleProvider())
       java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
       parseCommandLine(args)
-      exit(0)
+      //      exit(0)
     } catch {
       case e@PasswordWrongException(m, cause) =>
         l.warn(m)
