@@ -55,15 +55,14 @@ object Main extends Utils {
       case e@PasswordWrongException(m, cause) =>
         l.warn(m)
         logException(e)
-        exit(-1)
+        exit(1)
       case e@BackupVerification.BackupDoesntExist =>
         l.warn(e.getMessage)
         logException(e)
-        exit(-2)
-      case e: Error =>
-        l.warn(e.getMessage)
-        logException(e)
-        exit(-3)
+        exit(2)
+      case e: Throwable =>
+        l.warn("Program stopped due to exception", e)
+        exit(3)
     }
   }
 

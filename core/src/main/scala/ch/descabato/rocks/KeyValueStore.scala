@@ -9,6 +9,7 @@ import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
+import com.typesafe.scalalogging.LazyLogging
 import org.rocksdb.ColumnFamilyDescriptor
 import org.rocksdb.ColumnFamilyHandle
 import org.rocksdb.ColumnFamilyOptions
@@ -37,9 +38,10 @@ object RocksDbKeyValueStore {
   }
 }
 
-class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) {
+class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) extends LazyLogging {
 
   var currentRevision: Revision = null
+  private var alreadyClosed: Boolean = false
 
   private val handles: util.List[ColumnFamilyHandle] = new util.ArrayList[ColumnFamilyHandle]()
 
@@ -199,11 +201,21 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) {
   }
 
   def close(): Unit = {
-    if (transaction.getNumDeletes + transaction.getNumPuts > 0) {
-      throw new IllegalStateException("Transaction must be rolled back or committed before closing db")
+    this.synchronized {
+      if (alreadyClosed) {
+        logger.error("Rocksdb was already closed")
+      } else {
+        if (transaction != null && transaction.getNumDeletes + transaction.getNumPuts > 0) {
+          throw new IllegalStateException("Transaction must be rolled back or committed before closing db")
+        }
+        if (!readOnly) {
+          db.syncWal()
+          compact()
+        }
+        db.closeE()
+        alreadyClosed = true
+      }
     }
-    compact()
-    db.close()
   }
 }
 

@@ -15,7 +15,7 @@ import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 
-class DoRestore(conf: BackupFolderConfiguration) {
+class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
 
   private val rocksEnv = RocksEnv(conf, readOnly = true)
 
@@ -70,6 +70,7 @@ class DoRestore(conf: BackupFolderConfiguration) {
     file.setLastModified(key.changed)
   }
 
+  override def close(): Unit = rocksEnv.close()
 }
 
 object FolderDescriptionFactory {

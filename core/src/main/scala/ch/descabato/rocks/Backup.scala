@@ -30,10 +30,11 @@ object Backup {
 
 }
 
-class RunBackup(config: BackupFolderConfiguration) {
+class RunBackup(config: BackupFolderConfiguration) extends AutoCloseable with LazyLogging {
+
+  private val rocksEnv = RocksEnv(config, readOnly = false)
 
   def run(file: File): Unit = {
-    val rocksEnv = RocksEnv.apply(config, readOnly = false)
     val backupper = new Backupper(rocksEnv)
     backupper.backup(file)
     backupper.printStatistics()
@@ -42,6 +43,9 @@ class RunBackup(config: BackupFolderConfiguration) {
     //    println(s"Created $files files with ${Utils.readableFileSize(totalSize)}")
   }
 
+  override def close(): Unit = {
+    rocksEnv.close()
+  }
 }
 
 class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
@@ -88,9 +92,6 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
     val compacting = new StandardMeasureTime()
     rocks.compact()
     logger.info("Compaction took " + compacting.measuredTime())
-    logger.info("Closing rocks")
-    rocks.close()
-    logger.info("Closed")
   }
 
   def backupRocksDb(revision: Revision): Unit = {

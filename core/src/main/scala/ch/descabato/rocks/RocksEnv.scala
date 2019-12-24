@@ -6,9 +6,13 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import com.typesafe.scalalogging.LazyLogging
 
 
-class RocksEnv(private val config: BackupFolderConfiguration, private val readOnly: Boolean) extends LazyLogging {
+class RocksEnv(private val config: BackupFolderConfiguration, private val readOnly: Boolean) extends LazyLogging with AutoCloseable {
   val backupFolder: File = config.folder
-  lazy val reader: ValueLogReader = new ValueLogReader(this)
+  private var readerInitialized = false
+  lazy val reader: ValueLogReader = {
+    readerInitialized = true
+    new ValueLogReader(this)
+  }
   val valuelogsFolder = new File(backupFolder, "valuelogs")
   val rocksFolder = new File(backupFolder, "rocks")
   if (!backupFolder.exists()) {
@@ -20,6 +24,15 @@ class RocksEnv(private val config: BackupFolderConfiguration, private val readOn
     backupFolder.mkdir()
   }
   val rocks: RocksDbKeyValueStore = RocksDbKeyValueStore(rocksFolder, readOnly)
+
+  override def close(): Unit = {
+    if (readerInitialized) {
+      logger.info("Closing reader now")
+      reader.close()
+    }
+    logger.info("Closing rocksdb now")
+    rocks.close()
+  }
 }
 
 object RocksEnv extends LazyLogging {
