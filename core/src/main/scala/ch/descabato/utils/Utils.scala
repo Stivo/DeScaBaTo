@@ -65,7 +65,7 @@ object BytesWrapper {
   }
 }
 
-class BytesWrapper private (val array: Array[Byte], val offset: Int, val length: Int) {
+class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: Int) extends RealEquality[BytesWrapper] {
 
   def asInputStream() = new ByteArrayInputStream(array, offset, length)
 
@@ -130,6 +130,8 @@ class BytesWrapper private (val array: Array[Byte], val offset: Int, val length:
   override def toString(): String = array.length + ": " + new String(array)
 
   def toByteBuffer(): ByteBuffer = ByteBuffer.wrap(array, offset, length)
+
+  override def ===(t: BytesWrapper): Boolean = equals(t)
 }
 
 object Utils extends LazyLogging {

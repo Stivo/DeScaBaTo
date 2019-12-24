@@ -9,6 +9,9 @@ import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Hash
+import ch.descabato.utils.Implicits._
 import com.typesafe.scalalogging.LazyLogging
 import org.rocksdb.ColumnFamilyDescriptor
 import org.rocksdb.ColumnFamilyHandle
@@ -134,7 +137,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     def writeImpl[K <: Key, V](cf: ColumnFamily[K, V], key: K, value: V) = {
       val keyEncoded = cf.encodeKey(key)
       val valueEncoded = cf.encodeValue(value)
-      transaction.put(cf.handle, keyEncoded, valueEncoded)
+      transaction.put(cf.handle, keyEncoded, valueEncoded.asArray())
       (keyEncoded, valueEncoded)
     }
 
@@ -227,7 +230,7 @@ abstract class ColumnFamily[K <: Key, V] {
 
   def decodeKey(encoded: Array[Byte]): K
 
-  def encodeValue(value: V): Array[Byte]
+  def encodeValue(value: V): BytesWrapper
 
   def decodeValue(encoded: Array[Byte]): V
 
@@ -253,8 +256,8 @@ abstract class ColumnFamily[K <: Key, V] {
 }
 
 trait MessageValueColumnFamily[K <: Key, V <: GeneratedMessage] extends ColumnFamily[K, V] {
-  override def encodeValue(value: V): Array[Byte] = {
-    value.toByteArray
+  override def encodeValue(value: V): BytesWrapper = {
+    value.toByteArray.wrap()
   }
 }
 
@@ -313,11 +316,11 @@ class ChunkColumnFamily extends ColumnFamily[ChunkKey, ValueLogIndex] with Messa
   }
 
   override def encodeKey(key: ChunkKey): Array[Byte] = {
-    key.hash
+    key.hash.bytes
   }
 
   override def decodeKey(encoded: Array[Byte]): ChunkKey = {
-    ChunkKey(encoded)
+    ChunkKey(Hash(encoded))
   }
 
   override def decodeValue(encoded: Array[Byte]): ValueLogIndex = {
@@ -372,7 +375,7 @@ class RevisionContentColumnFamily extends ColumnFamily[RevisionContentKey, Revis
     RevisionContentValue.decode(encoded)
   }
 
-  override def encodeValue(value: RevisionContentValue): Array[Byte] = {
+  override def encodeValue(value: RevisionContentValue): BytesWrapper = {
     value.asArray(withFullPrefix = false)
   }
 

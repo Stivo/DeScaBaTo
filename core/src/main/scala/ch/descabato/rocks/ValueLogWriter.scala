@@ -13,6 +13,7 @@ import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedStream
+import ch.descabato.utils.Hash
 import com.typesafe.scalalogging.LazyLogging
 
 
@@ -117,7 +118,7 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
 
       override def nextElement(): InputStream = {
         val hash = hashIterator.next()
-        val index = rocksEnv.rocks.readChunk(ChunkKey(hash)).get
+        val index = rocksEnv.rocks.readChunk(ChunkKey(Hash(hash))).get
         readValue(index).asInputStream()
       }
     })

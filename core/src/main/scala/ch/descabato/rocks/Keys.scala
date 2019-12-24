@@ -1,35 +1,36 @@
 package ch.descabato.rocks
 
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.EOFException
 import java.io.InputStream
-import java.util
 import java.util.Base64
 
+import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Hash
 
 trait Key
 
-case class ChunkKey(hash: Array[Byte]) extends Key {
+case class ChunkKey(hash: Hash) extends Key {
 
   override def hashCode(): Int = {
-    util.Arrays.hashCode(hash)
+    hash.hashContent()
   }
 
   override def equals(obj: Any): Boolean = {
     obj match {
       case ChunkKey(other) =>
-        util.Arrays.equals(hash, other)
+        hash === other
       case _ =>
         false
     }
 
   }
 
-  override def toString: String = s"Chunk(${Base64.getUrlEncoder.encode(hash)})"
+  override def toString: String = s"Chunk(${Base64.getUrlEncoder.encode(hash.bytes)})"
 }
 
 case class Revision(number: Int) extends Key
@@ -45,8 +46,8 @@ case class ValueLogStatusKey(name: String) extends Key {
 case class FileMetadataKeyWrapper(fileMetadataKey: FileMetadataKey) extends Key
 
 case class RevisionContentValue(ordinal: Byte, key: Array[Byte], value: Array[Byte]) {
-  def asArray(withFullPrefix: Boolean): Array[Byte] = {
-    val stream = new ByteArrayOutputStream(key.length + value.length + 20)
+  def asArray(withFullPrefix: Boolean): BytesWrapper = {
+    val stream = new CustomByteArrayOutputStream(key.length + value.length + 20)
     val out = new DataOutputStream(stream)
     out.write(ordinal)
     if (withFullPrefix) {
@@ -57,7 +58,7 @@ case class RevisionContentValue(ordinal: Byte, key: Array[Byte], value: Array[By
     out.writeInt(value.length)
     out.write(value)
     out.flush()
-    stream.toByteArray
+    stream.toBytesWrapper
   }
 
 }
