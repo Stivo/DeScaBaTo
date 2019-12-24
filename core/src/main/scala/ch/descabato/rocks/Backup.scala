@@ -3,12 +3,14 @@ package ch.descabato.rocks
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.DosFileAttributes
 import java.security.MessageDigest
 
+import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.BackupConf
 import ch.descabato.hashes.BuzHash
@@ -16,6 +18,8 @@ import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Implicits._
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
@@ -137,17 +141,17 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
   val hashTiming = new StopWatch("sha256")
   val buzhashTiming = new StopWatch("buzhash")
 
-  def backupChunk(toByteArray: Array[Byte], hashList: ByteArrayOutputStream): Unit = {
+  def backupChunk(bytesWrapper: BytesWrapper, hashList: OutputStream): Unit = {
     //    println(s"Backing up chunk with length ${toByteArray.length}")
     val hash = hashTiming.measure {
       sha256.reset()
-      sha256.digest(toByteArray)
+      sha256.digest(bytesWrapper)
     }
     val chunkKey = ChunkKey(hash)
     if (rocks.exists(chunkKey)) {
       chunkFoundCounter += 1
     } else {
-      val (index, commit) = valueLog.write(toByteArray)
+      val (index, commit) = valueLog.write(bytesWrapper)
       rocks.write(chunkKey, index)
       if (commit) {
         rocks.commit()
@@ -158,12 +162,12 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
   }
 
   def backupFile(file: Path): FileMetadataValue = {
-    val hashList = new ByteArrayOutputStream()
+    val hashList = new CustomByteArrayOutputStream()
     logger.info(file.toFile.toString)
     val fis = new FileInputStream(file.toFile)
     try {
       val buzHash = new BuzHash(60)
-      val fos = new ByteArrayOutputStream()
+      val fos = new CustomByteArrayOutputStream()
       var read = 0
       while (read >= 0) {
         read = fis.read(buffer)
@@ -174,21 +178,21 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
           var i = 0
           for (boundary <- boundaries) {
             fos.write(buffer, i, boundary - i)
-            backupChunk(fos.toByteArray, hashList)
+            backupChunk(fos.toBytesWrapper, hashList)
             fos.reset()
             i = boundary
           }
           fos.write(buffer, i, read - i)
         }
       }
-      val array = fos.toByteArray
-      if (array.nonEmpty) {
+      val array = fos.toBytesWrapper
+      if (array.length > 0) {
         backupChunk(array, hashList)
       }
     } finally {
       fis.close()
     }
-    fillInTypeInfo(file, Some(hashList.toByteArray))
+    fillInTypeInfo(file, Some(hashList.toBytesWrapper))
   }
 
   private def backupFileOrFolderIfNecessary(file: Path): Unit = {
@@ -208,14 +212,14 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
     fillInTypeInfo(file, None)
   }
 
-  def fillInTypeInfo(file: Path, hashes: Option[Array[Byte]]): FileMetadataValue = {
+  def fillInTypeInfo(file: Path, hashes: Option[BytesWrapper]): FileMetadataValue = {
     val attr = Files.readAttributes(file, classOf[BasicFileAttributes])
     val dosAttributes = Try(Files.readAttributes(file, classOf[DosFileAttributes])).toOption
     FileMetadataValue(
       filetype = if (file.toFile.isDirectory) FileType.FOLDER else FileType.FILE,
       length = attr.size(),
       created = attr.creationTime().toMillis,
-      hashes = hashes.map(ByteString.copyFrom).getOrElse(ByteString.EMPTY),
+      hashes = hashes.map(_.toProtobufByteString()).getOrElse(ByteString.EMPTY),
       dosIsReadonly = dosAttributes.exists(_.isReadOnly),
       dosIsArchive = dosAttributes.exists(_.isArchive),
       dosIsHidden = dosAttributes.exists(_.isHidden),

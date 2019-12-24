@@ -1,10 +1,10 @@
 package ch.descabato.rocks
 
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 import java.io.SequenceInputStream
 
+import ch.descabato.CompressionMode
 import ch.descabato.core.util.FileReader
 import ch.descabato.core.util.FileWriter
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
@@ -12,7 +12,7 @@ import ch.descabato.rocks.protobuf.keys.Status
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
-import com.github.luben.zstd.Zstd
+import ch.descabato.utils.CompressedStream
 import com.typesafe.scalalogging.LazyLogging
 
 
@@ -48,10 +48,8 @@ class ValueLogWriter(rocksEnv: RocksEnv, write: Boolean = true, maxSize: Long = 
 
   private var currentFile: Option[CurrentFile] = None
 
-  def write(toByteArray: Array[Byte]): (ValueLogIndex, Boolean) = {
-    val compressed = compressionTiming.measure {
-      Zstd.compress(toByteArray)
-    }
+  def write(bytesWrapper: BytesWrapper): (ValueLogIndex, Boolean) = {
+    val compressed = CompressedStream.compress(bytesWrapper, CompressionMode.snappy)
     var fileClosed = false
     val fileToWriteTo = if (currentFile.isEmpty) {
       createNewFile()
@@ -66,9 +64,9 @@ class ValueLogWriter(rocksEnv: RocksEnv, write: Boolean = true, maxSize: Long = 
       }
     }
     val valueLogPositionBefore = valueLogWriteTiming.measure {
-      fileToWriteTo.fileWriter.write(BytesWrapper(compressed))
+      fileToWriteTo.fileWriter.write(compressed)
     }
-    (ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore, lengthUncompressed = toByteArray.length, lengthCompressed = compressed.length), fileClosed)
+    (ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore, lengthUncompressed = bytesWrapper.length, lengthCompressed = compressed.length), fileClosed)
   }
 
   private def closeCurrentFile(currentFile: CurrentFile) = {
@@ -120,12 +118,12 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
       override def nextElement(): InputStream = {
         val hash = hashIterator.next()
         val index = rocksEnv.rocks.readChunk(ChunkKey(hash)).get
-        new ByteArrayInputStream(readValue(index))
+        readValue(index).asInputStream()
       }
     })
   }
 
-  def readValue(valueLogIndex: ValueLogIndex): Array[Byte] = {
+  def readValue(valueLogIndex: ValueLogIndex): BytesWrapper = {
     val file = new File(rocksEnv.valuelogsFolder, valueLogIndex.filename)
     if (!randomAccessFiles.contains(valueLogIndex.filename)) {
       randomAccessFiles += valueLogIndex.filename -> rocksEnv.config.newReader(file)
@@ -135,7 +133,7 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
       raf.readChunk(valueLogIndex.from, valueLogIndex.lengthCompressed)
     }
     decompressionTiming.measure {
-      Zstd.decompress(compressed.asArray(), valueLogIndex.lengthUncompressed)
+      CompressedStream.decompressToBytes(compressed)
     }
   }
 

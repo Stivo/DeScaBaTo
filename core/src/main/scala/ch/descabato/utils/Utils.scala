@@ -10,10 +10,12 @@ import java.util.Base64
 
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.utils.FastHashMap.W
-import com.typesafe.scalalogging.{LazyLogging, Logger}
+import com.google.protobuf.ByteString
+import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.Logger
 import org.bouncycastle.crypto.Digest
 
-import scala.collection.{AbstractMap, mutable}
+import scala.collection.mutable
 import scala.language.implicitConversions
 
 trait RealEquality[T] {
@@ -67,7 +69,7 @@ class BytesWrapper private (val array: Array[Byte], val offset: Int, val length:
 
   def asInputStream() = new ByteArrayInputStream(array, offset, length)
 
-  def apply(i: Int) = array(i + offset)
+  def apply(i: Int): Byte = array(i + offset)
 
   def asArray(): Array[Byte] = {
     if (array == null) {
@@ -81,6 +83,10 @@ class BytesWrapper private (val array: Array[Byte], val offset: Int, val length:
         out
       }
     }
+  }
+
+  def toProtobufByteString(): ByteString = {
+    ByteString.copyFrom(array, offset, length)
   }
 
   def equals(other: BytesWrapper): Boolean = {
@@ -107,16 +113,18 @@ class BytesWrapper private (val array: Array[Byte], val offset: Int, val length:
     }
 
   override def hashCode: Int = {
-    if (array == null)
-      return 0
-    var result: Int = 1
-    var i = offset
-    val end = offset + length
-    while (i < end) {
-      result = 31 * result + array(i)
-      i += 1
+    if (array == null) {
+      0
+    } else {
+      var result: Int = 1
+      var i = offset
+      val end = offset + length
+      while (i < end) {
+        result = 31 * result + array(i)
+        i += 1
+      }
+      result
     }
-    result
   }
 
   override def toString(): String = array.length + ": " + new String(array)
