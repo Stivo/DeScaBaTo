@@ -1,12 +1,15 @@
 package ch.descabato.core.util
 
-import java.io.{File, FileOutputStream}
-import java.security.{DigestOutputStream, MessageDigest}
+import java.io.File
+import java.io.FileOutputStream
+import java.security.DigestOutputStream
+import java.security.MessageDigest
 
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{BytesWrapper, Hash}
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Hash
 
-trait FileWriter {
+trait FileWriter extends AutoCloseable {
   // ----------- Interface ---------------
   final def currentPosition(): Long = position
 
@@ -16,7 +19,7 @@ trait FileWriter {
 
   final def md5Hash(): Hash = _md5Hash
 
-  final def finish(): Unit = {
+  final def close(): Unit = {
     finishImpl()
     _md5Hash = Hash(outputStream.getMessageDigest.digest())
   }

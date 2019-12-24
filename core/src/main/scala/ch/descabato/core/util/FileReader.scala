@@ -1,11 +1,11 @@
 package ch.descabato.core.util
 
-import java.io.{File, RandomAccessFile}
+import java.io.File
+import java.io.RandomAccessFile
 
-import akka.util.ByteString
 import ch.descabato.utils.BytesWrapper
 
-trait FileReader {
+trait FileReader extends AutoCloseable {
 
   def file: File
 

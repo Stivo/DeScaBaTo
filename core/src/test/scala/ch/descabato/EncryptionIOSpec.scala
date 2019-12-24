@@ -1,13 +1,15 @@
 package ch.descabato
 
-import java.io.{File, FileOutputStream}
+import java.io.File
+import java.io.FileOutputStream
 import java.security.SecureRandom
 
 import ch.descabato.core.util._
 import ch.descabato.utils.BytesWrapper
 import org.scalacheck.Gen
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterAll, FlatSpec}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.FlatSpec
 
 import scala.util.Random
 
@@ -34,7 +36,7 @@ class EncryptionIOSpec extends FlatSpec with GeneratorDrivenPropertyChecks with 
       writer.write(BytesWrapper(bytes, written, currentLength))
       written += currentLength
     }
-    writer.finish()
+    writer.close()
     val reader = new EncryptedFileReader(encrypted, password)
 
     val myGen = for {

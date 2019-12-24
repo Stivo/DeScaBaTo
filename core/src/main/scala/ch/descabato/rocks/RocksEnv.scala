@@ -6,7 +6,7 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import com.typesafe.scalalogging.LazyLogging
 
 
-class RocksEnv(private val config: BackupFolderConfiguration, private val readOnly: Boolean) extends LazyLogging with AutoCloseable {
+class RocksEnv(val config: BackupFolderConfiguration, private val readOnly: Boolean) extends LazyLogging with AutoCloseable {
   val backupFolder: File = config.folder
   private var readerInitialized = false
   lazy val reader: ValueLogReader = {

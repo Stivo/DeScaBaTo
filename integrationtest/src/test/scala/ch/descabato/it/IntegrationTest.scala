@@ -95,7 +95,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
         }
       }
 
-      if (hasPassword) {
+      if (hasPassword && verifyEnabled) {
         it should s"not verify correctly with a wrong password $i/$iterations" in {
           startAndWait(s"verify${configRestore}a --percent-of-files-to-check 100 $backup1".split(" ")) should not be (0)
         }

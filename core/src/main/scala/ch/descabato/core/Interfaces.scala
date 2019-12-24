@@ -6,20 +6,28 @@ import java.util.Date
 import akka.actor.TypedActor
 import ch.descabato.CompressionMode
 import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
-import ch.descabato.core.actors.{BlockingOperation, JournalHandler, MyEventReceiver}
+import ch.descabato.core.actors.BlockingOperation
+import ch.descabato.core.actors.JournalHandler
+import ch.descabato.core.actors.MyEventReceiver
 import ch.descabato.core.commands.ProblemCounter
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model._
 import ch.descabato.core.util.Json
-import ch.descabato.utils.{BytesWrapper, CompressedStream, Hash}
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.CompressedStream
+import ch.descabato.utils.Hash
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 
 import scala.concurrent.Future
-import scala.util.{Failure, Try}
+import scala.util.Failure
+import scala.util.Try
 
 trait ChunkIdResult
+
 case class ChunkFound(id: Long) extends ChunkIdResult
+
 case class ChunkIdAssigned(id: Long) extends ChunkIdResult
+
 case object ChunkUnknown extends ChunkIdResult
 
 trait ChunkStorage extends LifeCycle {
@@ -101,7 +109,7 @@ trait JsonUser {
     val bytes = Json.mapper.writer(new DefaultPrettyPrinter()).writeValueAsBytes(value)
     val compressed: BytesWrapper = CompressedStream.compress(BytesWrapper(bytes), CompressionMode.gzip)
     writer.write(compressed)
-    writer.finish()
+    writer.close()
     journalHandler.addFileToJournal(file, writer.md5Hash())
   }
 }

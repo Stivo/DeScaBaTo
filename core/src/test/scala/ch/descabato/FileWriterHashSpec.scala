@@ -1,13 +1,17 @@
 package ch.descabato
 
-import java.io.{File, FileInputStream, FileOutputStream}
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.security.SecureRandom
 
 import ch.descabato.core.util._
-import ch.descabato.utils.{BytesWrapper, Hash}
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Hash
 import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterAll, FlatSpec}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.FlatSpec
 
 import scala.util.Random
 
@@ -40,7 +44,7 @@ class FileWriterHashSpec extends FlatSpec with GeneratorDrivenPropertyChecks wit
       writer.write(BytesWrapper(bytes, written, currentLength))
       written += currentLength
     }
-    writer.finish()
+    writer.close()
     val computedHashByWriter = writer.md5Hash()
     val fis = new FileInputStream(writer.file)
     val fromFile = Hash(DigestUtils.md5(fis))

@@ -10,6 +10,7 @@ import java.nio.file.attribute.DosFileAttributes
 import java.security.MessageDigest
 
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.frontend.BackupConf
 import ch.descabato.hashes.BuzHash
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
@@ -30,12 +31,12 @@ object Backup {
 
 }
 
-class RunBackup(config: BackupFolderConfiguration) extends AutoCloseable with LazyLogging {
+class RunBackup(backupConf: BackupConf, config: BackupFolderConfiguration) extends AutoCloseable with LazyLogging {
 
   private val rocksEnv = RocksEnv(config, readOnly = false)
 
   def run(file: File): Unit = {
-    val backupper = new Backupper(rocksEnv)
+    val backupper = new Backupper(backupConf, rocksEnv)
     backupper.backup(file)
     backupper.printStatistics()
     //    val totalSize = listFiles(dbFolder).map(_.toFile.length()).sum
@@ -48,7 +49,7 @@ class RunBackup(config: BackupFolderConfiguration) extends AutoCloseable with La
   }
 }
 
-class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
+class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging {
 
   import rocksEnv._
 
@@ -61,7 +62,7 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
   var revisionContent: ByteArrayOutputStream = new ByteArrayOutputStream()
   var filesInRevision: mutable.Buffer[FileMetadataKey] = mutable.Buffer.empty
 
-  val valueLog = new ValueLogWriter(valuelogsFolder, rocks, write = true)
+  val valueLog = new ValueLogWriter(rocksEnv, write = true, backupConf.volumeSize().bytes)
 
   def findNextRevision(): Int = {
     val iterator = rocks.getAllRevisions()

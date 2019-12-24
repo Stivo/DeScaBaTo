@@ -49,7 +49,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     if (!t.noScriptCreation()) {
       writeBat(t, conf, lastArgs)
     }
-    for (backup <- new RunBackup(conf).autoClosed) {
+    for (backup <- new RunBackup(t, conf).autoClosed) {
       backup.run(t.folderToBackup())
     }
   }

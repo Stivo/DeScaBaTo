@@ -4,8 +4,10 @@ import java.io.File
 
 import ch.descabato.core.LifeCycle
 import ch.descabato.core.model.CompressedBlock
-import ch.descabato.core.util.{FileReader, FileWriter}
-import ch.descabato.utils.{BytesWrapper, Hash}
+import ch.descabato.core.util.FileReader
+import ch.descabato.core.util.FileWriter
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Hash
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
@@ -16,7 +18,7 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
   val filename = context.config.folder.toPath.relativize(file.toPath).toString
 
   private var _writer: FileWriter = _
-  private var finished: Boolean = false
+  private var closed: Boolean = false
 
   private def writer = {
     if (_writer == null) {
@@ -26,15 +28,15 @@ class VolumeWriteActor(val context: BackupContext, val file: File) extends Volum
   }
 
   override def saveBlock(block: CompressedBlock): FilePosition = {
-    require(!finished)
+    require(!closed)
     val posBefore = writer.write(block.compressed)
     FilePosition(posBefore, block.compressed.length)
   }
 
   override def finish(): Future[Boolean] = {
-    if (_writer != null && !finished) {
-      writer.finish()
-      finished = true
+    if (_writer != null && !closed) {
+      writer.close()
+      closed = true
     }
     Future.successful(true)
   }
