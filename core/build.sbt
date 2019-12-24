@@ -1,3 +1,4 @@
+import sbt.Keys.libraryDependencies
 
 name := "core"
 
@@ -12,7 +13,8 @@ libraryDependencies ++= Seq(
   "org.rogach" %% "scallop" % "3.3.1",
   "org.ocpsoft.prettytime" % "prettytime" % "4.0.2.Final",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.63",
-  "org.rocksdb" % "rocksdbjni" % "6.4.6"
+  "org.rocksdb" % "rocksdbjni" % "6.4.6",
+  "com.github.pathikrit" %% "better-files" % "3.8.0",
 )
 
 // compressors
