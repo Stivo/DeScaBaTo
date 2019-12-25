@@ -10,16 +10,17 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.DosFileAttributes
 import java.security.MessageDigest
 
+import better.files._
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.BackupConf
-import ch.descabato.hashes.BuzHash
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Streams.VariableBlockOutputStream
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
@@ -164,33 +165,13 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
   def backupFile(file: Path): FileMetadataValue = {
     val hashList = new CustomByteArrayOutputStream()
     logger.info(file.toFile.toString)
-    val fis = new FileInputStream(file.toFile)
-    try {
-      val buzHash = new BuzHash(60)
-      val fos = new CustomByteArrayOutputStream()
-      var read = 0
-      while (read >= 0) {
-        read = fis.read(buffer)
-        if (read > 0) {
-          val boundaries = buzhashTiming.measure {
-            buzHash.updateAndReportBoundaries(buffer, read, 20).asScala
-          }
-          var i = 0
-          for (boundary <- boundaries) {
-            fos.write(buffer, i, boundary - i)
-            backupChunk(fos.toBytesWrapper, hashList)
-            fos.reset()
-            i = boundary
-          }
-          fos.write(buffer, i, read - i)
-        }
-      }
-      val array = fos.toBytesWrapper
-      if (array.length > 0) {
-        backupChunk(array, hashList)
-      }
-    } finally {
-      fis.close()
+    for {
+      fis <- new FileInputStream(file.toFile).autoClosed
+      chunker <- new VariableBlockOutputStream({ wrapper =>
+        backupChunk(wrapper, hashList)
+      }).autoClosed
+    } {
+      fis.pipeTo(chunker, buffer)
     }
     fillInTypeInfo(file, Some(hashList.toBytesWrapper))
   }

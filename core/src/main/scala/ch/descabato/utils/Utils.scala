@@ -14,6 +14,7 @@ import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 import com.typesafe.scalalogging.Logger
 import org.bouncycastle.crypto.Digest
+import org.bouncycastle.util.encoders.Hex
 
 import scala.collection.mutable
 import scala.language.implicitConversions
@@ -53,6 +54,10 @@ class Hash private (val bytes: Array[Byte]) extends AnyVal {
   def wrap(): BytesWrapper = BytesWrapper(bytes)
 
   def hashContent(): Int = util.Arrays.hashCode(bytes)
+
+  override def toString: String = {
+    Hex.toHexString(bytes)
+  }
 }
 
 object BytesWrapper {

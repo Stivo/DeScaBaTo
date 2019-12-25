@@ -1,6 +1,7 @@
 package ch.descabato.utils
 
-import java.io.{InputStream, OutputStream}
+import java.io.InputStream
+import java.io.OutputStream
 
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.hashes.BuzHash
@@ -63,9 +64,9 @@ object Streams extends Utils {
   }
 
   class VariableBlockOutputStream(func: (BytesWrapper => _),
-                                  val minBlockSize: Int = 256 * 1024,
-                                  val maxBlockSize: Int = 4 * 1024 * 1024,
-                                  val bitsToChunkOn: Byte = 20) extends ChunkingOutputStream(func, minBlockSize) {
+                                  val minBlockSize: Int = 128 * 1024,
+                                  val maxBlockSize: Int = 16 * 1024 * 1024,
+                                  val bitsToChunkOn: Byte = 19) extends ChunkingOutputStream(func, minBlockSize) {
 
     private val buzHash = new BuzHash(64)
 
