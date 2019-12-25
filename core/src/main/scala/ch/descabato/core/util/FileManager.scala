@@ -20,6 +20,14 @@ object Constants {
     val add = num.map(x => "_" + x).getOrElse("")
     s"content$add.obj"
   }
+
+  object Chunking {
+    val bitmask: Byte = 19
+    val buzhashSize = 64
+    val minBlockSize = 128 * 1024
+    val maxBlockSize = 16 * 1024 * 1024
+  }
+
 }
 
 trait FileType {

@@ -3,12 +3,13 @@ package ch.descabato.core.actors
 import akka.stream._
 import akka.stream.stage._
 import akka.util.ByteString
+import ch.descabato.core.util.Constants
 import ch.descabato.hashes.BuzHash
 import ch.descabato.utils.BytesWrapper
 
-class Chunker(minChunkSize: Int = 128 * 1024,
-              maxChunkSize: Int = 16 * 1024 * 1024,
-              bits: Byte = 19) extends GraphStage[FlowShape[ByteString, BytesWrapper]] {
+class Chunker(minChunkSize: Int = Constants.Chunking.minBlockSize,
+              maxChunkSize: Int = Constants.Chunking.maxBlockSize,
+              bits: Byte = Constants.Chunking.bitmask) extends GraphStage[FlowShape[ByteString, BytesWrapper]] {
 
   val in = Inlet[ByteString]("Framer.in")
   val out = Outlet[BytesWrapper]("Framer.out")
@@ -17,7 +18,7 @@ class Chunker(minChunkSize: Int = 128 * 1024,
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = new GraphStageLogic(shape) {
 
     private var byteString = ByteString.empty
-    private val buzHash = new BuzHash(64)
+    private val buzHash = new BuzHash(Constants.Chunking.buzhashSize)
 
     setHandler(out, new OutHandler {
       override def onPull(): Unit = {

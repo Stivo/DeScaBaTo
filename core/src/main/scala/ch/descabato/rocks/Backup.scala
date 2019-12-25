@@ -165,10 +165,13 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
   def backupFile(file: Path): FileMetadataValue = {
     val hashList = new CustomByteArrayOutputStream()
     logger.info(file.toFile.toString)
+    var chunk = 0
     for {
       fis <- new FileInputStream(file.toFile).autoClosed
       chunker <- new VariableBlockOutputStream({ wrapper =>
         backupChunk(wrapper, hashList)
+        logger.trace(s"Chunk $chunk with length ${wrapper.length}")
+        chunk += 1
       }).autoClosed
     } {
       fis.pipeTo(chunker, buffer)

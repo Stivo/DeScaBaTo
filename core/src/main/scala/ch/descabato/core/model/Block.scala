@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 case class Block(blockId: BlockId, private val content: BytesWrapper, hash: Hash) extends LazyLogging {
 
-  logger.info(s"$blockId created with length ${content.length} and hash ${hash}")
+  logger.trace(s"$blockId created with length ${content.length} and hash ${hash}")
 
   def contentLength: Long = content.length
 

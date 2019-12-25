@@ -4,6 +4,7 @@ import java.io.InputStream
 import java.io.OutputStream
 
 import ch.descabato.CustomByteArrayOutputStream
+import ch.descabato.core.util.Constants
 import ch.descabato.hashes.BuzHash
 
 
@@ -64,13 +65,25 @@ object Streams extends Utils {
   }
 
   class VariableBlockOutputStream(func: (BytesWrapper => _),
-                                  val minBlockSize: Int = 128 * 1024,
-                                  val maxBlockSize: Int = 16 * 1024 * 1024,
-                                  val bitsToChunkOn: Byte = 19) extends ChunkingOutputStream(func, minBlockSize) {
+                                  val minBlockSize: Int = Constants.Chunking.minBlockSize,
+                                  val maxBlockSize: Int = Constants.Chunking.maxBlockSize,
+                                  val bitsToChunkOn: Byte = Constants.Chunking.bitmask) extends ChunkingOutputStream(func, minBlockSize) {
 
-    private val buzHash = new BuzHash(64)
+    private val buzHash = new BuzHash(Constants.Chunking.buzhashSize)
 
     override def write(buf: Array[Byte], start: Int, len: Int) {
+      val noBuzhashNeeded = minBlockSize - Constants.Chunking.buzhashSize * 2
+      if (currentChunkSize < noBuzhashNeeded) {
+        val writeDirectly = noBuzhashNeeded - currentChunkSize
+        out.write(buf, start, writeDirectly)
+        writeNormal(buf, start + writeDirectly, len - writeDirectly)
+      } else {
+        writeNormal(buf, start, len)
+      }
+    }
+
+
+    private def writeNormal(buf: Array[Byte], start: Int, len: Int): Unit = {
       val end = start + len
       var pos = start
       while (pos < end) {
@@ -93,7 +106,6 @@ object Streams extends Utils {
         }
       }
     }
-
 
     override def createChunkNow(): Unit = {
       super.createChunkNow()
