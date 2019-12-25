@@ -1,19 +1,30 @@
 package ch.descabato.frontend
 
-import java.io.{File, FileOutputStream, PrintStream}
+import java.io.File
+import java.io.FileOutputStream
+import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
-import ch.descabato.core.commands.{DoBackup, DoRestore, DoVerify}
-import ch.descabato.core.config.{BackupConfigurationHandler, BackupFolderConfiguration}
+import ch.descabato.core.commands.DoBackup
+import ch.descabato.core.commands.DoRestore
+import ch.descabato.core.commands.DoVerify
+import ch.descabato.core.config.BackupConfigurationHandler
+import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
-import ch.descabato.core.{BackupCorruptedException, BackupException, MisconfigurationException, Universe}
+import ch.descabato.core.BackupCorruptedException
+import ch.descabato.core.BackupException
+import ch.descabato.core.MisconfigurationException
+import ch.descabato.core.Universe
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 import ch.descabato.version.BuildInfo
-import ch.descabato.{CompressionMode, HashAlgorithm, RemoteMode}
+import ch.descabato.CompressionMode
+import ch.descabato.HashAlgorithm
+import ch.descabato.RemoteMode
 import org.rogach.scallop._
+import org.rogach.scallop.exceptions.ScallopException
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe.TypeTag
@@ -121,10 +132,10 @@ trait BackupRelatedCommand extends Command with Utils {
   }
 
   final override def execute(args: Seq[String]) {
+    val t = newT(args)
     try {
-      lastArgs = args
-      val t = newT(args)
       t.appendDefaultToDescription = true
+      lastArgs = args
       t.banner(s"DeScaBaTo ${BuildInfo.version}")
       t.verify()
       if (t.logfile.isSupplied) {
@@ -143,6 +154,10 @@ trait BackupRelatedCommand extends Command with Utils {
       case e@MisconfigurationException(message) =>
         l.info(message)
         logException(e)
+      case e: ScallopException =>
+        l.info(e.message)
+        l.info("Help for command:")
+        t.printHelp()
     }
   }
 
@@ -214,6 +229,10 @@ trait NoGuiOption extends ScallopConf {
 trait BackupFolderOption extends ProgramOption {
   val passphrase: ScallopOption[String] = opt[String](descr = "The password to use for the backup. If none is supplied, encryption is turned off", default = None)
   val backupDestination: ScallopOption[File] = trailArg[String](descr = "Root folder of the backup", required = true).map(new File(_).getCanonicalFile())
+
+  errorMessageHandler = { _ =>
+    // do nothing
+  }
 }
 
 class BackupCommand extends BackupRelatedCommand with Utils {

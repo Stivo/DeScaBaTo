@@ -12,6 +12,7 @@ import java.security.MessageDigest
 
 import better.files._
 import ch.descabato.CustomByteArrayOutputStream
+import ch.descabato.core.IgnoreFileMatcher
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.BackupConf
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
@@ -58,6 +59,8 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
 
   import rocksEnv._
 
+  val ignoreFileMatcher = new IgnoreFileMatcher(rocksEnv.config.ignoreFile)
+
   def printStatistics(): Unit = {
     logger.info(s"Chunks found: ${chunkFoundCounter}")
     logger.info(s"Chunks not found: ${chunkNotFoundCounter}")
@@ -84,7 +87,7 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
 
     rocks.currentRevision = revision
     for (folderToBackup <- str) {
-      for (file <- Backup.listFiles(folderToBackup)) {
+      for (file <- Backup.listFiles(folderToBackup) if ignoreFileMatcher.pathIsNotIgnored(folderToBackup.toPath, file)) {
         backupFileOrFolderIfNecessary(file)
       }
     }

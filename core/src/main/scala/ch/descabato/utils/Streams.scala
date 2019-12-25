@@ -74,7 +74,7 @@ object Streams extends Utils {
     override def write(buf: Array[Byte], start: Int, len: Int) {
       val noBuzhashNeeded = minBlockSize - Constants.Chunking.buzhashSize * 2
       if (currentChunkSize < noBuzhashNeeded) {
-        val writeDirectly = noBuzhashNeeded - currentChunkSize
+        val writeDirectly = Math.min(noBuzhashNeeded - currentChunkSize, len)
         out.write(buf, start, writeDirectly)
         writeNormal(buf, start + writeDirectly, len - writeDirectly)
       } else {

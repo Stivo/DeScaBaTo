@@ -1,6 +1,6 @@
 #### MVP for backwards compatible rocks backup:
 - Ensure that chunking behaves the same
-    - implement lower and upper bounds for chunking to prevent too large values
+    - implement lower and upper bounds for chunking to prevent too large values => DONE
     - Test that same boundaries are chosen
 
 #### Import for descabato 0.6 backup
