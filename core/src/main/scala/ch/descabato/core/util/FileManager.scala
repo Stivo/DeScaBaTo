@@ -37,13 +37,20 @@ trait FileType {
 
   def isMetadata(): Boolean = true
 
-  def nextFile(): File
+  def nextFile(temp: Boolean = false): File
+
+  def isTempFile(file: File): Boolean = file.getName.startsWith(Constants.tempPrefix)
+
+  def renameTempFileToFinal(file: File): Boolean = {
+    val newName = file.getName.substring(Constants.tempPrefix.length)
+    file.renameTo(new File(file.getParentFile, newName))
+  }
 }
 
 trait NumberedFileType extends FileType {
   def numberOfFile(file: File): Int
 
-  def fileForNumber(number: Int): File
+  def fileForNumber(number: Int, temp: Boolean = false): File
 }
 
 trait DatedFileType extends FileType {
@@ -56,6 +63,7 @@ trait DatedFileType extends FileType {
 }
 
 class FileManager(config: BackupFolderConfiguration) {
+
   val volume = new StandardNumberedFileType("volume", "json.gz", config)
   val volumeIndex = new StandardNumberedFileType("volumeIndex", "json.gz", config)
   val metadata = new StandardNumberedFileType("metadata", "json.gz", config)
@@ -70,13 +78,14 @@ class FileManager(config: BackupFolderConfiguration) {
   def fileTypeForFile(file: File): Option[FileType] = {
     filetypes.find(_.matches(file))
   }
+
 }
 
 /**
-  * Pattern here is:
-  * $name/$name_$number for all < 1000
-  * $name/$name_$range/$name_$number for all >= 1000
-  */
+ * Pattern here is:
+ * $name/$name_$number for all < 1000
+ * $name/$name_$range/$name_$number for all >= 1000
+ */
 class StandardNumberedFileType(name: String, suffix: String, config: BackupFolderConfiguration) extends NumberedFileType {
   val mainFolder = new File(config.folder, name)
   val regex = s"${name}_[0-9]+"
@@ -89,11 +98,11 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
     file.getName.drop(name.length + 1).takeWhile(_.isDigit).toInt
   }
 
-  override def fileForNumber(number: Int): File = {
+  override def fileForNumber(number: Int, temp: Boolean = false): File = {
     val subfolderNumber = number / filesPerFolder
     val nameNumber = f"${number}%06d"
     val firstFolder = if (subfolderNumber > 0) s"${name}_$subfolderNumber/" else ""
-    new File(mainFolder, s"$firstFolder${name}_${nameNumber}.${suffix}")
+    new File(mainFolder, s"${if (temp) Constants.tempPrefix else ""}$firstFolder${name}_${nameNumber}.${suffix}")
   }
 
   override def getFiles(): Seq[File] = {
@@ -119,24 +128,24 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
     scheme1 || scheme2
   }
 
-  override def nextFile(): File = {
+  override def nextFile(temp: Boolean = false): File = {
     if (mainFolder.exists()) {
       val existing = getFiles().map(numberOfFile)
       if (existing.nonEmpty) {
-        fileForNumber(existing.max + 1)
+        fileForNumber(existing.max + 1, temp)
       } else {
-        fileForNumber(0)
+        fileForNumber(0, temp)
       }
     } else {
-      fileForNumber(0)
+      fileForNumber(0, temp)
     }
   }
 }
 
 /**
-  * Pattern here is
-  * $name_$date.$suffix
-  */
+ * Pattern here is
+ * $name_$date.$suffix
+ */
 class StandardDatedFileType(name: String, suffix: String, config: BackupFolderConfiguration) extends DatedFileType {
 
   private val dateFormat = "yyyy-MM-dd.HHmmss"
@@ -172,8 +181,8 @@ class StandardDatedFileType(name: String, suffix: String, config: BackupFolderCo
     }
   }
 
-  override def nextFile(): File = {
+  override def nextFile(temp: Boolean = false): File = {
     val date = new Date()
-    new File(config.folder, s"${name}_${dateFormatter.format(date)}.$suffix")
+    new File(config.folder, s"${if (temp) Constants.tempPrefix else ""}${name}_${dateFormatter.format(date)}.$suffix")
   }
 }

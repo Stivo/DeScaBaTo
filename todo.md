@@ -2,11 +2,29 @@
 - Ensure that chunking behaves the same
     - implement lower and upper bounds for chunking to prevent too large values => DONE
     - Test that same boundaries are chosen
+- ignore file => DONE
+
+##### exporting metadata
+crash resilience still needs some work:
+- delete all temp. prefixed files on startup
+- announcement that metadata is written to new file
+    - if that file is done, then delete the values to be exported
+- numbers for content values need to be correctly initialized
+- remove file statuses from db
+
+also should:
+- import of metadata into rocksdb when rocksdb is deleted
+    - with integration test
 
 #### Import for descabato 0.6 backup
 - Ensure that metadata is imported
 - Ensure that backup can continue from there
-
+- Write integration test
+    - Back up from 0.6.0 code
+    - Import to new code
+    - touch all files that are in the backup
+    - backup with new code
+    - ensure that new volumes were written
 
 #### Later features:
 - Implement deletion with later compaction
@@ -17,7 +35,31 @@
     => deletions as special key value pair with a flag for the key  
 - add compression with dictionaries
 
+#### Semantics for backing up metadata into a valuelog
+Backup consists of:
+1. config.json \
+    Is responsible for saving fundamental properties of this backup job. hash, compression, folders etc
+1. volumes \
+    Value logs with data. The volumes save all the file contents
+1. metadata \
+    The metadata are value logs with all the metadata inside: revisions, hashes, file metadata etc 
+1. rocksdb \
+    The rocksdb is used mainly as a cache of the metadata. During writing metadata is first written here,
+    and once the backup finishes the metadata is backed up as metadata to the value log folder
 
+Semantics:
+1. If the rocksdb exists, it is assumed to be the most complete version of metadata
+2. If the rocksdb does not exist (because it was not uploaded to the cloud and the backup was lost), the
+metadata value logs will be used to reconstruct the rocksdb content
+3. During any write operation (backing up / compaction), writes are only done to rocksdb. Once the backup
+finishes the newly added metadata will be backed up to the value logs folder as metadata and then uploaded 
+to the cloud.
+ 
+##### States
+- Consistent
+- Backing up
+- Importing
+- Compacting
 
 #### DONE:
 - implement .. folder change

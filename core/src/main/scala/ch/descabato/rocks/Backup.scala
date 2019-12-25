@@ -8,12 +8,12 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.DosFileAttributes
-import java.security.MessageDigest
 
 import better.files._
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.IgnoreFileMatcher
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.frontend.BackupConf
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
@@ -70,7 +70,7 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
   var revisionContent: ByteArrayOutputStream = new ByteArrayOutputStream()
   var filesInRevision: mutable.Buffer[FileMetadataKey] = mutable.Buffer.empty
 
-  val valueLog = new ValueLogWriter(rocksEnv, write = true, backupConf.volumeSize().bytes)
+  val valueLog = new ValueLogWriter(rocksEnv, rocksEnv.fileManager.volume, write = true, backupConf.volumeSize().bytes)
 
   def findNextRevision(): Int = {
     val iterator = rocks.getAllRevisions()
@@ -97,47 +97,14 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
     logger.info("Closing valuelog")
     valueLog.close()
     rocks.commit()
-    backupRocksDb(revision)
+    new MetadataExporter(rocksEnv).exportUpdates()
     val compacting = new StandardMeasureTime()
     rocks.compact()
     logger.info("Compaction took " + compacting.measuredTime())
   }
 
-  def backupRocksDb(revision: Revision): Unit = {
-    val backupTime = new StandardMeasureTime()
-
-    // TODO reactivate
-    //    val filename = s"revision_${revision.number}.log"
-    //    val statusKey = ValueLogStatusKey(filename)
-    //    val statusValue = ValueLogStatusValue(Status.WRITING)
-    //    kvStore.write(statusKey, statusValue)
-    //    kvStore.commit()
-    //    val file = new File(valuesFolder, filename)
-    //    val fos = new FileOutputStream(file)
-    //    items.foreach { case (_, value) =>
-    //      fos.write(value.asArray(false))
-    //    }
-    //    fos.close()
-    //    kvStore.write(statusKey, statusValue.copy(status = Status.FINISHED, size = file.length()))
-    //    kvStore.commit()
-    //    items.foreach { case (key, _) =>
-    //      kvStore.delete(key)
-    //    }
-    //    println(s"Finished backing up revision $revision, took " + backupTime.measuredTime())
-    // Verify keys are written correctly
-    //    val fis = new FileInputStream(file)
-    //    var x: Option[RevisionContentValue] = None
-    //    do {
-    //      x = RevisionContentValue.readNextEntry(fis)
-    //      x.foreach { y =>
-    //        println(y)
-    //        println(kvStore.decodeRevisionContentValue(y))
-    //      }
-    //    } while (x.isDefined)
-  }
-
   private val buffer = Array.ofDim[Byte](1024 * 1024)
-  private val sha256 = MessageDigest.getInstance("SHA-256")
+  private val digest = rocksEnv.config.createMessageDigest()
 
   var chunkNotFoundCounter = 0
   var chunkFoundCounter = 0
@@ -148,8 +115,8 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
   def backupChunk(bytesWrapper: BytesWrapper, hashList: OutputStream): Unit = {
     //    println(s"Backing up chunk with length ${toByteArray.length}")
     val hash = hashTiming.measure {
-      sha256.reset()
-      sha256.digest(bytesWrapper)
+      digest.reset()
+      digest.digest(bytesWrapper)
     }
     val chunkKey = ChunkKey(hash)
     if (rocks.exists(chunkKey)) {
@@ -222,4 +189,26 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
     }
   }
 
+}
+
+class MetadataExporter(rocksEnv: RocksEnv) {
+  val kvStore = rocksEnv.rocks
+  private val filetype: StandardNumberedFileType = rocksEnv.fileManager.metadata
+  val valueLog = new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes)
+
+  def exportUpdates(): Unit = {
+    val backupTime = new StandardMeasureTime()
+
+    val contentValues = kvStore.readAllUpdates()
+
+    contentValues.foreach { case (_, value) =>
+      valueLog.write(value.asArray(false))
+    }
+    valueLog.close()
+    contentValues.foreach { case (key, _) =>
+      kvStore.delete(key)
+    }
+    println(s"Finished backing up revision 0, took " + backupTime.measuredTime())
+    kvStore.commit()
+  }
 }

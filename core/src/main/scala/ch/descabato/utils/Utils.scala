@@ -42,7 +42,7 @@ object Hash {
 
 }
 
-class Hash private (val bytes: Array[Byte]) extends AnyVal {
+class Hash private(val bytes: Array[Byte]) extends AnyVal {
   def length: Int = bytes.length
 
   def base64: String = Utils.encodeBase64Url(bytes)
@@ -68,6 +68,8 @@ object BytesWrapper {
     val correctLength = if (length < 0) bytes.length - offset else length
     new BytesWrapper(bytes, offset, correctLength)
   }
+
+  val empty: BytesWrapper = BytesWrapper(Array.emptyByteArray, 0, 0)
 }
 
 class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: Int) extends RealEquality[BytesWrapper] {
@@ -335,7 +337,8 @@ class FastHashMap[T] extends mutable.AbstractMap[Hash, T] {
 }
 
 object FastHashMap {
-  private class W (val array: Array[Byte]) {
+
+  private class W(val array: Array[Byte]) {
 
     override def equals(obj: Any): Boolean =
       obj match {

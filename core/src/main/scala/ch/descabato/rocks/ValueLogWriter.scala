@@ -6,6 +6,7 @@ import java.io.SequenceInputStream
 
 import ch.descabato.CompressionMode
 import ch.descabato.core.util.FileReader
+import ch.descabato.core.util.FileType
 import ch.descabato.core.util.FileWriter
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.Status
@@ -17,35 +18,38 @@ import ch.descabato.utils.Hash
 import com.typesafe.scalalogging.LazyLogging
 
 
-class ValueLogWriter(rocksEnv: RocksEnv, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
+class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
 
   private val kvStore = rocksEnv.rocks
   private val folder = rocksEnv.valuelogsFolder
   private val config = rocksEnv.config
+  private val fileManager = rocksEnv.fileManager
 
   private val valueLogWriteTiming = new StopWatch("writeValue")
   private val compressionTiming = new StopWatch("compression")
   private val closeTiming = new StopWatch("close")
   private val minSize = 1 * 1024 * 1024L
 
-  private def init(): Int = {
-    val seq: Seq[(ValueLogStatusKey, ValueLogStatusValue)] = kvStore.getAllValueLogStatusKeys()
-    if (write) {
-      seq.foreach { case (key, value) =>
-        if (value.status == Status.WRITING || value.status == Status.MARKED_FOR_DELETION) {
-          logger.warn("Deleting incomplete or obsolete file " + key)
-          new File(folder, key.name).delete()
-        }
-      }
-    }
-    if (seq.isEmpty) {
-      0
-    } else {
-      seq.map(_._1.parseNumber).max
-    }
-  }
-
-  private var highestNumber: Int = init()
+  //  private def init(): Int = {
+  //    val value = fileType.getFiles()
+  //    value
+  ////    val seq: Seq[(ValueLogStatusKey, ValueLogStatusValue)] = kvStore.getAllValueLogStatusKeys()
+  ////
+  ////    if (write) {
+  ////      seq.foreach { case (key, value) =>
+  ////        if (value.status == Status.WRITING || value.status == Status.MARKED_FOR_DELETION) {
+  ////          logger.warn("Deleting incomplete or obsolete file " + key)
+  ////          new File(folder, key.name).delete()
+  ////        }
+  ////      }
+  ////    }
+  ////    val onlyTheseFiles = seq.filter(_._1.name.startsWith(prefix))
+  ////    if (onlyTheseFiles.isEmpty) {
+  ////      0
+  ////    } else {
+  ////      onlyTheseFiles.map(_._1.parseNumber).max
+  ////    }
+  //  }
 
   private var currentFile: Option[CurrentFile] = None
 
@@ -72,18 +76,18 @@ class ValueLogWriter(rocksEnv: RocksEnv, write: Boolean = true, maxSize: Long = 
 
   private def closeCurrentFile(currentFile: CurrentFile) = {
     currentFile.fileWriter.close()
-    highestNumber += 1
+    fileType.renameTempFileToFinal(currentFile.file)
     val status = currentFile.valueLogStatusValue
     val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition())
     kvStore.write(currentFile.key, newStatus)
   }
 
   private def createNewFile(): CurrentFile = {
-    val filename = "values_" + (highestNumber + 1) + ".log"
-    val key = ValueLogStatusKey(filename)
+    val file = fileType.nextFile(temp = true)
+    val key = ValueLogStatusKey(file.getName)
     val value = ValueLogStatusValue(status = Status.WRITING)
 
-    val currentFile = CurrentFile(key, value, config.newWriter(new File(folder, filename)))
+    val currentFile = CurrentFile(file, key, value, config.newWriter(file))
     this.currentFile = Some(currentFile)
     currentFile
   }
@@ -96,7 +100,7 @@ class ValueLogWriter(rocksEnv: RocksEnv, write: Boolean = true, maxSize: Long = 
     }
   }
 
-  case class CurrentFile(key: ValueLogStatusKey, valueLogStatusValue: ValueLogStatusValue, fileWriter: FileWriter)
+  case class CurrentFile(file: File, key: ValueLogStatusKey, valueLogStatusValue: ValueLogStatusValue, fileWriter: FileWriter)
 
 }
 

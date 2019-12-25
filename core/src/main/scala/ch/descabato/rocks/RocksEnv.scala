@@ -3,6 +3,7 @@ package ch.descabato.rocks
 import java.io.File
 
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.util.FileManager
 import com.typesafe.scalalogging.LazyLogging
 
 
@@ -24,6 +25,8 @@ class RocksEnv(val config: BackupFolderConfiguration, private val readOnly: Bool
     backupFolder.mkdir()
   }
   val rocks: RocksDbKeyValueStore = RocksDbKeyValueStore(rocksFolder, readOnly)
+
+  val fileManager = new FileManager(config)
 
   override def close(): Unit = {
     if (readerInitialized) {

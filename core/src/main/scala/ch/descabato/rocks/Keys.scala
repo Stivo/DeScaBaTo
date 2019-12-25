@@ -5,12 +5,15 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.EOFException
 import java.io.InputStream
+import java.util
 import java.util.Base64
+import java.util.Objects
 
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Hash
+import ch.descabato.utils.Implicits._
 
 trait Key
 
@@ -45,25 +48,51 @@ case class ValueLogStatusKey(name: String) extends Key {
 
 case class FileMetadataKeyWrapper(fileMetadataKey: FileMetadataKey) extends Key
 
-case class RevisionContentValue(ordinal: Byte, key: Array[Byte], value: Array[Byte]) {
+case class RevisionContentValue private(ordinal: Byte, key: Array[Byte], value: BytesWrapper, deletion: Boolean) {
   def asArray(withFullPrefix: Boolean): BytesWrapper = {
     val stream = new CustomByteArrayOutputStream(key.length + value.length + 20)
     val out = new DataOutputStream(stream)
-    out.write(ordinal)
+    val writeOrdinal = if (deletion) ordinal - 128 else ordinal
+    out.write(writeOrdinal)
     if (withFullPrefix) {
       out.writeInt(key.length + value.length)
     }
     out.writeInt(key.length)
     out.write(key)
-    out.writeInt(value.length)
-    out.write(value)
+    if (!deletion) {
+      out.writeInt(value.length)
+      out.write(value)
+    }
     out.flush()
     stream.toBytesWrapper
   }
 
+  override def hashCode(): Int = {
+    Objects.hash(util.Arrays.hashCode(key), value.hashCode)
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case x: RevisionContentValue =>
+        Objects.equals(ordinal, x.ordinal) &&
+          util.Arrays.equals(key, x.key) &&
+          Objects.equals(value, x.value) &&
+          Objects.equals(deletion, x.deletion)
+      case _ => false
+    }
+  }
 }
 
 object RevisionContentValue {
+
+  def createUpdate(ordinal: Byte, key: Array[Byte], value: BytesWrapper): RevisionContentValue = {
+    RevisionContentValue(ordinal, key, value, false)
+  }
+
+  def createDelete(ordinal: Byte, key: Array[Byte]): RevisionContentValue = {
+    RevisionContentValue(ordinal, key, BytesWrapper.empty, true)
+  }
+
   def decode(encode: Array[Byte]): RevisionContentValue = {
     val stream = new ByteArrayInputStream(encode)
     readNextEntry(stream).get
@@ -73,15 +102,23 @@ object RevisionContentValue {
     var expectEof = true
     try {
       val stream1 = new DataInputStream(stream)
-      val ordinal = stream1.readByte()
+      var ordinal = stream1.readByte()
+      val deletion = ordinal < 0
+      if (deletion) {
+        ordinal = (ordinal + 128).toByte
+      }
       expectEof = false
       val keyLength = stream1.readInt()
       val key = Array.ofDim[Byte](keyLength)
       stream1.readFully(key)
-      val valueLength = stream1.readInt()
-      val value = Array.ofDim[Byte](valueLength)
-      stream1.readFully(value)
-      Some(RevisionContentValue(ordinal, key, value))
+      if (deletion) {
+        Some(RevisionContentValue.createDelete(ordinal, key))
+      } else {
+        val valueLength = stream1.readInt()
+        val value = Array.ofDim[Byte](valueLength)
+        stream1.readFully(value)
+        Some(RevisionContentValue.createUpdate(ordinal, key, value.wrap()))
+      }
     } catch {
       case _: EOFException if expectEof =>
         // could be the end of the stream, this would be valid

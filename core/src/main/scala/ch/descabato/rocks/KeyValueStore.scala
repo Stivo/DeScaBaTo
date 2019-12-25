@@ -44,6 +44,8 @@ object RocksDbKeyValueStore {
 class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) extends LazyLogging {
 
   var currentRevision: Revision = null
+  // TODO
+  var currentNumber: Long = 0L
   private var alreadyClosed: Boolean = false
 
   private val handles: util.List[ColumnFamilyHandle] = new util.ArrayList[ColumnFamilyHandle]()
@@ -51,8 +53,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   private val descriptors: util.List[ColumnFamilyDescriptor] = new util.ArrayList[ColumnFamilyDescriptor]()
   descriptors.add(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY))
 
-  // TODO delete or decide what to do
-  //private val revisionContentColumnFamily = new RevisionContentColumnFamily()
+  private val revisionContentColumnFamily = new RevisionContentColumnFamily()
 
   private val chunkColumnFamily = new ChunkColumnFamily()
   private val fileMetadataColumnFamily = new FileMetadataColumnFamily()
@@ -64,7 +65,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     fileMetadataColumnFamily,
     fileStatusColumnFamily,
     revisionColumnFamily,
-    //    revisionContentColumnFamily
+    revisionContentColumnFamily,
   )
   columnFamilies.foreach(x => descriptors.add(x.descriptor))
 
@@ -133,6 +134,10 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     iterateKeysFrom[ValueLogStatusKey, ValueLogStatusValue](fileStatusColumnFamily)
   }
 
+  def readAllUpdates(): Seq[(RevisionContentKey, RevisionContentValue)] = {
+    iterateKeysFrom[RevisionContentKey, RevisionContentValue](revisionContentColumnFamily)
+  }
+
   def write[K <: Key, V](key: K, value: V): Unit = {
     def writeImpl[K <: Key, V](cf: ColumnFamily[K, V], key: K, value: V) = {
       val keyEncoded = cf.encodeKey(key)
@@ -143,7 +148,11 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
 
     writeTiming.measure {
       val cf = lookupColumnFamily[K, V](key)
-      writeImpl(cf, key, value)
+      val (keyBytes, valueBytes) = writeImpl(cf, key, value)
+      val revisionContentValue = RevisionContentValue.createUpdate(cf.ordinal, keyBytes, valueBytes)
+      val revisionContentKey = RevisionContentKey(currentRevision, currentNumber)
+      currentNumber += 1
+      writeImpl(revisionContentColumnFamily, revisionContentKey, revisionContentValue)
     }
   }
 
@@ -179,7 +188,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
 
   def decodeRevisionContentValue(y: RevisionContentValue) = {
     val cf = columnFamilies.find(_.ordinal == y.ordinal).get
-    (cf.decodeKey(y.key), cf.decodeValue(y.value))
+    (cf.decodeKey(y.key), cf.decodeValue(y.value.asArray()))
   }
 
   def commit(): Unit = {
@@ -197,6 +206,9 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   def delete[K <: Key](key: K): Unit = {
     val cf = lookupColumnFamily[K, Any](key)
     transaction.delete(cf.handle, cf.encodeKey(key))
+    // TODO
+    //    RevisionContentValue.createDelete(cf.ordinal, )
+    //    write[]
   }
 
   def compact(): Unit = {
