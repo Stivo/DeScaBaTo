@@ -108,7 +108,7 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
   override def getFiles(): Seq[File] = {
     if (mainFolder.exists()) {
       val files = Files.walk(mainFolder.toPath).collect(Collectors.toList())
-      files.asScala.map(_.toFile).filter(matches).toSeq
+      files.asScala.map(_.toFile).filter(matches).sortBy(numberOfFile).toSeq
     } else {
       Seq.empty
     }

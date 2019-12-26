@@ -20,6 +20,7 @@ import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.VariableBlockOutputStream
 import com.google.protobuf.ByteString
@@ -194,21 +195,52 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
 class MetadataExporter(rocksEnv: RocksEnv) {
   val kvStore = rocksEnv.rocks
   private val filetype: StandardNumberedFileType = rocksEnv.fileManager.metadata
-  val valueLog = new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes)
 
   def exportUpdates(): Unit = {
     val backupTime = new StandardMeasureTime()
 
     val contentValues = kvStore.readAllUpdates()
 
+    val baos = new CustomByteArrayOutputStream()
     contentValues.foreach { case (_, value) =>
-      valueLog.write(value.asArray(false))
+      baos.write(value.asArray())
     }
-    valueLog.close()
+    for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes).autoClosed) {
+      valueLog.write(baos.toBytesWrapper)
+    }
     contentValues.foreach { case (key, _) =>
-      kvStore.delete(key)
+      kvStore.delete(key, writeAsUpdate = false)
     }
     println(s"Finished backing up revision 0, took " + backupTime.measuredTime())
+    kvStore.commit()
+  }
+}
+
+
+class MetadataImporter(rocksEnv: RocksEnv) {
+  val kvStore = rocksEnv.rocks
+  private val filetype: StandardNumberedFileType = rocksEnv.fileManager.metadata
+
+  def importMetadata(): Unit = {
+    val restoreTime = new StandardMeasureTime()
+
+    for (file <- filetype.getFiles()) {
+      for {
+        reader <- rocksEnv.config.newReader(file).autoClosed
+        decompressed <- CompressedStream.decompressToBytes(reader.readAllContent()).asInputStream().autoClosed
+        encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
+        encodedValue <- encodedValueOption
+      } {
+        val (deletion, key, value) = kvStore.decodeRevisionContentValue(encodedValue)
+        if (deletion) {
+          kvStore.delete(key, writeAsUpdate = false)
+        } else {
+          kvStore.write(key, value.get, writeAsUpdate = false)
+        }
+      }
+      kvStore.commit()
+    }
+    println(s"Finished importing " + restoreTime.measuredTime())
     kvStore.commit()
   }
 }

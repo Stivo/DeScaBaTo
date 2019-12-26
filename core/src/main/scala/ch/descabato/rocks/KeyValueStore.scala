@@ -138,7 +138,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     iterateKeysFrom[RevisionContentKey, RevisionContentValue](revisionContentColumnFamily)
   }
 
-  def write[K <: Key, V](key: K, value: V): Unit = {
+  def write[K <: Key, V](key: K, value: V, writeAsUpdate: Boolean = true): Unit = {
     def writeImpl[K <: Key, V](cf: ColumnFamily[K, V], key: K, value: V) = {
       val keyEncoded = cf.encodeKey(key)
       val valueEncoded = cf.encodeValue(value)
@@ -149,10 +149,12 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     writeTiming.measure {
       val cf = lookupColumnFamily[K, V](key)
       val (keyBytes, valueBytes) = writeImpl(cf, key, value)
-      val revisionContentValue = RevisionContentValue.createUpdate(cf.ordinal, keyBytes, valueBytes)
-      val revisionContentKey = RevisionContentKey(currentRevision, currentNumber)
-      currentNumber += 1
-      writeImpl(revisionContentColumnFamily, revisionContentKey, revisionContentValue)
+      if (writeAsUpdate) {
+        val revisionContentValue = RevisionContentValue.createUpdate(cf.ordinal, keyBytes, valueBytes)
+        val revisionContentKey = RevisionContentKey(currentRevision, currentNumber)
+        currentNumber += 1
+        writeImpl(revisionContentColumnFamily, revisionContentKey, revisionContentValue)
+      }
     }
   }
 
@@ -186,9 +188,14 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
       .map(cf.decodeValue)
   }
 
-  def decodeRevisionContentValue(y: RevisionContentValue) = {
+  def decodeRevisionContentValue(y: RevisionContentValue): (Boolean, Key, Option[Product]) = {
     val cf = columnFamilies.find(_.ordinal == y.ordinal).get
-    (cf.decodeKey(y.key), cf.decodeValue(y.value.asArray()))
+    val key = cf.decodeKey(y.key)
+    if (y.deletion) {
+      (true, key, None)
+    } else {
+      (false, key, Some(cf.decodeValue(y.value.asArray())))
+    }
   }
 
   def commit(): Unit = {
@@ -203,12 +210,13 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     openTransaction()
   }
 
-  def delete[K <: Key](key: K): Unit = {
+  def delete[K <: Key](key: K, writeAsUpdate: Boolean = true): Unit = {
     val cf = lookupColumnFamily[K, Any](key)
-    transaction.delete(cf.handle, cf.encodeKey(key))
-    // TODO
-    //    RevisionContentValue.createDelete(cf.ordinal, )
-    //    write[]
+    val encodedKey = cf.encodeKey(key)
+    transaction.delete(cf.handle, encodedKey)
+    if (writeAsUpdate) {
+      write(RevisionContentKey(currentRevision, currentNumber), RevisionContentValue.createDelete(cf.ordinal, encodedKey), true)
+    }
   }
 
   def compact(): Unit = {
@@ -388,7 +396,7 @@ class RevisionContentColumnFamily extends ColumnFamily[RevisionContentKey, Revis
   }
 
   override def encodeValue(value: RevisionContentValue): BytesWrapper = {
-    value.asArray(withFullPrefix = false)
+    value.asArray()
   }
 
   override def ordinal: Byte = Byte.MaxValue

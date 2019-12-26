@@ -49,14 +49,11 @@ case class ValueLogStatusKey(name: String) extends Key {
 case class FileMetadataKeyWrapper(fileMetadataKey: FileMetadataKey) extends Key
 
 case class RevisionContentValue private(ordinal: Byte, key: Array[Byte], value: BytesWrapper, deletion: Boolean) {
-  def asArray(withFullPrefix: Boolean): BytesWrapper = {
+  def asArray(): BytesWrapper = {
     val stream = new CustomByteArrayOutputStream(key.length + value.length + 20)
     val out = new DataOutputStream(stream)
     val writeOrdinal = if (deletion) ordinal - 128 else ordinal
     out.write(writeOrdinal)
-    if (withFullPrefix) {
-      out.writeInt(key.length + value.length)
-    }
     out.writeInt(key.length)
     out.write(key)
     if (!deletion) {

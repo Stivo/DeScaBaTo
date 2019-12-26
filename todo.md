@@ -3,14 +3,17 @@
     - implement lower and upper bounds for chunking to prevent too large values => DONE
     - Test that same boundaries are chosen
 - ignore file => DONE
+- save config.json to database
+- manage state of rocksdb in rocksdb
 
 ##### exporting metadata
 crash resilience still needs some work:
-- delete all temp. prefixed files on startup
-- announcement that metadata is written to new file
-    - if that file is done, then delete the values to be exported
+- always track file status in db
+- no temp prefix
+- file status has only one entry for now: Finished
 - numbers for content values need to be correctly initialized
-- remove file statuses from db
+- Implement repair procedure
+- Implement periodic export of metadata
 
 also should:
 - import of metadata into rocksdb when rocksdb is deleted
