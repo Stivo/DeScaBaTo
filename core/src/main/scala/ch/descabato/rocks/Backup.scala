@@ -23,6 +23,7 @@ import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.VariableBlockOutputStream
+import ch.descabato.utils.Utils
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
@@ -191,7 +192,7 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
 
 }
 
-class MetadataExporter(rocksEnv: RocksEnv) {
+class MetadataExporter(rocksEnv: RocksEnv) extends Utils {
   val kvStore = rocksEnv.rocks
   private val filetype: StandardNumberedFileType = rocksEnv.fileManager.metadata
 
@@ -210,13 +211,13 @@ class MetadataExporter(rocksEnv: RocksEnv) {
     contentValues.foreach { case (key, _) =>
       kvStore.delete(key, writeAsUpdate = false)
     }
-    println(s"Finished backing up revision 0, took " + backupTime.measuredTime())
+    logger.info(s"Finished exporting updates, took " + backupTime.measuredTime())
     kvStore.commit()
   }
 }
 
 
-class MetadataImporter(rocksEnv: RocksEnv) {
+class MetadataImporter(rocksEnv: RocksEnv) extends Utils {
   val kvStore = rocksEnv.rocks
   private val filetype: StandardNumberedFileType = rocksEnv.fileManager.metadata
 
@@ -239,7 +240,7 @@ class MetadataImporter(rocksEnv: RocksEnv) {
       }
       kvStore.commit()
     }
-    println(s"Finished importing " + restoreTime.measuredTime())
+    logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
     kvStore.commit()
   }
 }

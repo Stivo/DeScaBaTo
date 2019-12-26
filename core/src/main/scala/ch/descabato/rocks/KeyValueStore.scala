@@ -1,18 +1,22 @@
 package ch.descabato.rocks
 
 import java.io.File
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util
 
+import ch.descabato.CompressionMode
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Implicits._
 import com.typesafe.scalalogging.LazyLogging
+import org.bouncycastle.util.encoders.Hex
 import org.rocksdb.ColumnFamilyDescriptor
 import org.rocksdb.ColumnFamilyHandle
 import org.rocksdb.ColumnFamilyOptions
@@ -142,6 +146,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   private def writeRevisionValueContent(value: RevisionContentValue): Unit = {
     val keyEncoded = revisionContentColumnFamily.encodeKey(RevisionContentKey(currentNumber))
     val valueEncoded = revisionContentColumnFamily.encodeValue(value)
+    logger.trace(s"Key for $currentNumber is ${Hex.toHexString(keyEncoded)}, value is ${decodeRevisionContentValue(value)}")
     transaction.put(revisionContentColumnFamily.handle, keyEncoded, valueEncoded.asArray())
     currentNumber += 1
   }
@@ -205,6 +210,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   }
 
   def commit(): Unit = {
+    logger.info(s"Committing to rocksdb: ${transaction.getNumPuts} writes and ${transaction.getNumDeletes} deletions")
     transaction.commit()
     transaction.close()
     openTransaction()
@@ -217,6 +223,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   }
 
   def delete[K <: Key](key: K, writeAsUpdate: Boolean = true): Unit = {
+    logger.trace(s"Deleting ${key} from rocksdb and write it as update? ${writeAsUpdate}")
     val cf = lookupColumnFamily[K, Any](key)
     val encodedKey = cf.encodeKey(key)
     transaction.delete(cf.handle, encodedKey)
@@ -304,7 +311,11 @@ class RevisionColumnFamily extends ColumnFamily[Revision, RevisionValue] with Me
   }
 
   override def decodeValue(encoded: Array[Byte]): RevisionValue = {
-    RevisionValue.parseFrom(encoded)
+    RevisionValue.parseFrom(CompressedStream.decompressToBytes(encoded.wrap()).asArray())
+  }
+
+  override def encodeValue(value: RevisionValue): BytesWrapper = {
+    CompressedStream.compress(super.encodeValue(value), CompressionMode.snappy)
   }
 
   override def ordinal: Byte = 0
@@ -388,12 +399,17 @@ class RevisionContentColumnFamily extends ColumnFamily[RevisionContentKey, Revis
   }
 
   override def encodeKey(key: RevisionContentKey): Array[Byte] = {
-    s"${key.number}".getBytes()
+    val buffer = ByteBuffer.allocate(java.lang.Long.BYTES)
+    buffer.putLong(key.number)
+    buffer.array()
   }
 
   override def decodeKey(encoded: Array[Byte]): RevisionContentKey = {
-    val number = new String(encoded)
-    RevisionContentKey(number.toInt)
+    val buffer = ByteBuffer.allocate(java.lang.Long.BYTES)
+    buffer.put(encoded)
+    buffer.flip()
+    val key = buffer.getLong
+    RevisionContentKey(key)
   }
 
   override def decodeValue(encoded: Array[Byte]): RevisionContentValue = {

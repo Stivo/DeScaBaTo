@@ -32,23 +32,23 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = tr
 
   //  private def init(): Int = {
   //    val value = fileType.getFiles()
-  //    value
-  ////    val seq: Seq[(ValueLogStatusKey, ValueLogStatusValue)] = kvStore.getAllValueLogStatusKeys()
-  ////
-  ////    if (write) {
-  ////      seq.foreach { case (key, value) =>
-  ////        if (value.status == Status.WRITING || value.status == Status.MARKED_FOR_DELETION) {
-  ////          logger.warn("Deleting incomplete or obsolete file " + key)
-  ////          new File(folder, key.name).delete()
-  ////        }
-  ////      }
-  ////    }
-  ////    val onlyTheseFiles = seq.filter(_._1.name.startsWith(prefix))
-  ////    if (onlyTheseFiles.isEmpty) {
-  ////      0
-  ////    } else {
-  ////      onlyTheseFiles.map(_._1.parseNumber).max
-  ////    }
+  //
+  //    val seq: Seq[(ValueLogStatusKey, ValueLogStatusValue)] = kvStore.getAllValueLogStatusKeys()
+  //
+  //    if (write) {
+  //      seq.foreach { case (key, value) =>
+  //        if (value.status == Status.WRITING || value.status == Status.MARKED_FOR_DELETION) {
+  //          logger.warn("Deleting incomplete or obsolete file " + key)
+  //          new File(folder, key.name).delete()
+  //        }
+  //      }
+  //    }
+  //    val onlyTheseFiles = seq.filter(_._1.name.startsWith(fileType))
+  //    if (onlyTheseFiles.isEmpty) {
+  //      0
+  //    } else {
+  //      onlyTheseFiles.map(_._1.parseNumber).max
+  //    }
   //  }
 
   private var currentFile: Option[CurrentFile] = None
@@ -71,7 +71,8 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = tr
     val valueLogPositionBefore = valueLogWriteTiming.measure {
       fileToWriteTo.fileWriter.write(compressed)
     }
-    (ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore, lengthUncompressed = bytesWrapper.length, lengthCompressed = compressed.length), fileClosed)
+    (ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
+      lengthUncompressed = bytesWrapper.length, lengthCompressed = compressed.length), fileClosed)
   }
 
   private def closeCurrentFile(currentFile: CurrentFile) = {
@@ -83,9 +84,10 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = tr
 
   private def createNewFile(): CurrentFile = {
     val file = fileType.nextFile()
-    val key = ValueLogStatusKey(file.getName)
+    val relative = rocksEnv.backupFolder.toPath.relativize(file.toPath)
+    val key = ValueLogStatusKey(relative.toString)
     val value = ValueLogStatusValue(status = Status.WRITING)
-
+    kvStore.write(key, value)
     val currentFile = CurrentFile(file, key, value, config.newWriter(file))
     this.currentFile = Some(currentFile)
     currentFile
@@ -128,7 +130,7 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
   }
 
   def readValue(valueLogIndex: ValueLogIndex): BytesWrapper = {
-    val file = new File(rocksEnv.backupFolder, s"volume/${valueLogIndex.filename}")
+    val file = new File(rocksEnv.backupFolder, valueLogIndex.filename)
     if (!randomAccessFiles.contains(valueLogIndex.filename)) {
       randomAccessFiles += valueLogIndex.filename -> rocksEnv.config.newReader(file)
     }
