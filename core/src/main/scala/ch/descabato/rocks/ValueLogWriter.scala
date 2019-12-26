@@ -76,14 +76,13 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = tr
 
   private def closeCurrentFile(currentFile: CurrentFile) = {
     currentFile.fileWriter.close()
-    fileType.renameTempFileToFinal(currentFile.file)
     val status = currentFile.valueLogStatusValue
     val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition())
     kvStore.write(currentFile.key, newStatus)
   }
 
   private def createNewFile(): CurrentFile = {
-    val file = fileType.nextFile(temp = true)
+    val file = fileType.nextFile()
     val key = ValueLogStatusKey(file.getName)
     val value = ValueLogStatusValue(status = Status.WRITING)
 
@@ -129,7 +128,7 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
   }
 
   def readValue(valueLogIndex: ValueLogIndex): BytesWrapper = {
-    val file = new File(rocksEnv.valuelogsFolder, valueLogIndex.filename)
+    val file = new File(rocksEnv.backupFolder, s"volume/${valueLogIndex.filename}")
     if (!randomAccessFiles.contains(valueLogIndex.filename)) {
       randomAccessFiles += valueLogIndex.filename -> rocksEnv.config.newReader(file)
     }

@@ -37,20 +37,14 @@ trait FileType {
 
   def isMetadata(): Boolean = true
 
-  def nextFile(temp: Boolean = false): File
+  def nextFile(): File
 
-  def isTempFile(file: File): Boolean = file.getName.startsWith(Constants.tempPrefix)
-
-  def renameTempFileToFinal(file: File): Boolean = {
-    val newName = file.getName.substring(Constants.tempPrefix.length)
-    file.renameTo(new File(file.getParentFile, newName))
-  }
 }
 
 trait NumberedFileType extends FileType {
   def numberOfFile(file: File): Int
 
-  def fileForNumber(number: Int, temp: Boolean = false): File
+  def fileForNumber(number: Int): File
 }
 
 trait DatedFileType extends FileType {
@@ -98,11 +92,11 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
     file.getName.drop(name.length + 1).takeWhile(_.isDigit).toInt
   }
 
-  override def fileForNumber(number: Int, temp: Boolean = false): File = {
+  override def fileForNumber(number: Int): File = {
     val subfolderNumber = number / filesPerFolder
     val nameNumber = f"${number}%06d"
     val firstFolder = if (subfolderNumber > 0) s"${name}_$subfolderNumber/" else ""
-    new File(mainFolder, s"${if (temp) Constants.tempPrefix else ""}$firstFolder${name}_${nameNumber}.${suffix}")
+    new File(mainFolder, s"$firstFolder${name}_${nameNumber}.${suffix}")
   }
 
   override def getFiles(): Seq[File] = {
@@ -128,16 +122,16 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
     scheme1 || scheme2
   }
 
-  override def nextFile(temp: Boolean = false): File = {
+  override def nextFile(): File = {
     if (mainFolder.exists()) {
       val existing = getFiles().map(numberOfFile)
       if (existing.nonEmpty) {
-        fileForNumber(existing.max + 1, temp)
+        fileForNumber(existing.max + 1)
       } else {
-        fileForNumber(0, temp)
+        fileForNumber(0)
       }
     } else {
-      fileForNumber(0, temp)
+      fileForNumber(0)
     }
   }
 }
@@ -181,8 +175,8 @@ class StandardDatedFileType(name: String, suffix: String, config: BackupFolderCo
     }
   }
 
-  override def nextFile(temp: Boolean = false): File = {
+  override def nextFile(): File = {
     val date = new Date()
-    new File(config.folder, s"${if (temp) Constants.tempPrefix else ""}${name}_${dateFormatter.format(date)}.$suffix")
+    new File(config.folder, s"${name}_${dateFormatter.format(date)}.$suffix")
   }
 }

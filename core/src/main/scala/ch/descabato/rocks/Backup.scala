@@ -86,7 +86,6 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
     val revision = Revision(findNextRevision())
     val mt = new StandardMeasureTime()
 
-    rocks.currentRevision = revision
     for (folderToBackup <- str) {
       for (file <- Backup.listFiles(folderToBackup) if ignoreFileMatcher.pathIsNotIgnored(folderToBackup.toPath, file)) {
         backupFileOrFolderIfNecessary(file)

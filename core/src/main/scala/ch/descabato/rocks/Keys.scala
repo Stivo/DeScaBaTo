@@ -38,7 +38,7 @@ case class ChunkKey(hash: Hash) extends Key {
 
 case class Revision(number: Int) extends Key
 
-case class RevisionContentKey(revision: Revision, number: Long) extends Key
+case class RevisionContentKey(number: Long) extends Key
 
 case class ValueLogStatusKey(name: String) extends Key {
   def parseNumber: Int = {

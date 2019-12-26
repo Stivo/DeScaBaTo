@@ -43,9 +43,6 @@ object RocksDbKeyValueStore {
 
 class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) extends LazyLogging {
 
-  var currentRevision: Revision = null
-  // TODO
-  var currentNumber: Long = 0L
   private var alreadyClosed: Boolean = false
 
   private val handles: util.List[ColumnFamilyHandle] = new util.ArrayList[ColumnFamilyHandle]()
@@ -89,6 +86,10 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
 
   private val existsTiming = new StopWatch("exists")
   private val writeTiming = new StopWatch("write")
+
+  private var currentNumber: Long = {
+    readAllUpdates().map(_._1.number + 1).maxOption.getOrElse(0L)
+  }
 
   private var transaction: Transaction = null
   openTransaction()
@@ -138,8 +139,15 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     iterateKeysFrom[RevisionContentKey, RevisionContentValue](revisionContentColumnFamily)
   }
 
+  private def writeRevisionValueContent(value: RevisionContentValue): Unit = {
+    val keyEncoded = revisionContentColumnFamily.encodeKey(RevisionContentKey(currentNumber))
+    val valueEncoded = revisionContentColumnFamily.encodeValue(value)
+    transaction.put(revisionContentColumnFamily.handle, keyEncoded, valueEncoded.asArray())
+    currentNumber += 1
+  }
+
   def write[K <: Key, V](key: K, value: V, writeAsUpdate: Boolean = true): Unit = {
-    def writeImpl[K <: Key, V](cf: ColumnFamily[K, V], key: K, value: V) = {
+    def writeImpl(cf: ColumnFamily[K, V], key: K, value: V) = {
       val keyEncoded = cf.encodeKey(key)
       val valueEncoded = cf.encodeValue(value)
       transaction.put(cf.handle, keyEncoded, valueEncoded.asArray())
@@ -151,9 +159,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
       val (keyBytes, valueBytes) = writeImpl(cf, key, value)
       if (writeAsUpdate) {
         val revisionContentValue = RevisionContentValue.createUpdate(cf.ordinal, keyBytes, valueBytes)
-        val revisionContentKey = RevisionContentKey(currentRevision, currentNumber)
-        currentNumber += 1
-        writeImpl(revisionContentColumnFamily, revisionContentKey, revisionContentValue)
+        writeRevisionValueContent(revisionContentValue)
       }
     }
   }
@@ -215,7 +221,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     val encodedKey = cf.encodeKey(key)
     transaction.delete(cf.handle, encodedKey)
     if (writeAsUpdate) {
-      write(RevisionContentKey(currentRevision, currentNumber), RevisionContentValue.createDelete(cf.ordinal, encodedKey), true)
+      writeRevisionValueContent(RevisionContentValue.createDelete(cf.ordinal, encodedKey))
     }
   }
 
@@ -377,18 +383,17 @@ class RevisionContentColumnFamily extends ColumnFamily[RevisionContentKey, Revis
   override def name: String = "revisionContent"
 
   override def canHandle(key: Key): Boolean = key match {
-    case RevisionContentKey(_, _) => true
+    case RevisionContentKey(_) => true
     case _ => false
   }
 
   override def encodeKey(key: RevisionContentKey): Array[Byte] = {
-    s"${key.revision.number}_${key.number}".getBytes()
+    s"${key.number}".getBytes()
   }
 
   override def decodeKey(encoded: Array[Byte]): RevisionContentKey = {
-    val str = new String(encoded)
-    val strings = str.split("_")
-    RevisionContentKey(Revision(strings(0).toInt), strings(1).toInt)
+    val number = new String(encoded)
+    RevisionContentKey(number.toInt)
   }
 
   override def decodeValue(encoded: Array[Byte]): RevisionContentValue = {
