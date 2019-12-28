@@ -176,6 +176,30 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     }
   }
 
+  /**
+   * Warning: these keys and values are not exported to the metadata
+   *
+   * @param key
+   * @return
+   */
+  def readDefault(key: Array[Byte]): Array[Byte] = {
+    if (readOnly) {
+      db.get(key)
+    } else {
+      transaction.get(defaultReadOptions, key)
+    }
+  }
+
+  /**
+   * Warning: these keys and values are not exported to the metadata
+   *
+   * @param key
+   * @return
+   */
+  def writeDefault(key: Array[Byte], value: Array[Byte]): Unit = {
+    transaction.put(key, value)
+  }
+
   def readRevision(revision: Revision): Option[RevisionValue] = {
     read(revision)
   }

@@ -1,4 +1,4 @@
-package ch.descabato.it.tests
+package ch.descabato.it.rocks
 
 import ch.descabato.it.IntegrationTest
 import ch.descabato.it.RocksIntegrationTest

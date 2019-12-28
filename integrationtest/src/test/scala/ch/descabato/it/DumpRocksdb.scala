@@ -14,7 +14,7 @@ object DumpRocksdb extends Utils {
   def printRevisions(rocksEnv: RocksEnv): Unit = {
     val value: Seq[(Revision, RevisionValue)] = rocksEnv.rocks.getAllRevisions()
     value.map { case (revision, value) =>
-      s"$revision:\n" + value.files.map(_.toString).mkString("\n")
+      s"$revision:\n${value.configJson}\n" + value.files.map(_.toString).mkString("\n")
     }.foreach(logger.info(_))
   }
 

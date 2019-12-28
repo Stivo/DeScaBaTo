@@ -1,12 +1,17 @@
 package ch.descabato.core.config
 
-import java.io.{File, FileInputStream, FileOutputStream}
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
+import better.files._
 import ch.descabato.core.BackupException
 import ch.descabato.core.config.BackupVerification.OK
-import ch.descabato.frontend.{BackupFolderOption, ChangeableBackupOptions, CreateBackupOptions}
-import ch.descabato.utils.{JsonSerialization, Utils}
-
+import ch.descabato.frontend.BackupFolderOption
+import ch.descabato.frontend.ChangeableBackupOptions
+import ch.descabato.frontend.CreateBackupOptions
+import ch.descabato.utils.JsonSerialization
+import ch.descabato.utils.Utils
 
 object InitBackupFolderConfiguration extends Utils {
   def apply(option: BackupFolderOption, passphrase: Option[String]): BackupFolderConfiguration = {
@@ -105,8 +110,8 @@ object BackupVerification {
 }
 
 /**
-  * Loads a configuration and verifies the command line arguments
-  */
+ * Loads a configuration and verifies the command line arguments
+ */
 class BackupConfigurationHandler(private var supplied: BackupFolderOption, existing: Boolean) extends Utils {
 
   var passphrase: Option[String] = supplied.passphrase.toOption
@@ -127,13 +132,6 @@ class BackupConfigurationHandler(private var supplied: BackupFolderOption, exist
         logger.warn(s"Could not read config file $configFile", e)
         None
     }
-  }
-
-  def write(out: BackupFolderConfiguration) {
-    val json = new JsonSerialization()
-    val fos = new FileOutputStream(configFile)
-    json.writeObject(out, fos)
-    // writeObject closes
   }
 
   def verify(): BackupVerification.VerificationResult = {
@@ -157,6 +155,12 @@ class BackupConfigurationHandler(private var supplied: BackupFolderOption, exist
     //    if (conf.redundancyEnabled && CommandLineToolSearcher.lookUpName("par2").isEmpty) {
     //      throw ExceptionFactory.newPar2Missing
     //    }
+  }
+
+  private def write(out: BackupFolderConfiguration): Unit = {
+    for (fos <- new FileOutputStream(configFile).autoClosed) {
+      fos.write(out.asJson())
+    }
   }
 
   def updateAndGetConfiguration(): BackupFolderConfiguration = {

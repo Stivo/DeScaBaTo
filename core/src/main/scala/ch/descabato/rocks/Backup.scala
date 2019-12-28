@@ -12,22 +12,17 @@ import java.nio.file.attribute.DosFileAttributes
 import better.files._
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.IgnoreFileMatcher
-import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.frontend.BackupConf
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
-import ch.descabato.rocks.protobuf.keys.Status
-import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
-import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.VariableBlockOutputStream
-import ch.descabato.utils.Utils
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.codec.Charsets
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
@@ -41,9 +36,7 @@ object Backup {
 
 }
 
-class RunBackup(backupConf: BackupConf, config: BackupFolderConfiguration) extends AutoCloseable with LazyLogging {
-
-  private val rocksEnv = RocksEnv(config, readOnly = false)
+class RunBackup(rocksEnv: RocksEnv, backupConf: BackupConf) extends LazyLogging {
 
   def run(file: File): Unit = {
     val backupper = new Backupper(backupConf, rocksEnv)
@@ -54,9 +47,6 @@ class RunBackup(backupConf: BackupConf, config: BackupFolderConfiguration) exten
     //    println(s"Created $files files with ${Utils.readableFileSize(totalSize)}")
   }
 
-  override def close(): Unit = {
-    rocksEnv.close()
-  }
 }
 
 class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging {
@@ -95,7 +85,8 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
       }
     }
     logger.info("Took " + mt.measuredTime())
-    val value = RevisionValue(System.currentTimeMillis(), filesInRevision.toSeq)
+    val configJson = new String(rocksEnv.config.asJson(), Charsets.UTF_8)
+    val value = RevisionValue(created = System.currentTimeMillis(), configJson = configJson, files = filesInRevision.toSeq)
     rocks.write(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
@@ -192,66 +183,4 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
     }
   }
 
-}
-
-class MetadataExporter(rocksEnv: RocksEnv) extends Utils {
-  val kvStore = rocksEnv.rocks
-  private val filetype: StandardNumberedFileType = rocksEnv.fileManager.metadata
-
-  def exportUpdates(): Unit = {
-    val backupTime = new StandardMeasureTime()
-
-    val contentValues = kvStore.readAllUpdates()
-
-    val baos = new CustomByteArrayOutputStream()
-    contentValues.foreach { case (_, value) =>
-      baos.write(value.asArray())
-    }
-    for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes).autoClosed) {
-      valueLog.write(baos.toBytesWrapper)
-    }
-    contentValues.foreach { case (key, _) =>
-      kvStore.delete(key, writeAsUpdate = false)
-    }
-    logger.info(s"Finished exporting updates, took " + backupTime.measuredTime())
-    kvStore.commit()
-  }
-}
-
-
-class MetadataImporter(rocksEnv: RocksEnv) extends Utils {
-  val kvStore = rocksEnv.rocks
-  private val filetype: StandardNumberedFileType = rocksEnv.fileManager.metadata
-
-  def importMetadata(): Unit = {
-    val restoreTime = new StandardMeasureTime()
-
-    for (file <- filetype.getFiles()) {
-      for {
-        reader <- rocksEnv.config.newReader(file).autoClosed
-        decompressed <- CompressedStream.decompressToBytes(reader.readAllContent()).asInputStream().autoClosed
-        encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
-        encodedValue <- encodedValueOption
-      } {
-        val (deletion, key, value) = kvStore.decodeRevisionContentValue(encodedValue)
-        if (deletion) {
-          kvStore.delete(key, writeAsUpdate = false)
-        } else {
-          kvStore.write(key, value.get, writeAsUpdate = false)
-        }
-      }
-      kvStore.commit()
-    }
-    for (file <- filetype.getFiles()) {
-      val relativePath = rocksEnv.relativize(file)
-      val key = ValueLogStatusKey(relativePath)
-      val status = kvStore.readValueLogStatus(key)
-      if (status.isEmpty) {
-        logger.info("Adding status = finished for $relativePath")
-        kvStore.write(key, ValueLogStatusValue(Status.FINISHED, file.length()))
-      }
-    }
-    logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
-    kvStore.commit()
-  }
 }

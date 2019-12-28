@@ -6,7 +6,9 @@ import ch.descabato.core.model.Size
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
-import ch.descabato.{CompressionMode, HashAlgorithm}
+import ch.descabato.utils.JsonSerialization
+import ch.descabato.CompressionMode
+import ch.descabato.HashAlgorithm
 import org.bouncycastle.crypto.Digest
 
 case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
@@ -65,6 +67,12 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
 
   def verify(): Unit = {
     remoteOptions.verify()
+  }
+
+  @JsonIgnore
+  def asJson(): Array[Byte] = {
+    val json = new JsonSerialization()
+    json.write(this)
   }
 
 }

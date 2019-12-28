@@ -1,14 +1,15 @@
-package ch.descabato.it
+package ch.descabato.it.rocks
 
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.util.stream.Collectors
 
-import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
-import ch.descabato.rocks.MetadataImporter
-import ch.descabato.rocks.RocksEnv
+import ch.descabato.it.DumpRocksdb
+import ch.descabato.it.FileGen
+import ch.descabato.it.IntegrationTestBase
+import ch.descabato.it.RocksIntegrationTest
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import org.scalatest.Matchers._
@@ -62,11 +63,6 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
 
   it should "delete rocks data and restore it" in {
     deleteAll(new File(backup1, "rocks"))
-    val env = RocksEnv(BackupFolderConfiguration(backup1), false)
-    val importer = new MetadataImporter(env)
-    importer.importMetadata()
-    reportFiles()
-    env.close()
   }
 
   it should "backup 2/3" in {

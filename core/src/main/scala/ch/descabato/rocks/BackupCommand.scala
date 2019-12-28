@@ -4,7 +4,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.PrintStream
 
-import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.BackupConf
 import ch.descabato.frontend.BackupRelatedCommand
@@ -49,9 +48,10 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     if (!t.noScriptCreation()) {
       writeBat(t, conf, lastArgs)
     }
-    for (backup <- new RunBackup(t, conf).autoClosed) {
-      backup.run(t.folderToBackup())
-    }
+    val rocksEnv = new RepairLogic(conf, false).initialize()
+    val backup = new RunBackup(rocksEnv, t)
+    backup.run(t.folderToBackup())
+    rocksEnv.close()
   }
 
   override def needsExistingBackup = false

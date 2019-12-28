@@ -2,9 +2,13 @@
 - Ensure that chunking behaves the same
     - implement lower and upper bounds for chunking to prevent too large values => DONE
     - Test that same boundaries are chosen
+- manage state of rocksdb in rocksdb => needs work
+    - Need to be able to reinitialize rocks in rocksenv, so that the repair logic can close it, delete it and set it up
+    again
+   
+##### Done for MVP
 - ignore file => DONE
-- save config.json to database
-- manage state of rocksdb in rocksdb
+- save config.json to database => DONE, as part of revision
 - save md5 of saved file to rocksdb => DONE
 
 ##### exporting metadata
@@ -64,11 +68,6 @@ metadata value logs will be used to reconstruct the rocksdb content
 finishes the newly added metadata will be backed up to the value logs folder as metadata and then uploaded 
 to the cloud.
  
-##### States
-- Consistent
-- Writing
-- Reconstructing
-
 #### DONE:
 - implement .. folder change
 - Add length of uncompressed block to chunkValue (so skipping can be done without reading many parts of a file)

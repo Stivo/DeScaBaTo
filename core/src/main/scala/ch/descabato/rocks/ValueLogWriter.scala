@@ -15,6 +15,7 @@ import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Hash
+import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
 
@@ -78,7 +79,8 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = tr
   private def closeCurrentFile(currentFile: CurrentFile) = {
     currentFile.fileWriter.close()
     val status = currentFile.valueLogStatusValue
-    val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition())
+    val bs = ByteString.copyFrom(currentFile.fileWriter.md5Hash().bytes)
+    val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition(), md5Hash = bs)
     kvStore.write(currentFile.key, newStatus)
   }
 
