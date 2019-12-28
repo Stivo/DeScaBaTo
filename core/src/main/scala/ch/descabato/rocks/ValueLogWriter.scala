@@ -84,8 +84,8 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = tr
 
   private def createNewFile(): CurrentFile = {
     val file = fileType.nextFile()
-    val relative = rocksEnv.backupFolder.toPath.relativize(file.toPath)
-    val key = ValueLogStatusKey(relative.toString)
+    val relative = rocksEnv.relativize(file)
+    val key = ValueLogStatusKey(relative)
     val value = ValueLogStatusValue(status = Status.WRITING)
     kvStore.write(key, value)
     val currentFile = CurrentFile(file, key, value, config.newWriter(file))

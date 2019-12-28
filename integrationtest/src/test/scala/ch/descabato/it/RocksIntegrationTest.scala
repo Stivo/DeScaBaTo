@@ -1,8 +1,7 @@
 package ch.descabato.it
 
-abstract class RocksIntegrationTest extends IntegrationTest {
+trait RocksIntegrationTest extends IntegrationTestBase {
   override def mainClass: String = "ch.descabato.rocks.Main"
 
-  override val verifyEnabled: Boolean = false
 }
 

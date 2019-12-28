@@ -19,6 +19,8 @@ import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
+import ch.descabato.rocks.protobuf.keys.Status
+import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
@@ -239,6 +241,15 @@ class MetadataImporter(rocksEnv: RocksEnv) extends Utils {
         }
       }
       kvStore.commit()
+    }
+    for (file <- filetype.getFiles()) {
+      val relativePath = rocksEnv.relativize(file)
+      val key = ValueLogStatusKey(relativePath)
+      val status = kvStore.readValueLogStatus(key)
+      if (status.isEmpty) {
+        logger.info("Adding status = finished for $relativePath")
+        kvStore.write(key, ValueLogStatusValue(Status.FINISHED, file.length()))
+      }
     }
     logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
     kvStore.commit()

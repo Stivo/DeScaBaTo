@@ -176,6 +176,10 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     }
   }
 
+  def readRevision(revision: Revision): Option[RevisionValue] = {
+    read(revision)
+  }
+
   def readChunk(chunkKey: ChunkKey): Option[ValueLogIndex] = {
     read(chunkKey)
   }

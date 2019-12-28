@@ -5,15 +5,21 @@
 - ignore file => DONE
 - save config.json to database
 - manage state of rocksdb in rocksdb
+- save md5 of saved file to rocksdb => DONE
 
 ##### exporting metadata
 crash resilience still needs some work:
-- always track file status in db
-- no temp prefix
-- file status has only one entry for now: Finished
-- numbers for content values need to be correctly initialized
+- always track file status in db => Done
+- no temp prefix => Done
+- file status has statuses: Writing and Finished => Done
+- numbers for content values need to be correctly initialized => Done
 - Implement repair procedure
 - Implement periodic export of metadata
+- may need to use temp prefix after all:
+    - When rocks db folder is lost it is otherwise impossible to know whether file was written finished
+    - When file finishes:
+        - First set status to finished in rocks, including writing the md5 hash
+        - then rename file to not have temp prefix (if crash in between: rocksdb status wins)  
 
 also should:
 - import of metadata into rocksdb when rocksdb is deleted
@@ -60,9 +66,8 @@ to the cloud.
  
 ##### States
 - Consistent
-- Backing up
-- Importing
-- Compacting
+- Writing
+- Reconstructing
 
 #### DONE:
 - implement .. folder change

@@ -2,7 +2,6 @@ package ch.descabato.rocks
 
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Date
 
 import better.files._
 import ch.descabato.core.commands.RestoredPathLogic
@@ -21,9 +20,10 @@ class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
 
   import rocksEnv._
 
-  def restoreFromDate(t: RestoreConf, date: Date): Unit = {
-    val revision = rocks.getAllRevisions().maxBy(_._1.number)
-    restoreRevision(t, revision)
+  def restoreByRevision(t: RestoreConf, number: Int): Unit = {
+    val revision = Revision(number)
+    val revisionValue = rocks.readRevision(revision)
+    restoreRevision(t, (revision, revisionValue.getOrElse(throw new IllegalArgumentException(s"Could not find revision $number"))))
   }
 
   def restoreLatest(t: RestoreConf): Unit = {

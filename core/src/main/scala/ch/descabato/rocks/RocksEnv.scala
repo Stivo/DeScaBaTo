@@ -9,6 +9,11 @@ import com.typesafe.scalalogging.LazyLogging
 
 class RocksEnv(val config: BackupFolderConfiguration, private val readOnly: Boolean) extends LazyLogging with AutoCloseable {
   val backupFolder: File = config.folder
+
+  def relativize(file: File): String = {
+    backupFolder.toPath.relativize(file.toPath).toString
+  }
+
   private var readerInitialized = false
   lazy val reader: ValueLogReader = {
     readerInitialized = true
