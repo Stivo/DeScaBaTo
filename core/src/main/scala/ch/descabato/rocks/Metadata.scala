@@ -58,26 +58,26 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
   private val initialRockState = RepairLogic.readStatus(initialRocks)
 
   private val fileManager = rocksEnvInit.fileManager
-  private val metadataType = fileManager.metadata
+  private val dbExportType = fileManager.dbexport
   private val volumeType = fileManager.volume
 
   private def getFiles(fileType: StandardNumberedFileType): (Seq[io.File], Seq[io.File]) = {
     fileType.getFiles().partition(x => !fileType.isTempFile(x))
   }
 
-  private val (metadataFiles, metadataTempFiles) = getFiles(metadataType)
-  private val allMetadataFiles = metadataFiles ++ metadataTempFiles
+  private val (dbExportFiles, dbExportTempFiles) = getFiles(dbExportType)
+  private val allDbExportFiles = dbExportFiles ++ dbExportTempFiles
   private val (volumeFiles, volumeTempFiles) = getFiles(volumeType)
   private val allVolumeFiles = volumeFiles ++ volumeTempFiles
 
 
   def isConsistent(): Boolean = {
     // are there no temp files?
-    val noTempFiles = volumeTempFiles.isEmpty && metadataTempFiles.isEmpty
+    val noTempFiles = volumeTempFiles.isEmpty && dbExportTempFiles.isEmpty
     // is the rocksdb available and consistent?
     val isConsistent = initialRockState == Some(Consistent)
     // Are both metadata and rocksdb missing? => New, that is also consistent
-    val isNew = allMetadataFiles.isEmpty && allVolumeFiles.isEmpty && initialRockState.isEmpty
+    val isNew = allDbExportFiles.isEmpty && allVolumeFiles.isEmpty && initialRockState.isEmpty
     noTempFiles && (isConsistent || isNew)
   }
 
@@ -114,8 +114,8 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
 
   def deleteTempFiles(): Unit = {
     val fm = rocksEnvInit.fileManager
-    for (file <- fm.metadata.getFiles()) {
-      if (fm.metadata.isTempFile(file)) {
+    for (file <- fm.dbexport.getFiles()) {
+      if (fm.dbexport.isTempFile(file)) {
         logger.info(s"Deleting temp file $file")
         file.delete()
       }
@@ -154,7 +154,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     }
 
     eitherDeleteOrRename(volumeTempFiles, volumeType)
-    eitherDeleteOrRename(metadataTempFiles, metadataType)
+    eitherDeleteOrRename(dbExportTempFiles, dbExportType)
     rocks.commit()
   }
 
@@ -173,7 +173,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     val rocks = RocksDbKeyValueStore(rocksEnvInit)
     RepairLogic.setStateTo(RocksStates.Reconstructing, rocks)
     rocks.commit()
-    new MetadataImporter(rocksEnvInit, rocks).importMetadata()
+    new DbImporter(rocksEnvInit, rocks).importMetadata()
     RepairLogic.setStateTo(RocksStates.Consistent, rocks)
     rocks.commit()
     rocks
@@ -181,9 +181,9 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
 
 }
 
-class MetadataExporter(rocksEnv: RocksEnv) extends Utils {
+class DbExporter(rocksEnv: RocksEnv) extends Utils {
   val kvStore: RocksDbKeyValueStore = rocksEnv.rocks
-  private val filetype: StandardNumberedFileType = rocksEnv.fileManager.metadata
+  private val filetype: StandardNumberedFileType = rocksEnv.fileManager.dbexport
 
   def exportUpdates(): Unit = {
     val backupTime = new StandardMeasureTime()
@@ -207,9 +207,9 @@ class MetadataExporter(rocksEnv: RocksEnv) extends Utils {
 }
 
 
-class MetadataImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore) extends Utils {
+class DbImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore) extends Utils {
 
-  private val filetype: StandardNumberedFileType = rocksEnvInit.fileManager.metadata
+  private val filetype: StandardNumberedFileType = rocksEnvInit.fileManager.dbexport
 
   def importMetadata(): Unit = {
     val restoreTime = new StandardMeasureTime()

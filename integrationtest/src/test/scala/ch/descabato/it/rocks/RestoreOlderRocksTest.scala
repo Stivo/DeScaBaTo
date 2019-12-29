@@ -30,6 +30,7 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
   val backup1 = folder("backup_old1")
   val restore1 = folder("restore_old1")
   val restore2 = folder("restore_old2")
+  val restore2_2 = folder("restore_old2_2")
   val restore3 = folder("restore_old3")
 
   val restoreInfoName = "restore-info.txt"
@@ -58,7 +59,7 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
     IOUtils.closeQuietly(fos)
   }
 
-  it should "backup 1/3" in {
+  it should "backup 1/4" in {
     startAndWait(s"backup --compression gzip $backup1 $input3".split(" ")) should be(0)
   }
 
@@ -73,15 +74,15 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
     deleteAll(new File(backup1, "rocks"))
   }
 
-  it should "backup 2/3 after rocks data was lost" in {
+  it should "backup 2/4 after rocks data was lost" in {
     startAndWait(s"backup --ignore-file ${ignoreFile.getAbsolutePath} $backup1 $input3".split(" ")) should be(0)
   }
 
-  var metadataModified = 0L
+  var dbExportModified = 0L
   var volumeModified = 0L
 
   it should "rename some done files to temp" in {
-    metadataModified = renameFile(fm.metadata)
+    dbExportModified = renameFile(fm.dbexport)
     volumeModified = renameFile(fm.volume)
   }
 
@@ -96,6 +97,8 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
     DumpRocksdb.main(Array(backup1.getAbsolutePath))
   }
 
+  var volumesAfterBackup2 = 0
+
   it should getNextPartName() in {
     FileUtils.copyDirectory(input3, input2, true)
     fg.changeSome()
@@ -103,41 +106,63 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
     an[IllegalArgumentException] should be thrownBy {
       reportDbContent()
     }
+    volumesAfterBackup2 = fm.volume.getFiles().length
   }
 
-  it should "backup 3/3 after crash before renaming" in {
-    startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
+  it should "backup 3/4 the same data again without creating new volumes and crash before renaming" in {
+    startAndWait(s"backup $backup1 $input2".split(" ")) should be(0)
   }
 
   it should "not change the files that were declared finished in rocksdb" in {
-    fm.metadata.fileForNumber(0, temp = true) should not(exist)
-    fm.metadata.fileForNumber(0, temp = false) should (exist)
-    fm.metadata.fileForNumber(0, temp = false).lastModified() should be(metadataModified)
+    fm.dbexport.fileForNumber(0, temp = true) should not(exist)
+    fm.dbexport.fileForNumber(0, temp = false) should (exist)
+    fm.dbexport.fileForNumber(0, temp = false).lastModified() should be(dbExportModified)
     fm.volume.fileForNumber(0, temp = true) should not(exist)
     fm.volume.fileForNumber(0, temp = false) should (exist)
     fm.volume.fileForNumber(0, temp = false).lastModified() should be(volumeModified)
   }
 
-  var backupRevisions = 1 to 3
 
   it should getNextPartName() in {
-    reportFiles
+    fm.volume.getFiles().length should be(volumesAfterBackup2)
+    reportFiles()
     reportDbContent()
   }
 
-  it should "restore 1/3" in {
+  it should "backup 4/4" in {
+    startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
+  }
+
+  it should getNextPartName() in {
+    reportFiles()
+    reportDbContent()
+  }
+
+  // ----------------------------------
+  // Restoring
+  // ----------------------------------
+  var backupRevisions = 1 to 4
+
+  it should "restore 1/4" in {
     startAndWait(s"restore --restore-backup ${backupRevisions(0)} --restore-info $restoreInfoName --restore-to-folder $restore1 $backup1".split(" ")) should be(0)
     //    assertRestoreInfoWritten(restore1, backupFiles(0))
     compareBackups(input1, restore1)
   }
 
-  it should "restore 2/3" in {
+  it should "restore 2/4" in {
     startAndWait(s"restore --restore-backup ${backupRevisions(1)} --restore-to-folder $restore2 $backup1".split(" ")) should be(0)
     //    FileUtils.deleteQuietly(new File(input2, "copy1"))
     compareBackups(input2, restore2)
   }
 
-  it should "restore 3/3" in {
+  it should "restore 3/4" in {
+    startAndWait(s"restore --restore-backup ${backupRevisions(2)} --restore-to-folder $restore2_2 $backup1".split(" ")) should be(0)
+    //    assertRestoreInfoWritten(restore3, backupFiles(2))
+    FileUtils.deleteQuietly(new File(input3, "copy1"))
+    compareBackups(input2, restore2)
+  }
+
+  it should "restore 4/4" in {
     startAndWait(s"restore --restore-info $restoreInfoName --restore-to-folder $restore3 $backup1".split(" ")) should be(0)
     //    assertRestoreInfoWritten(restore3, backupFiles(2))
     FileUtils.deleteQuietly(new File(input3, "copy1"))

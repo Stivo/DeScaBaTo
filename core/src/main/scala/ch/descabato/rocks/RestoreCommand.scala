@@ -2,7 +2,6 @@ package ch.descabato.rocks
 
 import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.core.util.FileManager
 import ch.descabato.frontend.BackupRelatedCommand
 import ch.descabato.frontend.RestoreConf
 
@@ -16,7 +15,6 @@ class RestoreCommand extends BackupRelatedCommand {
     printConfiguration(t)
     validateFilename(t.restoreToFolder)
     validateFilename(t.restoreInfo)
-    val fm = new FileManager(conf)
     for (restore <- new DoRestore(conf).autoClosed) {
       if (t.chooseDate()) {
         //        val options = fm.backup.getFiles().map(fm.backup.dateOfFile).zipWithIndex

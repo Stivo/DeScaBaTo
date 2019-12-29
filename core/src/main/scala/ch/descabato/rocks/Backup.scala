@@ -91,7 +91,7 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
     logger.info("Closing valuelog")
     valueLog.close()
     rocks.commit()
-    new MetadataExporter(rocksEnv).exportUpdates()
+    new DbExporter(rocksEnv).exportUpdates()
     val compacting = new StandardMeasureTime()
     rocks.compact()
     logger.info("Compaction took " + compacting.measuredTime())

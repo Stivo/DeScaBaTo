@@ -74,9 +74,10 @@ class FileManager(config: BackupFolderConfiguration) {
   val volume = new StandardNumberedFileType("volume", "json.gz", config)
   val volumeIndex = new StandardNumberedFileType("volumeIndex", "json.gz", config)
   val metadata = new StandardNumberedFileType("metadata", "json.gz", config)
+  val dbexport = new StandardNumberedFileType("dbexport", "json.gz", config)
   val backup = new StandardDatedFileType("backup", "json.gz", config)
 
-  private val filetypes = Seq(volume, volumeIndex, metadata, backup)
+  private val filetypes = Seq(volume, volumeIndex, metadata, backup, dbexport)
 
   def allFiles(): Seq[File] = {
     filetypes.flatMap(_.getFiles())

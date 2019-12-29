@@ -2,14 +2,14 @@
 - Ensure that chunking behaves the same
     - implement lower and upper bounds for chunking to prevent too large values => DONE
     - Test that same boundaries are chosen
-- manage state of rocksdb in rocksdb => needs work
-    - Need to be able to reinitialize rocks in rocksenv, so that the repair logic can close it, delete it and set it up
-    again => DONE
    
 ##### Done for MVP
 - ignore file => DONE
 - save config.json to database => DONE, as part of revision
 - save md5 of saved file to rocksdb => DONE
+- manage state of rocksdb in rocksdb => needs work
+    - Need to be able to reinitialize rocks in rocksenv, so that the repair logic can close it, delete it and set it up
+    again => DONE
 
 ##### exporting metadata
 crash resilience still needs some work:
