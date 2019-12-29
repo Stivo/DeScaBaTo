@@ -4,7 +4,7 @@
     - Test that same boundaries are chosen
 - manage state of rocksdb in rocksdb => needs work
     - Need to be able to reinitialize rocks in rocksenv, so that the repair logic can close it, delete it and set it up
-    again
+    again => DONE
    
 ##### Done for MVP
 - ignore file => DONE
@@ -17,17 +17,17 @@ crash resilience still needs some work:
 - no temp prefix => Done
 - file status has statuses: Writing and Finished => Done
 - numbers for content values need to be correctly initialized => Done
-- Implement repair procedure
+- Implement repair procedure => DONE
 - Implement periodic export of metadata
 - may need to use temp prefix after all:
     - When rocks db folder is lost it is otherwise impossible to know whether file was written finished
     - When file finishes:
-        - First set status to finished in rocks, including writing the md5 hash
-        - then rename file to not have temp prefix (if crash in between: rocksdb status wins)  
+        - First set status to finished in rocks, including writing the md5 hash => DONE
+        - then rename file to not have temp prefix (if crash in between: rocksdb status wins) => DONE  
 
 also should:
-- import of metadata into rocksdb when rocksdb is deleted
-    - with integration test
+- import of metadata into rocksdb when rocksdb is deleted => DONE
+    - with integration test => DONE
 
 #### Import for descabato 0.6 backup
 - Ensure that metadata is imported

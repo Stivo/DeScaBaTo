@@ -6,8 +6,8 @@ import java.io.SequenceInputStream
 
 import ch.descabato.CompressionMode
 import ch.descabato.core.util.FileReader
-import ch.descabato.core.util.FileType
 import ch.descabato.core.util.FileWriter
+import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.Status
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
@@ -19,7 +19,7 @@ import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
 
-class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
+class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
 
   private val kvStore = rocksEnv.rocks
   private val config = rocksEnv.config
@@ -74,17 +74,23 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = tr
       lengthUncompressed = bytesWrapper.length, lengthCompressed = compressed.length), fileClosed)
   }
 
-  private def closeCurrentFile(currentFile: CurrentFile) = {
+  private def closeCurrentFile(currentFile: CurrentFile): Unit = {
     currentFile.fileWriter.close()
     val status = currentFile.valueLogStatusValue
     val bs = ByteString.copyFrom(currentFile.fileWriter.md5Hash().bytes)
     val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition(), md5Hash = bs)
     kvStore.write(currentFile.key, newStatus)
+    kvStore.callbackOnNextCommit { () =>
+      logger.info(s"Renaming ${currentFile.file} to final name")
+      fileType.renameTempFileToFinal(currentFile.file)
+    }
   }
 
   private def createNewFile(): CurrentFile = {
-    val file = fileType.nextFile()
-    val relative = rocksEnv.config.relativePath(file)
+    val file = fileType.nextFile(temp = true)
+    val number = fileType.numberOfFile(file)
+    val finalFile = fileType.fileForNumber(number, temp = false)
+    val relative = rocksEnv.config.relativePath(finalFile)
     val key = ValueLogStatusKey(relative)
     val value = ValueLogStatusValue(status = Status.WRITING)
     kvStore.write(key, value)

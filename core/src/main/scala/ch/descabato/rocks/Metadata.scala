@@ -1,5 +1,6 @@
 package ch.descabato.rocks
 
+import java.io
 import java.nio.charset.StandardCharsets
 import java.util
 
@@ -36,46 +37,125 @@ object RocksStates extends Enumeration {
 
 }
 
+object RepairLogic {
+
+  val rocksStatusKey: Array[Byte] = "rocks_status".getBytes
+
+  def readStatus(rocks: RocksDbKeyValueStore): Option[RocksStates.Value] = {
+    RocksStates.fromBytes(rocks.readDefault(RepairLogic.rocksStatusKey))
+  }
+
+  def setStateTo(rocksStates: RocksStates.Value, rocksDbKeyValueStore: RocksDbKeyValueStore): Unit = {
+    rocksDbKeyValueStore.writeDefault(rocksStatusKey, rocksStates.asBytes())
+  }
+}
+
 class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
 
   import RocksStates._
 
-  val initialRocks: RocksDbKeyValueStore = RocksDbKeyValueStore(rocksEnvInit)
+  private val initialRocks: RocksDbKeyValueStore = RocksDbKeyValueStore(rocksEnvInit)
+  private val initialRockState = RepairLogic.readStatus(initialRocks)
 
-  val importer = new MetadataImporter(rocksEnvInit, initialRocks)
+  private val fileManager = rocksEnvInit.fileManager
+  private val metadataType = fileManager.metadata
+  private val volumeType = fileManager.volume
 
-  val key: Array[Byte] = "rocks_status".getBytes
+  private def getFiles(fileType: StandardNumberedFileType): (Seq[io.File], Seq[io.File]) = {
+    fileType.getFiles().partition(x => !fileType.isTempFile(x))
+  }
+
+  private val (metadataFiles, metadataTempFiles) = getFiles(metadataType)
+  private val allMetadataFiles = metadataFiles ++ metadataTempFiles
+  private val (volumeFiles, volumeTempFiles) = getFiles(volumeType)
+  private val allVolumeFiles = volumeFiles ++ volumeTempFiles
+
+
+  def isConsistent(): Boolean = {
+    // are there no temp files?
+    val noTempFiles = volumeTempFiles.isEmpty && metadataTempFiles.isEmpty
+    // is the rocksdb available and consistent?
+    val isConsistent = initialRockState == Some(Consistent)
+    // Are both metadata and rocksdb missing? => New, that is also consistent
+    val isNew = allMetadataFiles.isEmpty && allVolumeFiles.isEmpty && initialRockState.isEmpty
+    noTempFiles && (isConsistent || isNew)
+  }
 
   def initialize(): RocksDbKeyValueStore = {
-    (RocksStates.fromBytes(initialRocks.readDefault(key)), rocksEnvInit.readOnly) match {
-      case (None, false) =>
-        // new database or unknown value, set to consistent
-        // delete rocks and restart import
-        logger.info("New database detected or database corrupt. Reimporting from metadata")
-        closeRocks()
-        deleteRocksFolder()
-        reimportIfAllowed()
-      case (None, true) =>
-        logger.info("Database repair is recommended")
-        initialRocks
-      case (Some(Consistent), _) =>
-        // nothing to do
-        initialRocks
-      case (Some(Writing), _) =>
-        // start repair
-        // TODO
-        ???
-      case (Some(Reconstructing), false) =>
-        // delete rocks and restart import
-        logger.info("Reconstruction was interrupted last time. Beginning Reconstruction again.")
-        closeRocks()
-        deleteRocksFolder()
-        reimportIfAllowed()
-      case (Some(Reconstructing), true) =>
-        // delete rocks and restart import
-        logger.info("Reconstruction was interrupted last time. Repair is recommended")
-        initialRocks
+    if (isConsistent()) {
+      logger.info("Backup loaded without issues")
+      // return, all is fine
+      initialRocks
+    } else {
+      if (rocksEnvInit.readOnly) {
+        // return as is, tell user to repair
+        // maybe list problems
+        throw new IllegalArgumentException("Database is in an inconsistent state and no repair allowed. Please call repair.")
+      } else {
+        // repair
+        if (rocksEnvInit.startedWithoutRocksdb || initialRockState == Some(Reconstructing)) {
+          logger.warn("Need to reconstruct rocksdb from metadata. Rocks folder seems to have been lost since last usage.")
+          closeRocks()
+          deleteRocksFolder()
+          deleteTempFiles()
+          // propose compaction
+          reimport()
+        } else {
+          logger.warn("Need to cleanup temp files.")
+          eitherDeleteTempFilesOrRename(initialRocks)
+          // propose compaction
+          RepairLogic.setStateTo(Consistent, initialRocks)
+          initialRocks.commit()
+          initialRocks
+        }
+      }
     }
+  }
+
+  def deleteTempFiles(): Unit = {
+    val fm = rocksEnvInit.fileManager
+    for (file <- fm.metadata.getFiles()) {
+      if (fm.metadata.isTempFile(file)) {
+        logger.info(s"Deleting temp file $file")
+        file.delete()
+      }
+    }
+    for (file <- fm.volume.getFiles()) {
+      if (fm.volume.isTempFile(file)) {
+        logger.info(s"Deleting temp file $file")
+        file.delete()
+      }
+    }
+  }
+
+  def eitherDeleteTempFilesOrRename(rocks: RocksDbKeyValueStore): Unit = {
+
+    def eitherDeleteOrRename(tempFiles: Seq[io.File], fileType: StandardNumberedFileType): Unit = {
+      for (tempFile <- tempFiles) {
+        val relativePath = rocksEnvInit.config.relativePath(fileType.finalNameForTempFile(tempFile))
+        val key = ValueLogStatusKey(relativePath)
+        val status = rocks.readValueLogStatus(key)
+        status match {
+          case Some(ValueLogStatusValue(Status.FINISHED, _, _)) =>
+            logger.info(s"File $tempFile is marked as finished in rocksdb, so renaming to final name.")
+            fileType.renameTempFileToFinal(tempFile)
+          case Some(ValueLogStatusValue(Status.WRITING, _, _)) =>
+            logger.info(s"File $tempFile is marked as writing in rocksdb, so deleting it.")
+            tempFile.delete()
+            val newStatus = status.map { s =>
+              s.copy(status = Status.DELETED, size = -1L, ByteString.EMPTY)
+            }.get
+            rocks.write(key, newStatus)
+          case None =>
+            // this should not be possible
+            ???
+        }
+      }
+    }
+
+    eitherDeleteOrRename(volumeTempFiles, volumeType)
+    eitherDeleteOrRename(metadataTempFiles, metadataType)
+    rocks.commit()
   }
 
   def closeRocks(): Unit = {
@@ -86,12 +166,15 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     FileUtils.deleteAll(rocksEnvInit.rocksFolder)
   }
 
-  def reimportIfAllowed(): RocksDbKeyValueStore = {
+  def reimport(): RocksDbKeyValueStore = {
+    if (rocksEnvInit.readOnly) {
+      throw new IllegalArgumentException("May not be called when database is opened read only")
+    }
     val rocks = RocksDbKeyValueStore(rocksEnvInit)
-    rocks.writeDefault(key, RocksStates.Reconstructing.asBytes())
+    RepairLogic.setStateTo(RocksStates.Reconstructing, rocks)
     rocks.commit()
     new MetadataImporter(rocksEnvInit, rocks).importMetadata()
-    rocks.writeDefault(key, RocksStates.Consistent.asBytes())
+    RepairLogic.setStateTo(RocksStates.Consistent, rocks)
     rocks.commit()
     rocks
   }
@@ -118,6 +201,7 @@ class MetadataExporter(rocksEnv: RocksEnv) extends Utils {
       kvStore.delete(key, writeAsUpdate = false)
     }
     logger.info(s"Finished exporting updates, took " + backupTime.measuredTime())
+    RepairLogic.setStateTo(RocksStates.Consistent, kvStore)
     kvStore.commit()
   }
 }

@@ -237,10 +237,21 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     }
   }
 
+  type Callback = () => Unit
+  private var callbacksOnNextCommit: Seq[Callback] = Seq.empty
+
+  def callbackOnNextCommit(callback: Callback): Unit = {
+    callbacksOnNextCommit :+= callback
+  }
+
   def commit(): Unit = {
     logger.info(s"Committing to rocksdb: ${transaction.getNumPuts} writes and ${transaction.getNumDeletes} deletions")
     transaction.commit()
     transaction.close()
+    for (callback <- callbacksOnNextCommit) {
+      callback.apply()
+    }
+    callbacksOnNextCommit = Seq.empty
     openTransaction()
   }
 
