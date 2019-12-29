@@ -3,9 +3,15 @@ package ch.descabato.it.rocks
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.stream.Collectors
 
+import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
+import ch.descabato.core.util.FileManager
+import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.it.DumpRocksdb
 import ch.descabato.it.FileGen
 import ch.descabato.it.IntegrationTestBase
@@ -31,13 +37,14 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
   lazy val fg = new FileGen(input3, "20Mb")
   val ignoreFile = new File("ignored.txt")
   var part = 0
+  val fm = new FileManager(BackupFolderConfiguration(backup1))
 
   def reportFiles(): Unit = {
     Files.walk(backup1.toPath).collect(Collectors.toList()).asScala.sorted.foreach { f =>
       val path = backup1.toPath.relativize(f).toString
-      println(s"$path ${Size(f.toFile.length())}")
+      val date = LocalDateTime.ofInstant(Instant.ofEpochMilli(f.toFile.lastModified()), ZoneId.systemDefault()).toString
+      println(f"${Size(f.toFile.length())}%10s ${date}%s $path%s")
     }
-    DumpRocksdb.main(Array(backup1.getAbsolutePath))
   }
 
   "restore old versions" should "setup" in {
@@ -58,31 +65,64 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
   it should getNextPartName() in {
     FileUtils.copyDirectory(input3, input1, true)
     fg.changeSome()
-    reportFiles
+    reportFiles()
+    reportDbContent()
   }
 
-  it should "delete rocks data and restore it" in {
+  it should "delete rocks data" in {
     deleteAll(new File(backup1, "rocks"))
   }
 
-  it should "backup 2/3" in {
+  it should "backup 2/3 after rocks data was lost" in {
     startAndWait(s"backup --ignore-file ${ignoreFile.getAbsolutePath} $backup1 $input3".split(" ")) should be(0)
+  }
+
+  var metadataModified = 0L
+  var volumeModified = 0L
+
+  it should "rename some done files to temp" in {
+    metadataModified = renameFile(fm.metadata)
+    volumeModified = renameFile(fm.volume)
+  }
+
+  private def renameFile(fileType: StandardNumberedFileType) = {
+    val before = fileType.fileForNumber(0, temp = false)
+    val after = fileType.fileForNumber(0, temp = true)
+    before.renameTo(after)
+    after.lastModified()
+  }
+
+  def reportDbContent(): Unit = {
+    DumpRocksdb.main(Array(backup1.getAbsolutePath))
   }
 
   it should getNextPartName() in {
     FileUtils.copyDirectory(input3, input2, true)
     fg.changeSome()
-    reportFiles
+    reportFiles()
+    an[IllegalArgumentException] should be thrownBy {
+      reportDbContent()
+    }
   }
 
-  it should "backup 3/3 after rocksdb has been lost" in {
+  it should "backup 3/3 after crash before renaming" in {
     startAndWait(s"backup $backup1 $input3".split(" ")) should be(0)
+  }
+
+  it should "not change the files that were declared finished in rocksdb" in {
+    fm.metadata.fileForNumber(0, temp = true) should not(exist)
+    fm.metadata.fileForNumber(0, temp = false) should (exist)
+    fm.metadata.fileForNumber(0, temp = false).lastModified() should be(metadataModified)
+    fm.volume.fileForNumber(0, temp = true) should not(exist)
+    fm.volume.fileForNumber(0, temp = false) should (exist)
+    fm.volume.fileForNumber(0, temp = false).lastModified() should be(volumeModified)
   }
 
   var backupRevisions = 1 to 3
 
   it should getNextPartName() in {
     reportFiles
+    reportDbContent()
   }
 
   it should "restore 1/3" in {
