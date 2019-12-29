@@ -11,8 +11,8 @@ import java.nio.file.attribute.DosFileAttributes
 
 import better.files._
 import ch.descabato.CustomByteArrayOutputStream
-import ch.descabato.core.IgnoreFileMatcher
-import ch.descabato.frontend.BackupConf
+import ch.descabato.core.FileVisitorCollector
+import ch.descabato.frontend.MultipleBackupConf
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.FileType
@@ -25,22 +25,23 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.codec.Charsets
 
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object Backup {
 
-  def listFiles(folder: File): Iterator[Path] = {
-    Files.walk(folder.toPath).iterator().asScala
+  def listFiles(folder: File, ignoreFile: Option[File]): (Seq[Path], Seq[Path]) = {
+    val visitor = new FileVisitorCollector(ignoreFile)
+    visitor.walk(folder.toPath)
+    (visitor.dirs, visitor.files)
   }
 
 }
 
-class RunBackup(rocksEnv: RocksEnv, backupConf: BackupConf) extends LazyLogging {
+class RunBackup(rocksEnv: RocksEnv, backupConf: MultipleBackupConf) extends LazyLogging {
 
-  def run(file: File): Unit = {
+  def run(file: Seq[File]): Unit = {
     val backupper = new Backupper(backupConf, rocksEnv)
-    backupper.backup(file)
+    backupper.backup(file: _*)
     backupper.printStatistics()
     //    val totalSize = listFiles(dbFolder).map(_.toFile.length()).sum
     //    val files = listFiles(dbFolder).size
@@ -49,11 +50,9 @@ class RunBackup(rocksEnv: RocksEnv, backupConf: BackupConf) extends LazyLogging 
 
 }
 
-class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging {
+class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends LazyLogging {
 
   import rocksEnv._
-
-  val ignoreFileMatcher = new IgnoreFileMatcher(rocksEnv.config.ignoreFile)
 
   def printStatistics(): Unit = {
     logger.info(s"Chunks found: ${chunkFoundCounter}")
@@ -80,7 +79,8 @@ class Backupper(backupConf: BackupConf, rocksEnv: RocksEnv) extends LazyLogging 
     val mt = new StandardMeasureTime()
     RepairLogic.setStateTo(RocksStates.Writing, rocks)
     for (folderToBackup <- str) {
-      for (file <- Backup.listFiles(folderToBackup) if ignoreFileMatcher.pathIsNotIgnored(folderToBackup.toPath, file)) {
+      val (folders, files) = Backup.listFiles(folderToBackup, rocksEnv.config.ignoreFile)
+      for (file <- folders ++ files) {
         backupFileOrFolderIfNecessary(file)
       }
     }

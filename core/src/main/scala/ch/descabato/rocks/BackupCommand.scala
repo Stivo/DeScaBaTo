@@ -6,8 +6,8 @@ import java.io.PrintStream
 
 import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.frontend.BackupConf
 import ch.descabato.frontend.BackupRelatedCommand
+import ch.descabato.frontend.MultipleBackupConf
 import ch.descabato.utils.Utils
 
 
@@ -39,9 +39,9 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     writeTo(new File(conf.folder, "_" + conf.folder.getName() + suffix))
   }
 
-  type T = BackupConf
+  type T = MultipleBackupConf
 
-  def newT(args: Seq[String]) = new BackupConf(args)
+  def newT(args: Seq[String]) = new MultipleBackupConf(args)
 
   def start(t: T, conf: BackupFolderConfiguration) {
     printConfiguration(t)
@@ -51,7 +51,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     }
     for (rocksEnv <- RocksEnv(conf, readOnly = false).autoClosed) {
       val backup = new RunBackup(rocksEnv, t)
-      backup.run(t.folderToBackup())
+      backup.run(t.foldersToBackup())
     }
   }
 

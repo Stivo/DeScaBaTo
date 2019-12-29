@@ -6,23 +6,23 @@ import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
+import ch.descabato.CompressionMode
+import ch.descabato.HashAlgorithm
+import ch.descabato.RemoteMode
+import ch.descabato.core.BackupCorruptedException
+import ch.descabato.core.BackupException
+import ch.descabato.core.MisconfigurationException
+import ch.descabato.core.Universe
 import ch.descabato.core.commands.DoBackup
 import ch.descabato.core.commands.DoRestore
 import ch.descabato.core.commands.DoVerify
 import ch.descabato.core.config.BackupConfigurationHandler
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
-import ch.descabato.core.BackupCorruptedException
-import ch.descabato.core.BackupException
-import ch.descabato.core.MisconfigurationException
-import ch.descabato.core.Universe
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 import ch.descabato.version.BuildInfo
-import ch.descabato.CompressionMode
-import ch.descabato.HashAlgorithm
-import ch.descabato.RemoteMode
 import org.rogach.scallop._
 import org.rogach.scallop.exceptions.ScallopException
 
@@ -231,7 +231,7 @@ trait BackupFolderOption extends ProgramOption {
   val backupDestination: ScallopOption[File] = trailArg[String](descr = "Root folder of the backup", required = true).map(new File(_).getCanonicalFile())
 
   errorMessageHandler = { _ =>
-    // do nothing
+    // do nothing, exception is caught later and then handled with proper error logging
   }
 }
 
@@ -358,6 +358,16 @@ class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with
 
 class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
   val folderToBackup: ScallopOption[File] = trailArg[File](descr = "Folder to be backed up").map(_.getCanonicalFile())
+}
+
+class CountConf(args: Seq[String]) extends ScallopConf(args) with ProgramOption {
+  val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disable backing up symlinks")
+  val ignoreFile: ScallopOption[File] = opt[File](descr = "File with ignore patterns", default = None)
+  val folderToCountIn: ScallopOption[File] = trailArg[File](descr = "Folder to count files in").map(_.getCanonicalFile())
+}
+
+class MultipleBackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
+  val foldersToBackup: ScallopOption[List[File]] = trailArg[List[File]](descr = "Folders to be backed up").map(_.map(_.getCanonicalFile()))
 }
 
 class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {

@@ -8,6 +8,7 @@ import java.util.{ArrayList => JArrayList}
 
 import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.frontend.StandardMaxValueCounter
+import ch.descabato.utils.Utils
 
 import scala.collection.JavaConverters._
 import scala.io.Codec
@@ -15,7 +16,7 @@ import scala.io.Source
 
 class FileVisitorCollector(ignoreFile: Option[File],
                            fileCounter: MaxValueCounter = new StandardMaxValueCounter("files", 0),
-                           bytesCounter: MaxValueCounter = new StandardMaxValueCounter("bytes", 0)) {
+                           bytesCounter: MaxValueCounter = new StandardMaxValueCounter("bytes", 0)) extends Utils {
   // TODO log exceptions
   private var _files: JArrayList[Path] = new JArrayList[Path]()
   private var _dirs: JArrayList[Path] = new JArrayList[Path]()
@@ -48,6 +49,7 @@ class FileVisitorCollector(ignoreFile: Option[File],
     }
 
     override def visitFileFailed(file: Path, exc: IOException): FileVisitResult = {
+      logger.warn(s"Could not visit file $file, due to ${exc.getClass}: ${exc.getMessage}")
       FileVisitResult.CONTINUE
     }
 
@@ -56,6 +58,7 @@ class FileVisitorCollector(ignoreFile: Option[File],
         _dirs.add(dir)
         FileVisitResult.CONTINUE
       } else {
+        logger.info(s"Skipping $dir")
         FileVisitResult.SKIP_SUBTREE
       }
     }
