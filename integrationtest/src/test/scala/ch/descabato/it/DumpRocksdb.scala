@@ -26,12 +26,9 @@ object DumpRocksdb extends Utils {
   }
 
   def main(args: Array[String]): Unit = {
-    val rocksEnv = RocksEnv(BackupFolderConfiguration(args(0).toFile.toJava), readOnly = true)
-    try {
+    for (rocksEnv <- RocksEnv(BackupFolderConfiguration(args(0).toFile.toJava), readOnly = true).autoClosed) {
       printRevisions(rocksEnv)
       printFileStatuses(rocksEnv)
-    } finally {
-      rocksEnv.close()
     }
   }
 

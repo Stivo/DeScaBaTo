@@ -35,13 +35,13 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
 object RocksDbKeyValueStore {
-  def apply(folder: File, readOnly: Boolean): RocksDbKeyValueStore = {
+  def apply(rocksEnvInit: RocksEnvInit): RocksDbKeyValueStore = {
     val options = new Options()
     options.setCreateIfMissing(true)
     options.setCreateMissingColumnFamilies(true)
     options.setCompressionType(CompressionType.ZSTD_COMPRESSION)
 
-    new RocksDbKeyValueStore(options, folder, readOnly)
+    new RocksDbKeyValueStore(options, rocksEnvInit.rocksFolder, rocksEnvInit.readOnly)
   }
 }
 

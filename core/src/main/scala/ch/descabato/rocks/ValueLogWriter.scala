@@ -22,9 +22,7 @@ import com.typesafe.scalalogging.LazyLogging
 class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
 
   private val kvStore = rocksEnv.rocks
-  private val folder = rocksEnv.valuelogsFolder
   private val config = rocksEnv.config
-  private val fileManager = rocksEnv.fileManager
 
   private val valueLogWriteTiming = new StopWatch("writeValue")
   private val compressionTiming = new StopWatch("compression")
@@ -86,7 +84,7 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: FileType, write: Boolean = tr
 
   private def createNewFile(): CurrentFile = {
     val file = fileType.nextFile()
-    val relative = rocksEnv.relativize(file)
+    val relative = rocksEnv.config.relativePath(file)
     val key = ValueLogStatusKey(relative)
     val value = ValueLogStatusValue(status = Status.WRITING)
     kvStore.write(key, value)
@@ -132,7 +130,7 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
   }
 
   def readValue(valueLogIndex: ValueLogIndex): BytesWrapper = {
-    val file = new File(rocksEnv.backupFolder, valueLogIndex.filename)
+    val file = rocksEnv.config.resolveRelativePath(valueLogIndex.filename)
     if (!randomAccessFiles.contains(valueLogIndex.filename)) {
       randomAccessFiles += valueLogIndex.filename -> rocksEnv.config.newReader(file)
     }
