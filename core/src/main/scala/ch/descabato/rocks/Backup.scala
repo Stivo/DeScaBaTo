@@ -13,9 +13,9 @@ import better.files._
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.FileVisitorCollector
 import ch.descabato.frontend.MultipleBackupConf
+import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
@@ -144,7 +144,7 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
   }
 
   private def backupFileOrFolderIfNecessary(file: Path): Unit = {
-    val filetype = if (file.toFile.isFile) FileType.FILE else FileType.FOLDER
+    val filetype = if (file.toFile.isFile) BackedupFileType.FILE else BackedupFileType.FOLDER
     val key = FileMetadataKeyWrapper(FileMetadataKey(
       filetype = filetype,
       path = file.toAbsolutePath.toString,
@@ -164,7 +164,7 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
     val attr = Files.readAttributes(file, classOf[BasicFileAttributes])
     val dosAttributes = Try(Files.readAttributes(file, classOf[DosFileAttributes])).toOption
     FileMetadataValue(
-      filetype = if (file.toFile.isDirectory) FileType.FOLDER else FileType.FILE,
+      filetype = if (file.toFile.isDirectory) BackedupFileType.FOLDER else BackedupFileType.FILE,
       length = attr.size(),
       created = attr.creationTime().toMillis,
       hashes = hashes.map(_.toProtobufByteString()).getOrElse(ByteString.EMPTY),

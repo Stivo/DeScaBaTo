@@ -9,9 +9,9 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.FileAttributes
 import ch.descabato.core.model.FolderDescription
 import ch.descabato.frontend.RestoreConf
+import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 
 class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
@@ -36,7 +36,7 @@ class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
       .flatMap { key =>
         rocks.readFileMetadata(FileMetadataKeyWrapper(key)).map(x => (key, x))
       }
-      .partition(_._1.filetype == FileType.FILE)
+      .partition(_._1.filetype == BackedupFileType.FILE)
     val logic = new RestoredPathLogic(folders.map(x => FolderDescriptionFactory.apply(x._1, x._2)), t)
     for ((key, value) <- folders) {
       restoreFolder(key, value, logic)

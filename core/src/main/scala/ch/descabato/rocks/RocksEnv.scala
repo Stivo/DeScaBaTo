@@ -18,15 +18,10 @@ class RocksEnvInit(val config: BackupFolderConfiguration,
                    val readOnly: Boolean) extends Utils {
   val fileManager: FileManager = new FileManager(config)
   val backupFolder: File = config.folder
-  val valuelogsFolder = new File(backupFolder, "valuelogs")
   val rocksFolder = new File(backupFolder, "rocks")
 
   if (!backupFolder.exists()) {
     logger.info(s"Creating folders for backup at ${backupFolder}")
-    backupFolder.mkdir()
-  }
-  if (!valuelogsFolder.exists()) {
-    logger.info(s"Creating folders for valuelogs at ${valuelogsFolder}")
     backupFolder.mkdir()
   }
   val startedWithoutRocksdb: Boolean = !rocksFolder.exists()

@@ -140,6 +140,9 @@ class BackupConfigurationHandler(private var supplied: BackupFolderOption, exist
       return BackupDoesntExist
     }
     if (hasOld) {
+      if (loadOld().get.version < "0.6.0") {
+        throw new IllegalArgumentException("Can not load old version of backup. Please use the appropriate version for it.")
+      }
       if (loadOld().get.hasPassword && passphrase.isEmpty) {
         return PasswordNeeded
       }

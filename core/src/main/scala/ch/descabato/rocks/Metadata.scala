@@ -14,10 +14,11 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupDescriptionStored
 import ch.descabato.core.model.StoredChunk
 import ch.descabato.core.util.FileManager
+import ch.descabato.core.util.FileType
 import ch.descabato.core.util.StandardNumberedFileType
+import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.Status
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
@@ -276,6 +277,16 @@ class OldDataImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore,
     logger.info(s"Finished importing chunks, took " + restoreTime.measuredTime())
     RepairLogic.setStateTo(RocksStates.Consistent, kvStore)
     kvStore.commit()
+    renameFolder(fm.volumeIndex)
+    renameFolder(fm.metadata)
+    renameFolder(fm.backup)
+  }
+
+  private def renameFolder(fileType: FileType) = {
+
+    fileType.getFiles().foreach { file =>
+      file.renameTo(new io.File(file.getParentFile, "old_" + file.getName))
+    }
   }
 
   private def importChunks(chunksById: mutable.Map[Long, Array[Byte]]): Unit = {
@@ -299,12 +310,12 @@ class OldDataImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore,
           case null => -1L
           case _ => ???
         }
-        val keyWrapper = FileMetadataKeyWrapper(FileMetadataKey(FileType.FILE, path = file.fd.path, time))
+        val keyWrapper = FileMetadataKeyWrapper(FileMetadataKey(BackedupFileType.FILE, path = file.fd.path, time))
         val hashes = file.chunkIds.map(id =>
           chunksById(id)
         ).fold(Array.empty)(_ ++ _)
         kvStore.write(keyWrapper, FileMetadataValue(
-          filetype = FileType.FILE,
+          filetype = BackedupFileType.FILE,
           length = file.fd.size,
           hashes = ByteString.copyFrom(hashes),
           // TODO other attributes
@@ -317,9 +328,9 @@ class OldDataImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore,
           case null => -1L
           case _ => ???
         }
-        val keyWrapper = FileMetadataKeyWrapper(FileMetadataKey(FileType.FOLDER, path = folder.folderDescription.path, time))
+        val keyWrapper = FileMetadataKeyWrapper(FileMetadataKey(BackedupFileType.FOLDER, path = folder.folderDescription.path, time))
         kvStore.write(keyWrapper, FileMetadataValue(
-          filetype = FileType.FOLDER,
+          filetype = BackedupFileType.FOLDER,
           length = -1L,
           // TODO other attributes
         ))

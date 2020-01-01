@@ -11,6 +11,7 @@ import ch.descabato.HashAlgorithm
 import ch.descabato.RemoteMode
 import ch.descabato.core.BackupCorruptedException
 import ch.descabato.core.BackupException
+import ch.descabato.core.ExceptionFactory
 import ch.descabato.core.MisconfigurationException
 import ch.descabato.core.Universe
 import ch.descabato.core.commands.DoBackup
@@ -19,6 +20,7 @@ import ch.descabato.core.commands.DoVerify
 import ch.descabato.core.config.BackupConfigurationHandler
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
+import ch.descabato.core.util.FileManager
 import ch.descabato.frontend.ScallopConverters._
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
@@ -161,6 +163,10 @@ trait BackupRelatedCommand extends Command with Utils {
     }
   }
 
+  def checkForUpgradeNeeded = true
+
+  def overrideVersion: Option[String] = None
+
   def start(t: T) {
     import ch.descabato.core.config.BackupVerification._
     val confHandler = new BackupConfigurationHandler(t, needsExistingBackup)
@@ -172,6 +178,10 @@ trait BackupRelatedCommand extends Command with Utils {
       case OK =>
     }
     val conf = confHandler.updateAndGetConfiguration()
+    val manager = new FileManager(conf)
+    if (checkForUpgradeNeeded && (manager.metadata.getFiles().nonEmpty || manager.volumeIndex.getFiles().nonEmpty || manager.backup.getFiles().nonEmpty)) {
+      throw ExceptionFactory.createUpgradeException(conf.version)
+    }
     start(t, conf)
   }
 
@@ -237,6 +247,8 @@ trait BackupFolderOption extends ProgramOption {
 
 class BackupCommand extends BackupRelatedCommand with Utils {
 
+  override val checkForUpgradeNeeded = false
+
   val suffix: String = if (Utils.isWindows) ".bat" else ""
 
   def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]): Unit = {
@@ -299,6 +311,8 @@ object RestoreRunners extends Utils {
 
 class RestoreCommand extends BackupRelatedCommand {
 
+  override val checkForUpgradeNeeded = false
+
   type T = RestoreConf
 
   def newT(args: Seq[String]) = new RestoreConf(args)
@@ -337,6 +351,9 @@ class RestoreCommand extends BackupRelatedCommand {
 }
 
 class VerifyCommand extends BackupRelatedCommand {
+
+  override val checkForUpgradeNeeded = false
+
   type T = VerifyConf
 
   def newT(args: Seq[String]) = new VerifyConf(args)

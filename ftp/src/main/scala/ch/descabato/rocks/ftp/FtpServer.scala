@@ -13,8 +13,8 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.rocks.FileMetadataKeyWrapper
 import ch.descabato.rocks.Revision
 import ch.descabato.rocks.RocksEnv
+import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.FileType
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import org.apache.ftpserver.FtpServerFactory
 import org.apache.ftpserver.ftplet.FileSystemFactory
@@ -111,13 +111,13 @@ class FileFolder(val name: String, var backupInfo: Option[(FileMetadataKeyWrappe
   def add(restPath: Seq[String], key: FileMetadataKeyWrapper, metadata: FileMetadataValue): Unit = {
     if (restPath.length == 1) {
       metadata.filetype match {
-        case FileType.FOLDER if map.contains(restPath.last) =>
+        case BackedupFileType.FOLDER if map.contains(restPath.last) =>
           map(restPath.last).asInstanceOf[FileFolder].backupInfo = Some((key, metadata))
-        case FileType.FOLDER =>
+        case BackedupFileType.FOLDER =>
           map += restPath.last -> new FileFolder(restPath.head, Some(key, metadata))
-        case FileType.FILE if map.contains(restPath.last) =>
+        case BackedupFileType.FILE if map.contains(restPath.last) =>
           map(restPath.last).asInstanceOf[FileNode].linkCount += 1
-        case FileType.FILE =>
+        case BackedupFileType.FILE =>
           map += restPath.last -> new FileNode(restPath.head, key, metadata)
       }
     } else {
@@ -171,7 +171,7 @@ class BackupReader(val rocksEnv: RocksEnv) {
         val key = x.fileMetadataKey
         val pathAsSeq = PathUtils.splitPath(key.path)
         revisionParent.add(pathAsSeq, x, y)
-        val newFilename = if (x.fileMetadataKey.filetype == FileType.FILE) {
+        val newFilename = if (x.fileMetadataKey.filetype == BackedupFileType.FILE) {
           val filename = PathUtils.nameFromPath(key.path)
           val filenameSplit = filename.split('.')
           val timestamp = PathUtils.formatFilename(x).format(key.changed)

@@ -12,14 +12,14 @@ message ValueLogIndex {
     int32 lengthCompressed = 4;
 }
 
-enum FileType {
+enum BackedupFileType {
     UNKNOWN_TYPE = 0;
     FILE = 1;
     FOLDER = 2;
 }
 
 message FileMetadataKey {
-    FileType filetype = 1;
+    BackedupFileType filetype = 1;
     string path = 2;
     uint64 changed = 3;
 }
@@ -33,7 +33,7 @@ message RevisionValue {
 message FileMetadataValue {
     // general ones
     uint64 created = 1;
-    FileType filetype = 2;
+    BackedupFileType filetype = 2;
     bool fromunix = 3;
     bool fromwindows = 4;
     // file ones

@@ -25,6 +25,7 @@ object Main extends Utils {
     //    new VerifyCommand(),
     new CountCommand(),
     new RestoreCommand(),
+    new UpgradeCommand(),
     new ReflectionCommand("ftp", "ch.descabato.rocks.ftp.ServeCommand"),
     //    new HelpCommand(),
     //    new VersionCommand()
