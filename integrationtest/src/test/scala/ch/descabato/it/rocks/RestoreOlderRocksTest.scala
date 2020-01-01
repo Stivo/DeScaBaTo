@@ -15,7 +15,6 @@ import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.it.DumpRocksdb
 import ch.descabato.it.FileGen
 import ch.descabato.it.IntegrationTestBase
-import ch.descabato.it.RocksIntegrationTest
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import org.scalatest.Matchers._

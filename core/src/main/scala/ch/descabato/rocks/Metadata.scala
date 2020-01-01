@@ -6,14 +6,29 @@ import java.util
 
 import better.files._
 import ch.descabato.CustomByteArrayOutputStream
+import ch.descabato.core.JsonUser
+import ch.descabato.core.actors.BlockingOperation
+import ch.descabato.core.actors.JournalHandler
+import ch.descabato.core.actors.MetadataStorageActor.BackupMetaDataStored
+import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.BackupDescriptionStored
+import ch.descabato.core.model.StoredChunk
+import ch.descabato.core.util.FileManager
 import ch.descabato.core.util.StandardNumberedFileType
+import ch.descabato.rocks.protobuf.keys.FileMetadataKey
+import ch.descabato.rocks.protobuf.keys.FileMetadataValue
+import ch.descabato.rocks.protobuf.keys.FileType
+import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.Status
+import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.FileUtils
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 import com.google.protobuf.ByteString
+
+import scala.collection.mutable
 
 object RocksStates extends Enumeration {
 
@@ -241,5 +256,108 @@ class DbImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore) exte
     }
     logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
     kvStore.commit()
+  }
+}
+
+class OldDataImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore, val overrideReadFromConfig: Option[BackupFolderConfiguration] = None) extends Utils with JsonUser {
+
+  val fm = overrideReadFromConfig.map(new FileManager(_)).getOrElse(rocksEnvInit.fileManager)
+
+  def importMetadata(): Unit = {
+    val restoreTime = new StandardMeasureTime()
+
+    RepairLogic.setStateTo(RocksStates.Reconstructing, kvStore)
+    val chunksById = mutable.Map.empty[Long, Array[Byte]]
+    val filesById = mutable.Map.empty[Long, FileMetadataKey]
+    importChunks(chunksById)
+    importFilesAndFolders(chunksById, filesById)
+    importRevisions(filesById)
+    markVolumesAsDone()
+    logger.info(s"Finished importing chunks, took " + restoreTime.measuredTime())
+    RepairLogic.setStateTo(RocksStates.Consistent, kvStore)
+    kvStore.commit()
+  }
+
+  private def importChunks(chunksById: mutable.Map[Long, Array[Byte]]): Unit = {
+    for (file <- fm.volumeIndex.getFiles()) {
+      val json = readJson[Seq[StoredChunk]](file)
+      for (index <- json.get) {
+        val file1 = index.file
+        chunksById += index.id -> index.hash
+        kvStore.write(ChunkKey(index.hash), ValueLogIndex(filename = file1, from = index.startPos, lengthCompressed = index.length.toInt, lengthUncompressed = -1))
+      }
+      kvStore.commit()
+    }
+  }
+
+  private def importFilesAndFolders(chunksById: mutable.Map[Long, Array[Byte]], filesById: mutable.Map[Long, FileMetadataKey]): Unit = {
+    for (file <- fm.metadata.getFiles()) {
+      val json = readJson[BackupMetaDataStored](file).get
+      for (file <- json.files) {
+        val time = file.fd.attrs.lastModifiedTime match {
+          case l: Number => l.longValue()
+          case null => -1L
+          case _ => ???
+        }
+        val keyWrapper = FileMetadataKeyWrapper(FileMetadataKey(FileType.FILE, path = file.fd.path, time))
+        val hashes = file.chunkIds.map(id =>
+          chunksById(id)
+        ).fold(Array.empty)(_ ++ _)
+        kvStore.write(keyWrapper, FileMetadataValue(
+          filetype = FileType.FILE,
+          length = file.fd.size,
+          hashes = ByteString.copyFrom(hashes),
+          // TODO other attributes
+        ))
+        filesById += file.id -> keyWrapper.fileMetadataKey
+      }
+      for (folder <- json.folders) {
+        val time = folder.folderDescription.attrs.lastModifiedTime match {
+          case l: Number => l.longValue()
+          case null => -1L
+          case _ => ???
+        }
+        val keyWrapper = FileMetadataKeyWrapper(FileMetadataKey(FileType.FOLDER, path = folder.folderDescription.path, time))
+        kvStore.write(keyWrapper, FileMetadataValue(
+          filetype = FileType.FOLDER,
+          length = -1L,
+          // TODO other attributes
+        ))
+        filesById += folder.id -> keyWrapper.fileMetadataKey
+      }
+      kvStore.commit()
+    }
+  }
+
+  def importRevisions(filesById: mutable.Map[Long, FileMetadataKey]): Unit = {
+    for ((file, index) <- fm.backup.getFiles().sortBy(fm.backup.dateOfFile).zipWithIndex) {
+      val revision = readJson[BackupDescriptionStored](file).get
+      val key = Revision(index)
+      val date = fm.backup.dateOfFile(file).toInstant.toEpochMilli
+      val allIds = revision.fileIds ++ revision.dirIds
+      val files = allIds.flatMap(x => filesById.get(x)).sortBy(_.path)
+      val value = RevisionValue(created = date, files = files.toSeq)
+      kvStore.write(key, value)
+    }
+    kvStore.commit()
+  }
+
+  def markVolumesAsDone(): Unit = {
+    for (file <- fm.volume.getFiles()) {
+      kvStore.write(ValueLogStatusKey(config.relativePath(file)), ValueLogStatusValue(Status.FINISHED, size = file.length()))
+    }
+    kvStore.commit()
+  }
+
+  override def config: BackupFolderConfiguration = overrideReadFromConfig.getOrElse(rocksEnvInit.config)
+
+  override def writeToJson[T](file: io.File, value: T): BlockingOperation = {
+    // should not be used to write
+    ???
+  }
+
+  override def journalHandler: JournalHandler = {
+    // implementation not needed for reading
+    ???
   }
 }

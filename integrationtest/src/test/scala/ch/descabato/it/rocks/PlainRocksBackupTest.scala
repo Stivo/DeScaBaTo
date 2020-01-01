@@ -1,7 +1,6 @@
 package ch.descabato.it.rocks
 
 import ch.descabato.it.IntegrationTest
-import ch.descabato.it.RocksIntegrationTest
 
 class PlainRocksBackupTest extends IntegrationTest with RocksIntegrationTest {
 

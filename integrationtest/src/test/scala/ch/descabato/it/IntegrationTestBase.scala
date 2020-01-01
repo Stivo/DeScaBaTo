@@ -5,9 +5,9 @@ import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.Paths
 
-import ch.descabato.utils.Utils
 import ch.descabato.RichFlatSpecLike
 import ch.descabato.TestUtils
+import ch.descabato.utils.Utils
 import org.apache.commons.exec.CommandLine
 import org.apache.commons.exec.ExecuteException
 import org.apache.commons.io.{FileUtils => IO_FileUtils}
@@ -20,6 +20,9 @@ import scala.collection.mutable.Set
 abstract class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
 
   def mainClass: String
+
+  val oldMainClass: String = "ch.descabato.frontend.CLI"
+  val newMainClass: String = "ch.descabato.rocks.Main"
 
   val suffix = if (Utils.isWindows) ".bat" else ""
 
