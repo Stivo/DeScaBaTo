@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets
 import java.util
 
 import better.files._
+import ch.descabato.CompressionMode
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.JsonUser
 import ch.descabato.core.actors.BlockingOperation
@@ -212,7 +213,7 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
       baos.write(value.asArray())
     }
     for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes).autoClosed) {
-      valueLog.write(baos.toBytesWrapper)
+      valueLog.write(CompressedStream.compressBytes(baos.toBytesWrapper, CompressionMode.gzip))
     }
     contentValues.foreach { case (key, _) =>
       kvStore.delete(key, writeAsUpdate = false)

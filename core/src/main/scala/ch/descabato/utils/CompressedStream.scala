@@ -1,29 +1,39 @@
 package ch.descabato.utils
 
-import java.io.{InputStream, OutputStream}
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.zip._
 
-import ch.descabato.{CompressionMode, CustomByteArrayOutputStream}
-import net.jpountz.lz4.{LZ4BlockInputStream, LZ4BlockOutputStream, LZ4Factory}
-import org.apache.commons.compress.compressors.bzip2.{BZip2CompressorInputStream, BZip2CompressorOutputStream}
-import org.apache.commons.compress.utils.IOUtils
-import org.iq80.snappy.{SnappyFramedInputStream, SnappyFramedOutputStream}
-import org.tukaani.xz.{LZMA2Options, XZInputStream, XZOutputStream}
 import ch.descabato.utils.Implicits._
+import ch.descabato.CompressionMode
+import ch.descabato.CustomByteArrayOutputStream
+import net.jpountz.lz4.LZ4BlockInputStream
+import net.jpountz.lz4.LZ4BlockOutputStream
+import net.jpountz.lz4.LZ4Factory
+import org.apache.commons.compress.utils.IOUtils
+import org.iq80.snappy.SnappyFramedInputStream
+import org.iq80.snappy.SnappyFramedOutputStream
+import org.tukaani.xz.LZMA2Options
+import org.tukaani.xz.XZInputStream
+import org.tukaani.xz.XZOutputStream
 
 /**
  * Adds compressors and decompressors
  */
 object CompressedStream extends Utils {
-  
-  def compress(content: BytesWrapper, compressor: CompressionMode) : BytesWrapper = {
+
+  def compress(content: BytesWrapper, compressor: CompressionMode): BytesWrapper = {
     val byte = compressor.getByte()
-    val baos = new CustomByteArrayOutputStream(content.length+80)
+    val baos = new CustomByteArrayOutputStream(content.length + 80)
     baos.write(byte)
     val wrapped = getCompressor(byte, baos, Some(content.length))
     wrapped.write(content)
     wrapped.close()
     baos.toBytesWrapper()
+  }
+
+  def compressBytes(content: BytesWrapper, compressor: CompressionMode): CompressedBytes = {
+    new CompressedBytes(compress(content, compressor), content.length)
   }
 
   private def roundUp(x: Int): Int = {
@@ -69,10 +79,12 @@ object CompressedStream extends Utils {
   def decompressToBytes(input: BytesWrapper): BytesWrapper = {
     val stream = decompress(input)
     val baos = new CustomByteArrayOutputStream(input.length * 2)
-    IOUtils.copy(stream, baos, 100*1024)
+    IOUtils.copy(stream, baos, 100 * 1024)
     IOUtils.closeQuietly(stream)
     IOUtils.closeQuietly(baos)
     baos.toBytesWrapper
   }
 
 }
+
+class CompressedBytes(val bytesWrapper: BytesWrapper, val uncompressedLength: Int)

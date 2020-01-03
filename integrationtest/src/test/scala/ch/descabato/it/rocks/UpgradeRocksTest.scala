@@ -53,7 +53,7 @@ class UpgradeRocksTest extends IntegrationTestBase with RocksIntegrationTest {
 
   val restoreInfoName = "restore-info.txt"
 
-  lazy val fg = new FileGen(input3, "512mb")
+  lazy val fg = new FileGen(input3, "20mb")
   var part = 0
   val fm = new FileManager(BackupFolderConfiguration(backup1))
 

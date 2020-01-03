@@ -4,7 +4,6 @@ import java.io.File
 import java.io.InputStream
 import java.io.SequenceInputStream
 
-import ch.descabato.CompressionMode
 import ch.descabato.core.util.FileReader
 import ch.descabato.core.util.FileWriter
 import ch.descabato.core.util.StandardNumberedFileType
@@ -13,11 +12,11 @@ import ch.descabato.rocks.protobuf.keys.Status
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Hash
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
-
 
 class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
 
@@ -52,14 +51,13 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
 
   private var currentFile: Option[CurrentFile] = None
 
-  def write(bytesWrapper: BytesWrapper): (ValueLogIndex, Boolean) = {
-    val compressed = CompressedStream.compress(bytesWrapper, CompressionMode.snappy)
+  def write(compressedBytes: CompressedBytes): (ValueLogIndex, Boolean) = {
     var fileClosed = false
     val fileToWriteTo = if (currentFile.isEmpty) {
       createNewFile()
     } else {
       val file = currentFile.get
-      if (file.fileWriter.currentPosition() + compressed.length > maxSize && file.fileWriter.currentPosition() >= minSize) {
+      if (file.fileWriter.currentPosition() + compressedBytes.bytesWrapper.length > maxSize && file.fileWriter.currentPosition() >= minSize) {
         closeCurrentFile(file)
         fileClosed = true
         createNewFile()
@@ -68,10 +66,10 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
       }
     }
     val valueLogPositionBefore = valueLogWriteTiming.measure {
-      fileToWriteTo.fileWriter.write(compressed)
+      fileToWriteTo.fileWriter.write(compressedBytes.bytesWrapper)
     }
     (ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
-      lengthUncompressed = bytesWrapper.length, lengthCompressed = compressed.length), fileClosed)
+      lengthUncompressed = compressedBytes.uncompressedLength, lengthCompressed = compressedBytes.bytesWrapper.length), fileClosed)
   }
 
   private def closeCurrentFile(currentFile: CurrentFile): Unit = {

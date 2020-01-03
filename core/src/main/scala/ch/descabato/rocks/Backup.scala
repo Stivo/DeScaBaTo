@@ -64,6 +64,7 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
   var filesInRevision: mutable.Buffer[FileMetadataKey] = mutable.Buffer.empty
 
   val valueLog = new ValueLogWriter(rocksEnv, rocksEnv.fileManager.volume, write = true, rocksEnv.config.volumeSize.bytes)
+  val compressionDecider = CompressionDeciders.createForConfig(rocksEnv.config)
 
   def findNextRevision(): Int = {
     val iterator = rocks.getAllRevisions()
@@ -106,7 +107,7 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
   val hashTiming = new StopWatch("sha256")
   val buzhashTiming = new StopWatch("buzhash")
 
-  def backupChunk(bytesWrapper: BytesWrapper, hashList: OutputStream): Unit = {
+  def backupChunk(file: File, bytesWrapper: BytesWrapper, hashList: OutputStream): Unit = {
     //    println(s"Backing up chunk with length ${toByteArray.length}")
     val hash = hashTiming.measure {
       digest.reset()
@@ -116,7 +117,8 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
     if (rocks.exists(chunkKey)) {
       chunkFoundCounter += 1
     } else {
-      val (index, commit) = valueLog.write(bytesWrapper)
+      val compressed = compressionDecider.compressBlock(file, bytesWrapper)
+      val (index, commit) = valueLog.write(compressed)
       rocks.write(chunkKey, index)
       if (commit) {
         rocks.commit()
@@ -133,7 +135,7 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
     for {
       fis <- new FileInputStream(file.toFile).autoClosed
       chunker <- new VariableBlockOutputStream({ wrapper =>
-        backupChunk(wrapper, hashList)
+        backupChunk(file.toFile, wrapper, hashList)
         logger.trace(s"Chunk $chunk with length ${wrapper.length}")
         chunk += 1
       }).autoClosed
@@ -184,3 +186,4 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
   }
 
 }
+

@@ -355,7 +355,7 @@ class RevisionColumnFamily extends ColumnFamily[Revision, RevisionValue] with Me
   }
 
   override def encodeValue(value: RevisionValue): BytesWrapper = {
-    CompressedStream.compress(super.encodeValue(value), CompressionMode.snappy)
+    CompressedStream.compress(super.encodeValue(value), CompressionMode.gzip)
   }
 
   override def ordinal: Byte = 0
