@@ -132,7 +132,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   }
 
   def getAllRevisions(): Seq[(Revision, RevisionValue)] = {
-    iterateKeysFrom[Revision, RevisionValue](revisionColumnFamily)
+    iterateKeysFrom[Revision, RevisionValue](revisionColumnFamily).sortBy(_._1.number)
   }
 
   def getAllValueLogStatusKeys(): Seq[(ValueLogStatusKey, ValueLogStatusValue)] = {
@@ -172,7 +172,8 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   def exists[K <: Key](key: K): Boolean = {
     existsTiming.measure {
       val cf = lookupColumnFamily[K, Any](key)
-      transaction.get(cf.handle, defaultReadOptions, cf.encodeKey(key)) != null
+      val existingValue = transaction.get(cf.handle, defaultReadOptions, cf.encodeKey(key))
+      existingValue != null
     }
   }
 

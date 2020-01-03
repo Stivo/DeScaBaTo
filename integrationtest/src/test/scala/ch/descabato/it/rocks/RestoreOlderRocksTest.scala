@@ -12,7 +12,6 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.FileManager
 import ch.descabato.core.util.StandardNumberedFileType
-import ch.descabato.it.DumpRocksdb
 import ch.descabato.it.FileGen
 import ch.descabato.it.IntegrationTestBase
 import org.apache.commons.io.FileUtils

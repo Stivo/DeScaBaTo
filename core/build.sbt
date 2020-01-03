@@ -1,4 +1,4 @@
-import sbt.Keys.libraryDependencies
+
 
 name := "core"
 
@@ -82,7 +82,7 @@ buildInfoPackage := "ch.descabato.version"
 
 enablePlugins(PackPlugin)
 
-packMain := Map("descabato" -> "ch.descabato.frontend.CLI")
+packMain := Map("descabato" -> "ch.descabato.rocks.Main")
 
 packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx2g"))
 

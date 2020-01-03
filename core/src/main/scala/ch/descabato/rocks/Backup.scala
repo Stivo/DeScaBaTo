@@ -63,7 +63,7 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
   var revisionContent: ByteArrayOutputStream = new ByteArrayOutputStream()
   var filesInRevision: mutable.Buffer[FileMetadataKey] = mutable.Buffer.empty
 
-  val valueLog = new ValueLogWriter(rocksEnv, rocksEnv.fileManager.volume, write = true, backupConf.volumeSize().bytes)
+  val valueLog = new ValueLogWriter(rocksEnv, rocksEnv.fileManager.volume, write = true, rocksEnv.config.volumeSize.bytes)
 
   def findNextRevision(): Int = {
     val iterator = rocks.getAllRevisions()

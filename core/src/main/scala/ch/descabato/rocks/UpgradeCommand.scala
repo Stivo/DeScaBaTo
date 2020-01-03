@@ -18,7 +18,7 @@ class UpgradeCommand extends BackupRelatedCommand {
     val bool = true || askUserYesNo("Are you sure?")
     if (bool) {
       val rocksEnv = RocksEnv(conf, false)
-      new OldDataImporter(rocksEnv.rocksEnvInit, rocksEnv.rocks).importMetadata()
+      new OldDataImporter(rocksEnv).importMetadata()
       val revisions = rocksEnv.rocks.getAllRevisions().size
       val allChunks = rocksEnv.rocks.getAllChunks()
       val totalSize = allChunks.map(_._2.lengthCompressed).sum

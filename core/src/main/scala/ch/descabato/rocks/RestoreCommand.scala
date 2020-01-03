@@ -26,14 +26,6 @@ class RestoreCommand extends BackupRelatedCommand {
         ???
       } else if (t.restoreBackup.isSupplied) {
         restore.restoreByRevision(t, t.restoreBackup().toInt)
-        // TODO error handling
-        //        if (backupsFound.isEmpty) {
-        //          println("Could not find described backup, these are your choices:")
-        //          fm.backup.getFiles().foreach { f =>
-        //            println(f)
-        //          }
-        //          throw new IllegalArgumentException("Backup not found")
-        //        }
       } else {
         restore.restoreLatest(t)
       }
