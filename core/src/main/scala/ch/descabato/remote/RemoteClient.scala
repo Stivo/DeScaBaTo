@@ -1,11 +1,16 @@
 package ch.descabato.remote
 
-import java.io.{Closeable, File, InputStream, OutputStream}
+import java.io.Closeable
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 
 import ch.descabato.core.config.BackupFolderConfiguration
 import org.apache.commons.compress.utils.IOUtils
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 object RemoteClient {
   def forConfig(config: BackupFolderConfiguration): RemoteClient = {
@@ -20,7 +25,7 @@ object RemoteClient {
   }
 }
 
-trait RemoteClient {
+trait RemoteClient extends AutoCloseable {
   def get(path: BackupPath, file: File): Try[Unit]
 
   def put(file: File, path: BackupPath, context: Option[RemoteOperationContext] = None, md5Hash: Option[Array[Byte]] = None): Try[Unit]

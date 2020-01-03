@@ -23,6 +23,7 @@ object Main extends Utils {
   def getCommands(): Map[String, Command] = List(
     new BackupCommand(),
     //    new VerifyCommand(),
+    new UploadCommand(),
     new CountCommand(),
     new RestoreCommand(),
     new UpgradeCommand(),

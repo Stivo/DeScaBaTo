@@ -1,6 +1,9 @@
 package ch.descabato.remote
 
-import java.io.{File, FileInputStream, FileOutputStream, IOException}
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.IOException
 
 import ch.descabato.utils.Utils
 import org.apache.commons.compress.utils.IOUtils
@@ -87,5 +90,9 @@ class VfsRemoteClient(url: String) extends RemoteClient with Utils {
 
   private def resolvePath(path: BackupPath) = {
     remoteDir.resolveFile(path.path)
+  }
+
+  override def close(): Unit = {
+    manager.close()
   }
 }

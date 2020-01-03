@@ -1,16 +1,29 @@
 package ch.descabato.remote
 
-import java.io.{BufferedInputStream, File, FileInputStream, InputStream}
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.InputStream
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.ThreadPoolExecutor
 
-import ch.descabato.utils.{Hash, Utils}
+import ch.descabato.utils.Hash
+import ch.descabato.utils.Utils
 import com.amazonaws.RequestClientOptions
-import com.amazonaws.event.{ProgressEvent, ProgressEventType, ProgressListener}
+import com.amazonaws.client.builder.ExecutorFactory
+import com.amazonaws.event.ProgressEvent
+import com.amazonaws.event.ProgressEventType
+import com.amazonaws.event.ProgressListener
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.services.s3.model.{ObjectMetadata, PutObjectRequest}
+import com.amazonaws.services.s3.model.StorageClass
+import com.amazonaws.services.s3.model.ObjectMetadata
+import com.amazonaws.services.s3.model.PutObjectRequest
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder
 import org.apache.commons.compress.utils.BoundedInputStream
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object S3RemoteClient {
@@ -24,8 +37,12 @@ object S3RemoteClient {
   }
 }
 
-class S3RemoteClient private(val url: String, val bucketName: String, val prefix: String) extends RemoteClient with Utils {
+class S3RemoteClient private(val url: String, val bucketName: String, val prefix: String) extends RemoteClient with Utils with AutoCloseable {
   lazy val client = AmazonS3ClientBuilder.defaultClient()
+  lazy val manager = TransferManagerBuilder.standard()
+    .withMinimumUploadPartSize(64 * 1024 * 1024L)
+    .withExecutorFactory(new MyExecutorServiceFactory(10))
+    .build()
 
   override def get(path: BackupPath, file: File): Try[Unit] = ???
 
@@ -52,15 +69,17 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
     val remotePath: String = computeRemotePath(path)
     md5Hash.foreach(hash => logger.info(s"File $file uploading with hash ${Hash(hash).base64}"))
     // slow
-        slowUpload(file, context, md5Hash, bufferSize, remotePath)
-//    putMultipartThrottled(file, context, md5Hash, remotePath)
+    //        slowUpload(file, context, md5Hash, bufferSize, remotePath)
+    //    putMultipartThrottled(file, context, md5Hash, remotePath)
     // fast, but no throttling
-//            putFast(file, context, md5Hash, remotePath)
+    putFast(file, context, md5Hash, remotePath)
   }
 
   private def slowUpload(file: File, context: Option[RemoteOperationContext], md5Hash: Option[Array[Byte]], bufferSize: Int, remotePath: String): Try[Unit] = {
     tryWithResource(new ThrottlingInputStream(new BufferedInputStream(new FileInputStream(file), 2 * bufferSize), context)) { stream =>
-      val manager = TransferManagerBuilder.standard().build()
+      val manager = TransferManagerBuilder.standard()
+        .withMinimumUploadPartSize(16 * 1024 * 1024L)
+        .build()
       val metadata = createMetadata(md5Hash, Some(file.length()))
       val upload = manager.upload(bucketName, remotePath, stream, metadata)
       upload.waitForUploadResult()
@@ -70,9 +89,10 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
 
   def createMetadata(md5Hash: Option[Array[Byte]], size: Option[Long] = None): ObjectMetadata = {
     val metadata = new ObjectMetadata()
-    md5Hash.foreach { content =>
+    md5Hash.filter(_.length > 0).foreach { content =>
       val str = Utils.encodeBase64(content)
       metadata.setContentMD5(str)
+      metadata.setUserMetadata(Map("md5" -> Hash(content).toString).asJava)
     }
     size.foreach(metadata.setContentLength)
     metadata
@@ -80,9 +100,9 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
 
   private def putFast(file: File, context: Option[RemoteOperationContext], md5Hash: Option[Array[Byte]], remotePath: String) = {
     Try {
-      val manager = TransferManagerBuilder.defaultTransferManager()
       val request = new PutObjectRequest(bucketName, remotePath, file)
       request.setMetadata(createMetadata(md5Hash))
+      request.setStorageClass(StorageClass.StandardInfrequentAccess)
       val upload = manager.upload(request)
       context.foreach { c =>
         c.initCounter(file.length(), file.getName)
@@ -116,12 +136,23 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
       ???
     }
   }
+
+  override def close(): Unit = {
+    manager.shutdownNow(false)
+    client.shutdown()
+  }
+
 }
 
 import java.util
 
 import com.amazonaws.services.s3.AmazonS3
-import com.amazonaws.services.s3.model.{AbortMultipartUploadRequest, CompleteMultipartUploadRequest, InitiateMultipartUploadRequest, InitiateMultipartUploadResult, PartETag, UploadPartRequest}
+import com.amazonaws.services.s3.model.AbortMultipartUploadRequest
+import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest
+import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest
+import com.amazonaws.services.s3.model.InitiateMultipartUploadResult
+import com.amazonaws.services.s3.model.PartETag
+import com.amazonaws.services.s3.model.UploadPartRequest
 
 class MultipartUploader(existingBucketName: String, file: File, remotePath: String, context: Option[RemoteOperationContext], metadata: ObjectMetadata) extends Utils {
   val s3Client: AmazonS3 = TransferManagerBuilder.standard().build().getAmazonS3Client()
@@ -199,5 +230,24 @@ class PartialInputStream(file: File, offset: Long, length: Long) extends InputSt
     bounded.close()
     in.close()
     super.close()
+  }
+}
+
+class MyExecutorServiceFactory(maxThreads: Int) extends ExecutorFactory {
+
+  override def newExecutor(): ExecutorService = {
+    val threadFactory = new ThreadFactory() {
+      private var threadCount = 1
+
+      def newThread(r: Runnable): Thread = {
+        val thread = new Thread(r)
+        thread.setName("s3-transfer-manager-worker-" + {
+          threadCount += 1;
+          threadCount - 1
+        })
+        thread
+      }
+    }
+    Executors.newFixedThreadPool(maxThreads, threadFactory).asInstanceOf[ThreadPoolExecutor]
   }
 }

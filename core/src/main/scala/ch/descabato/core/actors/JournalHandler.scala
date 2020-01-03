@@ -1,12 +1,15 @@
 package ch.descabato.core.actors
 
-import java.io.{File, RandomAccessFile}
+import java.io.File
+import java.io.RandomAccessFile
 import java.nio.channels.FileLock
 
 import ch.descabato.core.BackupInUseException
+import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.util.FileType
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{Hash, Utils}
+import ch.descabato.utils.Hash
+import ch.descabato.utils.Utils
 
 import scala.collection.immutable.HashSet
 
@@ -215,4 +218,63 @@ class SimpleJournalHandler(context: BackupContext) extends JournalHandler with U
     context.eventBus.publish(FileAddedToJournal(filetype, file, md5Hash))
     new BlockingOperation()
   }
+}
+
+
+class JournalReader(config: BackupFolderConfiguration) extends Utils {
+
+  lazy val journalName: String = "files-journal.txt"
+
+  private var _usedIdentifiers = HashSet[String]()
+
+  var _open = true
+
+  lazy val randomAccessFile = new RandomAccessFile(new File(config.folder, journalName), "rw")
+  lazy val lock: FileLock = try {
+    val out = randomAccessFile.getChannel().tryLock()
+    if (out == null)
+      throw new BackupInUseException()
+    out
+  } catch {
+    case e: BackupInUseException => throw e
+    case e: Exception => throw new BackupInUseException().initCause(e)
+  }
+
+  def checkLock() {
+    if (_open && !lock.isValid()) {
+      throw new BackupInUseException
+    }
+  }
+
+  private var entries: Seq[JournalEntry] = Seq.empty
+
+  private def parseFile(): Unit = {
+    randomAccessFile.synchronized {
+      randomAccessFile.seek(0)
+      var line: String = null
+      while ( {
+        line = randomAccessFile.readLine()
+        line != null
+      }) {
+        if (line != null) {
+          val maybeEntry = JournalEntries.parseLine(line)
+          maybeEntry.foreach(entries :+= _)
+        }
+      }
+      entries.foreach {
+        case FileFinishedJournalEntry(_, file, _) => _usedIdentifiers += file
+        case _ =>
+      }
+    }
+  }
+
+  parseFile()
+
+  def getMd5ForFile(file: File): Option[Hash] = {
+    val str = config.relativePath(file)
+    entries.collectFirst {
+      case FileFinishedJournalEntry(_, fileInJournal, hash) if fileInJournal == str => hash
+    }
+  }
+
 }
