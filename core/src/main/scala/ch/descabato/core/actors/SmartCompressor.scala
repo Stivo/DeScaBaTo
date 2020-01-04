@@ -1,14 +1,17 @@
 package ch.descabato.core.actors
 
 import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.core.model.{Block, CompressedBlock}
+import ch.descabato.core.model.Block
+import ch.descabato.core.model.CompressedBlock
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
-import ch.descabato.{CompressionMode, TimingUtil}
+import ch.descabato.CompressionMode
+import ch.descabato.TimingUtil
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
+import scala.concurrent.Future
 
 object Compressors {
   def apply(backupFolderConfiguration: BackupFolderConfiguration) = {
@@ -139,7 +142,7 @@ class Smart3Compressor extends Compressor with Utils {
           // - We havent already sampled with LZMA in the mix
         case Sampling if sampleData(winner).ratio < 0.9 && sampleData(winner).ratio > 0.03 && status == Sampling =>
           bytesReceived = 0
-          algos = Seq(winner, CompressionMode.lzma)
+          algos = Seq(winner, CompressionMode.lzma6)
           sampleData = algos.map(x => (x, new SampleData(x))).toMap
           logger.info(s"Doing shootout between $algos for $ext")
           SamplingForLzma

@@ -44,6 +44,11 @@ trait MeasureTime {
     Utils.formatDuration(time - startTime)
   }
 
+  def timeInMs(): Long = {
+    val time = System.nanoTime()
+    (time - startTime) / 1_000_000
+  }
+
 }
 
 class StandardMeasureTime extends MeasureTime {
