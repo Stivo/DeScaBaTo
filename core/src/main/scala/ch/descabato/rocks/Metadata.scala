@@ -213,7 +213,7 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
       baos.write(value.asArray())
     }
     for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes).autoClosed) {
-      valueLog.write(CompressedStream.compressBytes(baos.toBytesWrapper, CompressionMode.gzip))
+      valueLog.write(CompressedStream.compressBytes(baos.toBytesWrapper, CompressionMode.zstd9))
     }
     contentValues.foreach { case (key, _) =>
       kvStore.delete(key, writeAsUpdate = false)
