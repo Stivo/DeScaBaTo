@@ -15,6 +15,8 @@ trait FileReader extends AutoCloseable {
 
   def close(): Unit
 
+  def startOfContent: Long
+
 }
 
 class SimpleFileReader(val file: File) extends FileReader {
@@ -35,4 +37,6 @@ class SimpleFileReader(val file: File) extends FileReader {
   override def close(): Unit = {
     randomAccessReader.close()
   }
+
+  override def startOfContent: Long = 0
 }

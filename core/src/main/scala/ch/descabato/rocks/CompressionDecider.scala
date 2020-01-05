@@ -93,6 +93,7 @@ class Sampling(file: File) extends Utils {
       val (data, compressed) = sample(CompressionMode.zstd9, block)
       if (samples.head.ratio < 0.98) {
         setDecisionAndReturn(CompressionMode.zstd9)
+        (CompressionMode.zstd9, Some(compressed))
       } else {
         setDecisionAndReturn(CompressionMode.none)
       }

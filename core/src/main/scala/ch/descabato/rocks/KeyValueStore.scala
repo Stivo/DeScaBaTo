@@ -127,6 +127,10 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     out.toSeq
   }
 
+  def getAllFileMetadatas(): Seq[(FileMetadataKeyWrapper, FileMetadataValue)] = {
+    iterateKeysFrom[FileMetadataKeyWrapper, FileMetadataValue](fileMetadataColumnFamily)
+  }
+
   def getAllChunks(): Seq[(ChunkKey, ValueLogIndex)] = {
     iterateKeysFrom[ChunkKey, ValueLogIndex](chunkColumnFamily)
   }
@@ -152,6 +156,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   }
 
   def write[K <: Key, V](key: K, value: V, writeAsUpdate: Boolean = true): Unit = {
+    ensureOpenForWriting()
     def writeImpl(cf: ColumnFamily[K, V], key: K, value: V) = {
       val keyEncoded = cf.encodeKey(key)
       val valueEncoded = cf.encodeValue(value)
@@ -246,6 +251,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   }
 
   def commit(): Unit = {
+    ensureOpenForWriting()
     logger.info(s"Committing to rocksdb: ${transaction.getNumPuts} writes and ${transaction.getNumDeletes} deletions")
     transaction.commit()
     transaction.close()
@@ -262,7 +268,14 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     openTransaction()
   }
 
+  private def ensureOpenForWriting() = {
+    if (readOnly) {
+      throw new IllegalArgumentException("Rocks is opened in readonly mode")
+    }
+  }
+
   def delete[K <: Key](key: K, writeAsUpdate: Boolean = true): Unit = {
+    ensureOpenForWriting()
     logger.trace(s"Deleting ${key} from rocksdb and write it as update? ${writeAsUpdate}")
     val cf = lookupColumnFamily[K, Any](key)
     val encodedKey = cf.encodeKey(key)

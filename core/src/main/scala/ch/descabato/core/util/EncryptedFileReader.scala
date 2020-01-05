@@ -75,6 +75,8 @@ class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser
 
   readHeader()
 
+  def startOfContent: Long = encryptionBoundary + 32
+
   override def readAllContent(): BytesWrapper = {
     val startOfContent = encryptionBoundary + 32
     val out = readChunk(startOfContent, file.length() - startOfContent)

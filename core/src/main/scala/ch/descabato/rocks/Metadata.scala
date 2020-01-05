@@ -108,7 +108,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
       if (rocksEnvInit.readOnly) {
         // return as is, tell user to repair
         // maybe list problems
-        throw new IllegalArgumentException("Database is in an inconsistent state and no repair allowed. Please call repair.")
+         throw new IllegalArgumentException("Database is in an inconsistent state and no repair allowed. Please call repair.")
       } else {
         // repair
         if (rocksEnvInit.startedWithoutRocksdb || initialRockState == Some(Reconstructing)) {

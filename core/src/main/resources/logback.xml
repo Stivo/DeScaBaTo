@@ -29,6 +29,6 @@
 		<appender-ref ref="STDOUT" />
 	</root>
 
-  <logger name="org.apache.ftpserver" level="WARN"/>
+  <logger name="org.apache" level="WARN"/>
 
 </configuration>
