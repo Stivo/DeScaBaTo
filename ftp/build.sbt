@@ -3,10 +3,14 @@ name := "ftp"
 
 mainClass := Some("ch.descabato.rocks.Main")
 
+resolvers += Resolver.jcenterRepo
+
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
 // https://mvnrepository.com/artifact/org.apache.ftpserver/ftpserver-core
 libraryDependencies += "org.apache.ftpserver" % "ftpserver-core" % "1.1.1"
+
+libraryDependencies += "com.github.serceman" % "jnr-fuse" % "0.5.3"
 
 fork := true
 
