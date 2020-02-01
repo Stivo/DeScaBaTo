@@ -94,18 +94,35 @@ trait TreeNode {
 
 trait FolderNode extends TreeNode {
   def children: Iterable[TreeNode]
+
 }
 
 class FileNode(val name: String, val fileMetadataKeyWrapper: FileMetadataKeyWrapper, val metadata: FileMetadataValue) extends TreeNode {
   var linkCount = 1
+
+  override def toString: String = s"File: ${fileMetadataKeyWrapper.fileMetadataKey.path} with length ${metadata.length}"
 }
 
 class FileFolder(val name: String, var backupInfo: Option[(FileMetadataKeyWrapper, FileMetadataValue)] = None) extends FolderNode {
-
   private var map: TreeMap[String, TreeNode] = TreeMap.empty
 
   def addSubfolder(fileFolder: FileFolder): Unit = {
     map += fileFolder.name -> fileFolder
+  }
+
+  def find(path: Seq[String]): Option[TreeNode] = {
+    if (path.isEmpty) {
+      Some(this)
+    } else {
+      children.find(_.name == path.head) match {
+        case Some(x: FileFolder) =>
+          x.find(path.tail)
+        case Some(x: FileNode) if path.length == 1 =>
+          Some(x)
+        case _ =>
+          None
+      }
+    }
   }
 
   def add(restPath: Seq[String], key: FileMetadataKeyWrapper, metadata: FileMetadataValue): Unit = {
@@ -132,6 +149,10 @@ class FileFolder(val name: String, var backupInfo: Option[(FileMetadataKeyWrappe
 
   override def children: Iterable[TreeNode] = {
     map.values
+  }
+
+  override def toString: String = {
+    s"${name} with ${children.size} children"
   }
 }
 
