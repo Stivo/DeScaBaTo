@@ -34,7 +34,7 @@ object TestFuse {
         case _ =>
           "/tmp/mnth"
       }
-      stub.mount(Paths.get(path), true, true)
+      stub.mount(Paths.get(path), true, false)
     } finally stub.umount()
   }
 }
@@ -57,22 +57,18 @@ class TestFuse(reader: BackupReader) extends FuseStubFS {
 
   override def getattr(path: String, stat: FileStat) = {
     var res = 0
-    if (Objects.equals(path, "/")) {
-      stat.st_mode.set(FileStat.S_IFDIR | readAndList)
-      stat.st_nlink.set(2)
-    } else {
-      val memoryPath = lookup(path)
-      memoryPath match {
-        case Some(x: FolderNode) =>
-          stat.st_mode.set(FileStat.S_IFDIR | readAndList)
-          stat.st_nlink.set(2)
-        case Some(x: FileNode) =>
-          stat.st_mode.set(FileStat.S_IFREG | readOnly)
-          stat.st_nlink.set(1)
-          stat.st_size.set(x.metadata.length)
-        case None =>
-          res = -ErrorCodes.ENOENT()
-      }
+    val memoryPath = lookup(path)
+    memoryPath match {
+      case Some(x: FileFolder) =>
+        stat.st_mode.set(FileStat.S_IFDIR | readAndList)
+        stat.st_nlink.set(2)
+      case Some(x: FileNode) =>
+        stat.st_mode.set(FileStat.S_IFREG | readOnly)
+        stat.st_nlink.set(1)
+        stat.st_size.set(x.metadata.length)
+        stat.st_mtim.tv_sec.set(x.fileMetadataKeyWrapper.fileMetadataKey.changed / 1000)
+      case None =>
+        res = -ErrorCodes.ENOENT()
     }
     res
   }
@@ -93,7 +89,7 @@ class TestFuse(reader: BackupReader) extends FuseStubFS {
 
   override def open(path: String, fi: FuseFileInfo): Int = {
     lookup(path) match {
-      case Some(x: FileNode) =>
+      case Some(_: FileNode) =>
         0
       case _ =>
         -ErrorCodes.ENOENT()

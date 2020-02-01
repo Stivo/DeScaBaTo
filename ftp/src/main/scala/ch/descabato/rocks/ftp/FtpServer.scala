@@ -114,7 +114,7 @@ class FileFolder(val name: String, var backupInfo: Option[(FileMetadataKeyWrappe
     if (path.isEmpty) {
       Some(this)
     } else {
-      children.find(_.name == path.head) match {
+      map.get(path.head) match {
         case Some(x: FileFolder) =>
           x.find(path.tail)
         case Some(x: FileNode) if path.length == 1 =>
