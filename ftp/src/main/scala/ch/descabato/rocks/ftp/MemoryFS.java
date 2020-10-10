@@ -37,10 +37,6 @@ public class MemoryFS extends FuseStubFS {
             p.parent = this;
         }
 
-        private synchronized void deleteChild(MemoryPath child) {
-            contents.remove(child);
-        }
-
         @Override
         protected MemoryPath find(String path) {
             if (super.find(path) != null) {
@@ -74,14 +70,6 @@ public class MemoryFS extends FuseStubFS {
             stat.st_mode.set(FileStat.S_IFDIR | 0777);
             stat.st_uid.set(getContext().uid.get());
             stat.st_gid.set(getContext().gid.get());
-        }
-
-        private synchronized void mkdir(String lastComponent) {
-            contents.add(new MemoryDirectory(lastComponent, this));
-        }
-
-        public synchronized void mkfile(String lastComponent) {
-            contents.add(new MemoryFile(lastComponent, this));
         }
 
         public synchronized void read(Pointer buf, FuseFillDir filler) {
@@ -132,34 +120,6 @@ public class MemoryFS extends FuseStubFS {
             return bytesToRead;
         }
 
-        private synchronized void truncate(long size) {
-            if (size < contents.capacity()) {
-                // Need to create a new, smaller buffer
-                ByteBuffer newContents = ByteBuffer.allocate((int) size);
-                byte[] bytesRead = new byte[(int) size];
-                contents.get(bytesRead);
-                newContents.put(bytesRead);
-                contents = newContents;
-            }
-        }
-
-        private int write(Pointer buffer, long bufSize, long writeOffset) {
-            int maxWriteIndex = (int) (writeOffset + bufSize);
-            byte[] bytesToWrite = new byte[(int) bufSize];
-            synchronized (this) {
-                if (maxWriteIndex > contents.capacity()) {
-                    // Need to create a new, larger buffer
-                    ByteBuffer newContents = ByteBuffer.allocate(maxWriteIndex);
-                    newContents.put(contents);
-                    contents = newContents;
-                }
-                buffer.get(0, bytesToWrite, 0, (int) bufSize);
-                contents.position((int) writeOffset);
-                contents.put(bytesToWrite);
-                contents.position(0); // Rewind
-            }
-            return (int) bufSize;
-        }
     }
 
     private abstract class MemoryPath {
@@ -175,13 +135,6 @@ public class MemoryFS extends FuseStubFS {
             this.parent = parent;
         }
 
-        private synchronized void delete() {
-            if (parent != null) {
-                parent.deleteChild(this);
-                parent = null;
-            }
-        }
-
         protected MemoryPath find(String path) {
             while (path.startsWith("/")) {
                 path = path.substring(1);
@@ -194,12 +147,6 @@ public class MemoryFS extends FuseStubFS {
 
         protected abstract void getattr(FileStat stat);
 
-        private void rename(String newName) {
-            while (newName.startsWith("/")) {
-                newName = newName.substring(1);
-            }
-            name = newName;
-        }
     }
 
     public static void main(String[] args) {

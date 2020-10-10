@@ -102,6 +102,8 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
   def initialize(): RocksDbKeyValueStore = {
     if (isConsistent()) {
       logger.info("Backup loaded without issues")
+
+
       // return, all is fine
       initialRocks
     } else {
@@ -382,6 +384,7 @@ class OldDataImporter(rocksEnv: RocksEnv, val overrideReadFromConfig: Option[Bac
       rocks.write(key, value)
     }
     rocks.commit()
+
   }
 
   def markVolumesAsDone(): Unit = {

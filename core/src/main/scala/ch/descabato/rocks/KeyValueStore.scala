@@ -143,6 +143,18 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     iterateKeysFrom[ValueLogStatusKey, ValueLogStatusValue](fileStatusColumnFamily)
   }
 
+  def getIndexes(fileMetadataValue: FileMetadataValue): Iterator[ValueLogIndex] = {
+    for {
+      hash <- getHashes(fileMetadataValue)
+    } yield readChunk(hash).get
+  }
+
+  def getHashes(fileMetadataValue: FileMetadataValue): Iterator[ChunkKey] = {
+    for {
+      hashBytes <- fileMetadataValue.hashes.toByteArray.grouped(32)
+    } yield ChunkKey(Hash(hashBytes))
+  }
+
   def readAllUpdates(): Seq[(RevisionContentKey, RevisionContentValue)] = {
     iterateKeysFrom[RevisionContentKey, RevisionContentValue](revisionContentColumnFamily)
   }
@@ -157,6 +169,7 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
 
   def write[K <: Key, V](key: K, value: V, writeAsUpdate: Boolean = true): Unit = {
     ensureOpenForWriting()
+
     def writeImpl(cf: ColumnFamily[K, V], key: K, value: V) = {
       val keyEncoded = cf.encodeKey(key)
       val valueEncoded = cf.encodeValue(value)

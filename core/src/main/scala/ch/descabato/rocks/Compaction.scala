@@ -6,7 +6,6 @@ import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.rocks.protobuf.keys.Status
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
-import ch.descabato.utils.Hash
 import ch.descabato.utils.Utils
 import com.typesafe.scalalogging.LazyLogging
 
@@ -73,10 +72,8 @@ class Compaction(env: RocksEnv, dryRun: Boolean) extends Utils {
     }
     for {
       (_, value) <- env.rocks.getAllFileMetadatas()
-      hashBytes <- value.hashes.toByteArray.grouped(32)
-      hash = Hash(hashBytes)
+      key <- env.rocks.getHashes(value)
     } {
-      val key = ChunkKey(hash)
       chunkReferenceCount += key -> (chunkReferenceCount(key) + 1)
     }
     val keysToDelete = chunkReferenceCount.filter(_._2 == 0).keys

@@ -17,9 +17,9 @@ import com.amazonaws.event.ProgressEvent
 import com.amazonaws.event.ProgressEventType
 import com.amazonaws.event.ProgressListener
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.services.s3.model.StorageClass
 import com.amazonaws.services.s3.model.ObjectMetadata
 import com.amazonaws.services.s3.model.PutObjectRequest
+import com.amazonaws.services.s3.model.StorageClass
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder
 import org.apache.commons.compress.utils.BoundedInputStream
 
@@ -102,7 +102,12 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
     Try {
       val request = new PutObjectRequest(bucketName, remotePath, file)
       request.setMetadata(createMetadata(md5Hash))
-      request.setStorageClass(StorageClass.StandardInfrequentAccess)
+      val storageClass = if (file.getName.startsWith("volume")) {
+        StorageClass.DeepArchive
+      } else {
+        StorageClass.Standard
+      }
+      request.setStorageClass(storageClass)
       val upload = manager.upload(request)
       context.foreach { c =>
         c.initCounter(file.length(), file.getName)

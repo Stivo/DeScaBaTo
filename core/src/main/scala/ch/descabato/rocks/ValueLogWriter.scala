@@ -14,7 +14,6 @@ import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
-import ch.descabato.utils.Hash
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
@@ -121,13 +120,12 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
   def createInputStream(fileMetadataValue: FileMetadataValue): InputStream = {
 
     new SequenceInputStream(new java.util.Enumeration[InputStream]() {
-      val hashIterator = fileMetadataValue.hashes.toByteArray.grouped(32).iterator
+      private val indexIterator = rocksEnv.rocks.getIndexes(fileMetadataValue)
 
-      override def hasMoreElements: Boolean = hashIterator.hasNext
+      override def hasMoreElements: Boolean = indexIterator.hasNext
 
       override def nextElement(): InputStream = {
-        val hash = hashIterator.next()
-        val index = rocksEnv.rocks.readChunk(ChunkKey(Hash(hash))).get
+        val index = indexIterator.next()
         readValue(index).asInputStream()
       }
     })
