@@ -3,14 +3,14 @@
 sudo: false
 language: scala
 scala:
-  - 2.13.1
+  - 2.13.2
 branches:
   only:
     - master
     - openjdk-11
     - feature/scala2.13
+    - feature/fuse
 jdk:
-  - oraclejdk8
   - openjdk11
 #before_script:
 #   - sudo apt-get install par2
