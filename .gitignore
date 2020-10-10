@@ -30,3 +30,4 @@ restore/
 /compression3.txt
 /testimg
 /ftp/src/main/scala/ch/descabato/rocks/ftp/RunLocal.scala
+/ftp/src/main/scala/ch/descabato/rocks/ftp/BackupPicsNew.scala

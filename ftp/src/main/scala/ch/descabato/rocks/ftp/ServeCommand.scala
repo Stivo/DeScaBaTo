@@ -16,7 +16,7 @@ class ServeCommand extends BackupRelatedCommand {
 
   def start(t: T, conf: BackupFolderConfiguration) {
     printConfiguration(t)
-    FtpServer.serve(conf, t.port())
+    // TODO make a new command
   }
 }
 
