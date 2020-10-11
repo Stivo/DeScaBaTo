@@ -137,7 +137,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
     assume(baseFolder.getCanonicalFile().exists())
     // create some files
     fg.rescan()
-    fg.generateFiles
+    fg.generateFiles()
     fg.rescan()
   }
 

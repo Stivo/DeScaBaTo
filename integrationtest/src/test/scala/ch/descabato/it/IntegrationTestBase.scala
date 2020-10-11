@@ -9,6 +9,7 @@ import ch.descabato.RichFlatSpecLike
 import ch.descabato.TestUtils
 import ch.descabato.utils.Utils
 import org.apache.commons.exec.CommandLine
+import org.apache.commons.exec.DefaultExecutor
 import org.apache.commons.exec.ExecuteException
 import org.apache.commons.io.{FileUtils => IO_FileUtils}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -79,6 +80,7 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
 
   def createHandlerScript(args: Seq[String], redirect: Boolean = true, maxSeconds: Int = 600) = {
     val friendlyTestName = currentTestName.replace("/", "_")
+    patchScript()
     val cmdLine = new CommandLine(batchfile)
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
@@ -90,6 +92,20 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
       cmdLine.addArgument(arg)
     }
     new BackupExecutionHandler(cmdLine, packFolder, friendlyTestName, maxSeconds)
+  }
+
+  private def patchScript() = {
+    val executor = new DefaultExecutor()
+    val updateScript1 = new CommandLine("sed")
+    updateScript1.addArgument("-i")
+    updateScript1.addArgument(s"s/ch.descabato.rocks.Main/$mainClass/g")
+    updateScript1.addArgument(batchfile.getAbsolutePath)
+    val updateScript2 = new CommandLine("sed")
+    updateScript2.addArgument("-i")
+    updateScript2.addArgument(s"s/ch.descabato.frontend.CLI/$mainClass/g")
+    updateScript2.addArgument(batchfile.getAbsolutePath)
+    executor.execute(updateScript1)
+    executor.execute(updateScript2)
   }
 
   def startAndWait(args: Seq[String], redirect: Boolean = true) = {
