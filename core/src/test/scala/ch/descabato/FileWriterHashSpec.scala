@@ -9,13 +9,13 @@ import ch.descabato.core.util._
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Hash
 import org.apache.commons.codec.digest.DigestUtils
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.util.Random
 
-class FileWriterHashSpec extends FlatSpec with GeneratorDrivenPropertyChecks with BeforeAndAfterAll {
+class FileWriterHashSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks with BeforeAndAfterAll {
 
   val file = File.createTempFile("desca_original", "test")
   val encrypted = File.createTempFile("desca_encrypted", "test")

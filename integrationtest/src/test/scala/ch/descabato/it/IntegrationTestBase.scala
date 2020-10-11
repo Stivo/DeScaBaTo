@@ -11,13 +11,13 @@ import ch.descabato.utils.Utils
 import org.apache.commons.exec.CommandLine
 import org.apache.commons.exec.ExecuteException
 import org.apache.commons.io.{FileUtils => IO_FileUtils}
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Set
 
-abstract class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with TestUtils {
+abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike with TestUtils {
 
   def mainClass: String
 
@@ -38,9 +38,13 @@ abstract class IntegrationTestBase extends FlatSpec with RichFlatSpecLike with T
   val batchfile = new File(descabatoFolder, s"core/target/pack/bin/descabato$suffix").getAbsoluteFile()
   val packFolder = new File(descabatoFolder, s"core/target/pack").getAbsoluteFile()
 
-  // var baseFolder = new File("L:/testdata")
   var baseFolder = {
-    new File("integrationtest/testdata")
+    if (System.getProperty("user.name") == "Stivo") {
+      // use ramdisk on my machine for integration tests
+      new File("L:/testdata")
+    } else {
+      new File("integrationtest/testdata")
+    }
   }
 
   var logFolder = new File(descabatoFolder, "integrationtest/logs")

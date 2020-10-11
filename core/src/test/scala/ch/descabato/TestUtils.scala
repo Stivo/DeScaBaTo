@@ -1,10 +1,11 @@
 package ch.descabato
 
-import java.io.{ByteArrayInputStream, File}
+import java.io.ByteArrayInputStream
+import java.io.File
 import java.nio.file.Files
 
 import ch.descabato.utils.Utils
-import org.scalatest.FlatSpecLike
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 trait TestUtils extends Utils {
 
@@ -49,9 +50,10 @@ trait TestUtils extends Utils {
  * if you for example have many tests that take rather long, and you wonder
  * which one is currently running.
  */
-trait RichFlatSpecLike extends FlatSpecLike {
+trait RichFlatSpecLike extends AnyFlatSpecLike {
 
   private var _currentTestName: Option[String] = None
+
   def currentTestName = _currentTestName getOrElse "DwE90RXP2"
 
   protected override def runTest(testName: String, args: org.scalatest.Args) = {

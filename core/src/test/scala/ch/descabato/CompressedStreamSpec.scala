@@ -1,7 +1,7 @@
 package ch.descabato
 
-import java.io.{File, InputStream}
-import java.util.{List => JList}
+import java.io.File
+import java.io.InputStream
 
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.utils.CompressedStream
@@ -9,10 +9,11 @@ import ch.descabato.utils.Implicits._
 import org.apache.commons.compress.utils.IOUtils
 import org.scalacheck.Arbitrary
 import org.scalatest._
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class CompressedStreamSpec extends FlatSpec with BeforeAndAfterAll
-  with GeneratorDrivenPropertyChecks with TestUtils {
+class CompressedStreamSpec extends AnyFlatSpec with BeforeAndAfterAll
+  with ScalaCheckDrivenPropertyChecks with TestUtils {
 
   import org.scalacheck.Gen._
 

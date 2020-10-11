@@ -2,13 +2,13 @@ package ch.descabato.it
 
 import java.io.File
 
-import org.scalatest.Matchers._
 import org.scalatest._
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import org.scalatest.matchers.should.Matchers._
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.util.Random
 
-abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with BeforeAndAfterAll with GeneratorDrivenPropertyChecks {
+abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter with BeforeAndAfterAll with ScalaCheckDrivenPropertyChecks {
 
   val verifyEnabled: Boolean = true
 

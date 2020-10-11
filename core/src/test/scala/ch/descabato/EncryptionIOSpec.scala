@@ -7,13 +7,13 @@ import java.security.SecureRandom
 import ch.descabato.core.util._
 import ch.descabato.utils.BytesWrapper
 import org.scalacheck.Gen
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.util.Random
 
-class EncryptionIOSpec extends FlatSpec with GeneratorDrivenPropertyChecks with BeforeAndAfterAll {
+class EncryptionIOSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks with BeforeAndAfterAll {
 
   val file = File.createTempFile("desca_original", "test")
   val encrypted = File.createTempFile("desca_encrypted", "test")

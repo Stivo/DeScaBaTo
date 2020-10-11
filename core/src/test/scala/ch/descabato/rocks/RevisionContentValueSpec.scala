@@ -2,10 +2,10 @@ package ch.descabato.rocks
 
 
 import ch.descabato.utils.Implicits._
-import org.scalatest.Matchers._
-import org.scalatest.WordSpec
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 
-class RevisionContentValueSpec extends WordSpec {
+class RevisionContentValueSpec extends AnyWordSpec {
 
   "Revision content encoding" should {
     "encode and decode correctly for an update" in {

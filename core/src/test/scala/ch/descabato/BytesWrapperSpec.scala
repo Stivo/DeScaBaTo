@@ -2,10 +2,10 @@ package ch.descabato
 
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
-import org.scalatest._
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class BytesWrapperSpec extends FlatSpec with GeneratorDrivenPropertyChecks {
+class BytesWrapperSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks {
 
   "byteswrapper" should "implement equality" in {
     val b1 = "asdf".getBytes().wrap()

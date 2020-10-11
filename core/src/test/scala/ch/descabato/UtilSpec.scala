@@ -1,18 +1,18 @@
 package ch.descabato
 
 import java.io.File
-import java.util.{List => JList}
 
 import ch.descabato.core.model.Size
 import org.scalatest._
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class UtilSpec extends FlatSpec with BeforeAndAfterAll with GeneratorDrivenPropertyChecks with TestUtils {
-  
+class UtilSpec extends AnyFlatSpec with BeforeAndAfterAll with ScalaCheckDrivenPropertyChecks with TestUtils {
+
   //ConsoleManager.testSetup
-  
+
   var folder = new File("testdata/temp")
-  
+
   "sizeparser" should "parse sizes" in {
     val mb = 1024 * 1024
     test("512B", 512)

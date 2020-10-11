@@ -8,7 +8,7 @@ import java.util.stream.Collectors
 import ch.descabato.core.model.Size
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
 
 import scala.collection.JavaConverters._
 

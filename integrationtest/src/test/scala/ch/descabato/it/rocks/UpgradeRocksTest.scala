@@ -13,7 +13,7 @@ import ch.descabato.core.util.FileManager
 import ch.descabato.it.FileGen
 import ch.descabato.it.IntegrationTestBase
 import org.apache.commons.io.FileUtils
-import org.scalatest.Matchers._
+import org.scalatest.matchers.should.Matchers._
 
 import scala.collection.JavaConverters._
 

@@ -12,7 +12,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream" % "2.5.25",
   "org.rogach" %% "scallop" % "3.3.1",
   "org.ocpsoft.prettytime" % "prettytime" % "4.0.2.Final",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.63",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
   "org.rocksdb" % "rocksdbjni" % "6.4.6",
   "com.github.pathikrit" %% "better-files" % "3.8.0",
 )
@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
   "org.lz4" % "lz4-java" % "1.6.0",
   "org.tukaani" % "xz" % "1.8",
-  "org.apache.commons" % "commons-compress" % "1.19",
+  "org.apache.commons" % "commons-compress" % "1.20",
   "com.github.luben" % "zstd-jni" % "1.4.4-3"
 )
 
@@ -48,13 +48,13 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-vfs2" % "2.4.1",
   "commons-net" % "commons-net" % "3.6",
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.645"
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.880"
 )
 
 
 // Test dependencies
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.0.8" % "test->*"
+  "org.scalatest" %% "scalatest" % "3.2.2" % "test"
     excludeAll(
     ExclusionRule(organization = "org.seleniumhq.selenium"),
     ExclusionRule(organization = "org.eclipse.jetty"),
@@ -63,7 +63,18 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.easymock"),
     ExclusionRule(organization = "org.mockito")
   ),
-  "org.scalacheck" %% "scalacheck" % "1.14.2" % "test"
+  "org.scalatestplus" %% "scalatestplus-scalacheck" % "1.0.0-M2" % Test,
+  "org.scalatest" %% "scalatest-matchers-core" % "3.2.2" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.2" % "test"
+    excludeAll(
+    ExclusionRule(organization = "org.seleniumhq.selenium"),
+    ExclusionRule(organization = "org.eclipse.jetty"),
+    ExclusionRule(organization = "org.testng"),
+    ExclusionRule(organization = "org.jmock"),
+    ExclusionRule(organization = "org.easymock"),
+    ExclusionRule(organization = "org.mockito")
+  ),
+  "org.scalacheck" %% "scalacheck" % "1.14.3" % "test"
 )
 
 PB.targets in Compile := Seq(

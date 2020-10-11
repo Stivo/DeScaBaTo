@@ -3,11 +3,12 @@ package ch.descabato
 import java.util.Base64
 
 import ch.descabato.utils.Implicits._
-import ch.descabato.utils.{FastHashMap, Hash}
-import org.scalatest.FlatSpec
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import ch.descabato.utils.FastHashMap
+import ch.descabato.utils.Hash
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class ByteArrayMapSpec extends FlatSpec with GeneratorDrivenPropertyChecks {
+class ByteArrayMapSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks {
 
   "ByteArrayMap" should "work with hashes and byte arrays as keys" in {
     var strings = Set.empty[String]

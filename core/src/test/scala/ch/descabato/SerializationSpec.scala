@@ -4,21 +4,17 @@ import java.io.File
 
 import ch.descabato.core.actors.MetadataStorageActor.BackupMetaDataStored
 import ch.descabato.core.model._
-import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
-import org.scalacheck.{Arbitrary, Gen}
-import org.scalatest.Matchers._
-import org.scalatest._
-import org.scalatest.prop.GeneratorDrivenPropertyChecks._
 import org.scalacheck.Arbitrary.arbitrary
+import org.scalacheck.Gen
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers._
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks._
 
-import scala.collection.JavaConverters._
-import scala.collection.immutable
-import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
 
 // TODO write a test for the new classes
-class SerializationSpec extends FlatSpec with TestUtils {
+class SerializationSpec extends AnyFlatSpec with TestUtils {
 
   implicit def toVector[T](t: T): Vector[T] = Vector(t)
 
