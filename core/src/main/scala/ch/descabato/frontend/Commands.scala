@@ -22,9 +22,9 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.FileManager
 import ch.descabato.frontend.ScallopConverters._
+import ch.descabato.utils.BuildInfo
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
-import ch.descabato.version.BuildInfo
 import org.rogach.scallop._
 import org.rogach.scallop.exceptions.ScallopException
 

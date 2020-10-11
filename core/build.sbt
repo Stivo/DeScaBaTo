@@ -1,4 +1,4 @@
-
+import java.util.Date
 
 name := "core"
 
@@ -76,10 +76,6 @@ parallelExecution in Test := false
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
-enablePlugins(BuildInfoPlugin)
-
-buildInfoPackage := "ch.descabato.version"
-
 enablePlugins(PackPlugin)
 
 packMain := Map("descabato" -> "ch.descabato.rocks.Main")
@@ -89,3 +85,26 @@ packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx2g"))
 packJarNameConvention := "original"
 
 packArchivePrefix := "descabato-core"
+
+lazy val generateBuildInfo = taskKey[Seq[File]]("Generates the build information")
+
+lazy val sbtVersionCopy2 = (ThisBuild / scalaVersion)
+
+generateBuildInfo := {
+  val file = (resourceManaged in Compile).value / "buildinfo.properties"
+  //  val pb = new ProcessBuilder("git", "branch", "--show-current")
+  //  val process = pb.start()
+  //  val outputStream = process.getInputStream
+  //  val branch = new BufferedReader(new InputStreamReader(outputStream)).readLine()
+  IO.write(file,
+    s"""
+       |version = ${version.value}
+       |scalaVersion = ${scalaVersion.value}
+       |sbtVersion = ${sbtVersion.value}
+       |builtAt = ${new Date()}
+       |builtAtMillis = ${System.currentTimeMillis()}
+       |""".stripMargin)
+  Seq(file)
+}
+
+resourceGenerators in Compile += generateBuildInfo
