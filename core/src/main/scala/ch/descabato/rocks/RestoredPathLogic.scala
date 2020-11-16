@@ -1,83 +1,13 @@
-package ch.descabato.core.commands
+package ch.descabato.rocks
 
 import java.io.File
-import java.io.FileOutputStream
-import java.util.Date
 
-import ch.descabato.core.Universe
-import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
 import ch.descabato.core.model.BackupPart
-import ch.descabato.core.model.FileAttributes
-import ch.descabato.core.model.FileMetadataStored
 import ch.descabato.core.model.FolderDescription
 import ch.descabato.frontend.RestoreConf
-import ch.descabato.utils.Implicits._
 import ch.descabato.utils._
 
 import scala.collection.mutable
-import scala.concurrent.Await
-import scala.concurrent.duration._
-
-class DoRestore(_universe: Universe) extends DoReadAbstract(_universe) with Utils {
-
-  import universe.materializer
-
-  def restoreFromDate(options: RestoreConf, date: Date): Unit = {
-    restore(options, Some(date))
-  }
-
-  def restore(options: RestoreConf, date: Option[Date] = None): Unit = {
-    waitForStartup()
-    val metadata = Await.result(universe.metadataStorageActor.retrieveBackup(date), 1.minute)
-    restoreImpl(options, metadata)
-    logger.info("Finished restoring files")
-  }
-
-  private def restoreImpl(options: RestoreConf, metadata: BackupDescription) = {
-    implicit val restoreConf: RestoreConf = options
-    val logic = new RestoredPathLogic(metadata.folders, options)
-    restoreFolders(logic, metadata.folders)
-    restoreFiles(logic, metadata.files)
-    restoreFolders(logic, metadata.folders)
-  }
-
-  private def restoreFolders(logic: RestoredPathLogic, folders: Seq[FolderDescription]) = {
-    for (folder <- folders) {
-      val restoredFile = logic.makePath(folder.path)
-      restoredFile.mkdirs()
-      folder.applyAttrsTo(restoredFile)
-    }
-  }
-
-  private def restoreFiles(logic: RestoredPathLogic, files: Seq[FileMetadataStored]): Unit = {
-    logger.info(s"Restoring ${files.size} files")
-    for (file <- files) {
-      restoreFile(logic, file)
-    }
-  }
-
-  private def restoreFile(logic: RestoredPathLogic, file: FileMetadataStored): Unit = {
-    val fd = file.fd
-    val restoredFile = logic.makePath(fd.path)
-    restoredFile.getParentFile.mkdirs()
-    if (restoredFile.exists()) {
-      if (restoredFile.length() == fd.size && !fd.attrs.hasBeenModified(restoredFile)) {
-        return
-      }
-      l.debug(s"${restoredFile.length()} ${fd.size} ${fd.attrs} ${restoredFile.lastModified()}")
-      l.info("File exists, but has been modified, so overwrite")
-    }
-    val stream = new FileOutputStream(restoredFile)
-    if (file.fd.size > 0) {
-      val source = chunkIdsForFile(file)
-      Await.result(getBytestream(source).runForeach { x =>
-        stream.write(x)
-      }, 1.hour)
-    }
-    stream.close()
-    FileAttributes.restore(fd.attrs, restoredFile)
-  }
-}
 
 class RestoredPathLogic(val folders: Seq[FolderDescription], val restoreConf: RestoreConf) {
 

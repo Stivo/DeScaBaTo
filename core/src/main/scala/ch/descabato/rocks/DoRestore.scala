@@ -4,7 +4,6 @@ import java.io.File
 import java.io.FileOutputStream
 
 import better.files._
-import ch.descabato.core.commands.RestoredPathLogic
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.FileAttributes
 import ch.descabato.core.model.FolderDescription

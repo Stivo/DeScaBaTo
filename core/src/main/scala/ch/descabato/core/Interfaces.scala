@@ -1,24 +1,15 @@
 package ch.descabato.core
 
 import java.io.File
-import java.util.Date
 
-import akka.actor.TypedActor
 import ch.descabato.CompressionMode
-import ch.descabato.core.actors.MetadataStorageActor.BackupDescription
-import ch.descabato.core.actors.BlockingOperation
-import ch.descabato.core.actors.JournalHandler
-import ch.descabato.core.actors.MyEventReceiver
-import ch.descabato.core.commands.ProblemCounter
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model._
 import ch.descabato.core.util.Json
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedStream
-import ch.descabato.utils.Hash
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 
-import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Try
 
@@ -30,26 +21,6 @@ case class ChunkIdAssigned(id: Long) extends ChunkIdResult
 
 case object ChunkUnknown extends ChunkIdResult
 
-trait ChunkStorage extends LifeCycle {
-
-  // writing
-  def hasAlready(id: Long): Future[Boolean]
-
-  def chunkId(block: Block, assignIdIfNotFound: Boolean): Future[ChunkIdResult]
-
-  def save(block: CompressedBlock, id: Long): Future[Boolean]
-
-  // reading
-  def getHashForId(id: Long): Future[Hash]
-
-  def read(id: Long): Future[BytesWrapper]
-
-  // verification
-  def verifyChunksAreAvailable(chunkIdsToTest: Seq[Long], counter: ProblemCounter, checkVolumeToo: Boolean = true,
-                               checkContent: Boolean = false): BlockingOperation
-
-}
-
 sealed trait FileAlreadyBackedupResult
 
 case object FileNotYetBackedUp extends FileAlreadyBackedupResult
@@ -58,29 +29,8 @@ case class FileAlreadyBackedUp(fileMetadata: FileMetadataStored) extends FileAlr
 
 case object Storing extends FileAlreadyBackedupResult
 
-trait MetadataStorage extends LifeCycle with TypedActor.PreRestart with MyEventReceiver {
-
-  def getAllFileChunkIds(): Seq[Long]
-
-  def verifyMetadataForIdsAvailable(date: Date, counter: ProblemCounter): BlockingOperation
-
-  def retrieveBackup(date: Option[Date] = None): Future[BackupDescription]
-
-  def addDirectory(description: FolderDescription): Future[Boolean]
-
-  def getKnownFiles(): Map[String, FileMetadataStored]
-
-  def hasAlready(fileDescription: FileDescription): Future[FileAlreadyBackedupResult]
-
-  def saveFile(fileDescription: FileDescription, hashes: Seq[Long]): Future[Boolean]
-
-  def saveFileSameAsBefore(fileMetadataStored: FileMetadataStored): Future[Boolean]
-}
-
 trait JsonUser {
   def config: BackupFolderConfiguration
-
-  def journalHandler: JournalHandler
 
   def readJson[T: Manifest](file: File): Try[T] = {
     val reader = config.newReader(file)
@@ -110,12 +60,5 @@ trait JsonUser {
     val compressed: BytesWrapper = CompressedStream.compress(BytesWrapper(bytes), CompressionMode.gzip)
     writer.write(compressed)
     writer.close()
-    journalHandler.addFileToJournal(file, writer.md5Hash())
   }
-}
-
-trait LifeCycle {
-  def startup(): Future[Boolean]
-
-  def finish(): Future[Boolean]
 }

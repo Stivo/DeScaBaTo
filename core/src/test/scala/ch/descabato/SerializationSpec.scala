@@ -2,7 +2,6 @@ package ch.descabato
 
 import java.io.File
 
-import ch.descabato.core.actors.MetadataStorageActor.BackupMetaDataStored
 import ch.descabato.core.model._
 import ch.descabato.utils._
 import org.scalacheck.Arbitrary.arbitrary
@@ -46,11 +45,6 @@ class SerializationSpec extends AnyFlatSpec with TestUtils {
     id <- arbitrary[Long]
   } yield FolderMetadataStored(id, FolderDescription(path, FileAttributes(folder.toPath)))
 
-  val backupMetadataStored: Gen[BackupMetaDataStored] = for {
-    fileMetadatas <- Gen.containerOf[Array, FileMetadataStored](fileMetadataStored)
-    folderMetadatas <- Gen.containerOf[Array, FolderMetadataStored](folderMetadataStored)
-  } yield new BackupMetaDataStored(fileMetadatas, folderMetadatas)
-
   def writeAndRead[T](s: Serialization, t: T)(implicit m: Manifest[T]) = {
     val f = fixture
     import f._
@@ -83,11 +77,6 @@ class SerializationSpec extends AnyFlatSpec with TestUtils {
       assert(x === writeAndRead(serialization, x))
     }
 
-  }
-  it should "serialize stored backup metadata" in {
-    forAll(backupMetadataStored) { (x: BackupMetaDataStored) =>
-      assert(x === writeAndRead(serialization, x))
-    }
   }
 
 }

@@ -1,27 +1,21 @@
 package ch.descabato.frontend
 
 import java.io.File
-import java.io.FileOutputStream
-import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 
 import ch.descabato.CompressionMode
 import ch.descabato.HashAlgorithm
 import ch.descabato.RemoteMode
-import ch.descabato.core.BackupCorruptedException
 import ch.descabato.core.BackupException
 import ch.descabato.core.ExceptionFactory
 import ch.descabato.core.MisconfigurationException
-import ch.descabato.core.Universe
-import ch.descabato.core.commands.DoBackup
-import ch.descabato.core.commands.DoRestore
-import ch.descabato.core.commands.DoVerify
 import ch.descabato.core.config.BackupConfigurationHandler
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.FileManager
 import ch.descabato.frontend.ScallopConverters._
+import ch.descabato.rocks.Main
 import ch.descabato.utils.BuildInfo
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
@@ -115,23 +109,6 @@ trait BackupRelatedCommand extends Command with Utils {
   def needsExistingBackup = true
 
   var lastArgs: Seq[String] = Nil
-
-  def withUniverse[T](conf: BackupFolderConfiguration)(f: Universe => T): T = {
-    var universe: Universe = null
-    try {
-      universe = new Universe(conf)
-      f(universe)
-    } catch {
-      case e: Exception =>
-        logger.error("Exception while backing up")
-        logException(e)
-        throw e
-    } finally {
-      if (universe != null) {
-        universe.shutdown()
-      }
-    }
-  }
 
   final override def execute(args: Seq[String]) {
     val t = newT(args)
@@ -245,132 +222,6 @@ trait BackupFolderOption extends ProgramOption {
   }
 }
 
-class BackupCommand extends BackupRelatedCommand with Utils {
-
-  override val checkForUpgradeNeeded = false
-
-  val suffix: String = if (Utils.isWindows) ".bat" else ""
-
-  def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]): Unit = {
-    var path = new File(s"descabato$suffix").getCanonicalFile
-    // TODO the directory should be determined by looking at the classpath
-    if (!path.exists) {
-      path = new File(path.getParent() + "/bin", path.getName)
-    }
-    val line = s"$path backup " + args.map {
-      case x if x.contains(" ") => s""""$x""""
-      case x => x
-    }.mkString(" ")
-
-    def writeTo(bat: File) {
-      if (!bat.exists) {
-        val ps = new PrintStream(new FileOutputStream(bat))
-        ps.print(line)
-        ps.close()
-        l.info("A file " + bat + " has been written to execute this backup again")
-      }
-    }
-
-    writeTo(new File(".", conf.folder.getName() + suffix))
-    writeTo(new File(conf.folder, "_" + conf.folder.getName() + suffix))
-  }
-
-  type T = BackupConf
-
-  def newT(args: Seq[String]) = new BackupConf(args)
-
-  def start(t: T, conf: BackupFolderConfiguration) {
-    printConfiguration(t)
-    withUniverse(conf) { universe =>
-      if (!t.noScriptCreation()) {
-        writeBat(t, conf, lastArgs)
-      }
-      val backup = new DoBackup(universe, t.folderToBackup() :: Nil)
-      backup.execute()
-    }
-  }
-
-  override def needsExistingBackup = false
-}
-
-object RestoreRunners extends Utils {
-
-  def run(conf: BackupFolderConfiguration)(f: () => Unit) {
-    while (true) {
-      try {
-        f()
-        return
-      } catch {
-        case e@BackupCorruptedException(file, false) =>
-          logException(e)
-        //          Par2Handler.tryRepair(f, conf)
-      }
-    }
-  }
-}
-
-class RestoreCommand extends BackupRelatedCommand {
-
-  override val checkForUpgradeNeeded = false
-
-  type T = RestoreConf
-
-  def newT(args: Seq[String]) = new RestoreConf(args)
-
-  def start(t: T, conf: BackupFolderConfiguration) {
-    printConfiguration(t)
-    validateFilename(t.restoreToFolder)
-    validateFilename(t.restoreInfo)
-    withUniverse(conf) {
-      universe =>
-        val fm = universe.fileManagerNew
-        val restore = new DoRestore(universe)
-        if (t.chooseDate()) {
-          val options = fm.backup.getFiles().map(fm.backup.dateOfFile).zipWithIndex
-          options.foreach {
-            case (date, num) => println(s"[$num]: $date")
-          }
-          val option = askUser("Which backup would you like to restore from?").toInt
-          restore.restoreFromDate(t, options.find(_._2 == option).get._1)
-        } else if (t.restoreBackup.isSupplied) {
-          val backupsFound = fm.backup.getFiles().filter(_.getName.equals(t.restoreBackup()))
-          if (backupsFound.isEmpty) {
-            println("Could not find described backup, these are your choices:")
-            fm.backup.getFiles().foreach { f =>
-              println(f)
-            }
-            throw new IllegalArgumentException("Backup not found")
-          }
-          restore.restoreFromDate(t, fm.backup.dateOfFile(backupsFound.head))
-
-        } else {
-          restore.restore(t)
-        }
-    }
-  }
-}
-
-class VerifyCommand extends BackupRelatedCommand {
-
-  override val checkForUpgradeNeeded = false
-
-  type T = VerifyConf
-
-  def newT(args: Seq[String]) = new VerifyConf(args)
-
-  def start(t: T, conf: BackupFolderConfiguration): Unit = {
-    printConfiguration(t)
-    val counter = withUniverse(conf) {
-      u =>
-        val verify = new DoVerify(u)
-        verify.verifyAll()
-    }
-    CLI.lastErrors = counter.count
-    if (counter.count != 0)
-      CLI.exit(counter.count.toInt)
-  }
-}
-
 class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
 
 class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
@@ -412,9 +263,9 @@ class HelpCommand extends Command {
 
   override def execute(args: Seq[String]) {
     args.toList match {
-      case command :: _ if CLI.getCommands().safeContains(command) => CLI.parseCommandLine(command :: "--help" :: Nil)
+      case command :: _ if Main.getCommands().safeContains(command) => Main.parseCommandLine(command :: "--help" :: Nil)
       case _ =>
-        val commands = CLI.getCommands().keys.mkString(", ")
+        val commands = Main.getCommands().keys.mkString(", ")
         println(
           s"""Welcome to DeScaBaTo.
 The available commands are: $commands

@@ -26,7 +26,6 @@ object Main extends Utils {
     new UploadCommand(),
     new CountCommand(),
     new RestoreCommand(),
-    new UpgradeCommand(),
     new ReflectionCommand("serve", "ch.descabato.rocks.fuse.ServeCommand"),
     //    new HelpCommand(),
     //    new VersionCommand()

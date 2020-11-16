@@ -1,10 +1,13 @@
 package ch.descabato.frontend
 
-import java.awt.event.{ActionEvent, ActionListener}
-import javax.swing.{Timer, UIManager}
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
 
 import ch.descabato.remote.RemoteOptions
+import ch.descabato.rocks.Main
 import ch.descabato.utils.Utils
+import javax.swing.Timer
+import javax.swing.UIManager
 import org.bridj.Pointer
 import org.bridj.cpp.com.COMRuntime
 import org.bridj.cpp.com.shell.ITaskbarList3
@@ -67,7 +70,7 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
   var counters: mutable.Buffer[Counter] = mutable.Buffer[Counter]()
 
   def pause(pausing: Boolean) {
-    CLI.paused = pausing
+    Main.paused = pausing
   }
 
   val slices: mutable.Buffer[ProgressSlice] = mutable.Buffer[ProgressSlice]()
