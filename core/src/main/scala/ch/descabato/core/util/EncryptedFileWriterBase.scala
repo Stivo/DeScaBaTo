@@ -2,39 +2,43 @@ package ch.descabato.core.util
 
 import java.io.File
 
-import akka.util.ByteString
-import ch.descabato.utils.{BytesWrapper, Utils}
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Utils
 
-abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, keylength: Int) extends CipherUser(passphrase) with FileWriter with Utils{
+abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, keylength: Int) extends CipherUser(passphrase) with FileWriter with Utils {
 
   lazy val keyDerivationInfo = new KeyDerivationInfo(keyLength = (keylength / 8).toByte)
 
   protected val key = CryptoUtils.keyDerive(passphrase, keyDerivationInfo.salt,
     keyDerivationInfo.keyLength, keyDerivationInfo.iterationsPower, keyDerivationInfo.memoryFactor)
 
-  private var header = ByteString.empty
-  header ++= ByteString(magicMarker)
-  header ++= ByteString(kvStoreVersion)
-  header ++= ByteString(2.toByte) // type 2 continues with encryption parameters
+  private var header = Array.empty[Byte]
+  header ++= magicMarker
+  header ++= kvStoreVersion
+  header :+= 2.toByte // type 2 continues with encryption parameters
 
   private def writeEncryptionInfo() {
-    header ++= ByteString(encryptionInfo.algorithm)
-    header ++= ByteString(encryptionInfo.macAlgorithm)
-    header ++= ByteString(encryptionInfo.ivLength)
-    header ++= ByteString(encryptionInfo.iv)
+    header ++= Array(
+      encryptionInfo.algorithm,
+      encryptionInfo.macAlgorithm,
+      encryptionInfo.ivLength
+    )
+    header ++= encryptionInfo.iv
   }
 
   private def writeKeyDerivationInfo() {
-    header ++= ByteString(keyDerivationInfo.algorithm)
-    header ++= ByteString(keyDerivationInfo.iterationsPower)
-    header ++= ByteString(keyDerivationInfo.memoryFactor)
-    header ++= ByteString(keyDerivationInfo.keyLength)
-    header ++= ByteString(keyDerivationInfo.saltLength)
-    header ++= ByteString(keyDerivationInfo.salt)
+    header ++= Array(
+      keyDerivationInfo.algorithm,
+      keyDerivationInfo.iterationsPower,
+      keyDerivationInfo.memoryFactor,
+      keyDerivationInfo.keyLength,
+      keyDerivationInfo.saltLength
+    )
+    header ++= keyDerivationInfo.salt
   }
 
   private def writeHeaderToStream() = {
-    outputStream.write(header.toArray)
+    outputStream.write(header)
     outputStream.flush()
     position += header.length
   }
@@ -53,7 +57,7 @@ abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, k
   }
 
   protected def writeHmac() {
-    write(BytesWrapper(CryptoUtils.hmac(header.toArray, keyInfo)))
+    write(BytesWrapper(CryptoUtils.hmac(header, keyInfo)))
   }
 
 }
