@@ -1,19 +1,18 @@
 package ch.descabato.core.model
 
-import java.io.{File, IOException}
+import java.io.File
+import java.io.IOException
 import java.math.{BigDecimal => JBigDecimal}
 import java.nio.file.attribute._
-import java.nio.file.{Files, LinkOption, Path}
+import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.Path
 import java.security.Principal
 import java.util
 import java.util.regex.Pattern
 
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
-import ch.descabato.core.util._
-import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils._
-import ch.descabato.{CompressionMode, HashAlgorithm}
-import org.bouncycastle.crypto.Digest
 
 import scala.collection.JavaConverters._
 
@@ -42,8 +41,6 @@ class FileAttributes extends util.HashMap[String, Any] with Utils {
   }
 
 }
-
-case class MetadataOptions(saveMetadata: Boolean = false)
 
 object FileAttributes extends Utils {
 

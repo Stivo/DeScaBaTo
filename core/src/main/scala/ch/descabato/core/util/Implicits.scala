@@ -1,9 +1,5 @@
 package ch.descabato.core.util
 
-import java.io.{ByteArrayInputStream, OutputStream}
-
-import akka.util.ByteString
-
 object Implicits {
   import scala.language.higherKinds
 
