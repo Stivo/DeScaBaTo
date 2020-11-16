@@ -27,7 +27,7 @@ object Main extends Utils {
     new CountCommand(),
     new RestoreCommand(),
     new UpgradeCommand(),
-    new ReflectionCommand("ftp", "ch.descabato.rocks.ftp.ServeCommand"),
+    new ReflectionCommand("serve", "ch.descabato.rocks.fuse.ServeCommand"),
     //    new HelpCommand(),
     //    new VersionCommand()
   ).map(x => (x.name, x)).toMap
