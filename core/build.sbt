@@ -11,19 +11,19 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.5.25",
   "com.typesafe.akka" %% "akka-stream" % "2.5.25",
   "org.rogach" %% "scallop" % "3.3.1",
-  "org.ocpsoft.prettytime" % "prettytime" % "4.0.2.Final",
+  "org.ocpsoft.prettytime" % "prettytime" % "4.0.6.Final",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
   "org.rocksdb" % "rocksdbjni" % "6.4.6",
-  "com.github.pathikrit" %% "better-files" % "3.8.0",
+  "com.github.pathikrit" %% "better-files" % "3.9.1",
 )
 
 // compressors
 libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
-  "org.lz4" % "lz4-java" % "1.6.0",
+  "org.lz4" % "lz4-java" % "1.7.1",
   "org.tukaani" % "xz" % "1.8",
   "org.apache.commons" % "commons-compress" % "1.20",
-  "com.github.luben" % "zstd-jni" % "1.4.4-3"
+  "com.github.luben" % "zstd-jni" % "1.4.5-6"
 )
 
 // Logging
@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
 
 // remote dependencies
 libraryDependencies ++= Seq(
-  "org.apache.commons" % "commons-vfs2" % "2.4.1",
+  "org.apache.commons" % "commons-vfs2" % "2.6.0",
   "commons-net" % "commons-net" % "3.6",
   "com.amazonaws" % "aws-java-sdk-s3" % "1.11.880"
 )
@@ -98,8 +98,6 @@ packJarNameConvention := "original"
 packArchivePrefix := "descabato-core"
 
 lazy val generateBuildInfo = taskKey[Seq[File]]("Generates the build information")
-
-lazy val sbtVersionCopy2 = (ThisBuild / scalaVersion)
 
 generateBuildInfo := {
   val file = (resourceManaged in Compile).value / "buildinfo.properties"

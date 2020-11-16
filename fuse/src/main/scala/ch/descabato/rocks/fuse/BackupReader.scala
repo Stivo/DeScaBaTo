@@ -1,4 +1,4 @@
-package ch.descabato.rocks.ftp
+package ch.descabato.rocks.fuse
 
 import java.io.InputStream
 import java.time.Instant

@@ -1,4 +1,4 @@
-package ch.descabato.rocks.ftp;
+package ch.descabato.rocks.fuse;
 
 
 import jnr.ffi.Platform;

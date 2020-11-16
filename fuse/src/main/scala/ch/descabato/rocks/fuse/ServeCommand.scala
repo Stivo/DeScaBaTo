@@ -1,4 +1,4 @@
-package ch.descabato.rocks.ftp
+package ch.descabato.rocks.fuse
 
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.BackupRelatedCommand

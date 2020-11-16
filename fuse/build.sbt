@@ -1,5 +1,5 @@
 
-name := "ftp"
+name := "fuse"
 
 mainClass := Some("ch.descabato.rocks.Main")
 
