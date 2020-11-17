@@ -178,7 +178,12 @@ class StandardDatedFileType(name: String, suffix: String, config: BackupFolderCo
   }
 
   override def getFiles(): Seq[File] = {
-    config.folder.listFiles().filter(_.isFile).filter(matches)
+    val files = config.folder.listFiles()
+    if (files != null) {
+      files.filter(_.isFile).filter(matches)
+    } else {
+      Array.empty[File]
+    }
   }
 
   override def matches(file: File): Boolean = {

@@ -57,7 +57,7 @@ class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser
     raf.readFully(header)
     val hmacComputed = CryptoUtils.hmac(header, keyInfo)
     if (!util.Arrays.equals(hmacInFile.asArray(), hmacComputed)) {
-      throw new PasswordWrongException("Hmac verification failed, either data is corrupt or password is wrong", null)
+      throw PasswordWrongException(s"Hmac verification failed, either data is corrupt or password is wrong for file $file", null)
     }
   }
 

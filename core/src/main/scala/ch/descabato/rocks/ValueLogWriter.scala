@@ -1,6 +1,7 @@
 package ch.descabato.rocks
 
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.InputStream
 import java.io.SequenceInputStream
 
@@ -131,18 +132,30 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
     })
   }
 
-  def readValue(valueLogIndex: ValueLogIndex): BytesWrapper = {
-    val file = rocksEnv.config.resolveRelativePath(valueLogIndex.filename)
-    if (!randomAccessFiles.contains(valueLogIndex.filename)) {
-      randomAccessFiles += valueLogIndex.filename -> rocksEnv.config.newReader(file)
+  def assertChunkIsCovered(c: ValueLogIndex): Unit = {
+    val raf = lookupRaf(c)
+    if (raf.file.length() < c.from + c.lengthCompressed) {
+      throw new FileNotFoundException(s"File is too short to cover $c")
     }
-    val raf = randomAccessFiles(valueLogIndex.filename)
+  }
+
+  def readValue(valueLogIndex: ValueLogIndex): BytesWrapper = {
+    val raf: FileReader = lookupRaf(valueLogIndex)
     val compressed: BytesWrapper = readTiming.measure {
       raf.readChunk(valueLogIndex.from, valueLogIndex.lengthCompressed)
     }
     decompressionTiming.measure {
       CompressedStream.decompressToBytes(compressed)
     }
+  }
+
+  private def lookupRaf(valueLogIndex: ValueLogIndex) = {
+    val file = rocksEnv.config.resolveRelativePath(valueLogIndex.filename)
+    if (!randomAccessFiles.contains(valueLogIndex.filename)) {
+      randomAccessFiles += valueLogIndex.filename -> rocksEnv.config.newReader(file)
+    }
+    val raf = randomAccessFiles(valueLogIndex.filename)
+    raf
   }
 
   override def close(): Unit = {
