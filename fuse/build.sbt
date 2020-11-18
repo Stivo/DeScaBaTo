@@ -7,7 +7,7 @@ resolvers += Resolver.jcenterRepo
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
-libraryDependencies += "com.github.serceman" % "jnr-fuse" % "0.5.3"
+libraryDependencies += "com.github.serceman" % "jnr-fuse" % "0.5.4"
 
 fork := true
 
