@@ -40,7 +40,7 @@ object Backup {
 class RunBackup(rocksEnv: RocksEnv, backupConf: MultipleBackupConf) extends LazyLogging {
 
   def run(file: Seq[File]): Unit = {
-    val backupper = new Backupper(backupConf, rocksEnv)
+    val backupper = new Backupper(rocksEnv)
     backupper.backup(file: _*)
     backupper.printStatistics()
     //    val totalSize = listFiles(dbFolder).map(_.toFile.length()).sum
@@ -50,7 +50,7 @@ class RunBackup(rocksEnv: RocksEnv, backupConf: MultipleBackupConf) extends Lazy
 
 }
 
-class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends LazyLogging {
+class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
 
   import rocksEnv._
 

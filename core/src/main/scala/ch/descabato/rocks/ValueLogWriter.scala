@@ -76,8 +76,9 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
     val valueLogPositionBefore = valueLogWriteTiming.measure {
       fileToWriteTo.fileWriter.write(compressedBytes.bytesWrapper)
     }
-    (ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
-      lengthUncompressed = compressedBytes.uncompressedLength, lengthCompressed = compressedBytes.bytesWrapper.length), fileClosed)
+    val newIndex = ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
+      lengthUncompressed = compressedBytes.uncompressedLength, lengthCompressed = compressedBytes.bytesWrapper.length)
+    (newIndex, fileClosed)
   }
 
   private def closeCurrentFile(currentFile: CurrentFile): Unit = {
