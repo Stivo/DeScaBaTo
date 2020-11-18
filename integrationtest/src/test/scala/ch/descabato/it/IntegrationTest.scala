@@ -158,6 +158,5 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
     input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
   }
 
-  override def mainClass: String = oldMainClass
 }
 

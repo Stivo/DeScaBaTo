@@ -20,7 +20,7 @@ import org.scalatest.matchers.should.Matchers._
 
 import scala.collection.JavaConverters._
 
-class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTest {
+class RestoreOlderRocksTest extends IntegrationTestBase {
 
   var input1 = folder("input_old1")
   var input2 = folder("input_old2")

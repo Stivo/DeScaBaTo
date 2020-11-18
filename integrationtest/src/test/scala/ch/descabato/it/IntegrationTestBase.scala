@@ -20,10 +20,7 @@ import scala.collection.mutable.Set
 
 abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike with TestUtils {
 
-  def mainClass: String
-
-  val oldMainClass: String = "ch.descabato.frontend.CLI"
-  val newMainClass: String = "ch.descabato.rocks.Main"
+  val mainClass: String = "ch.descabato.rocks.Main"
 
   val suffix = if (Utils.isWindows) ".bat" else ""
 

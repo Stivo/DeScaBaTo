@@ -191,7 +191,6 @@ trait RedundancyOptions extends BackupFolderOption {
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions with NoGuiOption {
   val keylength: ScallopOption[Int] = opt[Int](descr = "Length of the AES encryption key", default = Some(128))
   val volumeSize: ScallopOption[Size] = opt[Size](descr = "Maximum size of the main data files", default = Some(Size("500Mb")))
-  val threads: ScallopOption[Int] = opt[Int](descr = "How many threads should be used for the backup", default = Some(4))
   val noScriptCreation: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disables creating a script to repeat the backup.")
   //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disable backing up symlinks")
@@ -269,14 +268,14 @@ class HelpCommand extends Command {
       case _ =>
         val commands = Main.getCommands().keys.mkString(", ")
         println(
-          s"""Welcome to DeScaBaTo.
-The available commands are: $commands
-For further help about a specific command type 'help backup' or 'backup --help'.
-For general usage guide go to https://github.com/Stivo/DeScaBaTo""")
+          s"""|Welcome to DeScaBaTo ${BuildInfo.version}.
+              |The available commands are: $commands
+              |For further help about a specific command type 'help backup' or 'backup --help'.
+              |For general usage guide go to https://github.com/Stivo/DeScaBaTo""".stripMargin
+        )
     }
   }
 }
-
 
 class VersionCommand extends Command {
   val T = ScallopConf
@@ -292,4 +291,3 @@ class VersionCommand extends Command {
        """.stripMargin)
   }
 }
-

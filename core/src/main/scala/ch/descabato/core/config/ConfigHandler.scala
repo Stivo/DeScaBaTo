@@ -20,7 +20,6 @@ object InitBackupFolderConfiguration extends Utils {
       case o: ChangeableBackupOptions =>
         o.keylength.foreach(out.keyLength = _)
         o.volumeSize.foreach(out.volumeSize = _)
-        o.threads.foreach(out.threads = _)
         o.ignoreFile.foreach(f => out.ignoreFile = Some(f))
         //        o.renameDetection.foreach(out.renameDetection = _)
         //        o.noRedundancy.foreach(b => out.redundancyEnabled = !b)
@@ -51,10 +50,6 @@ object InitBackupFolderConfiguration extends Utils {
         }
         if (o.volumeSize.isSupplied) {
           o.volumeSize.foreach(old.volumeSize = _)
-          changed = true
-        }
-        if (o.threads.isSupplied) {
-          o.threads.foreach(old.threads = _)
           changed = true
         }
         if (o.ignoreFile.isSupplied) {

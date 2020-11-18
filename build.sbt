@@ -14,7 +14,7 @@ val commonSettings =
 val core = (project in file("core"))
   .settings(commonSettings)
 
-val ftp = (project in file("fuse"))
+val fuse = (project in file("fuse"))
   .dependsOn(core)
   .settings(commonSettings)
 
