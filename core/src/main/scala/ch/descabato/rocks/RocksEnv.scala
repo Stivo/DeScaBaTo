@@ -56,9 +56,9 @@ class RocksEnv(val rocksEnvInit: RocksEnvInit,
 }
 
 object RocksEnv extends LazyLogging {
-  def apply(config: BackupFolderConfiguration, readOnly: Boolean): RocksEnv = {
+  def apply(config: BackupFolderConfiguration, readOnly: Boolean, ignoreIssues: Boolean = false): RocksEnv = {
     val rocksEnvInit = new RocksEnvInit(config, readOnly)
-    val kvs = new RepairLogic(rocksEnvInit).initialize()
+    val kvs = new RepairLogic(rocksEnvInit).initialize(ignoreIssues)
     new RocksEnv(rocksEnvInit, kvs)
   }
 }

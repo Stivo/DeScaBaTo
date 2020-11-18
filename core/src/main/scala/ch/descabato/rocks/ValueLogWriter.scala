@@ -78,6 +78,7 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
     val bs = ByteString.copyFrom(currentFile.fileWriter.md5Hash().bytes)
     val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition(), md5Hash = bs)
     kvStore.write(currentFile.key, newStatus)
+    logger.info(s"File ${currentFile.key} is now closed, will be renamed to final name next commit")
     kvStore.callbackOnNextCommit { () =>
       logger.info(s"Renaming ${currentFile.file} to final name")
       fileType.renameTempFileToFinal(currentFile.file)
@@ -91,6 +92,7 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
     val relative = rocksEnv.config.relativePath(finalFile)
     val key = ValueLogStatusKey(relative)
     val value = ValueLogStatusValue(status = Status.WRITING)
+    logger.info(s"From now on data will be written to ${key.name}")
     kvStore.write(key, value)
     val currentFile = CurrentFile(file, key, value, config.newWriter(file))
     this.currentFile = Some(currentFile)

@@ -1,7 +1,9 @@
 package ch.descabato.it
 
 import java.io.File
+import java.nio.file.Files
 
+import ch.descabato.it.rocks.DumpRocksdb
 import org.scalatest._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -47,7 +49,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
       val proc = createHandler(s"backup$config $backup1 $input".split(" "))
       proc.start()
       if (Random.nextBoolean) {
-        val secs = Random.nextInt(10) + 5
+        val secs = Random.nextInt(7) + 3
         l.info(s"Waiting for $secs seconds before destroying process")
         var waited = 0
         while (waited < secs && !proc.finished) {
@@ -67,10 +69,19 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
       }
       l.info(s"Crashing process now for the $crashes time")
       proc.destroyProcess()
+      reportDbContent()
     }
     l.info("Crashes done, letting process finish now")
   }
 
+  def passphrase: Option[String] = None
+
+  def reportDbContent(): Unit = {
+    var args = Array(backup1.getAbsolutePath)
+    passphrase.foreach(args :+= _)
+    DumpRocksdb.main(args)
+    Files.walk(backup1.toPath).forEach(x => println(x))
+  }
 
   def testWith(testName: String, config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false) {
     val hasPassword = configRestore.contains("--passphrase")
@@ -87,6 +98,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
       }
       it should s"backup $i/$iterations" in {
         finishBackup(config)
+        reportDbContent()
       }
       if (verifyEnabled) {
         it should s"verify $i/$iterations" in {

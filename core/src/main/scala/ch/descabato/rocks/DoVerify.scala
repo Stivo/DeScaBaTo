@@ -7,6 +7,7 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.VerifyConf
 import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
+import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Implicits.AwareDigest
 import ch.descabato.utils.Utils
 
@@ -21,6 +22,8 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
   val random = new Random()
   val digest = conf.createMessageDigest()
 
+  var checkedAlready = Set.empty[ValueLogIndex]
+
   def verifyAll(t: VerifyConf): ProblemCounter = {
     val out = new ProblemCounter()
     for ((_, value) <- rocksEnv.rocks.getAllRevisions()) {
@@ -32,20 +35,29 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
               val chunk = rocks.readChunk(chunkKey)
               chunk match {
                 case Some(c) =>
-                  if (t.percentOfFilesToCheck() >= random.nextInt(100)) {
-                    val value = rocksEnv.reader.readValue(c)
-                    val computedHash = digest.digest(value)
-                    if (computedHash !== chunkKey.hash) {
-                      out.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} is not valid anymore")
-                    }
-                  } else {
-                    try {
-                      rocksEnv.reader.assertChunkIsCovered(c)
-                    } catch {
-                      case e: IOException =>
-                        out.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
-                      case e: BackupException =>
-                        out.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
+                  if (!checkedAlready.contains(c)) {
+                    checkedAlready += c
+                    if (t.percentOfFilesToCheck() >= random.nextInt(100)) {
+                      try {
+                        val value = rocksEnv.reader.readValue(c)
+                        val computedHash = digest.digest(value)
+                        if (computedHash !== chunkKey.hash) {
+                          out.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} does not match the computed hash ${computedHash.base64}.\n" +
+                            s"This would be needed to reconstruct ${file.path} for example")
+                        }
+                      } catch {
+                        case e: IOException =>
+                          out.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} could not be read correctly (got exception ${e.getMessage})")
+                      }
+                    } else {
+                      try {
+                        rocksEnv.reader.assertChunkIsCovered(c)
+                      } catch {
+                        case e: IOException =>
+                          out.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
+                        case e: BackupException =>
+                          out.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
+                      }
                     }
                   }
                 case None =>

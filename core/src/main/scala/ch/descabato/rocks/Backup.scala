@@ -119,10 +119,10 @@ class Backupper(backupConf: MultipleBackupConf, rocksEnv: RocksEnv) extends Lazy
     } else {
       val compressed = compressionDecider.compressBlock(file, bytesWrapper)
       val (index, commit) = valueLog.write(compressed)
-      rocks.write(chunkKey, index)
       if (commit) {
         rocks.commit()
       }
+      rocks.write(chunkKey, index)
       chunkNotFoundCounter += 1
     }
     hashList.write(hash)

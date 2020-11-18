@@ -82,7 +82,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     noTempFiles && (isConsistent || isNew)
   }
 
-  def initialize(): RocksDbKeyValueStore = {
+  def initialize(ignoreIssues: Boolean): RocksDbKeyValueStore = {
     if (isConsistent()) {
       logger.info("Backup loaded without issues")
 
@@ -93,7 +93,12 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
       if (rocksEnvInit.readOnly) {
         // return as is, tell user to repair
         // maybe list problems
-         throw new IllegalArgumentException("Database is in an inconsistent state and no repair allowed. Please call repair.")
+        if (ignoreIssues) {
+          logger.warn("Rocks DB is in inconsistent state. This should only be used for debugging")
+          initialRocks
+        } else {
+          throw new IllegalArgumentException("Database is in an inconsistent state and no repair allowed. Please call repair.")
+        }
       } else {
         // repair
         if (rocksEnvInit.startedWithoutRocksdb || initialRockState == Some(Reconstructing)) {
@@ -145,13 +150,10 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
           case Some(ValueLogStatusValue(Status.WRITING, _, _)) =>
             logger.info(s"File $tempFile is marked as writing in rocksdb, so deleting it.")
             tempFile.delete()
-            val newStatus = status.map { s =>
-              s.copy(status = Status.DELETED, size = -1L, ByteString.EMPTY)
-            }.get
-            rocks.write(key, newStatus)
+          // TODO reintroduce deletion and handle it correctly
           case None =>
-            // this should not be possible
-            ???
+            logger.info(s"File $tempFile is not mentioned in rocksdb, so just delete it.")
+            tempFile.delete()
         }
       }
     }
