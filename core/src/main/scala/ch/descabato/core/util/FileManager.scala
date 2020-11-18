@@ -30,14 +30,14 @@ object Constants {
 
 }
 
-trait FileType {
+trait FileType[I] {
   def getFiles(): Seq[File]
 
   def matches(file: File): Boolean
 
   def isMetadata(): Boolean = true
 
-  def nextFile(temp: Boolean = false): File
+  def nextFile(temp: Boolean = false, usedIdentifiers: Set[I] = Set.empty): File
 
   def isTempFile(file: File): Boolean = file.getName.startsWith(Constants.tempPrefix)
 
@@ -54,13 +54,13 @@ trait FileType {
 
 }
 
-trait NumberedFileType extends FileType {
+trait NumberedFileType extends FileType[Int] {
   def numberOfFile(file: File): Int
 
   def fileForNumber(number: Int, temp: Boolean = false): File
 }
 
-trait DatedFileType extends FileType {
+trait DatedFileType extends FileType[Date] {
   def dateOfFile(file: File): Date
 
   def getDates(): Seq[Date] = {
@@ -83,7 +83,7 @@ class FileManager(config: BackupFolderConfiguration) {
     filetypes.flatMap(_.getFiles())
   }
 
-  def fileTypeForFile(file: File): Option[FileType] = {
+  def fileTypeForFile(file: File): Option[FileType[_]] = {
     filetypes.find(_.matches(file))
   }
 
@@ -96,7 +96,7 @@ class FileManager(config: BackupFolderConfiguration) {
  */
 class StandardNumberedFileType(name: String, suffix: String, config: BackupFolderConfiguration) extends NumberedFileType {
 
-  val mainFolder = new File(config.folder, name)
+  val mainFolder = config.resolveRelativePath(name)
   val regex = s"${name}_[0-9]+"
   val regexWithSuffix = s"(${Constants.tempPrefix})?${regex}\\.${suffix}"
 
@@ -138,17 +138,15 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
     scheme1 || scheme2
   }
 
-  override def nextFile(temp: Boolean = false): File = {
-    if (mainFolder.exists()) {
-      val existing = getFiles().map(numberOfFile)
-      if (existing.nonEmpty) {
-        fileForNumber(existing.max + 1, temp)
-      } else {
-        fileForNumber(0, temp)
-      }
-    } else {
-      fileForNumber(0, temp)
-    }
+  override def nextFile(temp: Boolean = false, usedIdentifiers: Set[Int] = Set.empty): File = {
+    val existing = getFiles().map(numberOfFile)
+      .maxOption
+      .getOrElse(-1)
+    val maxUsed = usedIdentifiers
+      .maxOption
+      .getOrElse(-1)
+    val allMax = Math.max(maxUsed, existing)
+    fileForNumber(allMax + 1, temp)
   }
 }
 
@@ -196,7 +194,7 @@ class StandardDatedFileType(name: String, suffix: String, config: BackupFolderCo
     }
   }
 
-  override def nextFile(temp: Boolean = false): File = {
+  override def nextFile(temp: Boolean = false, usedIdentifiers: Set[Date] = Set.empty): File = {
     val date = new Date()
     new File(config.folder, s"${if (temp) Constants.tempPrefix else ""}${name}_${dateFormatter.format(date)}.$suffix")
   }

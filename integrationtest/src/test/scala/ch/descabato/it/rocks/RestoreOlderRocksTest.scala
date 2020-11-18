@@ -92,7 +92,7 @@ class RestoreOlderRocksTest extends IntegrationTestBase with RocksIntegrationTes
   }
 
   def reportDbContent(): Unit = {
-    DumpRocksdb.main(Array(backup1.getAbsolutePath))
+    DumpRocksdb.dumpRocksDb(backup1, ignoreIssues = false)
   }
 
   var volumesAfterBackup2 = 0

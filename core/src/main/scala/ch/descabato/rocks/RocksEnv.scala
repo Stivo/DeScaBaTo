@@ -41,10 +41,6 @@ class RocksEnv(val rocksEnvInit: RocksEnvInit,
     new ValueLogReader(this)
   }
 
-  def relativize(file: File): String = {
-    config.relativePath(file)
-  }
-
   override def close(): Unit = {
     if (readerInitialized) {
       logger.info("Closing reader now")

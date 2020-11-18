@@ -1,6 +1,7 @@
 package ch.descabato.it.rocks
 
-//import java.io.File
+
+import java.io
 
 import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
@@ -40,14 +41,19 @@ object DumpRocksdb extends Utils {
   }
 
   def main(args: Array[String]): Unit = {
-    logger.info("===========================================================")
-    logger.info("Start of rocksdb content dump")
     val passphrase = if (args.size > 1) {
       Some(args(1))
     } else {
       None
     }
-    for (rocksEnv <- RocksEnv(BackupFolderConfiguration(args(0).toFile.toJava, passphrase), readOnly = true, ignoreIssues = true).autoClosed) {
+    val backupDestination = args(0).toFile.toJava
+    dumpRocksDb(backupDestination, passphrase)
+  }
+
+  def dumpRocksDb(backupDestination: io.File, passphrase: Option[String] = None, ignoreIssues: Boolean = false) = {
+    logger.info("===========================================================")
+    logger.info("Start of rocksdb content dump")
+    for (rocksEnv <- RocksEnv(BackupFolderConfiguration(backupDestination, passphrase), readOnly = true, ignoreIssues = ignoreIssues).autoClosed) {
       printDefaultKeys(rocksEnv)
       printFileStatuses(rocksEnv)
       printRevisions(rocksEnv)
@@ -56,5 +62,4 @@ object DumpRocksdb extends Utils {
     logger.info("End of rocksdb content dump")
     logger.info("===========================================================")
   }
-
 }

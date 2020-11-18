@@ -37,8 +37,9 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
                 case Some(c) =>
                   if (!checkedAlready.contains(c)) {
                     checkedAlready += c
-                    if (t.percentOfFilesToCheck() >= random.nextInt(100)) {
+                    if ((t.checkFirstOfEachVolume() && c.from < 100) || (t.percentOfFilesToCheck() > 0 && t.percentOfFilesToCheck() >= random.nextInt(100))) {
                       try {
+                        logger.info(s"Checking ${c}")
                         val value = rocksEnv.reader.readValue(c)
                         val computedHash = digest.digest(value)
                         if (computedHash !== chunkKey.hash) {

@@ -120,9 +120,10 @@ trait BackupRelatedCommand extends Command with Utils {
       if (t.logfile.isSupplied) {
         validateFilename(t.logfile)
         System.setProperty("logname", t.logfile())
+        println(s"Log name set to ${t.logfile()}")
       }
       t match {
-        case ng : NoGuiOption =>
+        case ng: NoGuiOption =>
           if (ng.noGui.isSupplied && ng.noGui()) {
             ProgressReporters.guiEnabled = false
           }
@@ -252,6 +253,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {
   val percentOfFilesToCheck: ScallopOption[Int] = opt[Int](default = Some(5), descr = "How many percent of files to check")
+  val checkFirstOfEachVolume: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Check whether the first entry of each volume is correct or not")
   validate(percentOfFilesToCheck) {
     case x if x > 0 && x <= 100 => Right(())
     case _ => Left("Needs to be percent")

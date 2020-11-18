@@ -20,6 +20,14 @@ import com.typesafe.scalalogging.LazyLogging
 
 class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
 
+  private val usedIdentifiers: Set[Int] = {
+    rocksEnv.rocks.getAllValueLogStatusKeys()
+      .map(key => rocksEnv.config.resolveRelativePath(key._1.name))
+      .filter(fileType.matches)
+      .map(fileType.numberOfFile)
+      .toSet
+  }
+
   private val kvStore = rocksEnv.rocks
   private val config = rocksEnv.config
 
@@ -86,7 +94,7 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
   }
 
   private def createNewFile(): CurrentFile = {
-    val file = fileType.nextFile(temp = true)
+    val file = fileType.nextFile(temp = true, usedIdentifiers)
     val number = fileType.numberOfFile(file)
     val finalFile = fileType.fileForNumber(number, temp = false)
     val relative = rocksEnv.config.relativePath(finalFile)

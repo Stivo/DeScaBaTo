@@ -77,9 +77,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
   def passphrase: Option[String] = None
 
   def reportDbContent(): Unit = {
-    var args = Array(backup1.getAbsolutePath)
-    passphrase.foreach(args :+= _)
-    DumpRocksdb.main(args)
+    DumpRocksdb.dumpRocksDb(backup1, passphrase, ignoreIssues = true)
     Files.walk(backup1.toPath).forEach(x => println(x))
   }
 

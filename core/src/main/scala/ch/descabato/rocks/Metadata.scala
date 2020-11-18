@@ -147,10 +147,13 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
           case Some(ValueLogStatusValue(Status.FINISHED, _, _)) =>
             logger.info(s"File $tempFile is marked as finished in rocksdb, so renaming to final name.")
             fileType.renameTempFileToFinal(tempFile)
-          case Some(ValueLogStatusValue(Status.WRITING, _, _)) =>
-            logger.info(s"File $tempFile is marked as writing in rocksdb, so deleting it.")
+          case Some(ValueLogStatusValue(s@(Status.WRITING | Status.DELETED | Status.MARKED_FOR_DELETION), _, _)) =>
+            logger.info(s"File $tempFile is marked as $s in rocksdb, so deleting it.")
             tempFile.delete()
-          // TODO reintroduce deletion and handle it correctly
+            val newStatus = status.map { s =>
+              s.copy(status = Status.DELETED, size = -1L, ByteString.EMPTY)
+            }.get
+            rocks.write(key, newStatus)
           case None =>
             logger.info(s"File $tempFile is not mentioned in rocksdb, so just delete it.")
             tempFile.delete()
