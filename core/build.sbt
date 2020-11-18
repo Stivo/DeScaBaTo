@@ -8,7 +8,7 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
-  "org.rogach" %% "scallop" % "3.3.2",
+  "org.rogach" %% "scallop" % "3.5.1",
   "org.ocpsoft.prettytime" % "prettytime" % "4.0.6.Final",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.67",
   "org.rocksdb" % "rocksdbjni" % "6.13.3",
@@ -33,7 +33,7 @@ libraryDependencies ++= Seq(
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.10"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.3"
 )
 
 // UI Dependencies
@@ -75,7 +75,7 @@ libraryDependencies ++= Seq(
 )
 
 PB.targets in Compile := Seq(
-  scalapb.gen() -> (sourceManaged in Compile).value
+  scalapb.gen(grpc = false, lenses = false) -> (sourceManaged in Compile).value / "scalapb"
 )
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
