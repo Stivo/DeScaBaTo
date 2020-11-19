@@ -16,7 +16,7 @@ import scala.util.Random
 
 class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils {
 
-  private val rocksEnv = RocksEnv(conf, readOnly = false)
+  private val rocksEnv = RocksEnv(conf, readOnly = true)
 
   import rocksEnv._
 
