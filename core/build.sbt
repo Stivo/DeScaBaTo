@@ -11,7 +11,7 @@ libraryDependencies ++= Seq(
   "org.rogach" %% "scallop" % "3.5.1",
   "org.ocpsoft.prettytime" % "prettytime" % "4.0.6.Final",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.67",
-  "org.rocksdb" % "rocksdbjni" % "6.13.3",
+  "org.rocksdb" % "rocksdbjni" % "6.4.6",
   "com.github.pathikrit" %% "better-files" % "3.9.1",
 )
 
@@ -73,6 +73,8 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.mockito")
   )
 )
+
+libraryDependencies += "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
 
 PB.targets in Compile := Seq(
   scalapb.gen(grpc = false, lenses = false) -> (sourceManaged in Compile).value / "scalapb"

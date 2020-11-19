@@ -2,8 +2,14 @@ syntax = "proto3";
 
 package ch.descabato.rocks.protobuf;
 
+import "scalapb/scalapb.proto";
+
 option java_package = "ch.descabato.rocks.protobuf";
 option java_outer_classname = "Messages";
+
+option (scalapb.options) = {
+    preserve_unknown_fields: false
+};
 
 message ValueLogIndex {
     string filename = 1;

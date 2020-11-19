@@ -9,6 +9,8 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
 libraryDependencies += "com.github.serceman" % "jnr-fuse" % "0.5.4"
 
+libraryDependencies += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.3"
+
 fork := true
 
 enablePlugins(PackPlugin)

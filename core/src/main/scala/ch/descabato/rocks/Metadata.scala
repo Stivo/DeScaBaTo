@@ -8,7 +8,10 @@ import better.files._
 import ch.descabato.CompressionMode
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.util.StandardNumberedFileType
+import ch.descabato.rocks.protobuf.keys.FileMetadataValue
+import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.Status
+import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.FileUtils
@@ -144,10 +147,10 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
         val key = ValueLogStatusKey(relativePath)
         val status = rocks.readValueLogStatus(key)
         status match {
-          case Some(ValueLogStatusValue(Status.FINISHED, _, _, _)) =>
+          case Some(ValueLogStatusValue(Status.FINISHED, _, _)) =>
             logger.info(s"File $tempFile is marked as finished in rocksdb, so renaming to final name.")
             fileType.renameTempFileToFinal(tempFile)
-          case Some(ValueLogStatusValue(s@(Status.WRITING | Status.DELETED | Status.MARKED_FOR_DELETION), _, _, _)) =>
+          case Some(ValueLogStatusValue(s@(Status.WRITING | Status.DELETED | Status.MARKED_FOR_DELETION), _, _)) =>
             logger.info(s"File $tempFile is marked as $s in rocksdb, so deleting it.")
             tempFile.delete()
             val newStatus = status.map { s =>
@@ -250,5 +253,83 @@ class DbImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore) exte
     logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
     kvStore.commit()
   }
+}
+
+class DbMemoryImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore) extends Utils {
+
+  private val filetype: StandardNumberedFileType = rocksEnvInit.fileManager.dbexport
+
+  def importMetadata(): InMemoryDb = {
+    val inMemoryDb: InMemoryDb = new InMemoryDb()
+    val restoreTime = new StandardMeasureTime()
+
+    for (file <- filetype.getFiles()) {
+      for {
+        reader <- rocksEnvInit.config.newReader(file).autoClosed
+        decompressed <- CompressedStream.decompressToBytes(reader.readAllContent()).asInputStream().autoClosed
+        encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
+        encodedValue <- encodedValueOption
+      } {
+        val (deletion, key, value) = kvStore.decodeRevisionContentValue(encodedValue)
+        if (deletion) {
+          inMemoryDb.delete(key)
+        } else {
+          inMemoryDb.write(key, value.get)
+        }
+      }
+    }
+    logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
+    inMemoryDb
+  }
+}
+
+class InMemoryDb {
+
+  private var _chunks = Map.empty[ChunkKey, ValueLogIndex]
+  private var _fileMetadata = Map.empty[FileMetadataKeyWrapper, FileMetadataValue]
+  private var _valueLogStatus = Map.empty[ValueLogStatusKey, ValueLogStatusValue]
+  private var _revision = Map.empty[Revision, RevisionValue]
+
+  def chunks: Map[ChunkKey, ValueLogIndex] = _chunks
+
+  def fileMetadata: Map[FileMetadataKeyWrapper, FileMetadataValue] = _fileMetadata
+
+  def valueLogStatus: Map[ValueLogStatusKey, ValueLogStatusValue] = _valueLogStatus
+
+  def revision: Map[Revision, RevisionValue] = _revision
+
+  def delete(key: Key) = {
+    key match {
+      case c@ChunkKey(_) =>
+        _chunks -= c
+      case f@FileMetadataKeyWrapper(_) =>
+        _fileMetadata -= f
+      case s@ValueLogStatusKey(_) =>
+        _valueLogStatus -= s
+      case r@Revision(_) =>
+        _revision -= r
+      case x =>
+        println(x)
+        ???
+    }
+  }
+
+  def write[K <: Key, V](key: K, value: V) = {
+    key match {
+      case c@ChunkKey(_) =>
+        _chunks += c -> value.asInstanceOf[ValueLogIndex]
+      case f@FileMetadataKeyWrapper(_) =>
+        _fileMetadata += f -> value.asInstanceOf[FileMetadataValue]
+      case s@ValueLogStatusKey(_) =>
+        _valueLogStatus += s -> value.asInstanceOf[ValueLogStatusValue]
+      case r@Revision(_) =>
+        _revision += r -> value.asInstanceOf[RevisionValue]
+      case x =>
+        println(x)
+        ???
+    }
+
+  }
+
 }
 
