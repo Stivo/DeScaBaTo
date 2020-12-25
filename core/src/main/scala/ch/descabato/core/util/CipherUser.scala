@@ -1,11 +1,11 @@
 package ch.descabato.core.util
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+
 import java.security.Security
 import javax.crypto.Cipher
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-
-class CipherUser(passphrase: String) {
+class CipherUser {
 
   Security.addProvider(new BouncyCastleProvider())
   val cipher = Cipher.getInstance("AES/CTR/NoPadding", "BC")

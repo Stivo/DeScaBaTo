@@ -1,9 +1,5 @@
 package ch.descabato.frontend
 
-import java.util.concurrent.atomic.AtomicLong
-import java.util.{Date, TimerTask}
-import javax.swing.SwingUtilities
-
 import ch.descabato.core.ActorStats
 import ch.descabato.core.model.Size
 import ch.descabato.remote.RemoteOptions
@@ -13,6 +9,9 @@ import org.ocpsoft.prettytime.PrettyTime
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow
 
+import java.util.Date
+import java.util.concurrent.atomic.AtomicLong
+import javax.swing.SwingUtilities
 import scala.collection.JavaConverters._
 
 object ProgressReporters {
@@ -94,7 +93,7 @@ trait MaxValueCounter extends Counter {
 trait Counter {
   def name: String
 
-  private var _current = new AtomicLong()
+  private val _current = new AtomicLong()
 
   def current: Long = _current.get
 

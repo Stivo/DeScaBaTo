@@ -1,18 +1,17 @@
 package ch.descabato.frontend
 
-import java.awt.event.ActionEvent
-import java.awt.event.ActionListener
-
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.rocks.Main
 import ch.descabato.utils.Utils
-import javax.swing.Timer
-import javax.swing.UIManager
 import org.bridj.Pointer
 import org.bridj.cpp.com.COMRuntime
 import org.bridj.cpp.com.shell.ITaskbarList3
 import org.bridj.jawt.JAWTUtils
 
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
+import javax.swing.Timer
+import javax.swing.UIManager
 import scala.collection.mutable
 
 object CreateProgressGui {
@@ -51,7 +50,7 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
       }
     copy.foreach {
       x =>
-        x.update
+        x.update()
         x match {
           case max: MaxValueCounter if max.name contains "Blocks" =>
             setValue(max.percent, 100)

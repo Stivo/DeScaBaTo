@@ -1,15 +1,14 @@
 package ch.descabato.core
 
+import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.frontend.StandardMaxValueCounter
+import ch.descabato.utils.Utils
+
 import java.io.File
 import java.io.IOException
 import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.{ArrayList => JArrayList}
-
-import ch.descabato.frontend.MaxValueCounter
-import ch.descabato.frontend.StandardMaxValueCounter
-import ch.descabato.utils.Utils
-
 import scala.collection.JavaConverters._
 import scala.io.Codec
 import scala.io.Source
@@ -18,8 +17,8 @@ class FileVisitorCollector(ignoreFile: Option[File],
                            fileCounter: MaxValueCounter = new StandardMaxValueCounter("files", 0),
                            bytesCounter: MaxValueCounter = new StandardMaxValueCounter("bytes", 0)) extends Utils {
   // TODO log exceptions
-  private var _files: JArrayList[Path] = new JArrayList[Path]()
-  private var _dirs: JArrayList[Path] = new JArrayList[Path]()
+  private val _files: JArrayList[Path] = new JArrayList[Path]()
+  private val _dirs: JArrayList[Path] = new JArrayList[Path]()
 
   def walk(path: Path): Unit = {
     val visitor = new FileVisitor(path)

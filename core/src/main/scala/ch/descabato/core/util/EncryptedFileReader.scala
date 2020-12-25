@@ -1,14 +1,14 @@
 package ch.descabato.core.util
 
+import ch.descabato.core.PasswordWrongException
+import ch.descabato.utils.BytesWrapper
+
 import java.io.File
 import java.io.RandomAccessFile
 import java.util
-
-import ch.descabato.core.PasswordWrongException
-import ch.descabato.utils.BytesWrapper
 import javax.crypto.Cipher
 
-class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser(passphrase) with FileReader {
+class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser with FileReader {
 
   private val raf: RandomAccessFile = new RandomAccessFile(file, "r")
 

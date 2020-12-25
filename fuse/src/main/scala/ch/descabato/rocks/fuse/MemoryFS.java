@@ -215,10 +215,6 @@ public class MemoryFS extends FuseStubFS {
         return path.substring(path.lastIndexOf("/") + 1);
     }
 
-    private MemoryPath getParentPath(String path) {
-        return rootDirectory.find(path.substring(0, path.lastIndexOf("/")));
-    }
-
     private MemoryPath getPath(String path) {
         return rootDirectory.find(path);
     }

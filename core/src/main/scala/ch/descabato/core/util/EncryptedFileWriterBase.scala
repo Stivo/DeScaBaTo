@@ -1,11 +1,11 @@
 package ch.descabato.core.util
 
-import java.io.File
-
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Utils
 
-abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, keylength: Int) extends CipherUser(passphrase) with FileWriter with Utils {
+import java.io.File
+
+abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, keylength: Int) extends CipherUser with FileWriter with Utils {
 
   lazy val keyDerivationInfo = new KeyDerivationInfo(keyLength = (keylength / 8).toByte)
 

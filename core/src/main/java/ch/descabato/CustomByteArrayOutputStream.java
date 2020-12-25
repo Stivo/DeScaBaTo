@@ -2,8 +2,6 @@ package ch.descabato;
 
 import ch.descabato.utils.BytesWrapper;
 import ch.descabato.utils.BytesWrapper$;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
@@ -13,8 +11,7 @@ import java.io.UnsupportedEncodingException;
  * It is not synchronized and allows exporting the array as a ByteWrapper
  */
 public class CustomByteArrayOutputStream extends OutputStream {
-	private final static Logger log = LoggerFactory.getLogger(CustomByteArrayOutputStream.class);
-    private int initialSize = 100*1024;
+    private int initialSize;
 
     /**
      * The buffer where data is stored.

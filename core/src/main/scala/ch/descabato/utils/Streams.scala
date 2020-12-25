@@ -1,11 +1,11 @@
 package ch.descabato.utils
 
-import java.io.InputStream
-import java.io.OutputStream
-
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.util.Constants
 import ch.descabato.hashes.BuzHash
+
+import java.io.InputStream
+import java.io.OutputStream
 
 
 object Streams extends Utils {
@@ -38,29 +38,6 @@ object Streams extends Utils {
     }
 
     def currentChunkSize: Int = out.size()
-
-  }
-
-  class BlockOutputStream(val blockSize: Int, func: (BytesWrapper => _)) extends ChunkingOutputStream(func) {
-
-    def handleEnd() {
-      if (currentChunkSize == blockSize) {
-        createChunkNow()
-      }
-    }
-
-
-    override def write(buf: Array[Byte], start: Int, len: Int) {
-      var (lenC, startC) = (len, start)
-      while (lenC > 0) {
-        val now = Math.min(blockSize - currentChunkSize, lenC)
-        out.write(buf, startC, now)
-        lenC -= now
-        startC += now
-        handleEnd()
-      }
-    }
-
 
   }
 
