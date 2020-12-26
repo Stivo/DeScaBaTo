@@ -2,11 +2,11 @@
 DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
 =========
 
-
 The Deduplicating Scala Backup Tool. Mainly it is inspired by [duplicati](http://www.duplicati.com/), but the content
 defined chunking is inspired by [duplicacy](http://www.duplicacy.com/). Currently it only supports local backups and is
-in beta stage. For version 0.8.0 I reimplemented the main backup functionality, now single-threaded and uses RocksDB as
-a local DB to avoid data loss. The new implementation is simpler, faster and I have a lot more confidence in it.
+in beta stage. For version 0.8.0 I reimplemented the main backup functionality, now it is single-threaded and uses
+RocksDB as a local DB to avoid data loss. The new implementation is simpler, faster and I have a lot more confidence in
+it.
 
 As of now, it has these features:
 
@@ -18,7 +18,7 @@ As of now, it has these features:
 - Supports fully encrypted backups (based on
   custom [KvStore archive format](https://github.com/Stivo/DeScaBaTo/wiki/KvStore-archive-format))
 - Command line interface
-- Supports mounting the backed up data as a windows folder
+- Supports mounting the backed up data, so it can be browsed with a normal file explorer
 
 Compared to duplicati (this analysis may be outdated):
 
@@ -33,19 +33,30 @@ Compared to duplicacy:
 
 - The restore UI is free for DeScaBaTo, but requires installing of another component (winfsp)
 - Duplicacy uses less resources while backing up, due to being written in Go
-- Duplicacy supports one remote for multiple backups, where as here you have a local backup and a remote one always
+- Duplicacy supports one remote for multiple different backups, where as here you will have separate backup destinations
+  for different backups, they are truly independent
+- Duplicacy creates several thousand files, while DeScaBaTo puts all the data in large files, these are easier on the
+  filesystem
 
 I plan to support these features:
 
 - Patterns for backups and restores
+
+### Installation
+
+1. Install Java 11. I
+   use [Amazon Corretto](https://docs.aws.amazon.com/corretto/latest/corretto-11-ug/downloads-list.html).
+2. Unpack the release.
+3. If you want to use the mount command under windows, you must also install [winfsp](http://www.secfs.net/winfsp/rel/)
 
 ### Usage
 
 To backup a directory:
 
     backup [options] backupFolder folderToBackup
-    
-Once a backup is executed, a batch file will be created to restart this backup. You don't need to set any options, but you can. The options are:
+
+Once a backup is executed, a batch file will be created to restart this backup. You don't need to set any options, but
+you can. The options are:
 
     -c, --compression  <arg>      The compressor to use. Smart chooses best
                                   compressor by file extension (default = smart)
@@ -82,11 +93,13 @@ These options apply to backup only. The options with a star in the end can only 
     -r, --restore-to-original-path   Restore files to original path.
     -h, --help                       Show help message
 
-Either restore-to-original-path or restore-to-folder has to be set. --choose-date will ask you for the version from which you want to restore from.
+Either restore-to-original-path or restore-to-folder has to be set. --choose-date will ask you for the version from
+which you want to restore from.
 
-Browse will launch an interactive browser to look at the files contained in the backup. It is not possible yet to restore files from within the browser, but it will be added.
+Mount will mount the backup as a read-only file system, so it can be browsed with a normal file explorer. Also restoring
+from backup can be simply done by copying from there.
 
-    browse [options] backupFolder
+    mount [options] --mount-folder Y backupFolder
     
     -l, --logfile  <arg>      Destination of the logfile of this backup
     -p, --passphrase  <arg>   The password to use for the backup. If none is
@@ -100,9 +113,11 @@ Absolutely no warranty given.
 ### Compilation
 You will need sbt to compile or to set up eclipse or intellij idea. sbt pack will create a folder which can be zipped and distributed.
 The project is split up into three parts:
+
 - core: The backup logic and command line interface
-- browser: A visual browser for the backups
-- integrationtest: A test that runs backups, tests the integrity of them and then restores them. Lets the process crash while backing up.
+- fuse: A fuse filesystem implementation so the backup can be browsed as a normal folder
+- integrationtest: A test that runs backups, tests the integrity of them and then restores them. Lets the process crash
+  while backing up.
 
 ### Implementation idea
 The current implementation finds all the files in a directory and hashes them block wise. A block contains a fixed number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used. 
