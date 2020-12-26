@@ -217,9 +217,6 @@ trait BackupFolderOption extends ProgramOption {
   val passphrase: ScallopOption[String] = opt[String](descr = "The password to use for the backup. If none is supplied, encryption is turned off", default = None)
   val backupDestination: ScallopOption[File] = trailArg[String](descr = "Root folder of the backup", required = true).map(new File(_).getCanonicalFile())
 
-  errorMessageHandler = { _ =>
-    // do nothing, exception is caught later and then handled with proper error logging
-  }
 }
 
 class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption

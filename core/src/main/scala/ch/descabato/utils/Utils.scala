@@ -303,7 +303,10 @@ object FileUtils extends Utils {
 }
 
 trait Utils extends LazyLogging {
-  lazy val l: Logger = logger
+  lazy val l: Logger = {
+    //    println(s"Requesting logger for ${getClass}")
+    logger
+  }
 
   def readableFileSize(size: Long): String = Utils.readableFileSize(size)
 

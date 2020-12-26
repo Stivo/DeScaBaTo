@@ -1,36 +1,43 @@
+
 DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
 =========
 
 
-The Deduplicating Scala Backup Tool. Mainly it is inspired by [duplicati](http://www.duplicati.com/), but the content defined chunking is inspired by [duplicacy](http://www.duplicacy.com/). 
-Currently it only supports local backups and is in beta stage. For version 0.6.0 I reimplemented the main backup functionality, it is based now on akka streams and not solely on actors. The new implementation is simpler, faster and I have a lot more confidence in it. 
+The Deduplicating Scala Backup Tool. Mainly it is inspired by [duplicati](http://www.duplicati.com/), but the content
+defined chunking is inspired by [duplicacy](http://www.duplicacy.com/). Currently it only supports local backups and is
+in beta stage. For version 0.8.0 I reimplemented the main backup functionality, now single-threaded and uses RocksDB as
+a local DB to avoid data loss. The new implementation is simpler, faster and I have a lot more confidence in it.
 
 As of now, it has these features:
 
 - Backup and restore files and folders [fast](https://github.com/Stivo/DeScaBaTo/wiki/Performance), including metadata (lastModifiedTime, posix owner and access rights)
-- A deduplicating storage mechanism. Parts of a file that are the same are only saved once. 
-- Supports 7 different compression algorithms and chooses [automatically](https://github.com/Stivo/DeScaBaTo/wiki/Smart-Compression-Decider) the best one for each file type
-- Supports fully encrypted backups (based on custom [KvStore archive format](https://github.com/Stivo/DeScaBaTo/wiki/KvStore-archive-format))
+- A deduplicating storage mechanism. Parts of a file that are the same are only saved once.
+- Supports several compression algorithms and
+  chooses [automatically](https://github.com/Stivo/DeScaBaTo/wiki/Smart-Compression-Decider) the best one for each file
+  type
+- Supports fully encrypted backups (based on
+  custom [KvStore archive format](https://github.com/Stivo/DeScaBaTo/wiki/KvStore-archive-format))
 - Command line interface
-- Fully multithreaded backup process
-- GUI to show progress and to control number of threads
-- A [journal](https://github.com/Stivo/DeScaBaTo/wiki/Crash-Resistance-(Journal)) to account for arbitrary crashes while backing up
-- The large files with the actual file contents are not needed for an incremental backup and can be saved separately (on an external volume or on a cloud provider)
-- A JavaFX based user interface to browse the contents of a backup 
+- Supports mounting the backed up data as a windows folder
 
-Compared to duplicati:
+Compared to duplicati (this analysis may be outdated):
 
 - Duplicati is a mature program with a long history and a userbase, DeScaBaTo is very new
 - DeScaBaTo is inspired by Duplicati and shares the same deduplication strategy and has a similar storage format
-- DeScaBaTo is faster by decoupling IO from CPU tasks and writing every block exactly once, even when encrypted 
 - By using a custom archive format there is less space required
-- The design is simpler (no database to keep synchronized), and should be more robust. This makes it more useful as a portable program (no installation required, leaves no traces) too.
-- It can automatically choose for each file extension which compression method to use. Duplicati either disables or enables compression based on a static list.
+- Can be used as a portable program (no installation required, leaves no traces)
+- It can automatically choose for each file extension which compression method to use. Duplicati either disables or
+  enables compression based on a static list of extensions.
+
+Compared to duplicacy:
+
+- The restore UI is free for DeScaBaTo, but requires installing of another component (winfsp)
+- Duplicacy uses less resources while backing up, due to being written in Go
+- Duplicacy supports one remote for multiple backups, where as here you have a local backup and a remote one always
 
 I plan to support these features:
 
 - Patterns for backups and restores
-- Upload backup to remote hosts (cloud storage, ftp etc)
 
 ### Usage
 

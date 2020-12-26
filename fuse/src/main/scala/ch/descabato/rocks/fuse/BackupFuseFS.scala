@@ -19,7 +19,7 @@ import ru.serce.jnrfuse.FuseStubFS
 import ru.serce.jnrfuse.struct.FileStat
 import ru.serce.jnrfuse.struct.FuseFileInfo
 
-object TestFuse {
+object BackupFuseFS {
 
   def main(args: Array[String]) = {
     val rootFolder = "l:/backup_zstd_9"
@@ -27,7 +27,7 @@ object TestFuse {
     val config = BackupFolderConfiguration(new File(rootFolder))
     val env = RocksEnv(config, readOnly = true)
     val reader = new BackupReader(env)
-    val stub = new TestFuse(reader)
+    val stub = new BackupFuseFS(reader)
     try {
       val path = Platform.getNativePlatform.getOS match {
         case OS.WINDOWS =>
@@ -41,7 +41,7 @@ object TestFuse {
 
 }
 
-class TestFuse(reader: BackupReader) extends FuseStubFS {
+class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
   val readOnly = 0x124 // 0x444
   val readWriteAndList = 0x1ed // 0x755
   val readAndList = 0x16d // 0x555

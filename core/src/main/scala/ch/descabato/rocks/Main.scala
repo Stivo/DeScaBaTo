@@ -2,7 +2,6 @@ package ch.descabato.rocks
 
 import java.io.PrintStream
 import java.security.Security
-
 import ch.descabato.core.PasswordWrongException
 import ch.descabato.core.config.BackupVerification
 import ch.descabato.frontend.Command
@@ -11,6 +10,9 @@ import ch.descabato.frontend.HelpCommand
 import ch.descabato.frontend.ReflectionCommand
 import ch.descabato.utils.Utils
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 object Main extends Utils {
 
@@ -26,7 +28,7 @@ object Main extends Utils {
     new UploadCommand(),
     new CountCommand(),
     new RestoreCommand(),
-    new ReflectionCommand("serve", "ch.descabato.rocks.fuse.ServeCommand"),
+    new ReflectionCommand("mount", "ch.descabato.rocks.fuse.MountCommand"),
     //    new HelpCommand(),
     //    new VersionCommand()
   ).map(x => (x.name, x)).toMap
@@ -47,7 +49,8 @@ object Main extends Utils {
 
   def main(args: Array[String]) {
     if (System.getProperty("logname") == null) {
-      System.setProperty("logname", "backup.log")
+      val date = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+      System.setProperty("logname", s"backup-$date.log")
     }
     try {
       Security.addProvider(new BouncyCastleProvider())
