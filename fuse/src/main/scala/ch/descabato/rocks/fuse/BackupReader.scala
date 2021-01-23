@@ -12,10 +12,11 @@ import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
+import ch.descabato.utils.Utils
 
 import scala.collection.immutable.TreeMap
 
-class BackupReader(val rocksEnv: RocksEnv) {
+class BackupReader(val rocksEnv: RocksEnv) extends Utils {
 
   import rocksEnv._
 
@@ -30,13 +31,14 @@ class BackupReader(val rocksEnv: RocksEnv) {
     reader.createInputStream(metadataValue)
   }
 
-  def listNodesForRevision(value: RevisionValue, revisionParent: FileFolder, allFiles: FileFolder): Unit = {
-    val filesInRevision = value.files
+  def listNodesForRevision(revisionPair: RevisionPair, revisionParent: FileFolder, addTimestampToName: Boolean): Unit = {
+    val filesInRevision = revisionPair.revisionValue.files
+    l.info(s"""Listing files for "${PathUtils.formatDate(revisionPair)} - Revision ${revisionPair.revision.number}" to add to ${revisionParent.name}""")
+
     filesInRevision.foreach {
       key =>
         val pathAsSeq = PathUtils.splitPath(key.path)
-        revisionParent.add(pathAsSeq, key)
-        val newFilename = if (key.filetype == BackedupFileType.FILE) {
+        val newFilename = if (addTimestampToName && key.filetype == BackedupFileType.FILE) {
           val filename = PathUtils.nameFromPath(key.path)
           val filenameSplit = filename.split('.')
           val timestamp = PathUtils.formatFilename(key).format(key.changed)
@@ -51,17 +53,19 @@ class BackupReader(val rocksEnv: RocksEnv) {
         } else {
           pathAsSeq
         }
-        allFiles.add(newFilename, key)
+        revisionParent.add(newFilename, key)
     }
   }
 
-
   val rootDirectory: FileFolder = {
-    val directory = new FileFolder("/")
-    val allFiles = new FileFolder(PathUtils.allFilesPath)
+    val directory = new FileFolder("/", _ => {})
+    val allFiles = new FileFolder(PathUtils.allFilesPath, { ff =>
+      revisions.foreach { revision =>
+        listNodesForRevision(revision, ff, true)
+      }
+    })
     revisions.foreach { revision =>
-      val revisionParent = new FileFolder(revision.asName())
-      listNodesForRevision(revision.revisionValue, revisionParent, allFiles)
+      val revisionParent = new FileFolder(revision.asName(), ff => listNodesForRevision(revision, ff, false))
       directory.addSubfolder(revisionParent)
     }
     directory.addSubfolder(allFiles)
@@ -115,7 +119,7 @@ class FileNode(val name: String, val fileMetadataKey: FileMetadataKey) extends T
   override def toString: String = s"File: ${fileMetadataKey.path}"
 }
 
-class FileFolder(val name: String, var backupInfo: Option[FileMetadataKey] = None) extends FolderNode {
+class FileFolder(val name: String, initFunction: FileFolder => Unit, var backupInfo: Option[FileMetadataKey] = None) extends FolderNode with Utils {
   private var map: TreeMap[String, TreeNode] = TreeMap.empty
 
   def addSubfolder(fileFolder: FileFolder): Unit = {
@@ -143,7 +147,7 @@ class FileFolder(val name: String, var backupInfo: Option[FileMetadataKey] = Non
         case BackedupFileType.FOLDER if map.contains(restPath.last) =>
           map(restPath.last).asInstanceOf[FileFolder].backupInfo = Some(key)
         case BackedupFileType.FOLDER =>
-          map += restPath.last -> new FileFolder(restPath.head, Some(key))
+          map += restPath.last -> new FileFolder(restPath.head, _ => {}, Some(key))
         case BackedupFileType.FILE if map.contains(restPath.last) =>
           map(restPath.last).asInstanceOf[FileNode].linkCount += 1
         case BackedupFileType.FILE =>
@@ -152,14 +156,24 @@ class FileFolder(val name: String, var backupInfo: Option[FileMetadataKey] = Non
     } else {
       val folderName = restPath.head
       if (!map.contains(folderName)) {
-        val ff = new FileFolder(folderName)
+        val ff = new FileFolder(folderName, _ => {})
         map += ff.name -> ff
       }
       map(folderName).asInstanceOf[FileFolder].add(restPath.tail, key)
     }
   }
 
+  private var isInitialized = false
+
   override def children: Iterable[TreeNode] = {
+
+    this.synchronized {
+      if (!isInitialized) {
+        initFunction(this)
+        isInitialized = true
+      }
+    }
+
     map.values
   }
 

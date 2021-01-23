@@ -118,13 +118,13 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
   private def iterateKeysFrom[K <: Key, V](cf: ColumnFamily[K, V]): Seq[(K, V)] = {
     val iterator = db.newIterator(cf.handle)
     iterator.seekToFirst()
-    val out = mutable.Buffer.empty[(K, V)]
+    var out = Vector.empty[(K, V)]
     while (iterator.isValid) {
-      out.append((cf.decodeKey(iterator.key()), cf.decodeValue(iterator.value())))
+      out :+= ((cf.decodeKey(iterator.key()), cf.decodeValue(iterator.value())))
       iterator.next()
     }
     iterator.close()
-    out.toSeq
+    out
   }
 
   def getAllFileMetadatas(): Seq[(FileMetadataKeyWrapper, FileMetadataValue)] = {
