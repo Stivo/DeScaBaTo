@@ -21,7 +21,7 @@ class MountCommand extends BackupRelatedCommand {
   def start(t: T, conf: BackupFolderConfiguration) {
     printConfiguration(t)
 
-    val config = BackupFolderConfiguration(conf.folder)
+    val config = BackupFolderConfiguration(conf.folder, t.passphrase.toOption)
     val env = RocksEnv(config, readOnly = true)
     val reader = new BackupReader(env)
     val stub = new BackupFuseFS(reader)
@@ -29,16 +29,18 @@ class MountCommand extends BackupRelatedCommand {
 
       val path1: Path = parseAndCheckPath(t)
       logger.info(s"Mounting to $path1, this may take a while")
-      stub.mount(path1, false, false)
-      while (!Files.exists(path1)) {
-        Thread.sleep(2000)
-      }
-      if (Desktop.isDesktopSupported) {
-        Desktop.getDesktop().open(path1.toFile())
-      }
-      while (true) {
-        Thread.sleep(10000)
-      }
+      new Thread() {
+        override def run(): Unit = {
+          while (!Files.exists(path1)) {
+            Thread.sleep(2000)
+          }
+          if (Desktop.isDesktopSupported) {
+            Desktop.getDesktop().open(path1.toFile())
+          }
+        }
+      }.start()
+      stub.mount(path1, true, false)
+
     } finally stub.umount()
   }
 
