@@ -90,7 +90,7 @@ enablePlugins(PackPlugin)
 
 packMain := Map("descabato" -> "ch.descabato.rocks.Main")
 
-packJvmOpts := Map("descabato" -> Seq("-Xms100m", "-Xmx2g"))
+packJvmOpts := Map("descabato" -> Seq("-Xmx2g", "-Xms1g", "-XX:NewSize=1g", "-XX:MaxNewSize=1g", "-XX:MaxPermSize=1g"))
 
 packJarNameConvention := "original"
 
