@@ -11,7 +11,7 @@ libraryDependencies ++= Seq(
   "org.rogach" %% "scallop" % "3.5.1",
   "org.ocpsoft.prettytime" % "prettytime" % "4.0.6.Final",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.67",
-  "org.rocksdb" % "rocksdbjni" % "6.4.6",
+  "org.rocksdb" % "rocksdbjni" % "6.15.2",
   "com.github.pathikrit" %% "better-files" % "3.9.1",
 )
 

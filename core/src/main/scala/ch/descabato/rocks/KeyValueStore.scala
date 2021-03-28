@@ -40,7 +40,10 @@ object RocksDbKeyValueStore {
     options.setCreateIfMissing(true)
     options.setCreateMissingColumnFamilies(true)
     options.setCompressionType(CompressionType.ZSTD_COMPRESSION)
-
+    options.setAllowMmapReads(false)
+    options.setAllowMmapWrites(false)
+    options.setAllowFAllocate(false)
+    options.setDumpMallocStats(true)
     new RocksDbKeyValueStore(options, rocksEnvInit.rocksFolder, rocksEnvInit.readOnly)
   }
 }

@@ -8,7 +8,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.DosFileAttributes
-
 import better.files._
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.FileVisitorCollector
@@ -24,6 +23,7 @@ import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.codec.Charsets
 
+import java.io.IOException
 import scala.collection.mutable
 import scala.util.Try
 
@@ -152,8 +152,9 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
       path = file.toAbsolutePath.toString,
       changed = file.toFile.lastModified()))
     if (!rocks.exists(key)) {
-      val hashList = backupFileOrFolder(file)
-      rocks.write(key, hashList)
+      backupFileOrFolder(file).foreach { fileMetadataValue =>
+        rocks.write(key, fileMetadataValue)
+      }
     }
     filesInRevision.append(key.fileMetadataKey)
   }
@@ -177,11 +178,17 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
     )
   }
 
-  def backupFileOrFolder(file: Path): FileMetadataValue = {
+  def backupFileOrFolder(file: Path): Option[FileMetadataValue] = {
     if (file.toFile.isDirectory) {
-      backupFolder(file)
+      Some(backupFolder(file))
     } else {
-      backupFile(file)
+      try {
+        Some(backupFile(file))
+      } catch {
+        case e: IOException =>
+          logger.error(s"Could not backup file $file", e)
+          None
+      }
     }
   }
 
