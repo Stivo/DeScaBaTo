@@ -29,7 +29,7 @@ class RocksEnvInit(val config: BackupFolderConfiguration,
 }
 
 class RocksEnv(val rocksEnvInit: RocksEnvInit,
-               val rocks: RocksDbKeyValueStore) extends LazyLogging with AutoCloseable {
+               val rocks: KeyValueStore) extends LazyLogging with AutoCloseable {
 
   def config: BackupFolderConfiguration = rocksEnvInit.config
 

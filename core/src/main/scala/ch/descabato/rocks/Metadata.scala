@@ -45,11 +45,11 @@ object RepairLogic {
 
   val rocksStatusKey: Array[Byte] = "rocks_status".getBytes
 
-  def readStatus(rocks: RocksDbKeyValueStore): Option[RocksStates.Value] = {
+  def readStatus(rocks: KeyValueStore): Option[RocksStates.Value] = {
     RocksStates.fromBytes(rocks.readDefault(RepairLogic.rocksStatusKey))
   }
 
-  def setStateTo(rocksStates: RocksStates.Value, rocksDbKeyValueStore: RocksDbKeyValueStore): Unit = {
+  def setStateTo(rocksStates: RocksStates.Value, rocksDbKeyValueStore: KeyValueStore): Unit = {
     rocksDbKeyValueStore.writeDefault(rocksStatusKey, rocksStates.asBytes())
   }
 }
@@ -58,7 +58,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
 
   import RocksStates._
 
-  private val initialRocks: RocksDbKeyValueStore = RocksDbKeyValueStore(rocksEnvInit)
+  private val initialRocks: KeyValueStore = KeyValueStore(rocksEnvInit)
   private val initialRockState = RepairLogic.readStatus(initialRocks)
 
   private val fileManager = rocksEnvInit.fileManager
@@ -85,42 +85,8 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     noTempFiles && (isConsistent || isNew)
   }
 
-  def initialize(ignoreIssues: Boolean): RocksDbKeyValueStore = {
-    if (isConsistent()) {
-      logger.info("Backup loaded without issues")
-
-
-      // return, all is fine
-      initialRocks
-    } else {
-      if (rocksEnvInit.readOnly) {
-        // return as is, tell user to repair
-        // maybe list problems
-        if (ignoreIssues) {
-          logger.warn("Rocks DB is in inconsistent state. This should only be used for debugging")
-          initialRocks
-        } else {
-          throw new IllegalArgumentException("Database is in an inconsistent state and no repair allowed. Please call repair.")
-        }
-      } else {
-        // repair
-        if (rocksEnvInit.startedWithoutRocksdb || initialRockState == Some(Reconstructing)) {
-          logger.warn("Need to reconstruct rocksdb from metadata. Rocks folder seems to have been lost since last usage.")
-          closeRocks()
-          deleteRocksFolder()
-          deleteTempFiles()
-          // propose compaction
-          reimport()
-        } else {
-          logger.warn("Need to cleanup temp files.")
-          eitherDeleteTempFilesOrRename(initialRocks)
-          // propose compaction
-          RepairLogic.setStateTo(Consistent, initialRocks)
-          initialRocks.commit()
-          initialRocks
-        }
-      }
-    }
+  def initialize(ignoreIssues: Boolean): KeyValueStore = {
+    ???
   }
 
   def deleteTempFiles(): Unit = {
@@ -139,7 +105,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     }
   }
 
-  def eitherDeleteTempFilesOrRename(rocks: RocksDbKeyValueStore): Unit = {
+  def eitherDeleteTempFilesOrRename(rocks: KeyValueStore): Unit = {
 
     def eitherDeleteOrRename(tempFiles: Seq[io.File], fileType: StandardNumberedFileType): Unit = {
       for (tempFile <- tempFiles) {
@@ -177,23 +143,10 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     FileUtils.deleteAll(rocksEnvInit.rocksFolder)
   }
 
-  def reimport(): RocksDbKeyValueStore = {
-    if (rocksEnvInit.readOnly) {
-      throw new IllegalArgumentException("May not be called when database is opened read only")
-    }
-    val rocks = RocksDbKeyValueStore(rocksEnvInit)
-    RepairLogic.setStateTo(RocksStates.Reconstructing, rocks)
-    rocks.commit()
-    new DbImporter(rocksEnvInit, rocks).importMetadata()
-    RepairLogic.setStateTo(RocksStates.Consistent, rocks)
-    rocks.commit()
-    rocks
-  }
-
 }
 
 class DbExporter(rocksEnv: RocksEnv) extends Utils {
-  val kvStore: RocksDbKeyValueStore = rocksEnv.rocks
+  val kvStore: KeyValueStore = rocksEnv.rocks
   private val filetype: StandardNumberedFileType = rocksEnv.fileManager.dbexport
 
   def exportUpdates(): Unit = {
@@ -209,7 +162,7 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
       valueLog.write(CompressedStream.compressBytes(baos.toBytesWrapper, CompressionMode.zstd9))
     }
     contentValues.foreach { case (key, _) =>
-      kvStore.delete(key, writeAsUpdate = false)
+      kvStore.delete(key)
     }
     logger.info(s"Finished exporting updates, took " + backupTime.measuredTime())
     RepairLogic.setStateTo(RocksStates.Consistent, kvStore)
@@ -218,44 +171,7 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
 }
 
 
-class DbImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore) extends Utils {
-
-  private val filetype: StandardNumberedFileType = rocksEnvInit.fileManager.dbexport
-
-  def importMetadata(): Unit = {
-    val restoreTime = new StandardMeasureTime()
-
-    for (file <- filetype.getFiles()) {
-      for {
-        reader <- rocksEnvInit.config.newReader(file).autoClosed
-        decompressed <- CompressedStream.decompressToBytes(reader.readAllContent()).asInputStream().autoClosed
-        encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
-        encodedValue <- encodedValueOption
-      } {
-        val (deletion, key, value) = kvStore.decodeRevisionContentValue(encodedValue)
-        if (deletion) {
-          kvStore.delete(key, writeAsUpdate = false)
-        } else {
-          kvStore.write(key, value.get, writeAsUpdate = false)
-        }
-      }
-      kvStore.commit()
-    }
-    for (file <- filetype.getFiles()) {
-      val relativePath = rocksEnvInit.config.relativePath(file)
-      val key = ValueLogStatusKey(relativePath)
-      val status = kvStore.readValueLogStatus(key)
-      if (status.isEmpty) {
-        logger.info(s"Adding status = finished for $relativePath")
-        kvStore.write(key, ValueLogStatusValue(Status.FINISHED, file.length(), ByteString.copyFrom(file.toScala.digest("MD5"))))
-      }
-    }
-    logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
-    kvStore.commit()
-  }
-}
-
-class DbMemoryImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore) extends Utils {
+class DbMemoryImporter(rocksEnvInit: RocksEnvInit, kvStore: KeyValueStore) extends Utils {
 
   private val filetype: StandardNumberedFileType = rocksEnvInit.fileManager.dbexport
 
@@ -270,12 +186,13 @@ class DbMemoryImporter(rocksEnvInit: RocksEnvInit, kvStore: RocksDbKeyValueStore
         encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
         encodedValue <- encodedValueOption
       } {
-        val (deletion, key, value) = kvStore.decodeRevisionContentValue(encodedValue)
-        if (deletion) {
-          inMemoryDb.delete(key)
-        } else {
-          inMemoryDb.write(key, value.get)
-        }
+        ???
+        //        val (deletion, key, value) = kvStore.decodeRevisionContentValue(encodedValue)
+        //        if (deletion) {
+        //          inMemoryDb.delete(key)
+        //        } else {
+        //          inMemoryDb.write(key, value.get)
+        //        }
       }
     }
     logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
@@ -290,15 +207,27 @@ class InMemoryDb {
   private var _valueLogStatus = Map.empty[ValueLogStatusKey, ValueLogStatusValue]
   private var _revision = Map.empty[Revision, RevisionValue]
 
+  @deprecated
   def chunks: Map[ChunkKey, ValueLogIndex] = _chunks
 
+  @deprecated
   def fileMetadata: Map[FileMetadataKeyWrapper, FileMetadataValue] = _fileMetadata
 
+  @deprecated
   def valueLogStatus: Map[ValueLogStatusKey, ValueLogStatusValue] = _valueLogStatus
 
+  @deprecated
   def revision: Map[Revision, RevisionValue] = _revision
 
-  def delete(key: Key) = {
+  def readChunk(chunkKey: ChunkKey): ValueLogIndex = _chunks(chunkKey)
+
+  def readFileMetadata(fileMetadata: FileMetadataKeyWrapper): FileMetadataValue = _fileMetadata(fileMetadata)
+
+  def readRevision(revision: Revision): RevisionValue = _revision(revision)
+
+  def readValueLogStatus(valueLogStatusKey: ValueLogStatusKey): ValueLogStatusValue = _valueLogStatus(valueLogStatusKey)
+
+  def delete(key: Key): Unit = {
     key match {
       case c@ChunkKey(_) =>
         _chunks -= c
@@ -314,7 +243,8 @@ class InMemoryDb {
     }
   }
 
-  def write[K <: Key, V](key: K, value: V) = {
+  def write[K <: Key, V](key: K, value: V): Unit = {
+    // TODO add change tracking
     key match {
       case c@ChunkKey(_) =>
         _chunks += c -> value.asInstanceOf[ValueLogIndex]

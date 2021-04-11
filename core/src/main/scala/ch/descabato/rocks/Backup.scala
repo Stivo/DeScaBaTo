@@ -93,9 +93,6 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
     valueLog.close()
     rocks.commit()
     new DbExporter(rocksEnv).exportUpdates()
-    val compacting = new StandardMeasureTime()
-    rocks.compact()
-    logger.info("Compaction took " + compacting.measuredTime())
   }
 
   private val buffer = Array.ofDim[Byte](1024 * 1024)
