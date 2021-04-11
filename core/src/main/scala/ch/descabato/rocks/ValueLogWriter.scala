@@ -59,15 +59,13 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
 
   private var currentFile: Option[CurrentFile] = None
 
-  def write(compressedBytes: CompressedBytes): (ValueLogIndex, Boolean) = {
-    var fileClosed = false
+  def write(compressedBytes: CompressedBytes): ValueLogIndex = {
     val fileToWriteTo = if (currentFile.isEmpty) {
       createNewFile()
     } else {
       val file = currentFile.get
       if (file.fileWriter.currentPosition() + compressedBytes.bytesWrapper.length > maxSize && file.fileWriter.currentPosition() >= minSize) {
         closeCurrentFile(file)
-        fileClosed = true
         createNewFile()
       } else {
         file
@@ -76,9 +74,8 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
     val valueLogPositionBefore = valueLogWriteTiming.measure {
       fileToWriteTo.fileWriter.write(compressedBytes.bytesWrapper)
     }
-    val newIndex = ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
+    ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
       lengthUncompressed = compressedBytes.uncompressedLength, lengthCompressed = compressedBytes.bytesWrapper.length)
-    (newIndex, fileClosed)
   }
 
   private def closeCurrentFile(currentFile: CurrentFile): Unit = {
@@ -87,23 +84,15 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
     val bs = ByteString.copyFrom(currentFile.fileWriter.md5Hash().bytes)
     val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition(), md5Hash = bs)
     kvStore.write(currentFile.key, newStatus)
-    logger.info(s"File ${currentFile.key} is now closed, will be renamed to final name next commit")
-    kvStore.callbackOnNextCommit { () =>
-      logger.info(s"Renaming ${currentFile.file} to final name")
-      fileType.renameTempFileToFinal(currentFile.file)
-    }
+    logger.info(s"File ${currentFile.key} is now closed.")
   }
 
   private def createNewFile(): CurrentFile = {
-    val file = fileType.nextFile(temp = true, usedIdentifiers)
-    val number = fileType.numberOfFile(file)
-    val finalFile = fileType.fileForNumber(number, temp = false)
+    val finalFile = fileType.nextFile(temp = false, usedIdentifiers)
     val relative = rocksEnv.config.relativePath(finalFile)
     val key = ValueLogStatusKey(relative)
-    val value = ValueLogStatusValue(status = Status.WRITING)
-    logger.info(s"From now on data will be written to ${key.name}")
-    kvStore.write(key, value)
-    val currentFile = CurrentFile(file, key, value, config.newWriter(file))
+    val value = ValueLogStatusValue(status = Status.FINISHED)
+    val currentFile = CurrentFile(finalFile, key, value, config.newWriter(finalFile))
     this.currentFile = Some(currentFile)
     currentFile
   }

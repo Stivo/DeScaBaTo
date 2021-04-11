@@ -90,13 +90,6 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
     inMemoryDb.readValueLogStatus(key)
   }
 
-  type Callback = () => Unit
-  private var callbacksOnNextCommit: Seq[Callback] = Seq.empty
-
-  def callbackOnNextCommit(callback: Callback): Unit = {
-    callbacksOnNextCommit :+= callback
-  }
-
   def commit(): Unit = {
     ensureOpenForWriting()
   }

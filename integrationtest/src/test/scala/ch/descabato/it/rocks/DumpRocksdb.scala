@@ -37,7 +37,7 @@ object DumpRocksdb extends Utils {
   }
 
   def printDefaultKeys(rocksEnv: RocksEnv): Unit = {
-    logger.info("Status: " + RepairLogic.readStatus(rocksEnv.rocks))
+//    logger.info("Status: " + RepairLogic.readStatus(rocksEnv.rocks))
   }
 
   def main(args: Array[String]): Unit = {

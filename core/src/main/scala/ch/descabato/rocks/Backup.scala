@@ -90,7 +90,6 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
     rocks.write(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
-    rocks.commit()
     new DbExporter(rocksEnv).exportUpdates()
   }
 
@@ -114,10 +113,7 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
       chunkFoundCounter += 1
     } else {
       val compressed = compressionDecider.compressBlock(file, bytesWrapper)
-      val (index, commit) = valueLog.write(compressed)
-      if (commit) {
-        rocks.commit()
-      }
+      val index = valueLog.write(compressed)
       rocks.write(chunkKey, index)
       chunkNotFoundCounter += 1
     }
