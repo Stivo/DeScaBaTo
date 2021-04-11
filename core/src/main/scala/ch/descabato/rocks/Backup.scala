@@ -1,13 +1,5 @@
 package ch.descabato.rocks
 
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileInputStream
-import java.io.OutputStream
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.attribute.BasicFileAttributes
-import java.nio.file.attribute.DosFileAttributes
 import better.files._
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.FileVisitorCollector
@@ -23,7 +15,15 @@ import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.codec.Charsets
 
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileInputStream
 import java.io.IOException
+import java.io.OutputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.DosFileAttributes
 import scala.collection.mutable
 import scala.util.Try
 
@@ -67,11 +67,11 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
   val compressionDecider = CompressionDeciders.createForConfig(rocksEnv.config)
 
   def findNextRevision(): Int = {
-    val iterator = rocks.getAllRevisions()
+    val iterator = rocks.getAllRevisionKeys()
     if (iterator.isEmpty) {
       1
     } else {
-      iterator.map(_._1.number).max + 1
+      iterator.map(_.number).max + 1
     }
   }
 

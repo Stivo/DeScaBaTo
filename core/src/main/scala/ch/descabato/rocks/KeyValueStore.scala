@@ -1,10 +1,5 @@
 package ch.descabato.rocks
 
-import java.io.File
-import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
-import java.util
-
 import ch.descabato.CompressionMode
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
@@ -31,7 +26,10 @@ import org.rocksdb.Transaction
 import org.rocksdb.WriteOptions
 import scalapb.GeneratedMessage
 
-import scala.collection.mutable
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
+import java.util
 import scala.jdk.CollectionConverters._
 
 object RocksDbKeyValueStore {
@@ -130,6 +128,24 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
     out
   }
 
+  /**
+   * Warning: This will not read uncommitted data.
+   *
+   * @tparam K The key type
+   * @return An iterator over this
+   */
+  private def iterateOnlyKeysFrom[K <: Key](cf: ColumnFamily[K, _]): Seq[K] = {
+    val iterator = db.newIterator(cf.handle)
+    iterator.seekToFirst()
+    var out = Vector.empty[K]
+    while (iterator.isValid) {
+      out :+= cf.decodeKey(iterator.key())
+      iterator.next()
+    }
+    iterator.close()
+    out
+  }
+
   def getAllFileMetadatas(): Seq[(FileMetadataKeyWrapper, FileMetadataValue)] = {
     iterateKeysFrom[FileMetadataKeyWrapper, FileMetadataValue](fileMetadataColumnFamily)
   }
@@ -140,6 +156,10 @@ class RocksDbKeyValueStore(options: Options, path: File, readOnly: Boolean) exte
 
   def getAllRevisions(): Seq[(Revision, RevisionValue)] = {
     iterateKeysFrom[Revision, RevisionValue](revisionColumnFamily).sortBy(_._1.number)
+  }
+
+  def getAllRevisionKeys(): Seq[Revision] = {
+    iterateOnlyKeysFrom[Revision](revisionColumnFamily).sortBy(_.number)
   }
 
   def getAllValueLogStatusKeys(): Seq[(ValueLogStatusKey, ValueLogStatusValue)] = {
