@@ -8,6 +8,7 @@ import better.files._
 import ch.descabato.CompressionMode
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.util.StandardNumberedFileType
+import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.Status
@@ -41,25 +42,7 @@ object RocksStates extends Enumeration {
 
 }
 
-object RepairLogic {
-
-  val rocksStatusKey: Array[Byte] = "rocks_status".getBytes
-
-  def readStatus(rocks: KeyValueStore): Option[RocksStates.Value] = {
-    RocksStates.fromBytes(rocks.readDefault(RepairLogic.rocksStatusKey))
-  }
-
-  def setStateTo(rocksStates: RocksStates.Value, rocksDbKeyValueStore: KeyValueStore): Unit = {
-    rocksDbKeyValueStore.writeDefault(rocksStatusKey, rocksStates.asBytes())
-  }
-}
-
 class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
-
-  import RocksStates._
-
-  private val initialRocks: KeyValueStore = KeyValueStore(rocksEnvInit)
-  private val initialRockState = RepairLogic.readStatus(initialRocks)
 
   private val fileManager = rocksEnvInit.fileManager
   private val dbExportType = fileManager.dbexport
@@ -78,15 +61,14 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
   def isConsistent(): Boolean = {
     // are there no temp files?
     val noTempFiles = volumeTempFiles.isEmpty && dbExportTempFiles.isEmpty
-    // is the rocksdb available and consistent?
-    val isConsistent = initialRockState == Some(Consistent)
-    // Are both metadata and rocksdb missing? => New, that is also consistent
-    val isNew = allDbExportFiles.isEmpty && allVolumeFiles.isEmpty && initialRockState.isEmpty
-    noTempFiles && (isConsistent || isNew)
+    // TODO ???
+    // do all volumes exist?
+    noTempFiles
   }
 
   def initialize(ignoreIssues: Boolean): KeyValueStore = {
-    ???
+    val inMemoryDb = new DbMemoryImporter(rocksEnvInit).importMetadata()
+    new KeyValueStore(false, inMemoryDb)
   }
 
   def deleteTempFiles(): Unit = {
@@ -135,10 +117,6 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     rocks.commit()
   }
 
-  def closeRocks(): Unit = {
-    initialRocks.close()
-  }
-
   def deleteRocksFolder(): Unit = {
     FileUtils.deleteAll(rocksEnvInit.rocksFolder)
   }
@@ -155,23 +133,18 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
     val contentValues = kvStore.readAllUpdates()
 
     val baos = new CustomByteArrayOutputStream()
-    contentValues.foreach { case (_, value) =>
-      baos.write(value.asArray())
+    contentValues.foreach { e =>
+      baos.write(e.asValue())
     }
     for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes).autoClosed) {
       valueLog.write(CompressedStream.compressBytes(baos.toBytesWrapper, CompressionMode.zstd9))
     }
-    contentValues.foreach { case (key, _) =>
-      kvStore.delete(key)
-    }
     logger.info(s"Finished exporting updates, took " + backupTime.measuredTime())
-    RepairLogic.setStateTo(RocksStates.Consistent, kvStore)
-    kvStore.commit()
   }
 }
 
 
-class DbMemoryImporter(rocksEnvInit: RocksEnvInit, kvStore: KeyValueStore) extends Utils {
+class DbMemoryImporter(rocksEnvInit: RocksEnvInit) extends Utils {
 
   private val filetype: StandardNumberedFileType = rocksEnvInit.fileManager.dbexport
 
@@ -186,15 +159,15 @@ class DbMemoryImporter(rocksEnvInit: RocksEnvInit, kvStore: KeyValueStore) exten
         encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
         encodedValue <- encodedValueOption
       } {
-        ???
-        //        val (deletion, key, value) = kvStore.decodeRevisionContentValue(encodedValue)
-        //        if (deletion) {
-        //          inMemoryDb.delete(key)
-        //        } else {
-        //          inMemoryDb.write(key, value.get)
-        //        }
+        val (deletion, key, value) = ColumnFamilies.decodeRevisionContentValue(encodedValue)
+        if (deletion) {
+          inMemoryDb.delete(key)
+        } else {
+          inMemoryDb.write(key, value.get)
+        }
       }
     }
+
     logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
     inMemoryDb
   }
@@ -202,8 +175,10 @@ class DbMemoryImporter(rocksEnvInit: RocksEnvInit, kvStore: KeyValueStore) exten
 
 class InMemoryDb {
 
+  private var _fileMetadataKeyRepository = Map.empty[FileMetadataKey, FileMetadataKey]
+
   private var _chunks = Map.empty[ChunkKey, ValueLogIndex]
-  private var _fileMetadata = Map.empty[FileMetadataKeyWrapper, FileMetadataValue]
+  private var _fileMetadata = Map.empty[FileMetadataKey, FileMetadataValue]
   private var _valueLogStatus = Map.empty[ValueLogStatusKey, ValueLogStatusValue]
   private var _revision = Map.empty[Revision, RevisionValue]
 
@@ -211,7 +186,7 @@ class InMemoryDb {
   def chunks: Map[ChunkKey, ValueLogIndex] = _chunks
 
   @deprecated
-  def fileMetadata: Map[FileMetadataKeyWrapper, FileMetadataValue] = _fileMetadata
+  def fileMetadata: Map[FileMetadataKey, FileMetadataValue] = _fileMetadata
 
   @deprecated
   def valueLogStatus: Map[ValueLogStatusKey, ValueLogStatusValue] = _valueLogStatus
@@ -219,20 +194,27 @@ class InMemoryDb {
   @deprecated
   def revision: Map[Revision, RevisionValue] = _revision
 
-  def readChunk(chunkKey: ChunkKey): ValueLogIndex = _chunks(chunkKey)
+  def readChunk(chunkKey: ChunkKey): Option[ValueLogIndex] = _chunks.get(chunkKey)
 
-  def readFileMetadata(fileMetadata: FileMetadataKeyWrapper): FileMetadataValue = _fileMetadata(fileMetadata)
+  def readFileMetadata(fileMetadata: FileMetadataKeyWrapper): Option[FileMetadataValue] = _fileMetadata.get(fileMetadata.fileMetadataKey)
 
-  def readRevision(revision: Revision): RevisionValue = _revision(revision)
+  def readRevision(revision: Revision): Option[RevisionValue] = _revision.get(revision)
 
-  def readValueLogStatus(valueLogStatusKey: ValueLogStatusKey): ValueLogStatusValue = _valueLogStatus(valueLogStatusKey)
+  def readValueLogStatus(valueLogStatusKey: ValueLogStatusKey): Option[ValueLogStatusValue] = _valueLogStatus.get(valueLogStatusKey)
+
+  private def deduplicateFileMetadataKey(fileMetadataKey: FileMetadataKey): FileMetadataKey = {
+    if (!_fileMetadataKeyRepository.contains(fileMetadataKey)) {
+      _fileMetadataKeyRepository += fileMetadataKey -> fileMetadataKey
+    }
+    _fileMetadataKeyRepository(fileMetadataKey)
+  }
 
   def delete(key: Key): Unit = {
     key match {
       case c@ChunkKey(_) =>
         _chunks -= c
       case f@FileMetadataKeyWrapper(_) =>
-        _fileMetadata -= f
+        _fileMetadata -= f.fileMetadataKey
       case s@ValueLogStatusKey(_) =>
         _valueLogStatus -= s
       case r@Revision(_) =>
@@ -243,17 +225,34 @@ class InMemoryDb {
     }
   }
 
+  def exists(key: Key): Boolean = {
+    key match {
+      case c@ChunkKey(_) =>
+        _chunks.contains(c)
+      case f@FileMetadataKeyWrapper(_) =>
+        _fileMetadata.contains(f.fileMetadataKey)
+      case s@ValueLogStatusKey(_) =>
+        _valueLogStatus.contains(s)
+      case r@Revision(_) =>
+        _revision.contains(r)
+      case x =>
+        println(x)
+        ???
+    }
+  }
+
   def write[K <: Key, V](key: K, value: V): Unit = {
-    // TODO add change tracking
     key match {
       case c@ChunkKey(_) =>
         _chunks += c -> value.asInstanceOf[ValueLogIndex]
       case f@FileMetadataKeyWrapper(_) =>
-        _fileMetadata += f -> value.asInstanceOf[FileMetadataValue]
+        _fileMetadata += deduplicateFileMetadataKey(f.fileMetadataKey) -> value.asInstanceOf[FileMetadataValue]
       case s@ValueLogStatusKey(_) =>
         _valueLogStatus += s -> value.asInstanceOf[ValueLogStatusValue]
       case r@Revision(_) =>
-        _revision += r -> value.asInstanceOf[RevisionValue]
+        val value1 = value.asInstanceOf[RevisionValue]
+        val copy = value1.copy(files = value1.files.map(deduplicateFileMetadataKey))
+        _revision += r -> copy
       case x =>
         println(x)
         ???

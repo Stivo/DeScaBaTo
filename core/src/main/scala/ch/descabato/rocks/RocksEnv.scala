@@ -46,8 +46,6 @@ class RocksEnv(val rocksEnvInit: RocksEnvInit,
       logger.info("Closing reader now")
       reader.close()
     }
-    logger.info("Closing rocksdb now")
-    rocks.close()
   }
 }
 

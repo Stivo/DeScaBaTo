@@ -28,22 +28,24 @@ object KeyValueStore {
   }
 }
 
-class KeyValueStore(readOnly: Boolean) extends LazyLogging {
+class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new InMemoryDb()) extends LazyLogging {
 
-  def getAllFileMetadatas(): Seq[(FileMetadataKeyWrapper, FileMetadataValue)] = {
-    ???
+  private var updates: Seq[ExportedEntry[_, _]] = Seq.empty
+
+  def getAllFileMetadatas(): Seq[(FileMetadataKey, FileMetadataValue)] = {
+    inMemoryDb.fileMetadata.toSeq
   }
 
   def getAllChunks(): Seq[(ChunkKey, ValueLogIndex)] = {
-    ???
+    inMemoryDb.chunks.toSeq
   }
 
   def getAllRevisions(): Seq[(Revision, RevisionValue)] = {
-    ???
+    inMemoryDb.revision.toSeq
   }
 
   def getAllValueLogStatusKeys(): Seq[(ValueLogStatusKey, ValueLogStatusValue)] = {
-    ???
+    inMemoryDb.valueLogStatus.toSeq
   }
 
   def getIndexes(fileMetadataValue: FileMetadataValue): Iterator[ValueLogIndex] = {
@@ -58,58 +60,34 @@ class KeyValueStore(readOnly: Boolean) extends LazyLogging {
     } yield ChunkKey(Hash(hashBytes))
   }
 
-  def readAllUpdates(): Seq[(RevisionContentKey, RevisionContentValue)] = {
-    ???
+  def readAllUpdates(): Seq[ExportedEntry[_, _]] = {
+    updates
   }
 
-  def write[K <: Key, V](key: K, value: V, writeAsUpdate: Boolean = true): Unit = {
+  def write[K <: Key, V <: GeneratedMessage](key: K, value: V): Unit = {
     ensureOpenForWriting()
-
-    ???
+    inMemoryDb.write(key, value)
+    updates :+= ExportedEntry(key, value, false)
   }
 
   def exists[K <: Key](key: K): Boolean = {
-    ???
-  }
-
-  /**
-   * Warning: these keys and values are not exported to the metadata
-   *
-   * @param key
-   * @return
-   */
-  def readDefault(key: Array[Byte]): Array[Byte] = {
-    if (readOnly) {
-      ???
-    } else {
-      ???
-    }
-  }
-
-  /**
-   * Warning: these keys and values are not exported to the metadata
-   *
-   * @param key
-   * @return
-   */
-  def writeDefault(key: Array[Byte], value: Array[Byte]): Unit = {
-    ???
+    inMemoryDb.exists(key)
   }
 
   def readRevision(revision: Revision): Option[RevisionValue] = {
-    ???
+    inMemoryDb.readRevision(revision)
   }
 
   def readChunk(chunkKey: ChunkKey): Option[ValueLogIndex] = {
-    ???
+    inMemoryDb.readChunk(chunkKey)
   }
 
   def readFileMetadata(fileMetadataKeyWrapper: FileMetadataKeyWrapper): Option[FileMetadataValue] = {
-    ???
+    inMemoryDb.readFileMetadata(fileMetadataKeyWrapper)
   }
 
   def readValueLogStatus(key: ValueLogStatusKey): Option[ValueLogStatusValue] = {
-    ???
+    inMemoryDb.readValueLogStatus(key)
   }
 
   type Callback = () => Unit
@@ -121,14 +99,6 @@ class KeyValueStore(readOnly: Boolean) extends LazyLogging {
 
   def commit(): Unit = {
     ensureOpenForWriting()
-    //    logger.info(s"Committing to rocksdb: ${transaction.getNumPuts} writes and ${transaction.getNumDeletes} deletions")
-    //    transaction.commit()
-    //    transaction.close()
-    //    for (callback <- callbacksOnNextCommit) {
-    //      callback.apply()
-    //    }
-    //    callbacksOnNextCommit = Seq.empty
-    //    openTransaction()
   }
 
   private def ensureOpenForWriting() = {
@@ -139,25 +109,7 @@ class KeyValueStore(readOnly: Boolean) extends LazyLogging {
 
   def delete[K <: Key](key: K): Unit = {
     ensureOpenForWriting()
-    ???
+    updates :+= ExportedEntry(key, null, true)
   }
 
-  def close(): Unit = {
-    ???
-    //    this.synchronized {
-    //      if (alreadyClosed) {
-    //        logger.error("Rocksdb was already closed")
-    //      } else {
-    //        if (transaction != null && transaction.getNumDeletes + transaction.getNumPuts > 0) {
-    //          throw new IllegalStateException("Transaction must be rolled back or committed before closing db")
-    //        }
-    //        if (!readOnly) {
-    //          db.syncWal()
-    //          compact()
-    //        }
-    //        db.closeE()
-    //        alreadyClosed = true
-    //      }
-    //    }
-  }
 }

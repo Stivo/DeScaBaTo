@@ -27,7 +27,7 @@ object Compaction {
 class Compaction(env: RocksEnv, dryRun: Boolean) extends Utils {
 
   def deleteUnreachableMetadata(): Unit = {
-    var fileMetadatas = env.rocks.getAllFileMetadatas().map(x => (x._1.fileMetadataKey, 0)).toMap.withDefaultValue(0)
+    var fileMetadatas = env.rocks.getAllFileMetadatas().map(x => (x._1, 0)).toMap.withDefaultValue(0)
     for {
       revision <- env.rocks.getAllRevisions()
       key <- revision._2.files

@@ -78,7 +78,6 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
   def backup(str: File*): Unit = {
     val revision = Revision(findNextRevision())
     val mt = new StandardMeasureTime()
-    RepairLogic.setStateTo(RocksStates.Writing, rocks)
     for (folderToBackup <- str) {
       val (folders, files) = Backup.listFiles(folderToBackup, rocksEnv.config.ignoreFile)
       for (file <- folders ++ files) {

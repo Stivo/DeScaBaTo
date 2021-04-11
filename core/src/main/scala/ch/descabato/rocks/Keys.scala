@@ -8,12 +8,12 @@ import java.io.InputStream
 import java.util
 import java.util.Base64
 import java.util.Objects
-
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Implicits._
+import scalapb.GeneratedMessage
 
 trait Key
 
@@ -122,4 +122,18 @@ object RevisionContentValue {
         None
     }
   }
+}
+
+case class ExportedEntry[K <: Key, V <: GeneratedMessage](k: K, v: V, isDeletion: Boolean) {
+  def asValue(): BytesWrapper = {
+    val family: ColumnFamily[K, V] = ColumnFamilies.lookupColumnFamily(k)
+    val key = family.encodeKey(k)
+    val out = if (isDeletion) {
+      RevisionContentValue.createDelete(family.ordinal, key)
+    } else {
+      RevisionContentValue.createUpdate(family.ordinal, key, family.encodeValue(v))
+    }
+    ColumnFamilies.revisionContentColumnFamily.encodeValue(out)
+  }
+
 }
