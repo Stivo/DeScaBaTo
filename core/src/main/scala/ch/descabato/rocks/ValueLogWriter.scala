@@ -1,10 +1,5 @@
 package ch.descabato.rocks
 
-import java.io.File
-import java.io.FileNotFoundException
-import java.io.InputStream
-import java.io.SequenceInputStream
-
 import ch.descabato.core.util.FileReader
 import ch.descabato.core.util.FileWriter
 import ch.descabato.core.util.StandardNumberedFileType
@@ -17,6 +12,11 @@ import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
+
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.InputStream
+import java.io.SequenceInputStream
 
 class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
 
@@ -35,27 +35,6 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
   private val compressionTiming = new StopWatch("compression")
   private val closeTiming = new StopWatch("close")
   private val minSize = 1 * 1024 * 1024L
-
-  //  private def init(): Int = {
-  //    val value = fileType.getFiles()
-  //
-  //    val seq: Seq[(ValueLogStatusKey, ValueLogStatusValue)] = kvStore.getAllValueLogStatusKeys()
-  //
-  //    if (write) {
-  //      seq.foreach { case (key, value) =>
-  //        if (value.status == Status.WRITING || value.status == Status.MARKED_FOR_DELETION) {
-  //          logger.warn("Deleting incomplete or obsolete file " + key)
-  //          new File(folder, key.name).delete()
-  //        }
-  //      }
-  //    }
-  //    val onlyTheseFiles = seq.filter(_._1.name.startsWith(fileType))
-  //    if (onlyTheseFiles.isEmpty) {
-  //      0
-  //    } else {
-  //      onlyTheseFiles.map(_._1.parseNumber).max
-  //    }
-  //  }
 
   private var currentFile: Option[CurrentFile] = None
 
@@ -84,15 +63,20 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
     val bs = ByteString.copyFrom(currentFile.fileWriter.md5Hash().bytes)
     val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition(), md5Hash = bs)
     kvStore.write(currentFile.key, newStatus)
-    logger.info(s"File ${currentFile.key} is now closed.")
+    logger.info(s"Renaming ${currentFile.file} to final name")
+    fileType.renameTempFileToFinal(currentFile.file)
   }
 
   private def createNewFile(): CurrentFile = {
-    val finalFile = fileType.nextFile(temp = false, usedIdentifiers)
+    val file = fileType.nextFile(temp = true, usedIdentifiers)
+    val number = fileType.numberOfFile(file)
+    val finalFile = fileType.fileForNumber(number, temp = false)
     val relative = rocksEnv.config.relativePath(finalFile)
     val key = ValueLogStatusKey(relative)
-    val value = ValueLogStatusValue(status = Status.FINISHED)
-    val currentFile = CurrentFile(finalFile, key, value, config.newWriter(finalFile))
+    val value = ValueLogStatusValue(status = Status.WRITING)
+    logger.info(s"From now on data will be written to ${key.name}")
+    kvStore.write(key, value)
+    val currentFile = CurrentFile(file, key, value, config.newWriter(file))
     this.currentFile = Some(currentFile)
     currentFile
   }
@@ -154,8 +138,7 @@ class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
     if (!randomAccessFiles.contains(valueLogIndex.filename)) {
       randomAccessFiles += valueLogIndex.filename -> rocksEnv.config.newReader(file)
     }
-    val raf = randomAccessFiles(valueLogIndex.filename)
-    raf
+    randomAccessFiles(valueLogIndex.filename)
   }
 
   override def close(): Unit = {

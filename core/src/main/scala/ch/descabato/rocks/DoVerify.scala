@@ -1,7 +1,5 @@
 package ch.descabato.rocks
 
-import java.io.IOException
-
 import ch.descabato.core.BackupException
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.VerifyConf
@@ -12,6 +10,7 @@ import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Implicits.AwareDigest
 import ch.descabato.utils.Utils
 
+import java.io.IOException
 import scala.util.Random
 
 class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils {
@@ -38,12 +37,12 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
   }
 
   private def checkExport(counter: ProblemCounter) = {
-    val importer = new DbMemoryImporter(rocksEnv.rocksEnvInit, rocks)
-    val inMemoryDb = importer.importMetadata()
-    checkChunks(counter, inMemoryDb)
-    checkFileMetadata(counter, inMemoryDb)
-    checkValueLogStatuses(counter, inMemoryDb)
-    checkRevisions(counter, inMemoryDb)
+    val importer = new DbMemoryImporter(rocksEnv.rocksEnvInit)
+    //    val inMemoryDb = importer.importMetadata()
+    //    checkChunks(counter, inMemoryDb)
+    //    checkFileMetadata(counter, inMemoryDb)
+    //    checkValueLogStatuses(counter, inMemoryDb)
+    //    checkRevisions(counter, inMemoryDb)
   }
 
   private def checkChunks(counter: ProblemCounter, inMemoryDb: InMemoryDb) = {

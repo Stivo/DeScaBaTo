@@ -1,13 +1,5 @@
 package ch.descabato.it.rocks
 
-import java.io.File
-import java.io.FileOutputStream
-import java.nio.file.Files
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.util.stream.Collectors
-
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.FileManager
@@ -18,7 +10,13 @@ import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import org.scalatest.matchers.should.Matchers._
 
-import scala.collection.JavaConverters._
+import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.Files
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.util.stream.Collectors
 
 class RestoreOlderRocksTest extends IntegrationTestBase {
 
@@ -70,6 +68,7 @@ class RestoreOlderRocksTest extends IntegrationTestBase {
 
   it should "delete rocks data" in {
     deleteAll(new File(backup1, "rocks"))
+    reportFiles()
   }
 
   it should "backup 2/4 after rocks data was lost" in {
@@ -78,11 +77,11 @@ class RestoreOlderRocksTest extends IntegrationTestBase {
 
   var dbExportModified = 0L
   var volumeModified = 0L
-
-  it should "rename some done files to temp" in {
-    dbExportModified = renameFile(fm.dbexport)
-    volumeModified = renameFile(fm.volume)
-  }
+  //
+  //  it should "rename some done files to temp" in {
+  //    dbExportModified = renameFile(fm.dbexport)
+  //    volumeModified = renameFile(fm.volume)
+  //  }
 
   private def renameFile(fileType: StandardNumberedFileType) = {
     val before = fileType.fileForNumber(0, temp = false)
@@ -101,24 +100,24 @@ class RestoreOlderRocksTest extends IntegrationTestBase {
     FileUtils.copyDirectory(input3, input2, true)
     fg.changeSome()
     reportFiles()
-    an[IllegalArgumentException] should be thrownBy {
-      reportDbContent()
-    }
+    //    an[IllegalArgumentException] should be thrownBy {
+    //      reportDbContent()
+    //    }
     volumesAfterBackup2 = fm.volume.getFiles().length
   }
 
   it should "backup 3/4 the same data again without creating new volumes and crash before renaming" in {
     startAndWait(s"backup $backup1 $input2".split(" ")) should be(0)
   }
-
-  it should "not change the files that were declared finished in rocksdb" in {
-    fm.dbexport.fileForNumber(0, temp = true) should not(exist)
-    fm.dbexport.fileForNumber(0, temp = false) should (exist)
-    fm.dbexport.fileForNumber(0, temp = false).lastModified() should be(dbExportModified)
-    fm.volume.fileForNumber(0, temp = true) should not(exist)
-    fm.volume.fileForNumber(0, temp = false) should (exist)
-    fm.volume.fileForNumber(0, temp = false).lastModified() should be(volumeModified)
-  }
+  //
+  //  it should "not change the files that were declared finished in rocksdb" in {
+  //    fm.dbexport.fileForNumber(0, temp = true) should not(exist)
+  //    fm.dbexport.fileForNumber(0, temp = false) should (exist)
+  //    fm.dbexport.fileForNumber(0, temp = false).lastModified() should be(dbExportModified)
+  //    fm.volume.fileForNumber(0, temp = true) should not(exist)
+  //    fm.volume.fileForNumber(0, temp = false) should (exist)
+  //    fm.volume.fileForNumber(0, temp = false).lastModified() should be(volumeModified)
+  //  }
 
 
   it should getNextPartName() in {

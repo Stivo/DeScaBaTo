@@ -1,9 +1,5 @@
 package ch.descabato.rocks
 
-import java.io
-import java.nio.charset.StandardCharsets
-import java.util
-
 import better.files._
 import ch.descabato.CompressionMode
 import ch.descabato.CustomByteArrayOutputStream
@@ -11,14 +7,17 @@ import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
-import ch.descabato.rocks.protobuf.keys.Status
+import ch.descabato.rocks.protobuf.keys.Status.FINISHED
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.FileUtils
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
-import com.google.protobuf.ByteString
+
+import java.io
+import java.nio.charset.StandardCharsets
+import java.util
 
 object RocksStates extends Enumeration {
 
@@ -53,68 +52,51 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
   }
 
   private val (dbExportFiles, dbExportTempFiles) = getFiles(dbExportType)
-  private val allDbExportFiles = dbExportFiles ++ dbExportTempFiles
   private val (volumeFiles, volumeTempFiles) = getFiles(volumeType)
-  private val allVolumeFiles = volumeFiles ++ volumeTempFiles
 
-
-  def isConsistent(): Boolean = {
-    // are there no temp files?
-    val noTempFiles = volumeTempFiles.isEmpty && dbExportTempFiles.isEmpty
-    // TODO ???
-    // do all volumes exist?
-    noTempFiles
+  def deleteUnmentionedVolumes(toSeq: Seq[(ValueLogStatusKey, ValueLogStatusValue)]): Unit = {
+    var volumes: Set[io.File] = volumeFiles.toSet
+    var toDelete = Set.empty[io.File]
+    for ((key, path) <- toSeq) {
+      val file = rocksEnvInit.config.resolveRelativePath(key.name)
+      if (path.status == FINISHED) {
+        logger.info(s"$key is marked as finished, will keep it")
+        volumes -= file
+      } else {
+        toDelete += file
+        logger.warn(s"Deleting $key, it is not marked as finished in dbexport")
+      }
+    }
+    for (volume <- volumes) {
+      logger.warn(s"Will delete $volume")
+      //      volume.delete()
+    }
+    for (volume <- toDelete) {
+      logger.warn(s"Will delete $volume, because status is not finished")
+      //      volume.delete()
+    }
   }
 
-  def initialize(ignoreIssues: Boolean): KeyValueStore = {
+  def initialize(): KeyValueStore = {
+    if (!rocksEnvInit.readOnly) {
+      deleteTempFiles()
+    }
     val inMemoryDb = new DbMemoryImporter(rocksEnvInit).importMetadata()
-    new KeyValueStore(false, inMemoryDb)
+    if (!rocksEnvInit.readOnly) {
+      deleteUnmentionedVolumes(inMemoryDb.valueLogStatus.toSeq)
+    }
+    new KeyValueStore(rocksEnvInit.readOnly, inMemoryDb)
   }
 
   def deleteTempFiles(): Unit = {
-    val fm = rocksEnvInit.fileManager
-    for (file <- fm.dbexport.getFiles()) {
-      if (fm.dbexport.isTempFile(file)) {
-        logger.info(s"Deleting temp file $file")
-        file.delete()
-      }
+    for (file <- dbExportTempFiles) {
+      logger.info(s"Deleting temp file $file")
+      //      file.delete()
     }
-    for (file <- fm.volume.getFiles()) {
-      if (fm.volume.isTempFile(file)) {
-        logger.info(s"Deleting temp file $file")
-        file.delete()
-      }
+    for (file <- volumeTempFiles) {
+      logger.info(s"Deleting temp file $file")
+      //      file.delete()
     }
-  }
-
-  def eitherDeleteTempFilesOrRename(rocks: KeyValueStore): Unit = {
-
-    def eitherDeleteOrRename(tempFiles: Seq[io.File], fileType: StandardNumberedFileType): Unit = {
-      for (tempFile <- tempFiles) {
-        val relativePath = rocksEnvInit.config.relativePath(fileType.finalNameForTempFile(tempFile))
-        val key = ValueLogStatusKey(relativePath)
-        val status = rocks.readValueLogStatus(key)
-        status match {
-          case Some(ValueLogStatusValue(Status.FINISHED, _, _)) =>
-            logger.info(s"File $tempFile is marked as finished in rocksdb, so renaming to final name.")
-            fileType.renameTempFileToFinal(tempFile)
-          case Some(ValueLogStatusValue(s@(Status.WRITING | Status.DELETED | Status.MARKED_FOR_DELETION), _, _)) =>
-            logger.info(s"File $tempFile is marked as $s in rocksdb, so deleting it.")
-            tempFile.delete()
-            val newStatus = status.map { s =>
-              s.copy(status = Status.DELETED, size = -1L, ByteString.EMPTY)
-            }.get
-            rocks.write(key, newStatus)
-          case None =>
-            logger.info(s"File $tempFile is not mentioned in rocksdb, so just delete it.")
-            tempFile.delete()
-        }
-      }
-    }
-
-    eitherDeleteOrRename(volumeTempFiles, volumeType)
-    eitherDeleteOrRename(dbExportTempFiles, dbExportType)
-    rocks.commit()
   }
 
   def deleteRocksFolder(): Unit = {

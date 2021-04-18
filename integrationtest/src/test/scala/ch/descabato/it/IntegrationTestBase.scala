@@ -1,10 +1,5 @@
 package ch.descabato.it
 
-import java.io.File
-import java.io.RandomAccessFile
-import java.nio.file.Files
-import java.nio.file.Paths
-
 import ch.descabato.RichFlatSpecLike
 import ch.descabato.TestUtils
 import ch.descabato.utils.Utils
@@ -15,6 +10,10 @@ import org.apache.commons.io.{FileUtils => IO_FileUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
+import java.io.File
+import java.io.RandomAccessFile
+import java.nio.file.Files
+import java.nio.file.Paths
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Set
 
@@ -39,7 +38,7 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
   var baseFolder = {
     if (System.getProperty("user.name") == "Stivo") {
       // use ramdisk on my machine for integration tests
-      new File("L:/testdata")
+      new File("M:/testdata2")
     } else {
       new File("integrationtest/testdata")
     }

@@ -1,11 +1,11 @@
 package ch.descabato.rocks
 
-import java.io.File
-
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.util.FileManager
 import ch.descabato.utils.Utils
 import com.typesafe.scalalogging.LazyLogging
+
+import java.io.File
 
 /**
  * This is the rocks env before rocks is created. It is necessary as an intermediate step
@@ -52,7 +52,7 @@ class RocksEnv(val rocksEnvInit: RocksEnvInit,
 object RocksEnv extends LazyLogging {
   def apply(config: BackupFolderConfiguration, readOnly: Boolean, ignoreIssues: Boolean = false): RocksEnv = {
     val rocksEnvInit = new RocksEnvInit(config, readOnly)
-    val kvs = new RepairLogic(rocksEnvInit).initialize(ignoreIssues)
+    val kvs = new RepairLogic(rocksEnvInit).initialize()
     new RocksEnv(rocksEnvInit, kvs)
   }
 }
