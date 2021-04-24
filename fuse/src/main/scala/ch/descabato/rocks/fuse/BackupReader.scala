@@ -1,5 +1,7 @@
 package ch.descabato.rocks.fuse
 
+import ch.descabato.rocks.ChunkKey
+
 import java.io.InputStream
 import java.time.Instant
 import java.time.LocalDateTime
@@ -12,8 +14,10 @@ import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
+import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Utils
 
+import scala.collection.immutable.SortedMap
 import scala.collection.immutable.TreeMap
 
 class BackupReader(val rocksEnv: RocksEnv) extends Utils {
@@ -25,6 +29,36 @@ class BackupReader(val rocksEnv: RocksEnv) extends Utils {
       .map { case (x, y) =>
         RevisionPair(x, y)
       }
+  }
+
+  lazy val chunksByVolume: Map[Int, Map[ChunkKey, ValueLogIndex]] = {
+    var out = SortedMap.empty[Int, Map[ChunkKey, ValueLogIndex]]
+    rocksEnv.rocks.getAllChunks().foreach { case (key, v) =>
+      val number = rocksEnv.fileManager.volume.numberOfFile(rocksEnv.config.resolveRelativePath(v.filename))
+      var map = out.getOrElse(number, Map.empty)
+      map += (key -> v)
+      out += number -> map
+    }
+    out
+  }
+
+  def fileMetadataValuesByVolume(revision: Revision, x: Int): Map[String, (Long, Seq[Int])] = {
+    val chunks = chunksByVolume(x)
+    val rev = revisions.filter(_.revision == revision).head
+    val revisionFiles = rev.revisionValue.files
+    var out = Map.empty[String, (Long, Seq[Int])]
+    for (revFile <- revisionFiles) {
+      val value = rocks.readFileMetadata(FileMetadataKeyWrapper(revFile)).get
+      for ((hash, index) <- rocks.getHashes(value).zipWithIndex) {
+        if (chunks.contains(hash)) {
+          //          println(revFile.path+" "+index+" "+chunks(hash).lengthCompressed)
+          var length = out.getOrElse(revFile.path, (0L, Seq.empty))
+          length = (chunks(hash).lengthCompressed + length._1, length._2 :+ index)
+          out += revFile.path -> length
+        }
+      }
+    }
+    out
   }
 
   def createInputStream(metadataValue: FileMetadataValue): InputStream = {

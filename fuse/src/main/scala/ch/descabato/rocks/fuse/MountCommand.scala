@@ -2,6 +2,7 @@ package ch.descabato.rocks.fuse
 
 import java.nio.file.Paths
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.Size
 import ch.descabato.frontend.BackupFolderOption
 import ch.descabato.frontend.BackupRelatedCommand
 import ch.descabato.rocks.RocksEnv
@@ -24,6 +25,7 @@ class MountCommand extends BackupRelatedCommand {
     val config = BackupFolderConfiguration(conf.folder, t.passphrase.toOption)
     val env = RocksEnv(config, readOnly = true)
     val reader = new BackupReader(env)
+
     val stub = new BackupFuseFS(reader)
     try {
 
@@ -65,6 +67,28 @@ class MountCommand extends BackupRelatedCommand {
       throw new IllegalArgumentException(s"Folder or drive may not exist, $path1 exists already")
     }
     path1
+  }
+
+  def printFilesPerVolume(reader: BackupReader): Unit = {
+    val volumes = reader.chunksByVolume
+    //    volumes.view.mapValues { m =>
+    //      (m.values.map(_.lengthCompressed).sum,m.values.map(_.lengthUncompressed).sum)
+    //    }.foreach { case (num, total) =>
+    //      println(num + ": " + Utils.readableFileSize(total._1) +" "+Utils.readableFileSize(total._2))
+    //    }
+
+    val rev = reader.revisions.maxBy(_.revision.number)
+    println(rev.revision)
+    for (x <- volumes.keys if x >= 584) {
+      println(s"volume ${x}")
+      val map = reader.fileMetadataValuesByVolume(rev.revision, x)
+      val sortedBySize = map.toSeq.sortBy(-_._2._1)
+      sortedBySize.takeWhile(_._2._1 > 100 * 1024).foreach { case (path, length) =>
+        println(path + " " + Size(length._1) + " " + length._2.mkString(" "))
+      }
+      println()
+    }
+
   }
 
 }
