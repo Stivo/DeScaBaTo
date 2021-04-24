@@ -10,6 +10,7 @@ branches:
     - openjdk-11
     - feature/scala2.13
     - feature/fuse
+    - feature/no_rocks
 jdk:
   - openjdk11
 #before_script:
