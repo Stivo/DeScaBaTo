@@ -40,11 +40,10 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
   private val (volumeFiles, volumeTempFiles) = getFiles(volumeType)
 
   def deleteFile(x: io.File): Unit = {
-    val desktop = Desktop.getDesktop
-    if (desktop.isSupported(Action.MOVE_TO_TRASH)) {
-      desktop.moveToTrash(x)
+    if (Desktop.isDesktopSupported && Desktop.getDesktop.isSupported(Action.MOVE_TO_TRASH)) {
+      Desktop.getDesktop.moveToTrash(x)
     } else {
-      x.toScala.renameTo("deleted_" + x.getName)
+      x.delete()
     }
   }
 
