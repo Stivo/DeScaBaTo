@@ -22,6 +22,7 @@ import java.io
 import java.util.concurrent.Executors
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
@@ -132,30 +133,35 @@ class DbMemoryImporter(rocksEnvInit: RocksEnvInit) extends Utils {
     val inMemoryDb: InMemoryDb = new InMemoryDb()
     val restoreTime = new StandardMeasureTime()
 
-    implicit val ex = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
-    var futures = Seq.empty[Future[Unit]]
-    for (file <- filetype.getFiles()) {
-      for {
-        reader <- rocksEnvInit.config.newReader(file).autoClosed
-        decompressed <- CompressedStream.decompressToBytes(reader.readAllContent()).asInputStream().autoClosed
-        encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
-        encodedValue <- encodedValueOption
-      } {
-        futures +:= Future {
-          val (deletion, key, value) = ColumnFamilies.decodeRevisionContentValue(encodedValue)
-          if (deletion) {
-            inMemoryDb.delete(key)
-          } else {
-            inMemoryDb.write(key, value.get)
+    val executor = Executors.newSingleThreadExecutor()
+    implicit val ex: ExecutionContextExecutor = ExecutionContext.fromExecutor(executor)
+    try {
+      var futures = Seq.empty[Future[Unit]]
+      for (file <- filetype.getFiles()) {
+        for {
+          reader <- rocksEnvInit.config.newReader(file).autoClosed
+          decompressed <- CompressedStream.decompressToBytes(reader.readAllContent()).asInputStream().autoClosed
+          encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
+          encodedValue <- encodedValueOption
+        } {
+          futures +:= Future {
+            val (deletion, key, value) = ColumnFamilies.decodeRevisionContentValue(encodedValue)
+            if (deletion) {
+              inMemoryDb.delete(key)
+            } else {
+              inMemoryDb.write(key, value.get)
+            }
           }
         }
       }
-    }
-    logger.info(s"Finished importing metadata, waiting until everything is parsed")
-    futures.foreach(Await.ready(_, 10.hours))
+      logger.info(s"Finished importing metadata, waiting until everything is parsed")
+      futures.foreach(Await.ready(_, 10.hours))
 
-    logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
-    inMemoryDb
+      logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
+      inMemoryDb
+    } finally {
+      executor.shutdown()
+    }
   }
 }
 
