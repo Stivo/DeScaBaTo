@@ -4,7 +4,7 @@ package ch.descabato.utils
 trait MeasureTime {
   var startTime = 0L
 
-  def startMeasuring() {
+  def startMeasuring(): Unit = {
     startTime = System.nanoTime()
   }
 
@@ -24,7 +24,7 @@ trait MeasureTime {
       val minutes = seconds / 60
       val hours = minutes / 60
       val days = hours / 24
-      val add = if (days == 0) "" else days + " days "
+      val add = if (days == 0) "" else s"$days days "
       f"$add${hours % 24}%02d:${minutes % 60}%02d:${seconds % 60}%02d"
     }
   }

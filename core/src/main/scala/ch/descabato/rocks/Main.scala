@@ -55,7 +55,7 @@ object Main extends Utils {
     try {
       Security.addProvider(new BouncyCastleProvider())
       java.lang.System.setOut(new PrintStream(System.out, true, "UTF-8"))
-      parseCommandLine(args)
+      parseCommandLine(args.toIndexedSeq)
       //      exit(0)
     } catch {
       case e@PasswordWrongException(m, cause) =>

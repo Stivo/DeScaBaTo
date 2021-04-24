@@ -16,7 +16,7 @@ object Utils {
       val minutes = seconds / 60
       val hours = minutes / 60
       val days = hours / 24
-      val add = if (days == 0) "" else days + " days "
+      val add = if (days == 0) "" else s"$days days "
       f"$add${hours % 24}%02d:${minutes % 60}%02d:${seconds % 60}%02d"
     }
   }
@@ -25,7 +25,7 @@ object Utils {
 
   def readableFileSize(size: Long, afterDot: Int = 1): String = {
     if (size <= 0) return "0"
-    val digitGroups = (Math.log10(size) / Math.log10(1024)).toInt
+    val digitGroups = (Math.log10(size.toDouble) / Math.log10(1024)).toInt
     val afterDotPart = if (afterDot == 0) "#" else "0" * afterDot
     new DecimalFormat("#,##0. " + afterDotPart).format(size / Math.pow(1024, digitGroups)) + units(digitGroups)
   }
@@ -35,7 +35,7 @@ object Utils {
 trait MeasureTime {
   var startTime = 0L
 
-  def startMeasuring() {
+  def startMeasuring(): Unit = {
     startTime = System.nanoTime()
   }
 

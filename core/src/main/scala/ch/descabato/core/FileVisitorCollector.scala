@@ -9,7 +9,7 @@ import java.io.IOException
 import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.{ArrayList => JArrayList}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.io.Codec
 import scala.io.Source
 

@@ -48,7 +48,7 @@ object Streams extends Utils {
 
     private val buzHash = new BuzHash(Constants.Chunking.buzhashSize)
 
-    override def write(buf: Array[Byte], start: Int, len: Int) {
+    override def write(buf: Array[Byte], start: Int, len: Int): Unit = {
       val noBuzhashNeeded = minBlockSize - Constants.Chunking.buzhashSize * 2
       if (currentChunkSize < noBuzhashNeeded) {
         val writeDirectly = Math.min(noBuzhashNeeded - currentChunkSize, len)
@@ -89,7 +89,7 @@ object Streams extends Utils {
       buzHash.reset()
     }
 
-    private def computeBytesToRead(end: Int, pos: Int) = {
+    private def computeBytesToRead(end: Int, pos: Int): Int = {
       val remainingBytes = end - pos
       val bytesBeforeMaxBlockSize = maxBlockSize - currentChunkSize
       Math.min(bytesBeforeMaxBlockSize, remainingBytes)

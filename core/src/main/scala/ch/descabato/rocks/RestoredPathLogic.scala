@@ -89,7 +89,7 @@ class RestoredPathLogic(val folders: Seq[FolderDescription], val restoreConf: Re
       return new File(path)
     }
 
-    def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
+    def cleaned(s: String) = if (Utils.isWindows) s.replace(":", "_") else s
 
     val dest = new File(restoreConf.restoreToFolder())
     if (relativeToRoot) {

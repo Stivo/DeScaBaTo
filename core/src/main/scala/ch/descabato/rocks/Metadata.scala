@@ -19,28 +19,6 @@ import java.io
 import java.nio.charset.StandardCharsets
 import java.util
 
-object RocksStates extends Enumeration {
-
-  protected case class Val(name: String) extends super.Val {
-    def asBytes(): Array[Byte] = {
-      super.toString().getBytes(StandardCharsets.UTF_8)
-    }
-  }
-
-  import scala.language.implicitConversions
-
-  implicit def valueToRocksStateVal(x: Value): Val = x.asInstanceOf[Val]
-
-  val Consistent: Val = Val("Consistent")
-  val Writing: Val = Val("Writing")
-  val Reconstructing: Val = Val("Reconstructing")
-
-  def fromBytes(value: Array[Byte]): Option[Value] = {
-    Option(value).flatMap(value => values.find(v => util.Arrays.equals(v.asBytes(), value)))
-  }
-
-}
-
 class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
 
   private val fileManager = rocksEnvInit.fileManager
@@ -164,16 +142,12 @@ class InMemoryDb {
   private var _valueLogStatus = Map.empty[ValueLogStatusKey, ValueLogStatusValue]
   private var _revision = Map.empty[Revision, RevisionValue]
 
-  @deprecated
   def chunks: Map[ChunkKey, ValueLogIndex] = _chunks
 
-  @deprecated
   def fileMetadata: Map[FileMetadataKey, FileMetadataValue] = _fileMetadata
 
-  @deprecated
   def valueLogStatus: Map[ValueLogStatusKey, ValueLogStatusValue] = _valueLogStatus
 
-  @deprecated
   def revision: Map[Revision, RevisionValue] = _revision
 
   def readChunk(chunkKey: ChunkKey): Option[ValueLogIndex] = _chunks.get(chunkKey)

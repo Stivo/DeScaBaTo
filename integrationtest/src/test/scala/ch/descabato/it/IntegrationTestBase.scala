@@ -14,7 +14,7 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.Paths
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.Set
 
 abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike with TestUtils {

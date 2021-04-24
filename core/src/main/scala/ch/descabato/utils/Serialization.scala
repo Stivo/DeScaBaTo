@@ -1,7 +1,6 @@
 package ch.descabato.utils
 
 import java.io.{InputStream, OutputStream}
-
 import ch.descabato.core.model._
 import ch.descabato.utils.Implicits._
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, Version}
@@ -11,9 +10,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind._
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
+import com.fasterxml.jackson.module.scala.ScalaObjectMapper
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit

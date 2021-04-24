@@ -134,7 +134,7 @@ class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: 
     }
   }
 
-  override def toString(): String = array.length + ": " + new String(array)
+  override def toString(): String = s"${array.length}: ${new String(array)}"
 
   def toByteBuffer(): ByteBuffer = ByteBuffer.wrap(array, offset, length)
 
@@ -149,7 +149,7 @@ object Utils extends LazyLogging {
 
   def readableFileSize(size: Long, afterDot: Int = 1): String = {
     if (size <= 0) return "0"
-    val digitGroups = (Math.log10(size) / Math.log10(1024)).toInt
+    val digitGroups = (Math.log10(size.toDouble) / Math.log10(1024)).toInt
     val afterDotPart = if (afterDot == 0) "#" else "0" * afterDot
     new DecimalFormat("#,##0. " + afterDotPart).format(size / Math.pow(1024, digitGroups)) + Utils.units(digitGroups)
   }
@@ -164,7 +164,7 @@ object Utils extends LazyLogging {
 
   def normalizePath(x: String): String = x.replace('\\', '/')
 
-  def logException(t: Throwable) {
+  def logException(t: Throwable): Unit = {
     val baos = new CustomByteArrayOutputStream()
     val ps = new PrintStream(baos)
 
@@ -256,7 +256,7 @@ object FileUtils extends Utils {
     def prepare(f: File) = {
       var path = if (Files.isSymbolicLink(f.toPath)) f.getAbsolutePath() else f.getCanonicalPath()
       if (Utils.isWindows)
-        path = path.replaceAllLiterally("\\", "/")
+        path = path.replace("\\", "/")
       path.split("/").toList
     }
 
@@ -273,7 +273,7 @@ object FileUtils extends Utils {
 
     val cut = cutFirst(files)
 
-    def cleaned(s: String) = if (Utils.isWindows) s.replaceAllLiterally(":", "_") else s
+    def cleaned(s: String) = if (Utils.isWindows) s.replace(":", "_") else s
 
     new File(dest, cleaned(cut))
   }
@@ -310,7 +310,7 @@ trait Utils extends LazyLogging {
 
   def readableFileSize(size: Long): String = Utils.readableFileSize(size)
 
-  def logException(t: Throwable) {
+  def logException(t: Throwable): Unit = {
     Utils.logException(t)
   }
 

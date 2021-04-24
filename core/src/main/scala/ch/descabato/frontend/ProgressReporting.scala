@@ -12,7 +12,7 @@ import org.ocpsoft.prettytime.units.JustNow
 import java.util.Date
 import java.util.concurrent.atomic.AtomicLong
 import javax.swing.SwingUtilities
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ProgressReporters {
 
@@ -20,7 +20,7 @@ object ProgressReporters {
 
   var gui: Option[ProgressGui] = None
 
-  def openGui(nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions = null) {
+  def openGui(nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions = null): Unit = {
     if (!guiEnabled) {
       return
     }
@@ -103,7 +103,7 @@ trait Counter {
     _current.addAndGet(l)
   }
 
-  def update() {}
+  def update(): Unit = {}
 
   def formatted: String = {
     update()
@@ -132,11 +132,11 @@ trait ETACounter extends MaxValueCounter with Utils {
     snapshots = List.empty
   }
 
-  override def +=(l: Long) {
+  override def +=(l: Long): Unit = {
     super.+=(l)
     val now = System.currentTimeMillis()
     if (newSnapshotAt < now) {
-      snapshots :+= Snapshot(now, current)
+      snapshots :+= Snapshot(now, current.toDouble)
       val cutoff = now - window * 1000
       snapshots = snapshots.dropWhile(_.time < cutoff)
       newSnapshotAt = now + 100

@@ -14,7 +14,7 @@ import java.util.regex.Pattern
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.utils._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {
 
@@ -110,7 +110,7 @@ object FileAttributes extends Utils {
     }
   }
 
-  def restore(attrs: FileAttributes, file: File) {
+  def restore(attrs: FileAttributes, file: File): Unit = {
     val path = file.toPath()
 
     def lookupService = file.toPath().getFileSystem().getUserPrincipalLookupService()
@@ -125,7 +125,7 @@ object FileAttributes extends Utils {
     }
   }
 
-  private def setAttribute(file: File, path: Path, lookupService: UserPrincipalLookupService, posix: => PosixFileAttributeView, name: String, o: Any) = {
+  private def setAttribute(file: File, path: Path, lookupService: UserPrincipalLookupService, posix: => PosixFileAttributeView, name: String, o: Any): Unit = {
     try {
       val toSet: Option[Any] = (name, o) match {
         case (key, time) if key.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))

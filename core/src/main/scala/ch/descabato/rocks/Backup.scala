@@ -24,6 +24,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.codec.Charsets
 
 import java.io.IOException
+import java.nio.charset.StandardCharsets
 import scala.collection.mutable
 import scala.util.Try
 
@@ -85,7 +86,7 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
       }
     }
     logger.info("Took " + mt.measuredTime())
-    val configJson = new String(rocksEnv.config.asJson(), Charsets.UTF_8)
+    val configJson = new String(rocksEnv.config.asJson(), StandardCharsets.UTF_8)
     val value = RevisionValue(created = System.currentTimeMillis(), configJson = configJson, files = filesInRevision.toSeq)
     rocks.write(revision, value)
     logger.info("Closing valuelog")
