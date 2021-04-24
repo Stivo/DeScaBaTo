@@ -24,7 +24,6 @@ class RocksEnvInit(val config: BackupFolderConfiguration,
     logger.info(s"Creating folders for backup at ${backupFolder}")
     backupFolder.mkdir()
   }
-  val startedWithoutRocksdb: Boolean = !rocksFolder.exists()
 
 }
 

@@ -10,14 +10,20 @@ import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.Status.FINISHED
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
+import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.FileUtils
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 
+import java.awt.Desktop
+import java.awt.Desktop.Action
 import java.io
-import java.nio.charset.StandardCharsets
-import java.util
+import java.util.concurrent.Executors
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
 class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
 
@@ -31,6 +37,15 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
 
   private val (dbExportFiles, dbExportTempFiles) = getFiles(dbExportType)
   private val (volumeFiles, volumeTempFiles) = getFiles(volumeType)
+
+  def deleteFile(x: io.File): Unit = {
+    val desktop = Desktop.getDesktop
+    if (desktop.isSupported(Action.MOVE_TO_TRASH)) {
+      desktop.moveToTrash(x)
+    } else {
+      x.toScala.renameTo("deleted_" + x.getName)
+    }
+  }
 
   def deleteUnmentionedVolumes(toSeq: Seq[(ValueLogStatusKey, ValueLogStatusValue)]): Unit = {
     var volumes: Set[io.File] = volumeFiles.toSet
@@ -47,11 +62,11 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     }
     for (volume <- volumes) {
       logger.warn(s"Will delete $volume")
-      //      volume.delete()
+      deleteFile(volume)
     }
     for (volume <- toDelete) {
       logger.warn(s"Will delete $volume, because status is not finished")
-      //      volume.delete()
+      deleteFile(volume)
     }
   }
 
@@ -69,11 +84,11 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
   def deleteTempFiles(): Unit = {
     for (file <- dbExportTempFiles) {
       logger.info(s"Deleting temp file $file")
-      //      file.delete()
+      file.delete()
     }
     for (file <- volumeTempFiles) {
       logger.info(s"Deleting temp file $file")
-      //      file.delete()
+      file.delete()
     }
   }
 
@@ -87,17 +102,22 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
   val kvStore: KeyValueStore = rocksEnv.rocks
   private val filetype: StandardNumberedFileType = rocksEnv.fileManager.dbexport
 
-  def exportUpdates(): Unit = {
+  def exportUpdates(contentValues: Seq[ExportedEntry[_, _]]): Unit = {
     val backupTime = new StandardMeasureTime()
 
-    val contentValues = kvStore.readAllUpdates()
-
     val baos = new CustomByteArrayOutputStream()
+    baos.write(CompressionMode.zstd9.getByte)
+    val out = CompressedStream.getCompressor(CompressionMode.zstd9.getByte, baos)
+    var totalLength = 0
     contentValues.foreach { e =>
-      baos.write(e.asValue())
+      val wrapper = e.asValue()
+      out.write(wrapper)
+      totalLength += wrapper.length
     }
+    out.close()
+
     for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes).autoClosed) {
-      valueLog.write(CompressedStream.compressBytes(baos.toBytesWrapper, CompressionMode.zstd9))
+      valueLog.write(new CompressedBytes(baos.toBytesWrapper, totalLength))
     }
     logger.info(s"Finished exporting updates, took " + backupTime.measuredTime())
   }
@@ -112,6 +132,8 @@ class DbMemoryImporter(rocksEnvInit: RocksEnvInit) extends Utils {
     val inMemoryDb: InMemoryDb = new InMemoryDb()
     val restoreTime = new StandardMeasureTime()
 
+    implicit val ex = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+    var futures = Seq.empty[Future[Unit]]
     for (file <- filetype.getFiles()) {
       for {
         reader <- rocksEnvInit.config.newReader(file).autoClosed
@@ -119,14 +141,18 @@ class DbMemoryImporter(rocksEnvInit: RocksEnvInit) extends Utils {
         encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
         encodedValue <- encodedValueOption
       } {
-        val (deletion, key, value) = ColumnFamilies.decodeRevisionContentValue(encodedValue)
-        if (deletion) {
-          inMemoryDb.delete(key)
-        } else {
-          inMemoryDb.write(key, value.get)
+        futures +:= Future {
+          val (deletion, key, value) = ColumnFamilies.decodeRevisionContentValue(encodedValue)
+          if (deletion) {
+            inMemoryDb.delete(key)
+          } else {
+            inMemoryDb.write(key, value.get)
+          }
         }
       }
     }
+    logger.info(s"Finished importing metadata, waiting until everything is parsed")
+    futures.foreach(Await.ready(_, 10.hours))
 
     logger.info(s"Finished importing metadata, took " + restoreTime.measuredTime())
     inMemoryDb

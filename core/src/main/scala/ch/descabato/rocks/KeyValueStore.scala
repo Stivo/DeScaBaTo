@@ -1,26 +1,13 @@
 package ch.descabato.rocks
 
-import java.io.File
-import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
-import java.util
-
-import ch.descabato.CompressionMode
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
-import ch.descabato.utils.BytesWrapper
-import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Hash
-import ch.descabato.utils.Implicits._
 import com.typesafe.scalalogging.LazyLogging
-import org.bouncycastle.util.encoders.Hex
 import scalapb.GeneratedMessage
-
-import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 
 object KeyValueStore {
   def apply(rocksEnvInit: RocksEnvInit): KeyValueStore = {
@@ -62,6 +49,23 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
 
   def readAllUpdates(): Seq[ExportedEntry[_, _]] = {
     updates
+  }
+
+  def getAllEntriesAsUpdates(): Seq[ExportedEntry[_, _]] = {
+    var out = Seq.empty[ExportedEntry[_, _]]
+    inMemoryDb.valueLogStatus.foreach { case (k, v) =>
+      out :+= ExportedEntry(k, v, false)
+    }
+    out ++= inMemoryDb.chunks.map { case (k, v) =>
+      ExportedEntry(k, v, false)
+    }
+    inMemoryDb.revision.foreach { case (k, v) =>
+      out :+= ExportedEntry(k, v, false)
+    }
+    out ++= inMemoryDb.fileMetadata.map { case (k, v) =>
+      ExportedEntry(FileMetadataKeyWrapper(k), v, false)
+    }
+    out
   }
 
   def write[K <: Key, V <: GeneratedMessage](key: K, value: V): Unit = {

@@ -21,7 +21,6 @@ import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Streams.VariableBlockOutputStream
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.codec.Charsets
 
 import java.io.IOException
 import java.nio.charset.StandardCharsets
@@ -91,7 +90,7 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
     rocks.write(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
-    new DbExporter(rocksEnv).exportUpdates()
+    new DbExporter(rocksEnv).exportUpdates(rocks.readAllUpdates())
   }
 
   private val buffer = Array.ofDim[Byte](1024 * 1024)
