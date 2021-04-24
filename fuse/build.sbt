@@ -1,8 +1,6 @@
 
 name := "fuse"
 
-mainClass := Some("ch.descabato.rocks.Main")
-
 resolvers += Resolver.jcenterRepo
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")

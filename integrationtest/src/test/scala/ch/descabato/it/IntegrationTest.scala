@@ -18,7 +18,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
   val backup1 = folder("backup1")
   val restore1 = folder("restore1")
 
-  override def beforeAll {
+  override def beforeAll() {
     val destfile = new File(descabatoFolder, "core/target/scala-2.10/jacoco/jacoco.exec")
     destfile.delete()
     System.setProperty("logname", "integrationtest.log")

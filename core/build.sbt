@@ -2,9 +2,8 @@ import java.util.Date
 
 name := "core"
 
-mainClass := Some("ch.descabato.CLI")
 
-unmanagedSourceDirectories in Compile += new File("src/main/resources")
+Compile / unmanagedSourceDirectories += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
@@ -73,13 +72,13 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
 
-PB.targets in Compile := Seq(
-  scalapb.gen(grpc = false, lenses = false) -> (sourceManaged in Compile).value / "scalapb"
+Compile / PB.targets := Seq(
+  scalapb.gen(grpc = false, lenses = false) -> (Compile / sourceManaged).value / "scalapb"
 )
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
 
-parallelExecution in Test := false
+Test / parallelExecution := false
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
 
@@ -96,7 +95,7 @@ packArchivePrefix := "descabato-core"
 lazy val generateBuildInfo = taskKey[Seq[File]]("Generates the build information")
 
 generateBuildInfo := {
-  val file = (resourceManaged in Compile).value / "buildinfo.properties"
+  val file = (Compile / resourceManaged).value / "buildinfo.properties"
   //  val pb = new ProcessBuilder("git", "branch", "--show-current")
   //  val process = pb.start()
   //  val outputStream = process.getInputStream
@@ -112,4 +111,4 @@ generateBuildInfo := {
   Seq(file)
 }
 
-resourceGenerators in Compile += generateBuildInfo
+Compile / resourceGenerators += generateBuildInfo

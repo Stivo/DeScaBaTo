@@ -1,5 +1,5 @@
 
-scalaVersion in ThisBuild := Common.scalaVersion
+ThisBuild / scalaVersion := Common.scalaVersion
 
 val commonSettings =
   List(
@@ -21,5 +21,5 @@ val fuse = (project in file("fuse"))
 val it = (project in file("integrationtest"))
   .dependsOn(core % "test->test")
   .settings(commonSettings, name := "it",
-    test in Test := ((test in Test).dependsOn(pack in core)).value
+    Test / test := ((Test / test).dependsOn(core / pack)).value
   )

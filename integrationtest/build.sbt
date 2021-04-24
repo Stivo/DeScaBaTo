@@ -5,7 +5,7 @@ libraryDependencies ++= Seq(
    "org.apache.commons" % "commons-exec" % "1.3" % "test"
 )
 
-parallelExecution in Test := false
+Test / parallelExecution := false
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-o", "-u", "target/test-reports")
 
