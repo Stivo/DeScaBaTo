@@ -145,7 +145,7 @@ class BackupConfigurationHandler(private var supplied: BackupFolderOption, exist
     OK
   }
 
-  def setPassphrase(passphrase: String) = {
+  def setPassphrase(passphrase: String): Unit = {
     this.passphrase = Some(passphrase)
   }
 

@@ -48,7 +48,7 @@ object ProgressReporters {
     }
   }
 
-  def getCounter(name: String) = counters(name)
+  def getCounter(name: String): Counter = counters(name)
 
   private var counters = Map[String, Counter]()
 

@@ -257,7 +257,6 @@ class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderO
 }
 
 class HelpCommand extends Command {
-  val T = ScallopConf
 
   override def execute(args: Seq[String]) {
     args.toList match {
@@ -275,7 +274,6 @@ class HelpCommand extends Command {
 }
 
 class VersionCommand extends Command {
-  val T = ScallopConf
 
   override def name: String = "--version"
 

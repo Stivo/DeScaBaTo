@@ -91,6 +91,6 @@ class KeyInfo(val key: Array[Byte]) {
   def ivSize = 16
   var iv: Array[Byte] = _
 
-  override def toString = s"KeyInfo(${new String(Base64.getEncoder.encode(iv))}, " +
+  override def toString: String = s"KeyInfo(${new String(Base64.getEncoder.encode(iv))}, " +
     s"${new String(Base64.getEncoder.encode(key))}, $ivSize)"
 }

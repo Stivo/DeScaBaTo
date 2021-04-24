@@ -29,7 +29,7 @@ class S3EtagVerifier(file: File) {
     computed == hex
   }
 
-  def filterApplicapleSizes(sizes: Seq[Size], parts: Int) = {
+  def filterApplicapleSizes(sizes: Seq[Size], parts: Int): Seq[Size] = {
     sizes.filter { size =>
       file.length() / size.bytes == parts - 1L ||
         file.length() / size.bytes == parts

@@ -23,8 +23,8 @@ object Constants {
   object Chunking {
     val bitmask: Byte = 19
     val buzhashSize = 64
-    val minBlockSize = 128 * 1024
-    val maxBlockSize = 16 * 1024 * 1024
+    val minBlockSize: Int = 128 * 1024
+    val maxBlockSize: Int = 16 * 1024 * 1024
   }
 
 }
@@ -99,7 +99,7 @@ class FileManager(config: BackupFolderConfiguration) {
  */
 class StandardNumberedFileType(name: String, suffix: String, config: BackupFolderConfiguration) extends NumberedFileType {
 
-  val mainFolder = config.resolveRelativePath(name)
+  val mainFolder: File = config.resolveRelativePath(name)
   val regex = s"${name}_[0-9]+"
   val regexWithSuffix = s"(${Constants.tempPrefix})?${regex}\\.${suffix}"
 

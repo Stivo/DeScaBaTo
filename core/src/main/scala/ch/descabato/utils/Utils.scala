@@ -36,9 +36,9 @@ object Hash {
     hash.bytes != null && hash.length > 0
   }
 
-  def apply(hash: Array[Byte]) = {
-      new Hash(hash)
-    }
+  def apply(hash: Array[Byte]): Hash = {
+    new Hash(hash)
+  }
 
 }
 

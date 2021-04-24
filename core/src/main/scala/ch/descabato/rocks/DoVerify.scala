@@ -9,6 +9,7 @@ import ch.descabato.rocks.protobuf.keys.Status
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Implicits.AwareDigest
 import ch.descabato.utils.Utils
+import org.bouncycastle.crypto.Digest
 
 import java.io.IOException
 import scala.util.Random
@@ -20,7 +21,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
   import rocksEnv._
 
   val random = new Random()
-  val digest = conf.createMessageDigest()
+  val digest: Digest = conf.createMessageDigest()
 
   var checkedAlready = Set.empty[ValueLogIndex]
 
@@ -36,7 +37,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     counter
   }
 
-  private def checkExport(counter: ProblemCounter) = {
+  private def checkExport(counter: ProblemCounter): Unit = {
     val importer = new DbMemoryImporter(rocksEnv.rocksEnvInit)
     //    val inMemoryDb = importer.importMetadata()
     //    checkChunks(counter, inMemoryDb)
@@ -45,7 +46,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     //    checkRevisions(counter, inMemoryDb)
   }
 
-  private def checkChunks(counter: ProblemCounter, inMemoryDb: InMemoryDb) = {
+  private def checkChunks(counter: ProblemCounter, inMemoryDb: InMemoryDb): Unit = {
     val rocksChunks = rocksEnv.rocks.getAllChunks()
     if (inMemoryDb.chunks.size != rocksChunks.size) {
       counter.addProblem(s"DbExport and DB content have differing counts for chunks: DB Export has ${inMemoryDb.chunks.size}, DB has ${rocksChunks.size}.")
@@ -54,7 +55,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     }
   }
 
-  private def checkFileMetadata(counter: ProblemCounter, inMemoryDb: InMemoryDb) = {
+  private def checkFileMetadata(counter: ProblemCounter, inMemoryDb: InMemoryDb): Unit = {
     val rocksFileMetadatas = rocksEnv.rocks.getAllFileMetadatas()
     if (inMemoryDb.fileMetadata.size != rocksFileMetadatas.size) {
       counter.addProblem(s"DbExport and DB content have differing counts for file metadata: DB Export has ${inMemoryDb.chunks.size}, DB has ${rocksFileMetadatas.size}.")
@@ -63,7 +64,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     }
   }
 
-  private def checkRevisions(counter: ProblemCounter, inMemoryDb: InMemoryDb) = {
+  private def checkRevisions(counter: ProblemCounter, inMemoryDb: InMemoryDb): Unit = {
     val rocksRevisions = rocksEnv.rocks.getAllRevisions()
     if (inMemoryDb.revision.size != rocksRevisions.size) {
       counter.addProblem(s"DbExport and DB content have differing counts for revisions: DB Export has ${inMemoryDb.revision.size}, DB has ${rocksRevisions.size}.")
@@ -72,7 +73,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     }
   }
 
-  private def checkValueLogStatuses(counter: ProblemCounter, inMemoryDb: InMemoryDb) = {
+  private def checkValueLogStatuses(counter: ProblemCounter, inMemoryDb: InMemoryDb): Unit = {
     val rocksFileStatusKeys = rocksEnv.rocks.getAllValueLogStatusKeys()
     val inExport = inMemoryDb.valueLogStatus
     if (inExport.size != rocksFileStatusKeys.size && inExport.size + 1 != rocksFileStatusKeys.size) {

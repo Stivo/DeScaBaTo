@@ -8,7 +8,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
-
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Utils
 import com.amazonaws.RequestClientOptions
@@ -16,10 +15,12 @@ import com.amazonaws.client.builder.ExecutorFactory
 import com.amazonaws.event.ProgressEvent
 import com.amazonaws.event.ProgressEventType
 import com.amazonaws.event.ProgressListener
+import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.ObjectMetadata
 import com.amazonaws.services.s3.model.PutObjectRequest
 import com.amazonaws.services.s3.model.StorageClass
+import com.amazonaws.services.s3.transfer.TransferManager
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder
 import org.apache.commons.compress.utils.BoundedInputStream
 
@@ -38,8 +39,8 @@ object S3RemoteClient {
 }
 
 class S3RemoteClient private(val url: String, val bucketName: String, val prefix: String) extends RemoteClient with Utils with AutoCloseable {
-  lazy val client = AmazonS3ClientBuilder.defaultClient()
-  lazy val manager = TransferManagerBuilder.standard()
+  lazy val client: AmazonS3 = AmazonS3ClientBuilder.defaultClient()
+  lazy val manager: TransferManager = TransferManagerBuilder.standard()
     .withMinimumUploadPartSize(64 * 1024 * 1024L)
     .withExecutorFactory(new MyExecutorServiceFactory(10))
     .build()

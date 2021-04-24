@@ -9,7 +9,7 @@ abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, k
 
   lazy val keyDerivationInfo = new KeyDerivationInfo(keyLength = (keylength / 8).toByte)
 
-  protected val key = CryptoUtils.keyDerive(passphrase, keyDerivationInfo.salt,
+  protected val key: Array[Byte] = CryptoUtils.keyDerive(passphrase, keyDerivationInfo.salt,
     keyDerivationInfo.keyLength, keyDerivationInfo.iterationsPower, keyDerivationInfo.memoryFactor)
 
   private var header = Array.empty[Byte]
@@ -37,13 +37,13 @@ abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, k
     header ++= keyDerivationInfo.salt
   }
 
-  private def writeHeaderToStream() = {
+  private def writeHeaderToStream(): Unit = {
     outputStream.write(header)
     outputStream.flush()
     position += header.length
   }
 
-  private def setupKeyInfo() = {
+  private def setupKeyInfo(): Unit = {
     keyInfo = new KeyInfo(key)
     keyInfo.iv = encryptionInfo.iv
     encryptionBoundary = position

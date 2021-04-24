@@ -18,7 +18,7 @@ import scala.jdk.CollectionConverters._
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {
 
-  def lastModifiedTime = get(FileAttributes.lastModified)
+  def lastModifiedTime: Any = get(FileAttributes.lastModified)
 
   def hasBeenModified(file: File): Boolean = {
     val fromMap = lastModifiedTime
@@ -77,7 +77,7 @@ object FileAttributes extends Utils {
     add(creationTime, attrs.creationTime())
   }
 
-  def readPosixAttributes(add: (String, Object) => Any, path: Path) = {
+  def readPosixAttributes(add: (String, Object) => Any, path: Path): Any = {
     try {
       val posix = readAttributes[PosixFileAttributes](path)
       if (posix != null) {

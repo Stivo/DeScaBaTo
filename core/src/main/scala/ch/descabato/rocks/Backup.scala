@@ -65,7 +65,7 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
   var filesInRevision: mutable.Buffer[FileMetadataKey] = mutable.Buffer.empty
 
   val valueLog = new ValueLogWriter(rocksEnv, rocksEnv.fileManager.volume, write = true, rocksEnv.config.volumeSize.bytes)
-  val compressionDecider = CompressionDeciders.createForConfig(rocksEnv.config)
+  val compressionDecider: CompressionDecider = CompressionDeciders.createForConfig(rocksEnv.config)
 
   def findNextRevision(): Int = {
     val iterator = rocks.getAllRevisions()

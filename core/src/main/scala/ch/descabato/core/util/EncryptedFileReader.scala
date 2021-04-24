@@ -14,7 +14,7 @@ class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser
 
   var key: Array[Byte] = null
 
-  def readKeyDerivationInfo() = {
+  def readKeyDerivationInfo(): Unit = {
     val algorithm = raf.readByte()
     if (algorithm != 0) {
       throw new IllegalArgumentException(s"algorihtm $algorithm is not implemented")
@@ -61,7 +61,7 @@ class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser
     }
   }
 
-  private def readGeneralHeader() = {
+  private def readGeneralHeader(): Unit = {
     val bytes = Array.ofDim[Byte](magicMarker.length)
     raf.readFully(bytes)
     if (!util.Arrays.equals(bytes, magicMarker)) {

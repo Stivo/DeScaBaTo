@@ -1,8 +1,9 @@
 package ch.descabato.remote
 
+import ch.descabato.core.config.BackupFolderConfiguration
+
 import java.io.File
 import java.util.concurrent.Executors
-
 import ch.descabato.rocks.RocksEnv
 import ch.descabato.rocks.ValueLogStatusKey
 import ch.descabato.rocks.protobuf.keys.Status
@@ -12,15 +13,16 @@ import ch.descabato.utils.Utils
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContextExecutorService
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
 class RemoteUploader(rocksEnv: RocksEnv) extends Utils with AutoCloseable {
   private var remoteFiles: Map[BackupPath, RemoteFile] = Map.empty
-  val ex = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(2))
+  val ex: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(2))
 
-  val remoteClient = RemoteClient.forConfig(rocksEnv.config)
-  val config = rocksEnv.config
+  val remoteClient: RemoteClient = RemoteClient.forConfig(rocksEnv.config)
+  val config: BackupFolderConfiguration = rocksEnv.config
 
   private def localPath(next: BackupPath) = {
     new File(config.folder, next.path)

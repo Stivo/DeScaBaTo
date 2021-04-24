@@ -16,7 +16,7 @@ object Streams extends Utils {
 
     var funcWasCalledOnce = false
 
-    var oneByte = Array.ofDim[Byte](1)
+    var oneByte: Array[Byte] = Array.ofDim[Byte](1)
 
     final def write(b: Int) {
       oneByte(0) = b.asInstanceOf[Byte]
@@ -97,17 +97,17 @@ object Streams extends Utils {
   }
 
   class DelegatingInputStream(in: InputStream) extends InputStream {
-    def read() = in.read()
+    def read(): Int = in.read()
 
-    override def read(b: Array[Byte], start: Int, len: Int) = in.read(b, start, len)
+    override def read(b: Array[Byte], start: Int, len: Int): Int = in.read(b, start, len)
 
-    override def close() = in.close()
+    override def close(): Unit = in.close()
 
-    override def mark(limit: Int) = in.mark(limit)
+    override def mark(limit: Int): Unit = in.mark(limit)
 
-    override def reset() = in.reset()
+    override def reset(): Unit = in.reset()
 
-    override def markSupported() = in.markSupported()
+    override def markSupported(): Boolean = in.markSupported()
 
     override def available(): Int = in.available()
 
@@ -115,13 +115,13 @@ object Streams extends Utils {
   }
 
   class DelegatingOutputStream(out: OutputStream*) extends OutputStream {
-    def write(b: Int) = out foreach (_.write(b))
+    def write(b: Int): Unit = out foreach (_.write(b))
 
-    override def write(b: Array[Byte], start: Int, len: Int) = out foreach (_.write(b, start, len))
+    override def write(b: Array[Byte], start: Int, len: Int): Unit = out foreach (_.write(b, start, len))
 
-    override def close() = out foreach (_.close())
+    override def close(): Unit = out foreach (_.close())
 
-    override def flush() = out foreach (_.flush())
+    override def flush(): Unit = out foreach (_.flush())
   }
 
 }

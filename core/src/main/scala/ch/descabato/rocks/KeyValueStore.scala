@@ -94,7 +94,7 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
     ensureOpenForWriting()
   }
 
-  private def ensureOpenForWriting() = {
+  private def ensureOpenForWriting(): Unit = {
     if (readOnly) {
       throw new IllegalArgumentException("Rocks is opened in readonly mode")
     }
