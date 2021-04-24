@@ -8,7 +8,7 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 
 // Core dependencies
 libraryDependencies ++= Seq(
-  "org.rogach" %% "scallop" % "3.5.1",
+  "org.rogach" %% "scallop" % "4.0.2",
   "org.ocpsoft.prettytime" % "prettytime" % "5.0.0.Final",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.68",
   "com.github.pathikrit" %% "better-files" % "3.9.1",
@@ -32,7 +32,7 @@ libraryDependencies ++= Seq(
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.5"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.3"
 )
 
 // UI Dependencies
