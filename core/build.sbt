@@ -9,8 +9,8 @@ unmanagedSourceDirectories in Compile += new File("src/main/resources")
 // Core dependencies
 libraryDependencies ++= Seq(
   "org.rogach" %% "scallop" % "3.5.1",
-  "org.ocpsoft.prettytime" % "prettytime" % "4.0.6.Final",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.67",
+  "org.ocpsoft.prettytime" % "prettytime" % "5.0.0.Final",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.68",
   "com.github.pathikrit" %% "better-files" % "3.9.1",
 )
 
@@ -18,40 +18,38 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "org.iq80.snappy" % "snappy" % "0.4",
   "org.lz4" % "lz4-java" % "1.7.1",
-  "org.tukaani" % "xz" % "1.8",
+  "org.tukaani" % "xz" % "1.9",
   "org.apache.commons" % "commons-compress" % "1.20",
-  "com.github.luben" % "zstd-jni" % "1.4.5-12"
+  "com.github.luben" % "zstd-jni" % "1.4.9-5"
 )
 
 // Logging
 libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.3",
   "org.scala-lang" % "scala-reflect" % Common.scalaVersion
 )
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.3"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.5"
 )
 
 // UI Dependencies
 libraryDependencies ++= Seq(
   "com.nativelibs4java" % "bridj" % "0.7.0" exclude("com.google.android.tools", "dx"),
-  "com.miglayout" % "miglayout-swing" % "5.2"
+  "com.miglayout" % "miglayout-swing" % "5.3"
 )
 
 // remote dependencies
 libraryDependencies ++= Seq(
-  "org.apache.commons" % "commons-vfs2" % "2.7.0",
-  "commons-net" % "commons-net" % "3.7.2",
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.904"
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.11.1004"
 )
 
 
 // Test dependencies
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.2.3" % "test"
+  "org.scalatest" %% "scalatest" % "3.2.8" % "test"
     excludeAll(
     ExclusionRule(organization = "org.seleniumhq.selenium"),
     ExclusionRule(organization = "org.eclipse.jetty"),
@@ -61,8 +59,8 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.mockito")
   ),
   "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
-  "org.scalatest" %% "scalatest-matchers-core" % "3.2.3" % Test,
-  "org.scalactic" %% "scalactic" % "3.2.3" % "test"
+  "org.scalatest" %% "scalatest-matchers-core" % "3.2.8" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.8" % "test"
     excludeAll(
     ExclusionRule(organization = "org.seleniumhq.selenium"),
     ExclusionRule(organization = "org.eclipse.jetty"),

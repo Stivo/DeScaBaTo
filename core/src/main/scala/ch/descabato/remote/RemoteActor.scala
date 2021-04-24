@@ -68,22 +68,22 @@ class S3RemoteFile(path: BackupPath, remoteSize: Long, val etag: String) extends
   override def toString: String = super.toString + s", ETag: ${etag}"
 }
 
-object RemoteTest extends App {
-  private val client = new VfsRemoteClient("ftp://testdescabato:pass1@localhost/")
-  private val files: Seq[RemoteFile] = client.list().get
-  files.foreach {
-    println
-  }
-  private val file = files(5)
-  client.getSize(file.path)
-  private val downloaded = new File("downloaded")
-  client.get(file.path, downloaded)
-  private val path = BackupPath("uploadedagain")
-  client.put(downloaded, path)
-  println(client.exists(path))
-  client.delete(path)
-  println(client.exists(path))
-  System.exit(1)
-}
+//object RemoteTest extends App {
+//  private val client = new VfsRemoteClient("ftp://testdescabato:pass1@localhost/")
+//  private val files: Seq[RemoteFile] = client.list().get
+//  files.foreach {
+//    println
+//  }
+//  private val file = files(5)
+//  client.getSize(file.path)
+//  private val downloaded = new File("downloaded")
+//  client.get(file.path, downloaded)
+//  private val path = BackupPath("uploadedagain")
+//  client.put(downloaded, path)
+//  println(client.exists(path))
+//  client.delete(path)
+//  println(client.exists(path))
+//  System.exit(1)
+//}
 
 case class FileOperationFinished(next: Upload, result: Try[Unit])

@@ -17,8 +17,8 @@ object RemoteClient {
     val uri = config.remoteOptions.uri
     if (uri.startsWith("s3://") || uri.startsWith("arn:aws:s3:::")) {
       S3RemoteClient(uri)
-    } else if (uri.startsWith("ftp://")) {
-      new VfsRemoteClient(uri)
+      //    } else if (uri.startsWith("ftp://")) {
+      //      new VfsRemoteClient(uri)
     } else {
       throw new IllegalArgumentException("Could not find implementation for " + uri)
     }

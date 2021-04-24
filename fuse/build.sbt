@@ -7,9 +7,7 @@ resolvers += Resolver.jcenterRepo
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xlint")
 
-libraryDependencies += "com.github.serceman" % "jnr-fuse" % "0.5.4"
-
-libraryDependencies += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.3"
+libraryDependencies += "com.github.serceman" % "jnr-fuse" % "0.5.5"
 
 fork := true
 
