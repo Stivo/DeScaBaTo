@@ -37,7 +37,7 @@ object Backup {
 
 }
 
-class RunBackup(rocksEnv: RocksEnv, backupConf: MultipleBackupConf) extends LazyLogging {
+class RunBackup(rocksEnv: RocksEnv) extends LazyLogging {
 
   def run(file: Seq[File]): Unit = {
     val backupper = new Backupper(rocksEnv)
@@ -67,11 +67,11 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
   val compressionDecider: CompressionDecider = CompressionDeciders.createForConfig(rocksEnv.config)
 
   def findNextRevision(): Int = {
-    val iterator = rocks.getAllRevisions()
-    if (iterator.isEmpty) {
+    val revisions = rocks.getAllRevisions()
+    if (revisions.isEmpty) {
       1
     } else {
-      iterator.map(_._1.number).max + 1
+      revisions.map(_._1.number).max + 1
     }
   }
 
@@ -148,6 +148,7 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
         rocks.write(key, fileMetadataValue)
       }
     }
+    // TODO review even if the backup fails we say that this file has been backed up?
     filesInRevision.append(key.fileMetadataKey)
   }
 
@@ -163,6 +164,7 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
       length = attr.size(),
       created = attr.creationTime().toMillis,
       hashes = hashes.map(_.toProtobufByteString()).getOrElse(ByteString.EMPTY),
+      // TODO review is this correct? if attribute exists, it must be true?
       dosIsReadonly = dosAttributes.exists(_.isReadOnly),
       dosIsArchive = dosAttributes.exists(_.isArchive),
       dosIsHidden = dosAttributes.exists(_.isHidden),

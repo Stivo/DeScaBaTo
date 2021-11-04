@@ -41,6 +41,7 @@ object Streams extends Utils {
 
   }
 
+  // TODO review this class to make sure it works correctly
   class VariableBlockOutputStream(func: (BytesWrapper => _),
                                   val minBlockSize: Int = Constants.Chunking.minBlockSize,
                                   val maxBlockSize: Int = Constants.Chunking.maxBlockSize,
@@ -58,7 +59,6 @@ object Streams extends Utils {
         writeNormal(buf, start, len)
       }
     }
-
 
     private def writeNormal(buf: Array[Byte], start: Int, len: Int): Unit = {
       val end = start + len

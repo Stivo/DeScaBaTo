@@ -18,7 +18,6 @@ class RocksEnvInit(val config: BackupFolderConfiguration,
                    val readOnly: Boolean) extends Utils {
   val fileManager: FileManager = new FileManager(config)
   val backupFolder: File = config.folder
-  val rocksFolder = new File(backupFolder, "rocks")
 
   if (!backupFolder.exists()) {
     logger.info(s"Creating folders for backup at ${backupFolder}")

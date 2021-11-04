@@ -33,6 +33,7 @@ case class ChunkKey(hash: Hash) extends Key {
 
   }
 
+  // TODO review this toString looks fishy. Why not just use the toString of Hash?
   override def toString: String = s"Chunk(${Base64.getUrlEncoder.encode(hash.bytes)})"
 }
 

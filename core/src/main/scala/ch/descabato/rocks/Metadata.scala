@@ -61,7 +61,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
       }
     }
     for (volume <- volumes) {
-      logger.warn(s"Will delete $volume")
+      logger.warn(s"Will delete $volume, because it is not mentioned in dbexport")
       deleteFile(volume)
     }
     for (volume <- toDelete) {
@@ -92,10 +92,6 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     }
   }
 
-  def deleteRocksFolder(): Unit = {
-    FileUtils.deleteAll(rocksEnvInit.rocksFolder)
-  }
-
 }
 
 class DbExporter(rocksEnv: RocksEnv) extends Utils {
@@ -116,6 +112,7 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
     }
     out.close()
 
+    // TODO review the maximum volume size should probably not be used here
     for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes).autoClosed) {
       valueLog.write(new CompressedBytes(baos.toBytesWrapper, totalLength))
     }
@@ -132,6 +129,7 @@ class DbMemoryImporter(rocksEnvInit: RocksEnvInit) extends Utils {
     val inMemoryDb: InMemoryDb = new InMemoryDb()
     val restoreTime = new StandardMeasureTime()
 
+    // TODO review inMemoryDb is not threadsafe, this seems not like a good idea to use futures here
     val executor = Executors.newSingleThreadExecutor()
     implicit val ex: ExecutionContextExecutor = ExecutionContext.fromExecutor(executor)
     try {
@@ -212,6 +210,7 @@ class InMemoryDb {
     }
   }
 
+  // TODO review the whole class hierarchy could be removed?
   def exists(key: Key): Boolean = {
     key match {
       case c@ChunkKey(_) =>

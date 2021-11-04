@@ -26,7 +26,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
       case x => x
     }.mkString(" ")
 
-    def writeTo(bat: File) {
+    def writeTo(bat: File): Unit = {
       if (!bat.exists) {
         val ps = new PrintStream(new FileOutputStream(bat))
         ps.print(line)
@@ -50,7 +50,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
       writeBat(t, conf, lastArgs)
     }
     for (rocksEnv <- RocksEnv(conf, readOnly = false).autoClosed) {
-      val backup = new RunBackup(rocksEnv, t)
+      val backup = new RunBackup(rocksEnv)
       backup.run(t.foldersToBackup())
     }
   }

@@ -24,6 +24,10 @@ object Compaction {
   }
 }
 
+/**
+ * TODO review This class has to be reviewed after the removal of rocksdb.
+ */
+@deprecated
 class Compaction(env: RocksEnv, dryRun: Boolean) extends Utils {
 
   def deleteUnreachableMetadata(): Unit = {

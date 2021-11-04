@@ -19,6 +19,7 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
 
   private var updates: Seq[ExportedEntry[_, _]] = Seq.empty
 
+  // TODO review all of these methods perform an unnecessary conversion from map to seq
   def getAllFileMetadatas(): Seq[(FileMetadataKey, FileMetadataValue)] = {
     inMemoryDb.fileMetadata.toSeq
   }
@@ -94,6 +95,7 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
     inMemoryDb.readValueLogStatus(key)
   }
 
+  // TODO review: this does nothing right now. Might have to rethink all the parts that use this
   def commit(): Unit = {
     ensureOpenForWriting()
   }
@@ -104,6 +106,7 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
     }
   }
 
+  // TODO review: should this not delete that key from inMemoryDb?
   def delete[K <: Key](key: K): Unit = {
     ensureOpenForWriting()
     updates :+= ExportedEntry(key, null, true)
