@@ -38,71 +38,15 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
   }
 
   private def checkExport(counter: ProblemCounter): Unit = {
-    val importer = new DbMemoryImporter(rocksEnv.rocksEnvInit)
-    //    val inMemoryDb = importer.importMetadata()
-    //    checkChunks(counter, inMemoryDb)
-    //    checkFileMetadata(counter, inMemoryDb)
-    //    checkValueLogStatuses(counter, inMemoryDb)
-    //    checkRevisions(counter, inMemoryDb)
-  }
-
-  private def checkChunks(counter: ProblemCounter, inMemoryDb: InMemoryDb): Unit = {
-    val rocksChunks = rocksEnv.rocks.getAllChunks()
-    if (inMemoryDb.chunks.size != rocksChunks.size) {
-      counter.addProblem(s"DbExport and DB content have differing counts for chunks: DB Export has ${inMemoryDb.chunks.size}, DB has ${rocksChunks.size}.")
-    } else {
-      logger.info(s"Both in DB and in export we have ${inMemoryDb.chunks.size} chunks.")
-    }
-  }
-
-  private def checkFileMetadata(counter: ProblemCounter, inMemoryDb: InMemoryDb): Unit = {
-    val rocksFileMetadatas = rocksEnv.rocks.getAllFileMetadatas()
-    if (inMemoryDb.fileMetadata.size != rocksFileMetadatas.size) {
-      counter.addProblem(s"DbExport and DB content have differing counts for file metadata: DB Export has ${inMemoryDb.chunks.size}, DB has ${rocksFileMetadatas.size}.")
-    } else {
-      logger.info(s"Both in DB and in export we have ${inMemoryDb.fileMetadata.size} file metadata.")
-    }
-  }
-
-  private def checkRevisions(counter: ProblemCounter, inMemoryDb: InMemoryDb): Unit = {
-    val rocksRevisions = rocksEnv.rocks.getAllRevisions()
-    if (inMemoryDb.revision.size != rocksRevisions.size) {
-      counter.addProblem(s"DbExport and DB content have differing counts for revisions: DB Export has ${inMemoryDb.revision.size}, DB has ${rocksRevisions.size}.")
-    } else {
-      logger.info(s"Both in DB and in export we have ${inMemoryDb.revision.size} revisions.")
-    }
-  }
-
-  private def checkValueLogStatuses(counter: ProblemCounter, inMemoryDb: InMemoryDb): Unit = {
-    val rocksFileStatusKeys = rocksEnv.rocks.getAllValueLogStatusKeys()
-    val inExport = inMemoryDb.valueLogStatus
-    if (inExport.size != rocksFileStatusKeys.size && inExport.size + 1 != rocksFileStatusKeys.size) {
-      counter.addProblem(s"DbExport and DB content have differing counts for value log statuses: DB Export has ${inExport.size}, DB has ${rocksFileStatusKeys.size}.")
-    } else {
-      logger.info(s"Both in DB and in export we have ${inExport.size} value log statuses.")
-    }
-    val maxDbExportNumber = rocksFileStatusKeys.map(_._1).filter(_.name.contains("dbexport")).map(_.parseNumber).max
-    for ((dbKey, dbValue) <- rocksFileStatusKeys) {
-      if (dbValue.status == Status.FINISHED) {
-        inExport.get(dbKey).map { exportValue =>
-          if (exportValue != dbValue) {
-            counter.addProblem(s"Value for ${dbKey} is different in export and in db: ${exportValue} vs ${dbValue}")
-          }
-        }.getOrElse {
-          if (dbKey.parseNumber == maxDbExportNumber) {
-            logger.info(s"Last dbexport $dbKey is not mentioned in the export itself, that is fine")
-          } else {
-            counter.addProblem(s"Could not find $dbKey in the export")
-          }
-        }
-      } else if (dbValue.status != Status.DELETED) {
-        counter.addProblem(s"Got unexpected status ${dbValue.status} for $dbValue")
-      }
-    }
+    logger.info(s"Found ${rocksEnv.rocks.getAllRevisions().size} revisions")
+    logger.info(s"Found ${rocksEnv.rocks.getAllValueLogStatusKeys().size} value log status keys")
+    logger.info(s"Found ${rocksEnv.rocks.getAllFileMetadatas().size} file metadatas")
+    logger.info(s"Found ${rocksEnv.rocks.getAllChunks().size} chunks")
   }
 
   private def checkConnectivity(t: VerifyConf, problemCounter: ProblemCounter): Unit = {
-    for ((_, value) <- rocksEnv.rocks.getAllRevisions()) {
+    for ((rev, value) <- rocksEnv.rocks.getAllRevisions().sortBy(_._1.number)) {
+      logger.info(s"Checking ${value.files.size} files in revision ${rev.number}")
       for (file <- value.files if file.filetype == BackedupFileType.FILE) {
         val metadata: Option[FileMetadataValue] = rocks.readFileMetadata(FileMetadataKeyWrapper(file))
         metadata match {
@@ -131,9 +75,9 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
                         rocksEnv.reader.assertChunkIsCovered(c)
                       } catch {
                         case e: IOException =>
-                          problemCounter.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
+                          problemCounter.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} of file ${file.path} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
                         case e: BackupException =>
-                          problemCounter.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
+                          problemCounter.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} of file ${file.path} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
                       }
                     }
                   }

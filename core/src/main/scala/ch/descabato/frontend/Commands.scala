@@ -251,7 +251,7 @@ class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderO
   val percentOfFilesToCheck: ScallopOption[Int] = opt[Int](default = Some(5), descr = "How many percent of files to check")
   val checkFirstOfEachVolume: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Check whether the first entry of each volume is correct or not")
   validate(percentOfFilesToCheck) {
-    case x if x > 0 && x <= 100 => Right(())
+    case x if x >= 0 && x <= 100 => Right(())
     case _ => Left("Needs to be percent")
   }
 }
