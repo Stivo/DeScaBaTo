@@ -16,14 +16,14 @@ import ch.descabato.utils.Utils
 object DumpRocksdb extends Utils {
 
   def printRevisions(rocksEnv: RocksEnv): Unit = {
-    val value: Seq[(Revision, RevisionValue)] = rocksEnv.rocks.getAllRevisions()
+    val value = rocksEnv.rocks.getAllRevisions()
     value.map { case (revision, value) =>
       s"$revision:\n${value.configJson}\n" + value.files.map(_.toString).mkString("\n")
     }.foreach(logger.info(_))
   }
 
   def printChunks(rocksEnv: RocksEnv): Unit = {
-    val value: Seq[(ChunkKey, ValueLogIndex)] = rocksEnv.rocks.getAllChunks()
+    val value = rocksEnv.rocks.getAllChunks()
     value.map { case (key, value) =>
       s"${key.hash.base64}: ${value}"
     }.foreach(logger.info(_))

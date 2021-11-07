@@ -19,21 +19,20 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
 
   private var updates: Seq[ExportedEntry[_, _]] = Seq.empty
 
-  // TODO review all of these methods perform an unnecessary conversion from map to seq
-  def getAllFileMetadatas(): Seq[(FileMetadataKey, FileMetadataValue)] = {
-    inMemoryDb.fileMetadata.toSeq
+  def getAllFileMetadatas(): Map[FileMetadataKey, FileMetadataValue] = {
+    inMemoryDb.fileMetadata
   }
 
-  def getAllChunks(): Seq[(ChunkKey, ValueLogIndex)] = {
-    inMemoryDb.chunks.toSeq
+  def getAllChunks(): Map[ChunkKey, ValueLogIndex] = {
+    inMemoryDb.chunks
   }
 
-  def getAllRevisions(): Seq[(Revision, RevisionValue)] = {
-    inMemoryDb.revision.toSeq
+  def getAllRevisions(): Map[Revision, RevisionValue] = {
+    inMemoryDb.revision
   }
 
-  def getAllValueLogStatusKeys(): Seq[(ValueLogStatusKey, ValueLogStatusValue)] = {
-    inMemoryDb.valueLogStatus.toSeq
+  def getAllValueLogStatusKeys(): Map[ValueLogStatusKey, ValueLogStatusValue] = {
+    inMemoryDb.valueLogStatus
   }
 
   def getIndexes(fileMetadataValue: FileMetadataValue): Iterator[ValueLogIndex] = {

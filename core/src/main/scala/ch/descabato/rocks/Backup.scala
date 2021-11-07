@@ -164,7 +164,6 @@ class Backupper(rocksEnv: RocksEnv) extends LazyLogging {
       length = attr.size(),
       created = attr.creationTime().toMillis,
       hashes = hashes.map(_.toProtobufByteString()).getOrElse(ByteString.EMPTY),
-      // TODO review is this correct? if attribute exists, it must be true?
       dosIsReadonly = dosAttributes.exists(_.isReadOnly),
       dosIsArchive = dosAttributes.exists(_.isArchive),
       dosIsHidden = dosAttributes.exists(_.isHidden),

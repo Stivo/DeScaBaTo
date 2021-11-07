@@ -56,7 +56,7 @@ class Hash private(val bytes: Array[Byte]) extends AnyVal {
   def hashContent(): Int = util.Arrays.hashCode(bytes)
 
   override def toString: String = {
-    Hex.toHexString(bytes)
+    "0x" + Hex.toHexString(bytes)
   }
 }
 

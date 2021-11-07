@@ -28,7 +28,7 @@ class BackupReader(val rocksEnv: RocksEnv) extends Utils {
     rocks.getAllRevisions()
       .map { case (x, y) =>
         RevisionPair(x, y)
-      }
+      }.toSeq
   }
 
   lazy val chunksByVolume: Map[Int, Map[ChunkKey, ValueLogIndex]] = {

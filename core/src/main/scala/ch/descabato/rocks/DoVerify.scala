@@ -45,7 +45,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
   }
 
   private def checkConnectivity(t: VerifyConf, problemCounter: ProblemCounter): Unit = {
-    for ((rev, value) <- rocksEnv.rocks.getAllRevisions().sortBy(_._1.number)) {
+    for ((rev, value) <- rocksEnv.rocks.getAllRevisions().toSeq.sortBy(_._1.number)) {
       logger.info(s"Checking ${value.files.size} files in revision ${rev.number}")
       for (file <- value.files if file.filetype == BackedupFileType.FILE) {
         val metadata: Option[FileMetadataValue] = rocks.readFileMetadata(FileMetadataKeyWrapper(file))

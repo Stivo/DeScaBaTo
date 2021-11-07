@@ -112,8 +112,7 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
     }
     out.close()
 
-    // TODO review the maximum volume size should probably not be used here
-    for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, rocksEnv.config.volumeSize.bytes).autoClosed) {
+    for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, Long.MaxValue).autoClosed) {
       valueLog.write(new CompressedBytes(baos.toBytesWrapper, totalLength))
     }
     logger.info(s"Finished exporting updates, took " + backupTime.measuredTime())
@@ -200,7 +199,6 @@ class InMemoryDb {
     }
   }
 
-  // TODO review the whole class hierarchy could be removed?
   def exists(key: Key): Boolean = {
     key match {
       case c@ChunkKey(_) =>
