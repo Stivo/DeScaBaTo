@@ -26,7 +26,7 @@ object Streams extends Utils {
     def createChunkNow() {
       funcWasCalledOnce = true
       func(out.toBytesWrapper())
-      //logger.info(s"Created chunk with ${readableFileSize(out.size())}")
+      logger.info(s"Created chunk with ${readableFileSize(out.size())}")
       out.reset()
     }
 
@@ -41,7 +41,6 @@ object Streams extends Utils {
 
   }
 
-  // TODO review this class to make sure it works correctly
   class VariableBlockOutputStream(func: (BytesWrapper => _),
                                   val minBlockSize: Int = Constants.Chunking.minBlockSize,
                                   val maxBlockSize: Int = Constants.Chunking.maxBlockSize,
@@ -49,8 +48,9 @@ object Streams extends Utils {
 
     private val buzHash = new BuzHash(Constants.Chunking.buzhashSize)
 
+    private val noBuzhashNeeded = minBlockSize - Constants.Chunking.buzhashSize * 2
+
     override def write(buf: Array[Byte], start: Int, len: Int): Unit = {
-      val noBuzhashNeeded = minBlockSize - Constants.Chunking.buzhashSize * 2
       if (currentChunkSize < noBuzhashNeeded) {
         val writeDirectly = Math.min(noBuzhashNeeded - currentChunkSize, len)
         out.write(buf, start, writeDirectly)
