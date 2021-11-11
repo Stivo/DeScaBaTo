@@ -2,7 +2,6 @@ package ch.descabato.core.util
 
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ValueLogStatusKey
-import ch.descabato.utils.StopWatch
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.Status
 import ch.descabato.protobuf.keys.ValueLogIndex
@@ -10,6 +9,7 @@ import ch.descabato.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
+import ch.descabato.utils.StopWatch
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 

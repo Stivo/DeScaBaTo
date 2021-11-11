@@ -9,7 +9,6 @@ import ch.descabato.core.model.FileMetadataKeyWrapper
 import ch.descabato.core.model.Revision
 import ch.descabato.core.util.DbExporter
 import ch.descabato.core.util.ValueLogWriter
-import ch.descabato.utils.StopWatch
 import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
@@ -17,6 +16,7 @@ import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.StandardMeasureTime
+import ch.descabato.utils.StopWatch
 import ch.descabato.utils.Streams.VariableBlockOutputStream
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging

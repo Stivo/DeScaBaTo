@@ -1,9 +1,5 @@
 package ch.descabato.utils
 
-import java.io.InputStream
-import java.io.OutputStream
-import java.util.zip._
-
 import ch.descabato.CompressionMode
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.utils.Implicits._
@@ -18,6 +14,10 @@ import org.iq80.snappy.SnappyFramedOutputStream
 import org.tukaani.xz.LZMA2Options
 import org.tukaani.xz.XZInputStream
 import org.tukaani.xz.XZOutputStream
+
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.zip._
 
 /**
  * Adds compressors and decompressors

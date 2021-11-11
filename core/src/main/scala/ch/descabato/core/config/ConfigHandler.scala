@@ -1,9 +1,5 @@
 package ch.descabato.core.config
 
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-
 import better.files._
 import ch.descabato.core.BackupException
 import ch.descabato.core.config.BackupVerification.OK
@@ -12,6 +8,10 @@ import ch.descabato.frontend.ChangeableBackupOptions
 import ch.descabato.frontend.CreateBackupOptions
 import ch.descabato.utils.JsonSerialization
 import ch.descabato.utils.Utils
+
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 object InitBackupFolderConfiguration extends Utils {
   def apply(option: BackupFolderOption, passphrase: Option[String]): BackupFolderConfiguration = {

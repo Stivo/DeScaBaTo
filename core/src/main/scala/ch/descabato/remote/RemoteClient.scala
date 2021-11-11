@@ -1,13 +1,12 @@
 package ch.descabato.remote
 
+import ch.descabato.core.config.BackupFolderConfiguration
+import org.apache.commons.compress.utils.IOUtils
+
 import java.io.Closeable
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-
-import ch.descabato.core.config.BackupFolderConfiguration
-import org.apache.commons.compress.utils.IOUtils
-
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try

@@ -1,12 +1,5 @@
 package ch.descabato.utils
 
-import java.io._
-import java.nio.ByteBuffer
-import java.nio.file.Files
-import java.security.MessageDigest
-import java.text.DecimalFormat
-import java.util
-import java.util.Base64
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.utils.FastHashMap.W
 import com.google.protobuf.ByteString
@@ -15,6 +8,13 @@ import com.typesafe.scalalogging.Logger
 import org.bouncycastle.crypto.Digest
 import org.bouncycastle.util.encoders.Hex
 
+import java.io._
+import java.nio.ByteBuffer
+import java.nio.file.Files
+import java.security.MessageDigest
+import java.text.DecimalFormat
+import java.util
+import java.util.Base64
 import scala.collection.mutable
 import scala.language.implicitConversions
 

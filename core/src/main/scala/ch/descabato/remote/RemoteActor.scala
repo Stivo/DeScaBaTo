@@ -1,11 +1,10 @@
 package ch.descabato.remote
 
-import java.io._
-
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.utils.Hash
 
+import java.io._
 import scala.concurrent.Promise
 import scala.util.Try
 

@@ -14,7 +14,6 @@ import ch.descabato.core.model.KeyValueStore
 import ch.descabato.core.model.Revision
 import ch.descabato.core.model.RevisionContentValue
 import ch.descabato.core.model.ValueLogStatusKey
-import ch.descabato.utils.StandardMeasureTime
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.RevisionValue
@@ -24,6 +23,7 @@ import ch.descabato.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Implicits._
+import ch.descabato.utils.StandardMeasureTime
 import ch.descabato.utils.Utils
 
 import java.awt.Desktop

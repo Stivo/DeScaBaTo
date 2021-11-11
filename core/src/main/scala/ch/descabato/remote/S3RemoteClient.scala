@@ -1,13 +1,5 @@
 package ch.descabato.remote
 
-import java.io.BufferedInputStream
-import java.io.File
-import java.io.FileInputStream
-import java.io.InputStream
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.ThreadPoolExecutor
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Utils
 import com.amazonaws.RequestClientOptions
@@ -24,6 +16,14 @@ import com.amazonaws.services.s3.transfer.TransferManager
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder
 import org.apache.commons.compress.utils.BoundedInputStream
 
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.InputStream
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.ThreadPoolExecutor
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -150,15 +150,14 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
 
 }
 
-import java.util
-
-import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.AbortMultipartUploadRequest
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult
 import com.amazonaws.services.s3.model.PartETag
 import com.amazonaws.services.s3.model.UploadPartRequest
+
+import java.util
 
 class MultipartUploader(existingBucketName: String, file: File, remotePath: String, context: Option[RemoteOperationContext], metadata: ObjectMetadata) extends Utils {
   val s3Client: AmazonS3 = TransferManagerBuilder.standard().build().getAmazonS3Client()

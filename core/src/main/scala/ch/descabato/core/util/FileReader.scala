@@ -1,9 +1,9 @@
 package ch.descabato.core.util
 
+import ch.descabato.utils.BytesWrapper
+
 import java.io.File
 import java.io.RandomAccessFile
-
-import ch.descabato.utils.BytesWrapper
 
 trait FileReader extends AutoCloseable {
 

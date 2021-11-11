@@ -1,8 +1,8 @@
 package ch.descabato.remote
 
-import java.io.InputStream
-
 import ch.descabato.utils.Streams.DelegatingInputStream
+
+import java.io.InputStream
 
 class ThrottlingInputStream(private val stream: InputStream, private val context: Option[RemoteOperationContext])
   extends DelegatingInputStream(stream) {

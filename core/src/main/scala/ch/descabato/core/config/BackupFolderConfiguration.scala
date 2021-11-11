@@ -1,7 +1,5 @@
 package ch.descabato.core.config
 
-import java.io.File
-
 import ch.descabato.CompressionMode
 import ch.descabato.HashAlgorithm
 import ch.descabato.core.model.Size
@@ -10,6 +8,8 @@ import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.JsonSerialization
 import org.bouncycastle.crypto.Digest
+
+import java.io.File
 
 case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
 

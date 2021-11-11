@@ -1,13 +1,13 @@
 package ch.descabato.core.util
 
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Hash
+import ch.descabato.utils.Implicits._
+
 import java.io.File
 import java.io.FileOutputStream
 import java.security.DigestOutputStream
 import java.security.MessageDigest
-
-import ch.descabato.utils.Implicits._
-import ch.descabato.utils.BytesWrapper
-import ch.descabato.utils.Hash
 
 trait FileWriter extends AutoCloseable {
   // ----------- Interface ---------------

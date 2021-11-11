@@ -1,11 +1,12 @@
 package ch.descabato.remote
 
-import java.io.{File, FileInputStream}
-
 import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.model.Size
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.compress.utils.IOUtils
+
+import java.io.File
+import java.io.FileInputStream
 
 class S3EtagVerifier(file: File) {
 

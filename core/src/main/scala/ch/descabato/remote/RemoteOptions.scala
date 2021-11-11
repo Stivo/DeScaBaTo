@@ -1,7 +1,8 @@
 package ch.descabato.remote
 
 import ch.descabato.RemoteMode
-import ch.descabato.frontend.{FileCounter, ProgressReporters}
+import ch.descabato.frontend.FileCounter
+import ch.descabato.frontend.ProgressReporters
 import com.google.common.util.concurrent.RateLimiter
 
 class RemoteOptions {

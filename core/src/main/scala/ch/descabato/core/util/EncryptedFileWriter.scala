@@ -1,10 +1,11 @@
 package ch.descabato.core.util
 
-import java.io.File
-import javax.crypto.{Cipher, CipherOutputStream}
-
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
+
+import java.io.File
+import javax.crypto.Cipher
+import javax.crypto.CipherOutputStream
 
 class EncryptedFileWriter(file: File, passphrase: String, keylength: Int) extends EncryptedFileWriterBase(file, passphrase, keylength) {
 

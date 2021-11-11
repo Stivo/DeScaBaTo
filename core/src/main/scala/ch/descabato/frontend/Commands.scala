@@ -1,8 +1,5 @@
 package ch.descabato.frontend
 
-import java.io.File
-import java.lang.reflect.InvocationTargetException
-import java.nio.file.FileSystems
 import ch.descabato.CompressionMode
 import ch.descabato.HashAlgorithm
 import ch.descabato.Main
@@ -21,6 +18,9 @@ import ch.descabato.utils.Utils
 import org.rogach.scallop._
 import org.rogach.scallop.exceptions.ScallopException
 
+import java.io.File
+import java.lang.reflect.InvocationTargetException
+import java.nio.file.FileSystems
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe.TypeTag
 

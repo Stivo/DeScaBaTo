@@ -1,20 +1,22 @@
 package ch.descabato.core.util
 
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Utils
+import org.bouncycastle.crypto.generators.SCrypt
+
 import java.math.BigInteger
 import java.security.SecureRandom
 import java.util.Base64
 import java.util.zip.CRC32
 import javax.crypto.Mac
-import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
-
-import ch.descabato.utils.{BytesWrapper, Utils}
-import org.bouncycastle.crypto.generators.SCrypt
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 
 object CryptoUtils extends Utils {
   def deriveIv(iv: Array[Byte], offset: Int): IvParameterSpec = {
     var bigInt = new BigInteger(iv)
-    bigInt = bigInt.add(new BigInteger(offset+""))
+    bigInt = bigInt.add(new BigInteger(offset + ""))
     var bytes = bigInt.toByteArray
     if (bytes.length != iv.length) {
       while (bytes.length < iv.length) {

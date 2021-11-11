@@ -1,23 +1,26 @@
 package ch.descabato.utils
 
-import java.io.{InputStream, OutputStream}
 import ch.descabato.core.model._
 import ch.descabato.utils.Implicits._
-import com.fasterxml.jackson.core.{JsonGenerator, JsonParser, Version}
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.Version
+import com.fasterxml.jackson.databind._
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
-import com.fasterxml.jackson.databind._
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.ScalaObjectMapper
 
+import java.io.InputStream
+import java.io.OutputStream
 import scala.jdk.CollectionConverters._
 
 trait Serialization {
   def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit
 
-  def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Either[T, Exception] 
+  def readObject[T](in: InputStream)(implicit m: Manifest[T]): Either[T, Exception]
 }
 
 abstract class AbstractJacksonSerialization extends Serialization {

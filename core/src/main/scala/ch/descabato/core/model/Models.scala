@@ -1,19 +1,18 @@
 package ch.descabato.core.model
 
-import java.io.File
-import java.io.IOException
-import java.math.{BigDecimal => JBigDecimal}
-import java.nio.file.attribute._
-import java.nio.file.Files
-import java.nio.file.LinkOption
-import java.nio.file.Path
-import java.security.Principal
-import java.util
-import java.util.regex.Pattern
-
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.utils._
 
+import java.io.File
+import java.io.IOException
+import java.math.{BigDecimal => JBigDecimal}
+import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.Path
+import java.nio.file.attribute._
+import java.security.Principal
+import java.util
+import java.util.regex.Pattern
 import scala.jdk.CollectionConverters._
 
 class FileAttributes extends util.HashMap[String, Any] with Utils {
