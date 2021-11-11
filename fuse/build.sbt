@@ -11,7 +11,7 @@ fork := true
 
 enablePlugins(PackPlugin)
 
-packMain := Map("descabato" -> "ch.descabato.rocks.Main")
+packMain := Map("descabato" -> "ch.descabato.Main")
 
 packJvmOpts := Map("descabato" -> Seq("-Xmx2g", "-Xms1g", "-XX:NewSize=1g", "-XX:MaxNewSize=1g", "-XX:MaxPermSize=1g"))
 
