@@ -19,7 +19,7 @@ import scala.collection.mutable.Set
 
 abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike with TestUtils {
 
-  val mainClass: String = "ch.descabato.rocks.Main"
+  val mainClass: String = "ch.descabato.Main"
 
   val suffix = if (Utils.isWindows) ".bat" else ""
 
@@ -94,7 +94,7 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
     val executor = new DefaultExecutor()
     val updateScript1 = new CommandLine("sed")
     updateScript1.addArgument("-i")
-    updateScript1.addArgument(s"s/ch.descabato.rocks.Main/$mainClass/g")
+    updateScript1.addArgument(s"s/ch.descabato.Main/$mainClass/g")
     updateScript1.addArgument(batchfile.getAbsolutePath)
     val updateScript2 = new CommandLine("sed")
     updateScript2.addArgument("-i")
