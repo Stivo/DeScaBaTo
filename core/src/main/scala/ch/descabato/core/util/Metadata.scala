@@ -14,7 +14,7 @@ import ch.descabato.core.model.KeyValueStore
 import ch.descabato.core.model.Revision
 import ch.descabato.core.model.RevisionContentValue
 import ch.descabato.core.model.ValueLogStatusKey
-import ch.descabato.rocks.StandardMeasureTime
+import ch.descabato.utils.StandardMeasureTime
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue

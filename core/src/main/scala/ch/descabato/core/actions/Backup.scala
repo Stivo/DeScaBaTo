@@ -9,7 +9,7 @@ import ch.descabato.core.model.FileMetadataKeyWrapper
 import ch.descabato.core.model.Revision
 import ch.descabato.core.util.DbExporter
 import ch.descabato.core.util.ValueLogWriter
-import ch.descabato.rocks.StopWatch
+import ch.descabato.utils.StopWatch
 import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
