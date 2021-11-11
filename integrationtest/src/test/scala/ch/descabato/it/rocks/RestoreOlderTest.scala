@@ -19,7 +19,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.stream.Collectors
 
-class RestoreOlderRocksTest extends IntegrationTestBase {
+class RestoreOlderTest extends IntegrationTestBase {
 
   var input1 = folder("input_old1")
   var input2 = folder("input_old2")
@@ -92,7 +92,7 @@ class RestoreOlderRocksTest extends IntegrationTestBase {
   }
 
   def reportDbContent(): Unit = {
-    DumpRocksdb.dumpRocksDb(backup1, ignoreIssues = false)
+    DumpDbExport.dumpDbExport(backup1, ignoreIssues = false)
   }
 
   var volumesAfterBackup2 = 0

@@ -26,9 +26,9 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
+class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
 
-  private val fileManager = rocksEnvInit.fileManager
+  private val fileManager = backupEnvInit.fileManager
   private val dbExportType = fileManager.dbexport
   private val volumeType = fileManager.volume
 
@@ -51,7 +51,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
     var volumes: Set[io.File] = volumeFiles.toSet
     var toDelete = Set.empty[io.File]
     for ((key, path) <- toSeq) {
-      val file = rocksEnvInit.config.resolveRelativePath(key.name)
+      val file = backupEnvInit.config.resolveRelativePath(key.name)
       if (path.status == FINISHED) {
         logger.info(s"$key is marked as finished, will keep it")
         volumes -= file
@@ -71,14 +71,14 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
   }
 
   def initialize(): KeyValueStore = {
-    if (!rocksEnvInit.readOnly) {
+    if (!backupEnvInit.readOnly) {
       deleteTempFiles()
     }
-    val inMemoryDb = new DbMemoryImporter(rocksEnvInit).importMetadata()
-    if (!rocksEnvInit.readOnly) {
+    val inMemoryDb = new DbMemoryImporter(backupEnvInit).importMetadata()
+    if (!backupEnvInit.readOnly) {
       deleteUnmentionedVolumes(inMemoryDb.valueLogStatus.toSeq)
     }
-    new KeyValueStore(rocksEnvInit.readOnly, inMemoryDb)
+    new KeyValueStore(backupEnvInit.readOnly, inMemoryDb)
   }
 
   def deleteTempFiles(): Unit = {
@@ -94,7 +94,7 @@ class RepairLogic(rocksEnvInit: RocksEnvInit) extends Utils {
 
 }
 
-class DbExporter(rocksEnv: RocksEnv) extends Utils {
+class DbExporter(rocksEnv: BackupEnv) extends Utils {
   val kvStore: KeyValueStore = rocksEnv.rocks
   private val filetype: StandardNumberedFileType = rocksEnv.fileManager.dbexport
 
@@ -120,9 +120,9 @@ class DbExporter(rocksEnv: RocksEnv) extends Utils {
 }
 
 
-class DbMemoryImporter(rocksEnvInit: RocksEnvInit) extends Utils {
+class DbMemoryImporter(backupEnvInit: BackupEnvInit) extends Utils {
 
-  private val filetype: StandardNumberedFileType = rocksEnvInit.fileManager.dbexport
+  private val filetype: StandardNumberedFileType = backupEnvInit.fileManager.dbexport
 
   def importMetadata(): InMemoryDb = {
     val inMemoryDb: InMemoryDb = new InMemoryDb()
@@ -132,7 +132,7 @@ class DbMemoryImporter(rocksEnvInit: RocksEnvInit) extends Utils {
     // decouple reading, processing from writing into inMemoryDb
     for (file <- filetype.getFiles()) {
       for {
-        reader <- rocksEnvInit.config.newReader(file).autoClosed
+        reader <- backupEnvInit.config.newReader(file).autoClosed
         decompressed <- CompressedStream.decompressToBytes(reader.readAllContent()).asInputStream().autoClosed
         encodedValueOption <- LazyList.continually(RevisionContentValue.readNextEntry(decompressed)).takeWhile(_.isDefined)
         encodedValue <- encodedValueOption

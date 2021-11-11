@@ -15,7 +15,7 @@ import ch.descabato.rocks.protobuf.keys.RevisionValue
 
 class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
 
-  private val rocksEnv = RocksEnv(conf, readOnly = true)
+  private val rocksEnv = BackupEnv(conf, readOnly = true)
 
   import rocksEnv._
 

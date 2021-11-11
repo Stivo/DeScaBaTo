@@ -1,7 +1,7 @@
 package ch.descabato.rocks.fuse
 
 import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.rocks.RocksEnv
+import ch.descabato.rocks.BackupEnv
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import jnr.ffi.Platform
 import jnr.ffi.Platform.OS
@@ -25,7 +25,7 @@ object BackupFuseFS {
     val rootFolder = "l:/backup_zstd_9"
 
     val config = BackupFolderConfiguration(new File(rootFolder))
-    val env = RocksEnv(config, readOnly = true)
+    val env = BackupEnv(config, readOnly = true)
     val reader = new BackupReader(env)
     val stub = new BackupFuseFS(reader)
     try {

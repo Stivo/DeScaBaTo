@@ -2,7 +2,7 @@ package ch.descabato.it.rocks
 
 import ch.descabato.it.IntegrationTest
 
-class EncryptedRocksBackupTest extends IntegrationTest {
+class EncryptedBackupTest extends IntegrationTest {
 
     override val passphrase = Some("testencryption")
 

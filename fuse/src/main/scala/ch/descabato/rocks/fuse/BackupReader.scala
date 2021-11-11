@@ -9,7 +9,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import ch.descabato.rocks.FileMetadataKeyWrapper
 import ch.descabato.rocks.Revision
-import ch.descabato.rocks.RocksEnv
+import ch.descabato.rocks.BackupEnv
 import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
@@ -20,7 +20,7 @@ import ch.descabato.utils.Utils
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.TreeMap
 
-class BackupReader(val rocksEnv: RocksEnv) extends Utils {
+class BackupReader(val rocksEnv: BackupEnv) extends Utils {
 
   import rocksEnv._
 

@@ -15,7 +15,7 @@ object Compaction {
 
   def main(args: Array[String]): Unit = {
     val config = BackupFolderConfiguration(new File(""))
-    val env = RocksEnv(config, false)
+    val env = BackupEnv(config, false)
     val compaction = new Compaction(env, false)
     compaction.deleteUnreachableMetadata()
     compaction.deleteChunksPointingToMissingVolumes()
@@ -28,7 +28,7 @@ object Compaction {
  * TODO review This class has to be reviewed after the removal of rocksdb.
  */
 @deprecated
-class Compaction(env: RocksEnv, dryRun: Boolean) extends Utils {
+class Compaction(env: BackupEnv, dryRun: Boolean) extends Utils {
 
   def deleteUnreachableMetadata(): Unit = {
     var fileMetadatas = env.rocks.getAllFileMetadatas().map(x => (x._1, 0)).toMap.withDefaultValue(0)
@@ -92,7 +92,7 @@ class Compaction(env: RocksEnv, dryRun: Boolean) extends Utils {
 
   def deleteUnusedVolumes(): Unit = {
     val chunks = env.rocks.getAllChunks()
-    val tracker = new ValueLogFileContentTracker(env.rocksEnvInit, dryRun)
+    val tracker = new ValueLogFileContentTracker(env.backupEnvInit, dryRun)
     for {
       (key, value) <- chunks
     } {
@@ -110,7 +110,7 @@ case class Range(from: Long, to: Long, canDelete: Boolean) {
   }
 }
 
-class ValueLogFileContentTracker(rocksEnv: RocksEnvInit, dryRun: Boolean) extends LazyLogging {
+class ValueLogFileContentTracker(rocksEnv: BackupEnvInit, dryRun: Boolean) extends LazyLogging {
   private var map: Map[String, ValueLogFileContent] = Map.empty
 
   rocksEnv.fileManager.volume
@@ -135,7 +135,7 @@ class ValueLogFileContentTracker(rocksEnv: RocksEnvInit, dryRun: Boolean) extend
     }
   }
 
-  def deleteUnnecessaryValueLogs(rocksEnv: RocksEnv): Unit = {
+  def deleteUnnecessaryValueLogs(rocksEnv: BackupEnv): Unit = {
     logger.info(s"Starting to delete unnecessary value logs")
     val toDelete = map.values.filter(_.canBeDeletedCompletely).toSeq.sortBy(_.filename)
     toDelete.foreach { content =>

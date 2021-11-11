@@ -18,7 +18,7 @@ import java.io.FileNotFoundException
 import java.io.InputStream
 import java.io.SequenceInputStream
 
-class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
+class ValueLogWriter(rocksEnv: BackupEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
 
   private val usedIdentifiers: Set[Int] = {
     rocksEnv.rocks.getAllValueLogStatusKeys()
@@ -94,7 +94,7 @@ class ValueLogWriter(rocksEnv: RocksEnv, fileType: StandardNumberedFileType, wri
 }
 
 
-class ValueLogReader(rocksEnv: RocksEnv) extends AutoCloseable {
+class ValueLogReader(rocksEnv: BackupEnv) extends AutoCloseable {
 
   private val readTiming = new StopWatch("readValue")
   private val decompressionTiming = new StopWatch("decompression")

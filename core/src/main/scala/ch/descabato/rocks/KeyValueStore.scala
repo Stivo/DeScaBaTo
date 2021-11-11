@@ -10,8 +10,8 @@ import com.typesafe.scalalogging.LazyLogging
 import scalapb.GeneratedMessage
 
 object KeyValueStore {
-  def apply(rocksEnvInit: RocksEnvInit): KeyValueStore = {
-    new KeyValueStore(rocksEnvInit.readOnly)
+  def apply(backupEnvInit: BackupEnvInit): KeyValueStore = {
+    new KeyValueStore(backupEnvInit.readOnly)
   }
 }
 

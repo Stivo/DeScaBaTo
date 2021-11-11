@@ -14,8 +14,8 @@ import java.io.File
  * @param config   The configuration
  * @param readOnly Whether this should be read only
  */
-class RocksEnvInit(val config: BackupFolderConfiguration,
-                   val readOnly: Boolean) extends Utils {
+class BackupEnvInit(val config: BackupFolderConfiguration,
+                    val readOnly: Boolean) extends Utils {
   val fileManager: FileManager = new FileManager(config)
   val backupFolder: File = config.folder
 
@@ -26,12 +26,12 @@ class RocksEnvInit(val config: BackupFolderConfiguration,
 
 }
 
-class RocksEnv(val rocksEnvInit: RocksEnvInit,
-               val rocks: KeyValueStore) extends LazyLogging with AutoCloseable {
+class BackupEnv(val backupEnvInit: BackupEnvInit,
+                val rocks: KeyValueStore) extends LazyLogging with AutoCloseable {
 
-  def config: BackupFolderConfiguration = rocksEnvInit.config
+  def config: BackupFolderConfiguration = backupEnvInit.config
 
-  def fileManager: FileManager = rocksEnvInit.fileManager
+  def fileManager: FileManager = backupEnvInit.fileManager
 
   private var readerInitialized = false
   lazy val reader: ValueLogReader = {
@@ -47,10 +47,10 @@ class RocksEnv(val rocksEnvInit: RocksEnvInit,
   }
 }
 
-object RocksEnv extends LazyLogging {
-  def apply(config: BackupFolderConfiguration, readOnly: Boolean, ignoreIssues: Boolean = false): RocksEnv = {
-    val rocksEnvInit = new RocksEnvInit(config, readOnly)
-    val kvs = new RepairLogic(rocksEnvInit).initialize()
-    new RocksEnv(rocksEnvInit, kvs)
+object BackupEnv extends LazyLogging {
+  def apply(config: BackupFolderConfiguration, readOnly: Boolean, ignoreIssues: Boolean = false): BackupEnv = {
+    val backupEnvInit = new BackupEnvInit(config, readOnly)
+    val kvs = new RepairLogic(backupEnvInit).initialize()
+    new BackupEnv(backupEnvInit, kvs)
   }
 }

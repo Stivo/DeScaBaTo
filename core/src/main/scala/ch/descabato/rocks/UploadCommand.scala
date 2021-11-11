@@ -15,7 +15,7 @@ class UploadCommand extends BackupRelatedCommand with Utils {
   override def start(t: T, conf: BackupFolderConfiguration): Unit = {
     var finished, failed = 0
     for {
-      rocksEnv <- RocksEnv(conf, true).autoClosed
+      rocksEnv <- BackupEnv(conf, true).autoClosed
       uploader <- new RemoteUploader(rocksEnv).autoClosed
     } {
       var continue = true

@@ -5,7 +5,7 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
 import ch.descabato.frontend.BackupFolderOption
 import ch.descabato.frontend.BackupRelatedCommand
-import ch.descabato.rocks.RocksEnv
+import ch.descabato.rocks.BackupEnv
 import ch.descabato.utils.Utils
 import org.rogach.scallop.ScallopConf
 import org.rogach.scallop.ScallopOption
@@ -23,7 +23,7 @@ class MountCommand extends BackupRelatedCommand {
     printConfiguration(t)
 
     val config = BackupFolderConfiguration(conf.folder, t.passphrase.toOption)
-    val env = RocksEnv(config, readOnly = true)
+    val env = BackupEnv(config, readOnly = true)
     val reader = new BackupReader(env)
 
     val stub = new BackupFuseFS(reader)
