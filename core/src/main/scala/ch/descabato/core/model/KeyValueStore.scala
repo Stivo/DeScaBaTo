@@ -1,5 +1,7 @@
-package ch.descabato.rocks
+package ch.descabato.core.model
 
+import ch.descabato.core.model
+import ch.descabato.core.util.InMemoryDb
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
@@ -57,7 +59,7 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
       out :+= ExportedEntry(k, v, false)
     }
     out ++= inMemoryDb.chunks.map { case (k, v) =>
-      ExportedEntry(k, v, false)
+      model.ExportedEntry(k, v, false)
     }
     inMemoryDb.revision.foreach { case (k, v) =>
       out :+= ExportedEntry(k, v, false)

@@ -1,4 +1,11 @@
-package ch.descabato.rocks
+package ch.descabato.core.model
+
+import ch.descabato.CustomByteArrayOutputStream
+import ch.descabato.rocks.protobuf.keys.FileMetadataKey
+import ch.descabato.utils.BytesWrapper
+import ch.descabato.utils.Hash
+import ch.descabato.utils.Implicits._
+import scalapb.GeneratedMessage
 
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
@@ -6,14 +13,7 @@ import java.io.DataOutputStream
 import java.io.EOFException
 import java.io.InputStream
 import java.util
-import java.util.Base64
 import java.util.Objects
-import ch.descabato.CustomByteArrayOutputStream
-import ch.descabato.rocks.protobuf.keys.FileMetadataKey
-import ch.descabato.utils.BytesWrapper
-import ch.descabato.utils.Hash
-import ch.descabato.utils.Implicits._
-import scalapb.GeneratedMessage
 
 trait Key
 

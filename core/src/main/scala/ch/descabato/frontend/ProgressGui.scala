@@ -1,7 +1,7 @@
 package ch.descabato.frontend
 
+import ch.descabato.Main
 import ch.descabato.remote.RemoteOptions
-import ch.descabato.rocks.Main
 import ch.descabato.utils.Utils
 import org.bridj.Pointer
 import org.bridj.cpp.com.COMRuntime

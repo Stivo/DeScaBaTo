@@ -1,6 +1,7 @@
-package ch.descabato.rocks
+package ch.descabato.frontend.commands
 
 import better.files._
+import ch.descabato.core.actions.DoRestore
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.BackupRelatedCommand
 import ch.descabato.frontend.RestoreConf

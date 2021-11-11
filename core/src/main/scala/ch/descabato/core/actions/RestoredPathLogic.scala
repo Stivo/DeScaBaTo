@@ -1,12 +1,11 @@
-package ch.descabato.rocks
-
-import java.io.File
+package ch.descabato.core.actions
 
 import ch.descabato.core.model.BackupPart
 import ch.descabato.core.model.FolderDescription
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.utils._
 
+import java.io.File
 import scala.collection.mutable
 
 class RestoredPathLogic(val folders: Seq[FolderDescription], val restoreConf: RestoreConf) {

@@ -1,7 +1,7 @@
 package ch.descabato.rocks.fuse
 
 import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.rocks.BackupEnv
+import ch.descabato.core.model.BackupEnv
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import jnr.ffi.Platform
 import jnr.ffi.Platform.OS

@@ -1,5 +1,7 @@
-package ch.descabato.rocks
+package ch.descabato.frontend.commands
 
+import ch.descabato.Main
+import ch.descabato.core.actions.DoVerify
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.frontend.BackupRelatedCommand
 import ch.descabato.frontend.VerifyConf

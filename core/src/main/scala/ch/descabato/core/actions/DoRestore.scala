@@ -1,17 +1,20 @@
-package ch.descabato.rocks
-
-import java.io.File
-import java.io.FileOutputStream
+package ch.descabato.core.actions
 
 import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.FileAttributes
+import ch.descabato.core.model.FileMetadataKeyWrapper
 import ch.descabato.core.model.FolderDescription
+import ch.descabato.core.model.Revision
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
+
+import java.io.File
+import java.io.FileOutputStream
 
 class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
 

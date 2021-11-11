@@ -1,11 +1,11 @@
 package ch.descabato.remote
 
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.BackupEnv
+import ch.descabato.core.model.ValueLogStatusKey
 
 import java.io.File
 import java.util.concurrent.Executors
-import ch.descabato.rocks.BackupEnv
-import ch.descabato.rocks.ValueLogStatusKey
 import ch.descabato.rocks.protobuf.keys.Status
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Implicits._

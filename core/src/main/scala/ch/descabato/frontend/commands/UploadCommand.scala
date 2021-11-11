@@ -1,7 +1,8 @@
-package ch.descabato.rocks
+package ch.descabato.frontend.commands
 
 import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.BackupEnv
 import ch.descabato.frontend.BackupRelatedCommand
 import ch.descabato.frontend.SimpleBackupFolderOption
 import ch.descabato.remote.RemoteUploader

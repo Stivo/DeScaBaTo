@@ -3,9 +3,9 @@ package ch.descabato.frontend
 import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
-
 import ch.descabato.CompressionMode
 import ch.descabato.HashAlgorithm
+import ch.descabato.Main
 import ch.descabato.RemoteMode
 import ch.descabato.core.BackupException
 import ch.descabato.core.ExceptionFactory
@@ -15,7 +15,6 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.FileManager
 import ch.descabato.frontend.ScallopConverters._
-import ch.descabato.rocks.Main
 import ch.descabato.utils.BuildInfo
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils

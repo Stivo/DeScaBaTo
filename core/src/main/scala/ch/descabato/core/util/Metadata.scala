@@ -1,9 +1,20 @@
-package ch.descabato.rocks
+package ch.descabato.core.util
 
 import better.files._
 import ch.descabato.CompressionMode
 import ch.descabato.CustomByteArrayOutputStream
-import ch.descabato.core.util.StandardNumberedFileType
+import ch.descabato.core.model.BackupEnv
+import ch.descabato.core.model.BackupEnvInit
+import ch.descabato.core.model.ChunkKey
+import ch.descabato.core.model.ColumnFamilies
+import ch.descabato.core.model.ExportedEntry
+import ch.descabato.core.model.FileMetadataKeyWrapper
+import ch.descabato.core.model.Key
+import ch.descabato.core.model.KeyValueStore
+import ch.descabato.core.model.Revision
+import ch.descabato.core.model.RevisionContentValue
+import ch.descabato.core.model.ValueLogStatusKey
+import ch.descabato.rocks.StandardMeasureTime
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue
 import ch.descabato.rocks.protobuf.keys.RevisionValue
@@ -12,19 +23,12 @@ import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
-import ch.descabato.utils.FileUtils
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 
 import java.awt.Desktop
 import java.awt.Desktop.Action
 import java.io
-import java.util.concurrent.Executors
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 
 class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
 

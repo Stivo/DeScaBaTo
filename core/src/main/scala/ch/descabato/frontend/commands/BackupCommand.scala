@@ -1,14 +1,16 @@
-package ch.descabato.rocks
+package ch.descabato.frontend.commands
+
+import better.files._
+import ch.descabato.core.actions.RunBackup
+import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.BackupEnv
+import ch.descabato.frontend.BackupRelatedCommand
+import ch.descabato.frontend.MultipleBackupConf
+import ch.descabato.utils.Utils
 
 import java.io.File
 import java.io.FileOutputStream
 import java.io.PrintStream
-
-import better.files._
-import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.frontend.BackupRelatedCommand
-import ch.descabato.frontend.MultipleBackupConf
-import ch.descabato.utils.Utils
 
 
 class BackupCommand extends BackupRelatedCommand with Utils {

@@ -1,4 +1,4 @@
-package ch.descabato.rocks
+package ch.descabato.core.model
 
 import ch.descabato.CompressionMode
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey

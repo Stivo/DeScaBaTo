@@ -2,10 +2,10 @@ package ch.descabato.rocks.fuse
 
 import java.nio.file.Paths
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.Size
 import ch.descabato.frontend.BackupFolderOption
 import ch.descabato.frontend.BackupRelatedCommand
-import ch.descabato.rocks.BackupEnv
 import ch.descabato.utils.Utils
 import org.rogach.scallop.ScallopConf
 import org.rogach.scallop.ScallopOption

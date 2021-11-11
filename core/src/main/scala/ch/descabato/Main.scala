@@ -1,16 +1,21 @@
-package ch.descabato.rocks
+package ch.descabato
 
-import java.io.PrintStream
-import java.security.Security
 import ch.descabato.core.PasswordWrongException
 import ch.descabato.core.config.BackupVerification
 import ch.descabato.frontend.Command
 import ch.descabato.frontend.CreateBackupOptions
 import ch.descabato.frontend.HelpCommand
 import ch.descabato.frontend.ReflectionCommand
+import ch.descabato.frontend.commands.BackupCommand
+import ch.descabato.frontend.commands.CountCommand
+import ch.descabato.frontend.commands.RestoreCommand
+import ch.descabato.frontend.commands.UploadCommand
+import ch.descabato.frontend.commands.VerifyCommand
 import ch.descabato.utils.Utils
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
+import java.io.PrintStream
+import java.security.Security
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 

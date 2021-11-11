@@ -1,14 +1,18 @@
-package ch.descabato.rocks
-
-import java.io.File
+package ch.descabato.core.actions
 
 import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.BackupEnv
+import ch.descabato.core.model.BackupEnvInit
+import ch.descabato.core.model.ChunkKey
+import ch.descabato.core.model.FileMetadataKeyWrapper
+import ch.descabato.core.model.ValueLogStatusKey
 import ch.descabato.rocks.protobuf.keys.Status
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Utils
 import com.typesafe.scalalogging.LazyLogging
 
+import java.io.File
 import scala.collection.immutable.TreeMap
 
 object Compaction {

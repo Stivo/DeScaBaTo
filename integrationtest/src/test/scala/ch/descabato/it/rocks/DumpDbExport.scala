@@ -2,13 +2,12 @@ package ch.descabato.it.rocks
 
 
 import java.io
-
 import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.rocks.ChunkKey
-import ch.descabato.rocks.RepairLogic
-import ch.descabato.rocks.Revision
-import ch.descabato.rocks.BackupEnv
+import ch.descabato.core.model.BackupEnv
+import ch.descabato.core.model.ChunkKey
+import ch.descabato.core.model.Revision
+import ch.descabato.core.util.RepairLogic
 import ch.descabato.rocks.protobuf.keys.RevisionValue
 import ch.descabato.rocks.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Utils

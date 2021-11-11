@@ -1,15 +1,15 @@
 package ch.descabato.rocks.fuse
 
-import ch.descabato.rocks.ChunkKey
+import ch.descabato.core.model.BackupEnv
+import ch.descabato.core.model.ChunkKey
+import ch.descabato.core.model.FileMetadataKeyWrapper
+import ch.descabato.core.model.Revision
 
 import java.io.InputStream
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import ch.descabato.rocks.FileMetadataKeyWrapper
-import ch.descabato.rocks.Revision
-import ch.descabato.rocks.BackupEnv
 import ch.descabato.rocks.protobuf.keys.BackedupFileType
 import ch.descabato.rocks.protobuf.keys.FileMetadataKey
 import ch.descabato.rocks.protobuf.keys.FileMetadataValue

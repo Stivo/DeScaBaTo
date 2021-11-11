@@ -1,6 +1,7 @@
 package ch.descabato.rocks
 
 
+import ch.descabato.core.model.RevisionContentValue
 import ch.descabato.utils.Implicits._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
