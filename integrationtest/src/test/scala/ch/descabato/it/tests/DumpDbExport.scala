@@ -1,16 +1,4 @@
-package ch.descabato.it.rocks
-
-
-import java.io
-import better.files._
-import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.core.model.BackupEnv
-import ch.descabato.core.model.ChunkKey
-import ch.descabato.core.model.Revision
-import ch.descabato.core.util.RepairLogic
-import ch.descabato.protobuf.keys.RevisionValue
-import ch.descabato.protobuf.keys.ValueLogIndex
-import ch.descabato.utils.Utils
+package ch.descabato.it.tests
 
 object DumpDbExport extends Utils {
 

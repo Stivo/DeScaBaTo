@@ -1,5 +1,4 @@
-package ch.descabato.rocks
-
+package ch.descabato
 
 import ch.descabato.core.model.RevisionContentValue
 import ch.descabato.utils.Implicits._
