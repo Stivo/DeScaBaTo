@@ -78,7 +78,7 @@ class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
         }
         stat.st_ctim.tv_sec.set(createdTime)
       // This slows performance down a lot, and is not even visible from the filesystem
-      // val totalSize = reader.rocksEnv.rocks.getIndexes(metadata).map(_.lengthCompressed.toLong).sum
+      // val totalSize = reader.backupEnv.rocks.getIndexes(metadata).map(_.lengthCompressed.toLong).sum
       // println(s"Total size for $path is ${Utils.readableFileSize(metadata.length)}, but with compression: ${Utils.readableFileSize(totalSize)}. ")
       case None =>
         res = -ErrorCodes.ENOENT()
@@ -87,7 +87,7 @@ class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
   }
 
   private def readMetadataForNode(x: FileNode): FileMetadataValue = {
-    reader.rocksEnv.rocks.readFileMetadata(x.asWrapper)
+    reader.backupEnv.rocks.readFileMetadata(x.asWrapper)
       .getOrElse(throw new IllegalStateException(s"Could not find entry for key $x"))
   }
 

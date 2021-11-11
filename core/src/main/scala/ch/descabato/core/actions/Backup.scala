@@ -44,10 +44,10 @@ object Backup {
 
 }
 
-class RunBackup(rocksEnv: BackupEnv) extends LazyLogging {
+class RunBackup(backupEnv: BackupEnv) extends LazyLogging {
 
   def run(file: Seq[File]): Unit = {
-    val backupper = new Backupper(rocksEnv)
+    val backupper = new Backupper(backupEnv)
     backupper.backup(file: _*)
     backupper.printStatistics()
     //    val totalSize = listFiles(dbFolder).map(_.toFile.length()).sum
@@ -57,9 +57,9 @@ class RunBackup(rocksEnv: BackupEnv) extends LazyLogging {
 
 }
 
-class Backupper(rocksEnv: BackupEnv) extends LazyLogging {
+class Backupper(backupEnv: BackupEnv) extends LazyLogging {
 
-  import rocksEnv._
+  import backupEnv._
 
   def printStatistics(): Unit = {
     logger.info(s"Chunks found: ${chunkFoundCounter}")
@@ -70,8 +70,8 @@ class Backupper(rocksEnv: BackupEnv) extends LazyLogging {
   var revisionContent: ByteArrayOutputStream = new ByteArrayOutputStream()
   var filesInRevision: mutable.Buffer[FileMetadataKey] = mutable.Buffer.empty
 
-  val valueLog = new ValueLogWriter(rocksEnv, rocksEnv.fileManager.volume, write = true, rocksEnv.config.volumeSize.bytes)
-  val compressionDecider: CompressionDecider = CompressionDeciders.createForConfig(rocksEnv.config)
+  val valueLog = new ValueLogWriter(backupEnv, backupEnv.fileManager.volume, write = true, backupEnv.config.volumeSize.bytes)
+  val compressionDecider: CompressionDecider = CompressionDeciders.createForConfig(backupEnv.config)
 
   def findNextRevision(): Int = {
     val revisions = rocks.getAllRevisions()
@@ -86,22 +86,22 @@ class Backupper(rocksEnv: BackupEnv) extends LazyLogging {
     val revision = Revision(findNextRevision())
     val mt = new StandardMeasureTime()
     for (folderToBackup <- str) {
-      val (folders, files) = Backup.listFiles(folderToBackup, rocksEnv.config.ignoreFile)
+      val (folders, files) = Backup.listFiles(folderToBackup, backupEnv.config.ignoreFile)
       for (file <- folders ++ files) {
         backupFileOrFolderIfNecessary(file)
       }
     }
     logger.info("Took " + mt.measuredTime())
-    val configJson = new String(rocksEnv.config.asJson(), StandardCharsets.UTF_8)
+    val configJson = new String(backupEnv.config.asJson(), StandardCharsets.UTF_8)
     val value = RevisionValue(created = System.currentTimeMillis(), configJson = configJson, files = filesInRevision.toSeq)
     rocks.write(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
-    new DbExporter(rocksEnv).exportUpdates(rocks.readAllUpdates())
+    new DbExporter(backupEnv).exportUpdates(rocks.readAllUpdates())
   }
 
   private val buffer = Array.ofDim[Byte](1024 * 1024)
-  private val digest = rocksEnv.config.createMessageDigest()
+  private val digest = backupEnv.config.createMessageDigest()
 
   var chunkNotFoundCounter = 0
   var chunkFoundCounter = 0

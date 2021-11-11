@@ -17,6 +17,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.stream.Collectors
+import scala.jdk.CollectionConverters._
 
 class RestoreOlderTest extends IntegrationTestBase {
 

@@ -17,9 +17,9 @@ import scala.util.Random
 
 class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils {
 
-  private val rocksEnv = BackupEnv(conf, readOnly = true)
+  private val backupEnv = BackupEnv(conf, readOnly = true)
 
-  import rocksEnv._
+  import backupEnv._
 
   val random = new Random()
   val digest: Digest = conf.createMessageDigest()
@@ -39,14 +39,14 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
   }
 
   private def checkExport(counter: ProblemCounter): Unit = {
-    logger.info(s"Found ${rocksEnv.rocks.getAllRevisions().size} revisions")
-    logger.info(s"Found ${rocksEnv.rocks.getAllValueLogStatusKeys().size} value log status keys")
-    logger.info(s"Found ${rocksEnv.rocks.getAllFileMetadatas().size} file metadatas")
-    logger.info(s"Found ${rocksEnv.rocks.getAllChunks().size} chunks")
+    logger.info(s"Found ${backupEnv.rocks.getAllRevisions().size} revisions")
+    logger.info(s"Found ${backupEnv.rocks.getAllValueLogStatusKeys().size} value log status keys")
+    logger.info(s"Found ${backupEnv.rocks.getAllFileMetadatas().size} file metadatas")
+    logger.info(s"Found ${backupEnv.rocks.getAllChunks().size} chunks")
   }
 
   private def checkConnectivity(t: VerifyConf, problemCounter: ProblemCounter): Unit = {
-    for ((rev, value) <- rocksEnv.rocks.getAllRevisions().toSeq.sortBy(_._1.number)) {
+    for ((rev, value) <- backupEnv.rocks.getAllRevisions().toSeq.sortBy(_._1.number)) {
       logger.info(s"Checking ${value.files.size} files in revision ${rev.number}")
       for (file <- value.files if file.filetype == BackedupFileType.FILE) {
         val metadata: Option[FileMetadataValue] = rocks.readFileMetadata(FileMetadataKeyWrapper(file))
@@ -61,7 +61,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
                     if ((t.checkFirstOfEachVolume() && c.from < 100) || (t.percentOfFilesToCheck() > 0 && t.percentOfFilesToCheck() >= random.nextInt(100))) {
                       try {
                         logger.info(s"Checking ${c}")
-                        val value = rocksEnv.reader.readValue(c)
+                        val value = backupEnv.reader.readValue(c)
                         val computedHash = digest.digest(value)
                         if (computedHash !== chunkKey.hash) {
                           problemCounter.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} does not match the computed hash ${computedHash.base64}.\n" +
@@ -73,7 +73,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
                       }
                     } else {
                       try {
-                        rocksEnv.reader.assertChunkIsCovered(c)
+                        backupEnv.reader.assertChunkIsCovered(c)
                       } catch {
                         case e: IOException =>
                           problemCounter.addProblem(s"Chunk $c for hash ${chunkKey.hash.base64} of file ${file.path} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
@@ -93,7 +93,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     }
   }
 
-  override def close(): Unit = rocksEnv.close()
+  override def close(): Unit = backupEnv.close()
 }
 
 

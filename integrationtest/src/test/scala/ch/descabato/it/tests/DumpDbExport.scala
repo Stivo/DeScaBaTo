@@ -1,30 +1,36 @@
 package ch.descabato.it.tests
 
+import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.model.BackupEnv
+import ch.descabato.utils.Utils
+import better.files._
+import java.io
+
 object DumpDbExport extends Utils {
 
-  def printRevisions(rocksEnv: BackupEnv): Unit = {
-    val value = rocksEnv.rocks.getAllRevisions()
+  def printRevisions(backupEnv: BackupEnv): Unit = {
+    val value = backupEnv.rocks.getAllRevisions()
     value.map { case (revision, value) =>
       s"$revision:\n${value.configJson}\n" + value.files.map(_.toString).mkString("\n")
     }.foreach(logger.info(_))
   }
 
-  def printChunks(rocksEnv: BackupEnv): Unit = {
-    val value = rocksEnv.rocks.getAllChunks()
+  def printChunks(backupEnv: BackupEnv): Unit = {
+    val value = backupEnv.rocks.getAllChunks()
     value.map { case (key, value) =>
       s"${key.hash.base64}: ${value}"
     }.foreach(logger.info(_))
   }
 
-  def printFileStatuses(rocksEnv: BackupEnv): Unit = {
-    val statuses = rocksEnv.rocks.getAllValueLogStatusKeys().map { case (key, status) =>
+  def printFileStatuses(backupEnv: BackupEnv): Unit = {
+    val statuses = backupEnv.rocks.getAllValueLogStatusKeys().map { case (key, status) =>
       s"$key: $status"
     }.mkString("\n")
     logger.info(s"Statuses:\n${statuses}")
   }
 
-  def printDefaultKeys(rocksEnv: BackupEnv): Unit = {
-    //    logger.info("Status: " + RepairLogic.readStatus(rocksEnv.rocks))
+  def printDefaultKeys(backupEnv: BackupEnv): Unit = {
+    //    logger.info("Status: " + RepairLogic.readStatus(backupEnv.rocks))
   }
 
   def main(args: Array[String]): Unit = {
@@ -40,11 +46,11 @@ object DumpDbExport extends Utils {
   def dumpDbExport(backupDestination: io.File, passphrase: Option[String] = None, ignoreIssues: Boolean = false) = {
     logger.info("===========================================================")
     logger.info("Start of dbexport content dump")
-    for (rocksEnv <- BackupEnv(BackupFolderConfiguration(backupDestination, passphrase), readOnly = true, ignoreIssues = ignoreIssues).autoClosed) {
-      printDefaultKeys(rocksEnv)
-      printFileStatuses(rocksEnv)
-      printRevisions(rocksEnv)
-      printChunks(rocksEnv)
+    for (backupEnv <- BackupEnv(BackupFolderConfiguration(backupDestination, passphrase), readOnly = true, ignoreIssues = ignoreIssues).autoClosed) {
+      printDefaultKeys(backupEnv)
+      printFileStatuses(backupEnv)
+      printRevisions(backupEnv)
+      printChunks(backupEnv)
     }
     logger.info("End of dbexport content dump")
     logger.info("===========================================================")

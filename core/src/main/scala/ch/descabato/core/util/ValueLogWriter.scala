@@ -18,18 +18,18 @@ import java.io.FileNotFoundException
 import java.io.InputStream
 import java.io.SequenceInputStream
 
-class ValueLogWriter(rocksEnv: BackupEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
+class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
 
   private val usedIdentifiers: Set[Int] = {
-    rocksEnv.rocks.getAllValueLogStatusKeys()
-      .map(key => rocksEnv.config.resolveRelativePath(key._1.name))
+    backupEnv.rocks.getAllValueLogStatusKeys()
+      .map(key => backupEnv.config.resolveRelativePath(key._1.name))
       .filter(fileType.matches)
       .map(fileType.numberOfFile)
       .toSet
   }
 
-  private val kvStore = rocksEnv.rocks
-  private val config = rocksEnv.config
+  private val kvStore = backupEnv.rocks
+  private val config = backupEnv.config
 
   private val valueLogWriteTiming = new StopWatch("writeValue")
   private val compressionTiming = new StopWatch("compression")
@@ -71,7 +71,7 @@ class ValueLogWriter(rocksEnv: BackupEnv, fileType: StandardNumberedFileType, wr
     val file = fileType.nextFile(temp = true, usedIdentifiers)
     val number = fileType.numberOfFile(file)
     val finalFile = fileType.fileForNumber(number, temp = false)
-    val relative = rocksEnv.config.relativePath(finalFile)
+    val relative = backupEnv.config.relativePath(finalFile)
     val key = ValueLogStatusKey(relative)
     val value = ValueLogStatusValue(status = Status.WRITING)
     logger.info(s"From now on data will be written to ${key.name}")
@@ -94,7 +94,7 @@ class ValueLogWriter(rocksEnv: BackupEnv, fileType: StandardNumberedFileType, wr
 }
 
 
-class ValueLogReader(rocksEnv: BackupEnv) extends AutoCloseable {
+class ValueLogReader(backupEnv: BackupEnv) extends AutoCloseable {
 
   private val readTiming = new StopWatch("readValue")
   private val decompressionTiming = new StopWatch("decompression")
@@ -105,7 +105,7 @@ class ValueLogReader(rocksEnv: BackupEnv) extends AutoCloseable {
   def createInputStream(fileMetadataValue: FileMetadataValue): InputStream = {
 
     new SequenceInputStream(new java.util.Enumeration[InputStream]() {
-      private val indexIterator = rocksEnv.rocks.getIndexes(fileMetadataValue)
+      private val indexIterator = backupEnv.rocks.getIndexes(fileMetadataValue)
 
       override def hasMoreElements: Boolean = indexIterator.hasNext
 
@@ -134,9 +134,9 @@ class ValueLogReader(rocksEnv: BackupEnv) extends AutoCloseable {
   }
 
   private def lookupRaf(valueLogIndex: ValueLogIndex) = {
-    val file = rocksEnv.config.resolveRelativePath(valueLogIndex.filename)
+    val file = backupEnv.config.resolveRelativePath(valueLogIndex.filename)
     if (!randomAccessFiles.contains(valueLogIndex.filename)) {
-      randomAccessFiles += valueLogIndex.filename -> rocksEnv.config.newReader(file)
+      randomAccessFiles += valueLogIndex.filename -> backupEnv.config.newReader(file)
     }
     randomAccessFiles(valueLogIndex.filename)
   }

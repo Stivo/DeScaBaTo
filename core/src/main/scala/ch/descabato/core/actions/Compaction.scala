@@ -114,21 +114,21 @@ case class Range(from: Long, to: Long, canDelete: Boolean) {
   }
 }
 
-class ValueLogFileContentTracker(rocksEnv: BackupEnvInit, dryRun: Boolean) extends LazyLogging {
+class ValueLogFileContentTracker(backupEnv: BackupEnvInit, dryRun: Boolean) extends LazyLogging {
   private var map: Map[String, ValueLogFileContent] = Map.empty
 
-  rocksEnv.fileManager.volume
+  backupEnv.fileManager.volume
     .getFiles()
-    .filterNot(rocksEnv.fileManager.volume.isTempFile)
+    .filterNot(backupEnv.fileManager.volume.isTempFile)
     .foreach { volume =>
-      val relative = rocksEnv.config.relativePath(volume)
-      map += relative -> new ValueLogFileContent(relative, rocksEnv.config)
+      val relative = backupEnv.config.relativePath(volume)
+      map += relative -> new ValueLogFileContent(relative, backupEnv.config)
     }
 
   def add(chunkKey: ChunkKey, valueLogIndex: ValueLogIndex, canDelete: Boolean): Unit = {
     val filename = valueLogIndex.filename
     if (!map.contains(filename)) {
-      map += filename -> new ValueLogFileContent(filename, rocksEnv.config)
+      map += filename -> new ValueLogFileContent(filename, backupEnv.config)
     }
     map(filename).addChunk(chunkKey, valueLogIndex, canDelete)
   }
@@ -139,29 +139,29 @@ class ValueLogFileContentTracker(rocksEnv: BackupEnvInit, dryRun: Boolean) exten
     }
   }
 
-  def deleteUnnecessaryValueLogs(rocksEnv: BackupEnv): Unit = {
+  def deleteUnnecessaryValueLogs(backupEnv: BackupEnv): Unit = {
     logger.info(s"Starting to delete unnecessary value logs")
     val toDelete = map.values.filter(_.canBeDeletedCompletely).toSeq.sortBy(_.filename)
     toDelete.foreach { content =>
       logger.info(s"Deleting ${content.filename}")
       if (!dryRun) {
         val logStatusKey = ValueLogStatusKey(content.filename)
-        val status = rocksEnv.rocks.readValueLogStatus(logStatusKey).get
+        val status = backupEnv.rocks.readValueLogStatus(logStatusKey).get
         val newStatus = status.copy(status = Status.MARKED_FOR_DELETION)
-        rocksEnv.rocks.write(logStatusKey, newStatus)
+        backupEnv.rocks.write(logStatusKey, newStatus)
       }
     }
     if (!dryRun) {
-      rocksEnv.rocks.commit()
+      backupEnv.rocks.commit()
       toDelete.foreach { content =>
-        rocksEnv.config.resolveRelativePath(content.filename).delete()
+        backupEnv.config.resolveRelativePath(content.filename).delete()
         val logStatusKey = ValueLogStatusKey(content.filename)
-        val status = rocksEnv.rocks.readValueLogStatus(logStatusKey).get
+        val status = backupEnv.rocks.readValueLogStatus(logStatusKey).get
         val newStatus = status.copy(status = Status.DELETED)
-        rocksEnv.rocks.write(logStatusKey, newStatus)
+        backupEnv.rocks.write(logStatusKey, newStatus)
         logger.info(s"Deleted ${content.filename}")
       }
-      rocksEnv.rocks.commit()
+      backupEnv.rocks.commit()
     }
     logger.info(s"Finished deleting unnecessary value logs")
   }

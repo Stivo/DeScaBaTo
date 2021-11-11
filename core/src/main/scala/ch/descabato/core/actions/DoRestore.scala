@@ -18,9 +18,9 @@ import java.io.FileOutputStream
 
 class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
 
-  private val rocksEnv = BackupEnv(conf, readOnly = true)
+  private val backupEnv = BackupEnv(conf, readOnly = true)
 
-  import rocksEnv._
+  import backupEnv._
 
   def restoreByRevision(t: RestoreConf, number: Int): Unit = {
     val revision = Revision(number)
@@ -72,7 +72,7 @@ class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
     file.setLastModified(key.changed)
   }
 
-  override def close(): Unit = rocksEnv.close()
+  override def close(): Unit = backupEnv.close()
 }
 
 object FolderDescriptionFactory {

@@ -16,12 +16,12 @@ import scala.concurrent.ExecutionContextExecutorService
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-class RemoteUploader(rocksEnv: BackupEnv) extends Utils with AutoCloseable {
+class RemoteUploader(backupEnv: BackupEnv) extends Utils with AutoCloseable {
   private var remoteFiles: Map[BackupPath, RemoteFile] = Map.empty
   val ex: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(2))
 
-  val remoteClient: RemoteClient = RemoteClient.forConfig(rocksEnv.config)
-  val config: BackupFolderConfiguration = rocksEnv.config
+  val remoteClient: RemoteClient = RemoteClient.forConfig(backupEnv.config)
+  val config: BackupFolderConfiguration = backupEnv.config
 
   private def localPath(next: BackupPath) = {
     new File(config.folder, next.path)
@@ -44,9 +44,9 @@ class RemoteUploader(rocksEnv: BackupEnv) extends Utils with AutoCloseable {
     remoteFiles = remoteClient.list().get.map { rem =>
       (rem.path, rem)
     }.toMap
-    for (ident <- rocksEnv.fileManager.allFiles()) {
-      val key = ValueLogStatusKey(rocksEnv.config.relativePath(ident))
-      val value = rocksEnv.rocks.readValueLogStatus(key)
+    for (ident <- backupEnv.fileManager.allFiles()) {
+      val key = ValueLogStatusKey(backupEnv.config.relativePath(ident))
+      val value = backupEnv.rocks.readValueLogStatus(key)
       if (value.exists(_.status == Status.FINISHED)) {
         val path = BackupPath(ident, config)
         if (!remoteFiles.safeContains(path) && path.forConfig(config).exists()) {

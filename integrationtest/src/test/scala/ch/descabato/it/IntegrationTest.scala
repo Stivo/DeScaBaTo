@@ -3,7 +3,7 @@ package ch.descabato.it
 import java.io.File
 import java.nio.file.Files
 
-import ch.descabato.it.rocks.DumpDbExport
+import ch.descabato.it.tests.DumpDbExport
 import org.scalatest._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks

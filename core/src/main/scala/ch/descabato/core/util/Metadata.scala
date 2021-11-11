@@ -98,9 +98,9 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
 
 }
 
-class DbExporter(rocksEnv: BackupEnv) extends Utils {
-  val kvStore: KeyValueStore = rocksEnv.rocks
-  private val filetype: StandardNumberedFileType = rocksEnv.fileManager.dbexport
+class DbExporter(backupEnv: BackupEnv) extends Utils {
+  val kvStore: KeyValueStore = backupEnv.rocks
+  private val filetype: StandardNumberedFileType = backupEnv.fileManager.dbexport
 
   def exportUpdates(contentValues: Seq[ExportedEntry[_, _]]): Unit = {
     val backupTime = new StandardMeasureTime()
@@ -116,7 +116,7 @@ class DbExporter(rocksEnv: BackupEnv) extends Utils {
     }
     out.close()
 
-    for (valueLog <- new ValueLogWriter(rocksEnv, filetype, write = true, Long.MaxValue).autoClosed) {
+    for (valueLog <- new ValueLogWriter(backupEnv, filetype, write = true, Long.MaxValue).autoClosed) {
       valueLog.write(new CompressedBytes(baos.toBytesWrapper, totalLength))
     }
     logger.info(s"Finished exporting updates, took " + backupTime.measuredTime())

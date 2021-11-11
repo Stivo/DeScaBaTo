@@ -20,9 +20,9 @@ import ch.descabato.utils.Utils
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.TreeMap
 
-class BackupReader(val rocksEnv: BackupEnv) extends Utils {
+class BackupReader(val backupEnv: BackupEnv) extends Utils {
 
-  import rocksEnv._
+  import backupEnv._
 
   lazy val revisions: Seq[RevisionPair] = {
     rocks.getAllRevisions()
@@ -33,8 +33,8 @@ class BackupReader(val rocksEnv: BackupEnv) extends Utils {
 
   lazy val chunksByVolume: Map[Int, Map[ChunkKey, ValueLogIndex]] = {
     var out = SortedMap.empty[Int, Map[ChunkKey, ValueLogIndex]]
-    rocksEnv.rocks.getAllChunks().foreach { case (key, v) =>
-      val number = rocksEnv.fileManager.volume.numberOfFile(rocksEnv.config.resolveRelativePath(v.filename))
+    backupEnv.rocks.getAllChunks().foreach { case (key, v) =>
+      val number = backupEnv.fileManager.volume.numberOfFile(backupEnv.config.resolveRelativePath(v.filename))
       var map = out.getOrElse(number, Map.empty)
       map += (key -> v)
       out += number -> map

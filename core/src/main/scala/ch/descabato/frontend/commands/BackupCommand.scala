@@ -51,8 +51,8 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     if (!t.noScriptCreation()) {
       writeBat(t, conf, lastArgs)
     }
-    for (rocksEnv <- BackupEnv(conf, readOnly = false).autoClosed) {
-      val backup = new RunBackup(rocksEnv)
+    for (backupEnv <- BackupEnv(conf, readOnly = false).autoClosed) {
+      val backup = new RunBackup(backupEnv)
       backup.run(t.foldersToBackup())
     }
   }
