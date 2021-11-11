@@ -6,7 +6,7 @@ import ch.descabato.core.model.ValueLogStatusKey
 
 import java.io.File
 import java.util.concurrent.Executors
-import ch.descabato.rocks.protobuf.keys.Status
+import ch.descabato.protobuf.keys.Status
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils

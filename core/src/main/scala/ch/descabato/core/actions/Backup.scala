@@ -10,10 +10,10 @@ import ch.descabato.core.model.Revision
 import ch.descabato.core.util.DbExporter
 import ch.descabato.core.util.ValueLogWriter
 import ch.descabato.utils.StopWatch
-import ch.descabato.rocks.protobuf.keys.BackedupFileType
-import ch.descabato.rocks.protobuf.keys.FileMetadataKey
-import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.RevisionValue
+import ch.descabato.protobuf.keys.BackedupFileType
+import ch.descabato.protobuf.keys.FileMetadataKey
+import ch.descabato.protobuf.keys.FileMetadataValue
+import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.StandardMeasureTime

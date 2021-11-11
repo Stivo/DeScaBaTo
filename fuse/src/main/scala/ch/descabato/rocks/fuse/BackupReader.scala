@@ -10,11 +10,11 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import ch.descabato.rocks.protobuf.keys.BackedupFileType
-import ch.descabato.rocks.protobuf.keys.FileMetadataKey
-import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.RevisionValue
-import ch.descabato.rocks.protobuf.keys.ValueLogIndex
+import ch.descabato.protobuf.keys.BackedupFileType
+import ch.descabato.protobuf.keys.FileMetadataKey
+import ch.descabato.protobuf.keys.FileMetadataValue
+import ch.descabato.protobuf.keys.RevisionValue
+import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Utils
 
 import scala.collection.immutable.SortedMap

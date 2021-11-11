@@ -8,8 +8,8 @@ import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.Revision
 import ch.descabato.core.util.RepairLogic
-import ch.descabato.rocks.protobuf.keys.RevisionValue
-import ch.descabato.rocks.protobuf.keys.ValueLogIndex
+import ch.descabato.protobuf.keys.RevisionValue
+import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Utils
 
 object DumpDbExport extends Utils {

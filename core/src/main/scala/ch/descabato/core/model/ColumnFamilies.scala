@@ -1,11 +1,11 @@
 package ch.descabato.core.model
 
 import ch.descabato.CompressionMode
-import ch.descabato.rocks.protobuf.keys.FileMetadataKey
-import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.RevisionValue
-import ch.descabato.rocks.protobuf.keys.ValueLogIndex
-import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
+import ch.descabato.protobuf.keys.FileMetadataKey
+import ch.descabato.protobuf.keys.FileMetadataValue
+import ch.descabato.protobuf.keys.RevisionValue
+import ch.descabato.protobuf.keys.ValueLogIndex
+import ch.descabato.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.Hash

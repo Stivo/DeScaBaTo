@@ -8,7 +8,6 @@ import java.text.DecimalFormat
 import java.util
 import java.util.Base64
 import ch.descabato.CustomByteArrayOutputStream
-import ch.descabato.rocks.Utils
 import ch.descabato.utils.FastHashMap.W
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging

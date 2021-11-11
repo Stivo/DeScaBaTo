@@ -5,9 +5,9 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.FileMetadataKeyWrapper
 import ch.descabato.frontend.VerifyConf
-import ch.descabato.rocks.protobuf.keys.BackedupFileType
-import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.ValueLogIndex
+import ch.descabato.protobuf.keys.BackedupFileType
+import ch.descabato.protobuf.keys.FileMetadataValue
+import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Implicits.AwareDigest
 import ch.descabato.utils.Utils
 import org.bouncycastle.crypto.Digest

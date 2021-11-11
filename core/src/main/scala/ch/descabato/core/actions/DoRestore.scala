@@ -8,10 +8,10 @@ import ch.descabato.core.model.FileMetadataKeyWrapper
 import ch.descabato.core.model.FolderDescription
 import ch.descabato.core.model.Revision
 import ch.descabato.frontend.RestoreConf
-import ch.descabato.rocks.protobuf.keys.BackedupFileType
-import ch.descabato.rocks.protobuf.keys.FileMetadataKey
-import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.RevisionValue
+import ch.descabato.protobuf.keys.BackedupFileType
+import ch.descabato.protobuf.keys.FileMetadataKey
+import ch.descabato.protobuf.keys.FileMetadataValue
+import ch.descabato.protobuf.keys.RevisionValue
 
 import java.io.File
 import java.io.FileOutputStream

@@ -7,8 +7,8 @@ import ch.descabato.core.model.BackupEnvInit
 import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.FileMetadataKeyWrapper
 import ch.descabato.core.model.ValueLogStatusKey
-import ch.descabato.rocks.protobuf.keys.Status
-import ch.descabato.rocks.protobuf.keys.ValueLogIndex
+import ch.descabato.protobuf.keys.Status
+import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Utils
 import com.typesafe.scalalogging.LazyLogging
 

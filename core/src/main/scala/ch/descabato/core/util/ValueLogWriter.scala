@@ -3,10 +3,10 @@ package ch.descabato.core.util
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ValueLogStatusKey
 import ch.descabato.utils.StopWatch
-import ch.descabato.rocks.protobuf.keys.FileMetadataValue
-import ch.descabato.rocks.protobuf.keys.Status
-import ch.descabato.rocks.protobuf.keys.ValueLogIndex
-import ch.descabato.rocks.protobuf.keys.ValueLogStatusValue
+import ch.descabato.protobuf.keys.FileMetadataValue
+import ch.descabato.protobuf.keys.Status
+import ch.descabato.protobuf.keys.ValueLogIndex
+import ch.descabato.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
