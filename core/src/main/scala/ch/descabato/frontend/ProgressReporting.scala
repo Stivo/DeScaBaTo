@@ -38,7 +38,7 @@ object ProgressReporters {
     }
   }
 
-  def addCounter(newCounters: Counter*) {
+  def addCounter(newCounters: Counter*): Unit = {
     counters.synchronized {
       for (c <- newCounters if !(counters safeContains c.name)) {
         counters += c.name -> c

@@ -17,7 +17,7 @@ abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, k
   header ++= kvStoreVersion
   header :+= 2.toByte // type 2 continues with encryption parameters
 
-  private def writeEncryptionInfo() {
+  private def writeEncryptionInfo(): Unit = {
     header ++= Array(
       encryptionInfo.algorithm,
       encryptionInfo.macAlgorithm,
@@ -26,7 +26,7 @@ abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, k
     header ++= encryptionInfo.iv
   }
 
-  private def writeKeyDerivationInfo() {
+  private def writeKeyDerivationInfo(): Unit = {
     header ++= Array(
       keyDerivationInfo.algorithm,
       keyDerivationInfo.iterationsPower,
@@ -56,7 +56,7 @@ abstract class EncryptedFileWriterBase(val file: File, val passphrase: String, k
     setupKeyInfo()
   }
 
-  protected def writeHmac() {
+  protected def writeHmac(): Unit = {
     write(BytesWrapper(CryptoUtils.hmac(header, keyInfo)))
   }
 

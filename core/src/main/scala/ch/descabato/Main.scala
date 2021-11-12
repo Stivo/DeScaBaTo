@@ -43,7 +43,7 @@ object Main extends Utils {
     case None => l.warn("No command named " + name + " exists."); new HelpCommand()
   }
 
-  def parseCommandLine(args: Seq[String]) {
+  def parseCommandLine(args: Seq[String]): Unit = {
     val (command, tail) = if (args.isEmpty) {
       ("help", Nil)
     } else {
@@ -52,7 +52,7 @@ object Main extends Utils {
     getCommand(command).execute(tail)
   }
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     if (System.getProperty("logname") == null) {
       val date = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
       System.setProperty("logname", s"backup-$date.log")
@@ -77,7 +77,7 @@ object Main extends Utils {
     }
   }
 
-  def exit(exitCode: Int) {
+  def exit(exitCode: Int): Unit = {
     System.exit(exitCode)
   }
 

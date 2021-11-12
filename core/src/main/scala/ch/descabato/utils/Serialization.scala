@@ -81,7 +81,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
   }
   mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
-  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]) {
+  def writeObject[T](t: T, out: OutputStream)(implicit m: Manifest[T]): Unit = {
     mapper.writeValue(out, t)
     out.close()
   }

@@ -29,7 +29,7 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
   val timer = new Timer(40, this)
   show()
 
-  def show() {
+  def show(): Unit = {
     var name = ""
     for (info <- UIManager.getInstalledLookAndFeels()) {
       if ("Nimbus".equals(info.getName())) {
@@ -43,7 +43,7 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
     timer.start()
   }
 
-  def actionPerformed(e: ActionEvent) {
+  def actionPerformed(e: ActionEvent): Unit = {
     val copy =
       counters.synchronized {
         counters.toList
@@ -68,7 +68,7 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
 
   var counters: mutable.Buffer[Counter] = mutable.Buffer[Counter]()
 
-  def pause(pausing: Boolean) {
+  def pause(pausing: Boolean): Unit = {
     Main.paused = pausing
   }
 
@@ -87,7 +87,7 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
     }
   }
 
-  def add(x: Counter) {
+  def add(x: Counter): Unit = {
     counters.synchronized {
       counters += x
     }
@@ -107,7 +107,7 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
     }
   })
 
-  def setValue(value: Int, max: Int) {}
+  def setValue(value: Int, max: Int): Unit = {}
 }
 
 class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions)
@@ -123,12 +123,12 @@ class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: 
     case x: Throwable =>
   }
 
-  override def setValue(value: Int, max: Int) {
+  override def setValue(value: Int, max: Int): Unit = {
     if (list != null && hwnd != null)
       list.SetProgressValue(hwnd, value, max)
   }
 
-  override def pause(pausing: Boolean) {
+  override def pause(pausing: Boolean): Unit = {
     super.pause(pausing)
     val flag = if (pausing) ITaskbarList3.TbpFlag.TBPF_PAUSED else ITaskbarList3.TbpFlag.TBPF_NORMAL
     list.SetProgressState(hwnd, flag)

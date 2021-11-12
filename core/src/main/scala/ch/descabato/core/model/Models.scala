@@ -204,7 +204,7 @@ trait BackupPart extends UpdatePart {
 
   def size: Long
 
-  def applyAttrsTo(f: File) {
+  def applyAttrsTo(f: File): Unit = {
     FileAttributes.restore(attrs, f)
   }
 

@@ -12,7 +12,7 @@ class RestoreCommand extends BackupRelatedCommand {
 
   def newT(args: Seq[String]) = new RestoreConf(args)
 
-  def start(t: T, conf: BackupFolderConfiguration) {
+  def start(t: T, conf: BackupFolderConfiguration): Unit = {
     printConfiguration(t)
     validateFilename(t.restoreToFolder)
     validateFilename(t.restoreInfo)

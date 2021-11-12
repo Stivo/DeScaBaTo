@@ -19,7 +19,7 @@ class MountCommand extends BackupRelatedCommand {
 
   def newT(args: Seq[String]) = new FuseMountConf(args)
 
-  def start(t: T, conf: BackupFolderConfiguration) {
+  def start(t: T, conf: BackupFolderConfiguration): Unit = {
     printConfiguration(t)
 
     val config = BackupFolderConfiguration(conf.folder, t.passphrase.toOption)

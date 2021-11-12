@@ -149,7 +149,7 @@ class BackupConfigurationHandler(private var supplied: BackupFolderOption, exist
     this.passphrase = Some(passphrase)
   }
 
-  def verifyAndInitializeSetup(conf: BackupFolderConfiguration) {
+  def verifyAndInitializeSetup(conf: BackupFolderConfiguration): Unit = {
     //    if (conf.redundancyEnabled && CommandLineToolSearcher.lookUpName("par2").isEmpty) {
     //      throw ExceptionFactory.newPar2Missing
     //    }

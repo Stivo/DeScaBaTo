@@ -167,7 +167,7 @@ object Utils extends LazyLogging {
     val baos = new CustomByteArrayOutputStream()
     val ps = new PrintStream(baos)
 
-    def print(t: Throwable) {
+    def print(t: Throwable): Unit = {
       t.printStackTrace(ps)
       if (t.getCause() != null) {
         ps.println()
@@ -239,7 +239,7 @@ object Implicits {
   }
 
   implicit class AwareOutputStream(os: OutputStream) {
-    def write(bytesWrapper: BytesWrapper) {
+    def write(bytesWrapper: BytesWrapper): Unit = {
       os.write(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
     }
   }
@@ -294,7 +294,7 @@ object FileUtils extends Utils {
   }
 
   def deleteAll(f: File): Unit = {
-    def walk(f: File) {
+    def walk(f: File): Unit = {
       if (f.isDirectory()) {
         f.listFiles().toList.foreach(walk)
         f.delete()
@@ -305,11 +305,14 @@ object FileUtils extends Utils {
     }
 
     var i = 0
-    do {
-      walk(f)
-      i += 1
-      Thread.sleep(500)
-    } while (i < 5 && f.exists)
+    while ( {
+      {
+        walk(f)
+        i += 1
+        Thread.sleep(500)
+      };
+      i < 5 && f.exists
+    }) ()
     if (i > 1) {
       logger.warn(s"Took delete all $i runs, now folder is deleted " + (!f.exists))
     }

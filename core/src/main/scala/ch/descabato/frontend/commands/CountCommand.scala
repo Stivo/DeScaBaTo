@@ -7,7 +7,7 @@ import ch.descabato.utils.Utils
 
 class CountCommand extends Command with Utils {
 
-  def start(t: CountConf) {
+  def start(t: CountConf): Unit = {
     logger.info(t.summary)
     val (folders, files) = Backup.listFiles(t.folderToCountIn(), t.ignoreFile.toOption)
     val count = files

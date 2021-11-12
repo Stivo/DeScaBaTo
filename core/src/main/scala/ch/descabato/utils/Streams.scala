@@ -18,19 +18,19 @@ object Streams extends Utils {
 
     var oneByte: Array[Byte] = Array.ofDim[Byte](1)
 
-    final def write(b: Int) {
+    final def write(b: Int): Unit = {
       oneByte(0) = b.asInstanceOf[Byte]
       write(oneByte)
     }
 
-    def createChunkNow() {
+    def createChunkNow(): Unit = {
       funcWasCalledOnce = true
       func(out.toBytesWrapper())
       logger.info(s"Created chunk with ${readableFileSize(out.size())}")
       out.reset()
     }
 
-    override final def close() {
+    override final def close(): Unit = {
       if (out.size() > 0 || !funcWasCalledOnce) {
         createChunkNow()
       }

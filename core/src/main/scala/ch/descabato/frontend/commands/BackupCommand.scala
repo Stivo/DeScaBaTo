@@ -45,7 +45,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
 
   def newT(args: Seq[String]) = new MultipleBackupConf(args)
 
-  def start(t: T, conf: BackupFolderConfiguration) {
+  def start(t: T, conf: BackupFolderConfiguration): Unit = {
     printConfiguration(t)
 
     if (!t.noScriptCreation()) {

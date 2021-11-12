@@ -51,7 +51,7 @@ trait Command {
 
   def name: String = this.getClass().getSimpleName().replace("Command", "").toLowerCase()
 
-  def execute(args: Seq[String])
+  def execute(args: Seq[String]): Unit
 
   def printConfiguration[T <: BackupFolderOption](t: T): Unit = {
     if (t.passphrase.isDefined) {
@@ -84,7 +84,7 @@ trait Command {
 
 class ReflectionCommand(override val name: String, clas: String) extends Command {
 
-  def execute(args: Seq[String]) {
+  def execute(args: Seq[String]): Unit = {
     try {
       val clazz = Class.forName(clas)
       val instance = clazz.getConstructor().newInstance()
@@ -106,7 +106,7 @@ trait BackupRelatedCommand extends Command with Utils {
 
   var lastArgs: Seq[String] = Nil
 
-  final override def execute(args: Seq[String]) {
+  final override def execute(args: Seq[String]): Unit = {
     val t = newT(args)
     try {
       t.appendDefaultToDescription = true
@@ -141,7 +141,7 @@ trait BackupRelatedCommand extends Command with Utils {
 
   def overrideVersion: Option[String] = None
 
-  def start(t: T) {
+  def start(t: T): Unit = {
     import ch.descabato.core.config.BackupVerification._
     val confHandler = new BackupConfigurationHandler(t, needsExistingBackup)
     confHandler.verify() match {
@@ -159,9 +159,9 @@ trait BackupRelatedCommand extends Command with Utils {
     start(t, conf)
   }
 
-  def start(t: T, conf: BackupFolderConfiguration)
+  def start(t: T, conf: BackupFolderConfiguration): Unit
 
-  def validateFilename(option: ScallopOption[String]) {
+  def validateFilename(option: ScallopOption[String]): Unit = {
     if (option.isDefined) {
       val s = option()
       try {
@@ -254,7 +254,7 @@ class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderO
 
 class HelpCommand extends Command {
 
-  override def execute(args: Seq[String]) {
+  override def execute(args: Seq[String]): Unit = {
     args.toList match {
       case command :: _ if Main.getCommands().safeContains(command) => Main.parseCommandLine(command :: "--help" :: Nil)
       case _ =>
@@ -273,7 +273,7 @@ class VersionCommand extends Command {
 
   override def name: String = "--version"
 
-  override def execute(args: Seq[String]) {
+  override def execute(args: Seq[String]): Unit = {
     println(
       s"""|DeScaBaTo version ${BuildInfo.version}
           |Scala ${BuildInfo.scalaVersion}
