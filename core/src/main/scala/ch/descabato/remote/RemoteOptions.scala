@@ -3,6 +3,7 @@ package ch.descabato.remote
 import ch.descabato.RemoteMode
 import ch.descabato.frontend.FileCounter
 import ch.descabato.frontend.ProgressReporters
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.common.util.concurrent.RateLimiter
 
 class RemoteOptions {
@@ -11,12 +12,14 @@ class RemoteOptions {
   var mode: RemoteMode = RemoteMode.NoRemote
 
   @transient
+  @JsonIgnore
   def enabled: Boolean = uri != null
 
   // set to 1 GB for unlimited initially
   private var _uploadSpeedLimitKiloBytesPerSecond: Int = 1024 * 1024
 
   @transient
+  @JsonIgnore
   lazy val uploadRateLimiter: RateLimiter = RateLimiter.create(_uploadSpeedLimitKiloBytesPerSecond * 1024)
 
   def setUploadSpeedLimitKiloBytesPerSecond(newRate: Int): Unit = {
@@ -42,6 +45,7 @@ class RemoteOptions {
   }
 
   @transient
+  @JsonIgnore
   lazy val uploaderCounter1: FileCounter = new FileCounter {
     ProgressReporters.addCounter(this)
   }
