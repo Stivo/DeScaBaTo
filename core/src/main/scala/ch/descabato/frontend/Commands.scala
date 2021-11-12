@@ -21,11 +21,9 @@ import org.rogach.scallop.exceptions.ScallopException
 import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
-import scala.reflect.runtime.universe
-import scala.reflect.runtime.universe.TypeTag
 
 object ScallopConverters {
-  def singleArgConverter[A](conv: String => A, msg: String = "wrong arguments format")(implicit tt: TypeTag[A]): ValueConverter[A] = new ValueConverter[A] {
+  def singleArgConverter[A](conv: String => A, msg: String = "wrong arguments format"): ValueConverter[A] = new ValueConverter[A] {
     def parse(s: List[(String, List[String])]): Either[String, Option[A]] = {
       s match {
         case (_, i :: Nil) :: Nil =>
@@ -39,7 +37,6 @@ object ScallopConverters {
       }
     }
 
-    val tag: universe.TypeTag[A] = tt
     val argType: ArgType.V = ArgType.SINGLE
   }
 

@@ -1,0 +1,5 @@
+- use ": Unit =" syntax everywhere
+- find appropriate scalacheck version for unit tests
+- use jackson module not with ScalaObjectMapper => done
+- remove do whiles
+- rewrite scallop parser magic without typetags => done

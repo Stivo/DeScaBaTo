@@ -26,7 +26,6 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.7",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-  "org.scala-lang" % "scala-reflect" % Common.scalaVersion
 )
 
 // Jackson / persistence

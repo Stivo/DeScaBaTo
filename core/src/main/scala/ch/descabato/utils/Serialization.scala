@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.fasterxml.jackson.module.scala.ScalaObjectMapper
 
 import java.io.InputStream
 import java.io.OutputStream
@@ -71,7 +70,7 @@ abstract class AbstractJacksonSerialization extends Serialization {
   testModule.addDeserializer(classOf[BytesWrapper], new BaWrapperDeserializer())
   testModule.addSerializer(classOf[BytesWrapper], new BaWrapperSerializer())
 
-  def mapper: ObjectMapper with ScalaObjectMapper
+  def mapper: ObjectMapper
 
   mapper.registerModule(DefaultScalaModule)
 
@@ -92,12 +91,12 @@ abstract class AbstractJacksonSerialization extends Serialization {
   }
 
   def read[T](in: BytesWrapper)(implicit m: Manifest[T]): Left[T, Exception] = {
-    Left(mapper.readValue(in.array, in.offset, in.length))
+    Left(mapper.readValue(in.array, in.offset, in.length, m.runtimeClass).asInstanceOf[T])
   }
 
   def readObject[T](in: InputStream)(implicit m: Manifest[T]) : Either[T, Exception] = {
     try {
-      Left(mapper.readValue(in))
+      Left(mapper.readValue(in, m.runtimeClass).asInstanceOf[T])
     } catch {
       case exception : Exception => Right(exception)
     }
@@ -106,5 +105,5 @@ abstract class AbstractJacksonSerialization extends Serialization {
 }
 
 class JsonSerialization(override val indent: Boolean = true) extends AbstractJacksonSerialization {
-  lazy val mapper = new ObjectMapper() with ScalaObjectMapper
+  lazy val mapper = new ObjectMapper()
 }
