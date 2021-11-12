@@ -45,3 +45,6 @@ jobs:
 
       # run tests!
       - run: cat /dev/null | sbt test:test
+
+      # run scala 3 tests!
+      - run: cat /dev/null | sbt ++3.1.0 test:test

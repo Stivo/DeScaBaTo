@@ -10,7 +10,7 @@ libraryDependencies ++= Seq(
   "org.rogach" %% "scallop" % "4.1.0",
   "org.ocpsoft.prettytime" % "prettytime" % "5.0.2.Final",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.69",
-  "com.github.pathikrit" %% "better-files" % "3.9.1",
+  ("com.github.pathikrit" %% "better-files" % "3.9.1").cross(CrossVersion.for3Use2_13),
 )
 
 // compressors
@@ -58,7 +58,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.easymock"),
     ExclusionRule(organization = "org.mockito")
   ),
-  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
+  "org.scalatestplus" %% "scalacheck-1-15" % (scalaTestVersion + ".0") % Test,
   "org.scalatest" %% "scalatest-matchers-core" % scalaTestVersion % Test,
   "org.scalactic" %% "scalactic" % scalaTestVersion % "test"
     excludeAll(
