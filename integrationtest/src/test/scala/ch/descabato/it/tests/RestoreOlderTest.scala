@@ -171,7 +171,7 @@ class RestoreOlderTest extends IntegrationTestBase {
     s"prepare next test ${part = part + 1; part}"
   }
 
-  def assertRestoreInfoWritten(folder: File, filename: String) {
+  def assertRestoreInfoWritten(folder: File, filename: String): Unit = {
     //    val reader = new FileReader(new File(folder, restoreInfoName))
     //    val string = IOUtils.toString(reader)
     //    IOUtils.closeQuietly(reader)

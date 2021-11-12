@@ -21,18 +21,18 @@ class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String,
   @volatile var finished = false
   var exit = Int.MinValue
 
-  def onProcessComplete(exitValue: Int) {
+  def onProcessComplete(exitValue: Int): Unit = {
     finished = true
     exit = exitValue
     close()
   }
 
-  override def destroyProcess() {
+  override def destroyProcess(): Unit = {
     super.destroyProcess()
     close()
   }
 
-  def onProcessFailed(e: ExecuteException) {
+  def onProcessFailed(e: ExecuteException): Unit = {
     logException(e)
     finished = true
     exit = -1
@@ -52,11 +52,11 @@ class BackupExecutionHandler(args: CommandLine, logfolder: File, name: String,
     out
   }
 
-  def start() {
+  def start(): Unit = {
     executor.execute(args, map, this)
   }
 
-  def close() {
+  def close(): Unit = {
     out.close()
     error.close()
   }

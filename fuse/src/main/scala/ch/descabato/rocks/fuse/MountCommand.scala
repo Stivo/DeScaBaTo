@@ -94,5 +94,6 @@ class MountCommand extends BackupRelatedCommand {
 }
 
 class FuseMountConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
+  import org.rogach.scallop.stringConverter
   val mountFolder: ScallopOption[String] = opt[String](descr = "The folder to mount the contents on (on windows: drive letter)", required = true)
 }

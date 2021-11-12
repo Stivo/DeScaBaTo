@@ -22,8 +22,8 @@ class CompressedStreamSpec extends AnyFlatSpec with BeforeAndAfterAll
 
   var folder = new File("testdata/temp")
 
-  implicit val x = Arbitrary {
-    oneOf(CompressionMode.values.filter(_.isCompressionAlgorithm))
+  implicit val x: Arbitrary[CompressionMode] = Arbitrary {
+    oneOf(CompressionMode.values.toList.filter(_.isCompressionAlgorithm))
   }
 
   implicit class InputStreamBetter(in: InputStream) {

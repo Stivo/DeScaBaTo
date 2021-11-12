@@ -18,7 +18,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
   val backup1 = folder("backup1")
   val restore1 = folder("restore1")
 
-  override def beforeAll() {
+  override def beforeAll(): Unit = {
     val destfile = new File(descabatoFolder, "core/target/scala-2.10/jacoco/jacoco.exec")
     destfile.delete()
     System.setProperty("logname", "integrationtest.log")
@@ -81,7 +81,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
     Files.walk(backup1.toPath).forEach(x => println(x))
   }
 
-  def testWith(testName: String, config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false) {
+  def testWith(testName: String, config: String, configRestore: String, iterations: Int, maxSize: String, crash: Boolean = false, redundancy: Boolean = false): Unit = {
     val hasPassword = configRestore.contains("--passphrase")
     val fg = new FileGen(input, maxSize)
     testName should "setup" in {
@@ -126,7 +126,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
       if (i != iterations) {
         it should s"setup next iteration $i/$iterations" in {
           l.info("Changing files")
-          fg.changeSome
+          fg.changeSome()
           l.info("Changing files done")
         }
       }
@@ -155,7 +155,7 @@ abstract class IntegrationTest extends IntegrationTestBase with BeforeAndAfter w
     // let backup finish
     startAndWait(s"backup$config $backup1 $input".split(" ")) should be(0)
     // no temp files in backup
-    input.listFiles().filter(_.getName().startsWith("temp")).toList should be('empty)
+    input.listFiles().filter(_.getName().startsWith("temp")).toList should be(Symbol("empty"))
   }
 
 }

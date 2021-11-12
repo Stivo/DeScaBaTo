@@ -23,7 +23,7 @@ class UtilSpec extends AnyFlatSpec with BeforeAndAfterAll with ScalaCheckDrivenP
     test("0.5gb", 512 * mb)
   }
 
-  def test(s: String, l: Long) {
+  def test(s: String, l: Long): Unit = {
     val size: Size = Size(s)
     assert(size.bytes === l)
   }

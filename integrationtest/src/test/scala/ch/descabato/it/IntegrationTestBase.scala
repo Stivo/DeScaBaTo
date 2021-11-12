@@ -106,13 +106,13 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
 
   def startAndWait(args: Seq[String], redirect: Boolean = true) = {
     try {
-      createHandler(args, redirect).startAndWait
+      createHandler(args, redirect).startAndWait()
     } catch {
       case e: ExecuteException => e.getExitValue()
     }
   }
 
-  def messupBackupFiles(folder: File) {
+  def messupBackupFiles(folder: File): Unit = {
     val files = Files.walk(folder.toPath).iterator().asScala.map(_.toFile).filter(_.isFile).toList
     val set = Set("hashlists", "files")
     val prefix = if (currentTestName contains "prefix") "testprefix_" else ""
@@ -138,13 +138,13 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
     option.get
   }
 
-  def compareBackups(f1: File, f2: File) {
+  def compareBackups(f1: File, f2: File): Unit = {
     val files1 = f1.listFiles().toSet
     val files2 = f2.listFiles().toSet
     for (c1 <- files1) {
       val c2 = getFile(files2, c1)
       if (c1.isDirectory()) {
-        c2 should be('directory)
+        c2 should be(Symbol("directory"))
         compareBackups(c1, c2)
       } else {
         assert(c1.getName === c2.getName, "name should be same for " + c1)

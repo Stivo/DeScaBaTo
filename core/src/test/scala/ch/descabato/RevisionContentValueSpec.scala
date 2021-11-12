@@ -9,7 +9,7 @@ class RevisionContentValueSpec extends AnyWordSpec {
 
   "Revision content encoding" should {
     "encode and decode correctly for an update" in {
-      val value1 = RevisionContentValue.createUpdate(7, "test".getBytes, "test2".getBytes().wrap)
+      val value1 = RevisionContentValue.createUpdate(7, "test".getBytes, "test2".getBytes().wrap())
       val encoded = value1.asArray()
       val decodedValue = RevisionContentValue.readNextEntry(encoded.asInputStream())
       decodedValue should equal(Some(value1))

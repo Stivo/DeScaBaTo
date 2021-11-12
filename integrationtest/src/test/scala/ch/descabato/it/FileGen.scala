@@ -24,17 +24,19 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
   var fileList = Buffer[File]()
   val folderLevels = Map[File, Int]()
 
-  def times(n: Int)(f: => Unit) {
+  def times(n: Int)(f: => Unit): Unit = {
     (1 to n).foreach(_ => f)
   }
 
   def makeCopyFile(i: Int) = new File(folder, "copy"+i)
 
-  def generateFiles() {
+  def generateFiles(): Unit = {
     deleteAll(folder)
     folder.mkdirs()
     folderList += folder
-    times(25) { newFolder() }
+    times(25) {
+      newFolder()
+    }
     newFile(maxSizeIn.toInt / 2, true)
     newFile(maxSizeIn.toInt / 10, true)
     val copyFrom1 = fileList.last
@@ -44,19 +46,21 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     times(10)(newFile(0))
     times(5)(newFile(102400, true))
     Files.copy(copyFrom1.toPath, makeCopyFile(1).toPath)
+
     def selectSmallFile() = {
-      var file = selectFile
-      while (file.length > 10*1024*1024) {
-        file = selectFile
+      var file = selectFile()
+      while (file.length > 10 * 1024 * 1024) {
+        file = selectFile()
       }
       file
     }
-    Files.copy(selectSmallFile.toPath, makeCopyFile(2).toPath)
-    Files.copy(selectSmallFile.toPath, makeCopyFile(3).toPath)
+
+    Files.copy(selectSmallFile().toPath, makeCopyFile(2).toPath)
+    Files.copy(selectSmallFile().toPath, makeCopyFile(3).toPath)
     fileList ++= (for (i <- 1 to 3) yield makeCopyFile(i)).toBuffer
   }
 
-  def rescan() {
+  def rescan(): Unit = {
     val collector = new FileVisitorCollector(None)
     collector.walk(folder.toPath)
     folderList.clear
@@ -65,14 +69,14 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     fileList ++= collector.files.map(_.toFile)
   }
 
-  def changeSome() {
+  def changeSome(): Unit = {
     val folders = random.nextInt(10) + 2
     val int = random.nextInt(20) + 10
     times(folders)(newFolder())
     times(int)(newFile(100000))
-    times(25)(changeFile)
-    times(10)(renameFile)
-    times(5)(deleteFile)
+    times(25)(changeFile())
+    times(10)(renameFile())
+    times(5)(deleteFile())
   }
 
   implicit class MoreRandom(r: Random) {
@@ -83,33 +87,33 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     }
   }
 
-  def renameFile() {
+  def renameFile(): Unit = {
     if (fileList.size < 10) {
       times(10)(newFile(10000))
     }
     var file = folder
     while (file == folder) {
-      file = selectFolderOrFile
+      file = selectFolderOrFile()
     }
     val fileNew = new File(file.getParentFile, generateName())
     Files.move(file.toPath(), fileNew.toPath())
-    l.debug("File was moved from "+file+" to "+fileNew)
-    rescan
+    l.debug("File was moved from " + file + " to " + fileNew)
+    rescan()
   }
 
-  def deleteFile() {
+  def deleteFile(): Unit = {
     var i = 0
-    var lastfile: File = selectFolderOrFile
+    var lastfile: File = selectFolderOrFile()
     while (i < 5 && lastfile.exists()) {
       lastfile = selectFolderOrFile()
       lastfile.delete()
       i += 1
     }
-    l.debug("DeleteFile ran "+i+" times and deleted "+lastfile.exists+" the file "+lastfile)
-    rescan
+    l.debug("DeleteFile ran " + i + " times and deleted " + lastfile.exists + " the file " + lastfile)
+    rescan()
   }
 
-  def changeFile() {
+  def changeFile(): Unit = {
     val file = selectFile()
     val raf = new RandomAccessFile(file, "rw")
     try {
@@ -132,7 +136,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
 
   def selectFile() = {
     if (fileList.isEmpty) {
-      rescan
+      rescan()
     }
     while(fileList.isEmpty) {
       newFile()
@@ -142,19 +146,20 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
 
   def selectFolder() = {
     if (folderList.isEmpty) {
-      rescan
+      rescan()
     }
     while (folderList.isEmpty) {
-      val f = new File(folder, generateName)
+      val f = new File(folder, generateName())
       f.mkdirs()
-      if (f.exists() && f.isDirectory())
-    	folderList += f
+      if (f.exists() && f.isDirectory()) {
+        folderList += f
+      }
     }
     select(folderList)
   }
 
   def selectFolderOrFile() = {
-    select(mutable.Buffer(selectFile, selectFolder))
+    select(mutable.Buffer(selectFile(), selectFolder()))
   }
 
   def generateName(): String = {
@@ -169,11 +174,11 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     ""
   }
 
-  def newFile(maxSize: Int = 100000, sizeExact: Boolean = false) {
+  def newFile(maxSize: Int = 100000, sizeExact: Boolean = false): Unit = {
     val isTextFile = random.nextInt(100) < 75
     var done = false
     while (!done) {
-      val name = new File(selectFolder, generateName+ (if (isTextFile) ".txt" else ".7z"))
+      val name = new File(selectFolder(), generateName() + (if (isTextFile) ".txt" else ".7z"))
       if (name.exists()) {
         if (!fileList.contains(name))
           fileList += name
@@ -223,16 +228,19 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
     }
   }
 
-  def newFolder(baseIn: Option[File] = None) {
-    val base = selectFolder
+  def newFolder(baseIn: Option[File] = None): Unit = {
+    val base = selectFolder()
 
     var name: File = null
-    do {
-      name = new File(base, generateName)
-      name.mkdir()
+    while ( {
+      {
+        name = new File(base, generateName())
+        name.mkdir()
 
-    } while (!name.exists())
-    l.debug("folder was created "+name)
+      };
+      !name.exists()
+    }) ()
+    l.debug("folder was created " + name)
     folderList += name
   }
 

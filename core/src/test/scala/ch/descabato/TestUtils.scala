@@ -19,27 +19,31 @@ trait TestUtils extends Utils {
   }
 
   // TODO there is a copy of this now in FileUtils
-  def deleteAll(folders: File*) = {
-    def walk(f: File) {
+  def deleteAll(folders: File*): Unit = {
+    def walk(f: File): Unit = {
       f.isDirectory() match {
         case true =>
           f.listFiles().toList.foreach(walk)
           f.delete()
-        case false => 
+        case false =>
           f.delete()
           Files.deleteIfExists(f.toPath())
       }
     }
+
     for (f <- folders) {
       var i = 0
-      do {
-        walk(f)
-        i += 1
-        Thread.sleep(500)
-      } while (i < 5 && f.exists)
-      if (i > 1) {
-        l.warn(s"Took delete all $i runs, now folder is deleted " + (!f.exists))
-      }
+      while ( {
+        {
+          walk(f)
+          i += 1
+          Thread.sleep(500)
+        }
+        i < 5 && f.exists
+      })
+        if (i > 1) {
+          l.warn(s"Took delete all $i runs, now folder is deleted " + (!f.exists))
+        }
     }
   }
 
