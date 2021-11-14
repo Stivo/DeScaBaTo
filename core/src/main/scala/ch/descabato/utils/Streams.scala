@@ -26,7 +26,6 @@ object Streams extends Utils {
     def createChunkNow(): Unit = {
       funcWasCalledOnce = true
       func(out.toBytesWrapper())
-      logger.info(s"Created chunk with ${readableFileSize(out.size())}")
       out.reset()
     }
 
