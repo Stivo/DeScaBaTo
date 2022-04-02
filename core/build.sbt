@@ -9,7 +9,7 @@ Compile / unmanagedSourceDirectories += new File("src/main/resources")
 libraryDependencies ++= Seq(
   "org.rogach" %% "scallop" % "4.1.0",
   "org.ocpsoft.prettytime" % "prettytime" % "5.0.2.Final",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.69",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.70",
   ("com.github.pathikrit" %% "better-files" % "3.9.1").cross(CrossVersion.for3Use2_13),
 )
 
@@ -19,18 +19,18 @@ libraryDependencies ++= Seq(
   "org.lz4" % "lz4-java" % "1.8.0",
   "org.tukaani" % "xz" % "1.9",
   "org.apache.commons" % "commons-compress" % "1.21",
-  "com.github.luben" % "zstd-jni" % "1.5.0-4"
+  "com.github.luben" % "zstd-jni" % "1.5.2-2"
 )
 
 // Logging
 libraryDependencies ++= Seq(
-  "ch.qos.logback" % "logback-classic" % "1.2.7",
+  "ch.qos.logback" % "logback-classic" % "1.2.11",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
 )
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.0"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.2"
 )
 
 // UI Dependencies
@@ -42,10 +42,10 @@ libraryDependencies ++= Seq(
 
 // remote dependencies
 libraryDependencies ++= Seq(
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.12.109"
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.12.191"
 )
 
-val scalaTestVersion = "3.2.10"
+val scalaTestVersion = "3.2.11"
 
 // Test dependencies
 libraryDependencies ++= Seq(
@@ -87,7 +87,7 @@ enablePlugins(PackPlugin)
 
 packMain := Map("descabato" -> "ch.descabato.Main")
 
-packJvmOpts := Map("descabato" -> Seq("-Xmx2g", "-Xms1g", "-XX:NewSize=1g", "-XX:MaxNewSize=1g", "-XX:MaxPermSize=1g"))
+packJvmOpts := Map("descabato" -> Seq("-Xmx2g", "-Xms1g", "-XX:NewSize=1g", "-XX:MaxNewSize=1g"))
 
 packJarNameConvention := "original"
 
