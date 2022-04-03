@@ -6,6 +6,7 @@ import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Implicits._
 import scalapb.GeneratedMessage
+import scalapb.TypeMapper
 
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
@@ -38,12 +39,28 @@ case class ChunkKey(hash: Hash) extends Key {
 
 case class Revision(number: Int) extends Key
 
+case class RevisionKey(number: Int) extends AnyVal
+
+object RevisionKey {
+  implicit val typeMapper: TypeMapper[Int, RevisionKey] = TypeMapper(RevisionKey.apply)(_.number)
+}
+
 case class RevisionContentKey(number: Long) extends Key
 
 case class ValueLogStatusKey(name: String) extends Key {
   def parseNumber: Int = {
     name.replaceAll("[^0-9]+", "").toInt
   }
+}
+
+case class ValueLogName(name: String) extends AnyVal {
+  def parseNumber: Int = {
+    name.replaceAll("[^0-9]+", "").toInt
+  }
+}
+
+object ValueLogName {
+  implicit val typeMapper: TypeMapper[String, ValueLogName] = TypeMapper(ValueLogName.apply)(_.name)
 }
 
 case class FileMetadataKeyWrapper(fileMetadataKey: FileMetadataKey) extends Key

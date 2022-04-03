@@ -7,9 +7,9 @@ import com.typesafe.scalalogging.LazyLogging
 import com.typesafe.scalalogging.Logger
 import org.bouncycastle.crypto.Digest
 import org.bouncycastle.util.encoders.Hex
+import scalapb.TypeMapper
 
 import java.io._
-import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.text.DecimalFormat
@@ -39,6 +39,9 @@ object Hash {
     new Hash(hash)
   }
 
+  implicit val typeMapper: TypeMapper[ByteString, Hash] =
+    TypeMapper[ByteString, Hash](b => Hash(b.toByteArray))(_.wrap().toProtobufByteString())
+
 }
 
 class Hash private(val bytes: Array[Byte]) extends AnyVal {
@@ -61,6 +64,9 @@ class Hash private(val bytes: Array[Byte]) extends AnyVal {
 
 object BytesWrapper {
 
+  implicit val typeMapper: TypeMapper[ByteString, BytesWrapper] =
+    TypeMapper[ByteString, BytesWrapper](b => BytesWrapper.apply(b.toByteArray))(Option(_).map(_.toProtobufByteString()).getOrElse(ByteString.EMPTY))
+
   def apply(bytes: Array[Byte], offset: Int = 0, length: Int = -1): BytesWrapper = {
     require(bytes != null)
     require(length <= bytes.length || length < 0)
@@ -74,8 +80,6 @@ object BytesWrapper {
 class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: Int) extends RealEquality[BytesWrapper] {
 
   def asInputStream() = new ByteArrayInputStream(array, offset, length)
-
-  def apply(i: Int): Byte = array(i + offset)
 
   def asArray(): Array[Byte] = {
     if (array == null) {
@@ -91,12 +95,22 @@ class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: 
     }
   }
 
+  def copyToArray(b: Array[Byte], off: Int, toRead: Int) = {
+    System.arraycopy(array, offset, b, off, toRead)
+  }
+
   def toProtobufByteString(): ByteString = {
     ByteString.copyFrom(array, offset, length)
   }
 
   def equals(other: BytesWrapper): Boolean = {
+    if (this.eq(other)) {
+      return true
+    }
     if (this.length != other.length) {
+      return false
+    }
+    if (this.hashCode != other.hashCode) {
       return false
     }
     var o1 = this.offset
@@ -118,7 +132,7 @@ class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: 
       case _ => false
     }
 
-  override def hashCode: Int = {
+  override lazy val hashCode: Int = {
     if (array == null) {
       0
     } else {
@@ -134,8 +148,6 @@ class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: 
   }
 
   override def toString(): String = s"${array.length}: ${new String(array)}"
-
-  def toByteBuffer(): ByteBuffer = ByteBuffer.wrap(array, offset, length)
 
   override def ===(t: BytesWrapper): Boolean = equals(t)
 }

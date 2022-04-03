@@ -7,9 +7,15 @@ import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
 import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.JsonSerialization
+import com.github.luben.zstd.ZstdInputStream
+import com.github.luben.zstd.ZstdOutputStream
 import org.bouncycastle.crypto.Digest
 
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 
 case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
 
@@ -55,6 +61,14 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
     } else {
       new EncryptedFileReader(file, passphrase.get)
     }
+  }
+
+  def newCompressedOutputStream(file: File): OutputStream = {
+    new ZstdOutputStream(new BufferedOutputStream(newWriter(file), 10 * 1024 * 1024), 7)
+  }
+
+  def newCompressedInputStream(file: File): InputStream = {
+    new ZstdInputStream(new BufferedInputStream(newReader(file), 10 * 1024 * 1024))
   }
 
   def relativePath(file: File): String = {

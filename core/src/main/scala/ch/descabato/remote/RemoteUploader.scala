@@ -51,7 +51,7 @@ class RemoteUploader(backupEnv: BackupEnv) extends Utils with AutoCloseable {
         val path = BackupPath(ident, config)
         if (!remoteFiles.safeContains(path) && path.forConfig(config).exists()) {
           logger.info(s"Uploading file $path")
-          queueUpload(path.forConfig(config), Hash(value.get.md5Hash.toByteArray))
+          queueUpload(path.forConfig(config), Hash(value.get.md5Hash.asArray()))
         }
       }
     }

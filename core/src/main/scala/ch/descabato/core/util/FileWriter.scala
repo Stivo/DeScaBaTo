@@ -6,10 +6,11 @@ import ch.descabato.utils.Implicits._
 
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStream
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 
-trait FileWriter extends AutoCloseable {
+trait FileWriter extends OutputStream with AutoCloseable {
   // ----------- Interface ---------------
   final def currentPosition(): Long = position
 
@@ -19,7 +20,16 @@ trait FileWriter extends AutoCloseable {
 
   final def md5Hash(): Hash = _md5Hash
 
-  final def close(): Unit = {
+  override def write(b: Array[Byte], off: Int, len: Int): Unit = {
+    write(BytesWrapper(b, off, len))
+  }
+
+  override def write(b: Int): Unit = {
+    // also not exactly sure how to implement this one
+    ???
+  }
+
+  override final def close(): Unit = {
     finishImpl()
     _md5Hash = Hash(outputStream.getMessageDigest.digest())
   }

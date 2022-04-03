@@ -16,7 +16,7 @@ import javax.crypto.spec.SecretKeySpec
 object CryptoUtils extends Utils {
   def deriveIv(iv: Array[Byte], offset: Int): IvParameterSpec = {
     var bigInt = new BigInteger(iv)
-    bigInt = bigInt.add(new BigInteger(offset + ""))
+    bigInt = bigInt.add(new BigInteger(offset.toString))
     var bytes = bigInt.toByteArray
     if (bytes.length != iv.length) {
       while (bytes.length < iv.length) {

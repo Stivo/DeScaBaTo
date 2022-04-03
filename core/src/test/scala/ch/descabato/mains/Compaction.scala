@@ -1,4 +1,4 @@
-package ch.descabato.core.actions
+package ch.descabato.mains
 
 import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration

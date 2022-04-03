@@ -170,7 +170,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
       filetype = if (file.toFile.isDirectory) BackedupFileType.FOLDER else BackedupFileType.FILE,
       length = attr.size(),
       created = attr.creationTime().toMillis,
-      hashes = hashes.map(_.toProtobufByteString()).getOrElse(ByteString.EMPTY),
+      hashes = hashes.getOrElse(BytesWrapper.empty),
       dosIsReadonly = dosAttributes.exists(_.isReadOnly),
       dosIsArchive = dosAttributes.exists(_.isArchive),
       dosIsHidden = dosAttributes.exists(_.isHidden),

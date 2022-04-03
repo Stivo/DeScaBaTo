@@ -8,7 +8,7 @@ import java.io.RandomAccessFile
 import java.util
 import javax.crypto.Cipher
 
-class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser with FileReader {
+class EncryptedFileReader(val file: File, passphrase: String) extends FileReader with CipherUser {
 
   private val raf: RandomAccessFile = new RandomAccessFile(file, "r")
 
@@ -76,12 +76,6 @@ class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser
   readHeader()
 
   def startOfContent: Long = encryptionBoundary + 32
-
-  override def readAllContent(): BytesWrapper = {
-    val startOfContent = encryptionBoundary + 32
-    val out = readChunk(startOfContent, file.length() - startOfContent)
-    out
-  }
 
   override def readChunk(position: Long, length: Long): BytesWrapper = {
     require(position >= encryptionBoundary)

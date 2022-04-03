@@ -8,10 +8,12 @@ option java_package = "ch.descabato.protobuf";
 option java_outer_classname = "Messages";
 
 option (scalapb.options) = {
-    preserve_unknown_fields: false
+    preserve_unknown_fields: false,
+    no_primitive_wrappers: true
 };
 
 message ValueLogIndex {
+    option (scalapb.message).no_box = true;
     string filename = 1;
     int64 from = 2;
     int32 lengthUncompressed = 3;
@@ -25,6 +27,7 @@ enum BackedupFileType {
 }
 
 message FileMetadataKey {
+    option (scalapb.message).no_box = true;
     BackedupFileType filetype = 1;
     string path = 2;
     uint64 changed = 3;
@@ -34,9 +37,11 @@ message RevisionValue {
     uint64 created = 1;
     string config_json = 2;
     repeated FileMetadataKey files = 3;
+    repeated uint32 file_identifiers = 4 [(scalapb.field).type = "ch.descabato.core.model.FileMetadataKeyId"];
 }
 
 message FileMetadataValue {
+    option (scalapb.message).no_box = true;
     // general ones
     uint64 created = 1;
     BackedupFileType filetype = 2;
@@ -44,7 +49,8 @@ message FileMetadataValue {
     bool fromwindows = 4;
     // file ones
     uint64 length = 8;
-    bytes hashes = 9;
+    bytes hashes = 9 [(scalapb.field).type = "ch.descabato.utils.BytesWrapper"];
+    repeated uint32 hash_ids = 10 [(scalapb.field).type = "ch.descabato.core.model.ChunkMapKeyId"];
     // unix
     uint32 unixmode = 16;
     string unixowner = 17;
@@ -66,5 +72,46 @@ enum Status {
 message ValueLogStatusValue {
     Status status = 1;
     uint64 size = 2;
-    bytes md5hash = 3;
+    bytes md5hash = 3 [(scalapb.field).type = "ch.descabato.utils.BytesWrapper"];
+}
+
+message ChunkProtoMap {
+
+    option (scalapb.message).no_box = true;
+    map<uint32, bytes> chunk_keys = 1 [
+        (scalapb.field).key_type = "ch.descabato.core.model.ChunkMapKeyId",
+        (scalapb.field).value_type = "ch.descabato.utils.Hash",
+        (scalapb.field).map_type="collection.immutable.HashMap"
+    ];
+    map<uint32, ValueLogIndex> chunk_values = 2 [
+        (scalapb.field).key_type = "ch.descabato.core.model.ChunkMapKeyId",
+        (scalapb.field).map_type="collection.immutable.HashMap"
+    ];
+}
+
+message FileMetadataProtoMap {
+
+    option (scalapb.message).no_box = true;
+    map<uint32, FileMetadataKey> file_metadata_keys = 1 [
+        (scalapb.field).key_type = "ch.descabato.core.model.FileMetadataKeyId",
+        (scalapb.field).map_type = "collection.immutable.HashMap"
+    ];
+    map<uint32, FileMetadataValue> file_metadata_values = 2 [
+        (scalapb.field).key_type = "ch.descabato.core.model.FileMetadataKeyId",
+        (scalapb.field).map_type = "collection.immutable.HashMap"
+    ];
+}
+
+message ProtoDb {
+    option (scalapb.message).no_box = true;
+    map<int32, RevisionValue> revisions = 1 [(scalapb.field).key_type = "ch.descabato.core.model.RevisionKey"];
+    map<string, ValueLogStatusValue> status = 2 [(scalapb.field).key_type = "ch.descabato.core.model.ValueLogName"];
+    ChunkProtoMap chunk_map = 3;
+    FileMetadataProtoMap file_metadata_map = 4;
+
+    // TODO these definitions are slightly outdated already again
+    // repeated int32 deleted_revisions = 11  [(scalapb.field).type = "ch.descabato.core.model.RevisionKey"];
+    // repeated string deleted_value_log_status = 12 [(scalapb.field).type = "ch.descabato.core.model.ValueLogName"];
+    // repeated FileMetadataKey deleted_files = 13;
+    // repeated bytes deleted_chunks = 14;
 }

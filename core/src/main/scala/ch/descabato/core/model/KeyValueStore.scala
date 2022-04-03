@@ -45,7 +45,7 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new 
 
   def getHashes(fileMetadataValue: FileMetadataValue): Iterator[ChunkKey] = {
     for {
-      hashBytes <- fileMetadataValue.hashes.toByteArray.grouped(32)
+      hashBytes <- fileMetadataValue.hashes.asArray().grouped(32)
     } yield ChunkKey(Hash(hashBytes))
   }
 

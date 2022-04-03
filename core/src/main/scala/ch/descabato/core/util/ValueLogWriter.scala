@@ -60,7 +60,7 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
   private def closeCurrentFile(currentFile: CurrentFile): Unit = {
     currentFile.fileWriter.close()
     val status = currentFile.valueLogStatusValue
-    val bs = ByteString.copyFrom(currentFile.fileWriter.md5Hash().bytes)
+    val bs = currentFile.fileWriter.md5Hash().wrap()
     val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition(), md5Hash = bs)
     kvStore.write(currentFile.key, newStatus)
     logger.info(s"Renaming ${currentFile.file} to final name")
