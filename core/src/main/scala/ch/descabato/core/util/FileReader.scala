@@ -6,7 +6,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
 
-trait FileReader extends InputStream with AutoCloseable {
+trait FileReader extends AutoCloseable {
 
   def file: File
 
@@ -18,24 +18,28 @@ trait FileReader extends InputStream with AutoCloseable {
 
   def startOfContent: Long
 
-  private var streamReaderPosition: Long = -1
+  def asInputStream(): InputStream = {
+    new InputStream {
+      private var streamReaderPosition: Long = -1
 
-  override def read(b: Array[Byte], off: Int, len: Int): Int = {
-    if (streamReaderPosition == -1) {
-      streamReaderPosition = startOfContent
-    }
-    val toRead = Math.min(len, file.length() - streamReaderPosition).toInt
-    if (toRead > 0) {
-      readChunk(streamReaderPosition, toRead).copyToArray(b, off, toRead)
-      streamReaderPosition += toRead
-    }
-    toRead
-  }
+      // since this should always be wrapped in a buffered input stream, this method should never be called
+      // also not sure how to implement it correctly
+      override def read(): Int = ???
 
-  override def read(): Int = {
-    // since this should always be wrapped in a buffered input stream, this method should never be called
-    // also not sure how to implement it correctly
-    ???
+      override def read(b: Array[Byte], off: Int, len: Int): Int = {
+        if (streamReaderPosition == -1) {
+          streamReaderPosition = startOfContent
+        }
+        val toRead = Math.min(len, file.length() - streamReaderPosition).toInt
+        if (toRead > 0) {
+          readChunk(streamReaderPosition, toRead).copyToArray(b, off, toRead)
+          streamReaderPosition += toRead
+        }
+        toRead
+      }
+
+      override def close(): Unit = FileReader.this.close()
+    }
   }
 
 }

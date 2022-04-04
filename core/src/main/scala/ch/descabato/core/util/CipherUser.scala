@@ -5,7 +5,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.Security
 import javax.crypto.Cipher
 
-trait CipherUser {
+class CipherUser {
 
   Security.addProvider(new BouncyCastleProvider())
   val cipher: Cipher = Cipher.getInstance("AES/CTR/NoPadding", "BC")

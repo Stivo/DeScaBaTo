@@ -10,7 +10,7 @@ import java.io.OutputStream
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 
-trait FileWriter extends OutputStream with AutoCloseable {
+trait FileWriter extends AutoCloseable {
   // ----------- Interface ---------------
   final def currentPosition(): Long = position
 
@@ -20,13 +20,14 @@ trait FileWriter extends OutputStream with AutoCloseable {
 
   final def md5Hash(): Hash = _md5Hash
 
-  override def write(b: Array[Byte], off: Int, len: Int): Unit = {
-    write(BytesWrapper(b, off, len))
-  }
+  def asOutputStream(): OutputStream = {
+    new OutputStream {
+      override def write(b: Int): Unit = ???
 
-  override def write(b: Int): Unit = {
-    // also not exactly sure how to implement this one
-    ???
+      override def write(b: Array[Byte], off: Int, len: Int): Unit = write(BytesWrapper(b, off, len))
+
+      override def close(): Unit = FileWriter.this.close()
+    }
   }
 
   override final def close(): Unit = {

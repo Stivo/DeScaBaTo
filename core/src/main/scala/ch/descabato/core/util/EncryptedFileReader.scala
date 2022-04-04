@@ -8,7 +8,7 @@ import java.io.RandomAccessFile
 import java.util
 import javax.crypto.Cipher
 
-class EncryptedFileReader(val file: File, passphrase: String) extends FileReader with CipherUser {
+class EncryptedFileReader(val file: File, passphrase: String) extends CipherUser with FileReader {
 
   private val raf: RandomAccessFile = new RandomAccessFile(file, "r")
 

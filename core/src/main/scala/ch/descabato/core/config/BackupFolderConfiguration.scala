@@ -64,11 +64,11 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   }
 
   def newCompressedOutputStream(file: File): OutputStream = {
-    new ZstdOutputStream(new BufferedOutputStream(newWriter(file), 10 * 1024 * 1024), 7)
+    new ZstdOutputStream(new BufferedOutputStream(newWriter(file).asOutputStream(), 10 * 1024 * 1024), 7)
   }
 
   def newCompressedInputStream(file: File): InputStream = {
-    new ZstdInputStream(new BufferedInputStream(newReader(file), 10 * 1024 * 1024))
+    new ZstdInputStream(new BufferedInputStream(newReader(file).asInputStream(), 10 * 1024 * 1024))
   }
 
   def relativePath(file: File): String = {
