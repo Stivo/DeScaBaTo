@@ -1,8 +1,6 @@
 package ch.descabato.core.model
 
-import ch.descabato.core.model
 import ch.descabato.core.util.InMemoryDb
-import ch.descabato.core.util.InMemoryDbOld
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.ProtoDb
@@ -11,7 +9,6 @@ import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.Hash
 import com.typesafe.scalalogging.LazyLogging
-import scalapb.GeneratedMessage
 
 object KeyValueStore {
   def apply(backupEnvInit: BackupEnvInit): KeyValueStore = {
@@ -38,15 +35,9 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
   }
 
   def getIndexes(fileMetadataValue: FileMetadataValue): Iterator[ValueLogIndex] = {
-    for {
-      hash <- getHashes(fileMetadataValue)
-    } yield readChunk(hash).get
-  }
-
-  def getHashes(fileMetadataValue: FileMetadataValue): Iterator[ChunkKey] = {
-    for {
-      hashBytes <- fileMetadataValue.hashes.asArray().grouped(32)
-    } yield ChunkKey(Hash(hashBytes))
+    fileMetadataValue.hashIds.iterator.map { x =>
+      inMemoryDb.getChunkById(x).get
+    }
   }
 
   def writeRevision(key: RevisionKey, value: RevisionValue): Unit = {
@@ -88,6 +79,8 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
   def readRevision(revision: RevisionKey): Option[RevisionValue] = {
     inMemoryDb.getRevision(revision)
   }
+
+  def getChunkKeyId(chunkKey: ChunkKey): Option[ChunkMapKeyId] = inMemoryDb.getChunkKeyId(chunkKey)
 
   def readChunk(chunkKey: ChunkKey): Option[ValueLogIndex] = {
     inMemoryDb.getChunk(chunkKey)

@@ -49,7 +49,6 @@ message FileMetadataValue {
     bool fromwindows = 4;
     // file ones
     uint64 length = 8;
-    bytes hashes = 9 [(scalapb.field).type = "ch.descabato.utils.BytesWrapper"];
     repeated uint32 hash_ids = 10 [(scalapb.field).type = "ch.descabato.core.model.ChunkMapKeyId"];
     // unix
     uint32 unixmode = 16;

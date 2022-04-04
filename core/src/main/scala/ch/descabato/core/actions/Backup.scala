@@ -1,10 +1,10 @@
 package ch.descabato.core.actions
 
 import better.files._
-import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.FileVisitorCollector
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
+import ch.descabato.core.model.ChunkMapKeyId
 import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.util.ValueLogWriter
 import ch.descabato.protobuf.keys.BackedupFileType
@@ -107,7 +107,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   val hashTiming = new StopWatch("sha256")
   val buzhashTiming = new StopWatch("buzhash")
 
-  def backupChunk(file: File, bytesWrapper: BytesWrapper, hashList: OutputStream): Unit = {
+  def backupChunk(file: File, bytesWrapper: BytesWrapper, hashIds: mutable.Buffer[ChunkMapKeyId]): Unit = {
     //    println(s"Backing up chunk with length ${toByteArray.length}")
     val hash = hashTiming.measure {
       digest.reset()
@@ -122,24 +122,24 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
       rocks.writeChunk(chunkKey, index)
       chunkNotFoundCounter += 1
     }
-    hashList.write(hash)
+    hashIds += rocks.getChunkKeyId(chunkKey).get
   }
 
   def backupFile(file: Path): FileMetadataValue = {
-    val hashList = new CustomByteArrayOutputStream()
+    val hashIds = mutable.Buffer.empty[ChunkMapKeyId]
     logger.info(file.toFile.toString)
     var chunk = 0
     for {
       fis <- new FileInputStream(file.toFile).autoClosed
       chunker <- new VariableBlockOutputStream({ wrapper =>
-        backupChunk(file.toFile, wrapper, hashList)
+        backupChunk(file.toFile, wrapper, hashIds)
         logger.trace(s"Chunk $chunk with length ${wrapper.length}")
         chunk += 1
       }).autoClosed
     } {
       fis.pipeTo(chunker, buffer)
     }
-    fillInTypeInfo(file, Some(hashList.toBytesWrapper))
+    fillInTypeInfo(file, Some(hashIds.toSeq))
   }
 
   private def backupFileOrFolderIfNecessary(file: Path): Unit = {
@@ -161,14 +161,14 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     fillInTypeInfo(file, None)
   }
 
-  def fillInTypeInfo(file: Path, hashes: Option[BytesWrapper]): FileMetadataValue = {
+  def fillInTypeInfo(file: Path, hashIds: Option[Seq[ChunkMapKeyId]]): FileMetadataValue = {
     val attr = Files.readAttributes(file, classOf[BasicFileAttributes])
     val dosAttributes = Try(Files.readAttributes(file, classOf[DosFileAttributes])).toOption
     FileMetadataValue(
       filetype = if (file.toFile.isDirectory) BackedupFileType.FOLDER else BackedupFileType.FILE,
       length = attr.size(),
       created = attr.creationTime().toMillis,
-      hashes = hashes.getOrElse(BytesWrapper.empty),
+      hashIds = hashIds.getOrElse(Seq.empty),
       dosIsReadonly = dosAttributes.exists(_.isReadOnly),
       dosIsArchive = dosAttributes.exists(_.isArchive),
       dosIsHidden = dosAttributes.exists(_.isHidden),
