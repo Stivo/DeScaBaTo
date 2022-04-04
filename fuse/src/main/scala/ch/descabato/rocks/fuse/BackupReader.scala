@@ -68,20 +68,22 @@ def createInputStream(metadataValue: FileMetadataValue): InputStream = {
 }
 
   def listNodesForRevision(revisionPair: RevisionPair, revisionParent: FileFolder, addTimestampToName: Boolean): Unit = {
-    val filesInRevision = revisionPair.revisionValue.files
+    val filesInRevision = revisionPair.revisionValue.fileIdentifiers
     l.info(s"""Listing files for "${PathUtils.formatDate(revisionPair)} - Revision ${revisionPair.revision.number}" to add to ${revisionParent.name}""")
 
-    filesInRevision.foreach {
-      key =>
-        val pathAsSeq = PathUtils.splitPath(key.path)
-        val newFilename = if (addTimestampToName && key.filetype == BackedupFileType.FILE) {
-          val filename = PathUtils.nameFromPath(key.path)
-          val filenameSplit = filename.split('.')
-          val timestamp = PathUtils.formatFilename(key).format(key.changed)
-          if (filenameSplit.length <= 1 || (filenameSplit.length == 2 && filenameSplit.head == "")) {
-            val newFilename = filename + "_" + timestamp
-            pathAsSeq.init :+ newFilename
-          } else {
+    filesInRevision
+      .flatMap(rocks.getFileMetadataByKeyId(_).map(_._1))
+      .foreach {
+        key =>
+          val pathAsSeq = PathUtils.splitPath(key.path)
+          val newFilename = if (addTimestampToName && key.filetype == BackedupFileType.FILE) {
+            val filename = PathUtils.nameFromPath(key.path)
+            val filenameSplit = filename.split('.')
+            val timestamp = PathUtils.formatFilename(key).format(key.changed)
+            if (filenameSplit.length <= 1 || (filenameSplit.length == 2 && filenameSplit.head == "")) {
+              val newFilename = filename + "_" + timestamp
+              pathAsSeq.init :+ newFilename
+            } else {
             val extension = "." + filenameSplit.last
             val newFilename = filename.dropRight(extension.length) + "_" + timestamp + extension
             pathAsSeq.init :+ newFilename

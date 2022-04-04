@@ -36,7 +36,6 @@ message FileMetadataKey {
 message RevisionValue {
     uint64 created = 1;
     string config_json = 2;
-    repeated FileMetadataKey files = 3;
     repeated uint32 file_identifiers = 4 [(scalapb.field).type = "ch.descabato.core.model.FileMetadataKeyId"];
 }
 

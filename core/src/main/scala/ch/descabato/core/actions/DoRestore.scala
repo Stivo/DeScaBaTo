@@ -33,9 +33,9 @@ class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
   }
 
   def restoreRevision(t: RestoreConf, revision: (RevisionKey, RevisionValue)): Unit = {
-    val (files, folders) = revision._2.files
-      .flatMap { key =>
-        rocks.readFileMetadata(key).map(x => (key, x))
+    val (files, folders) = revision._2.fileIdentifiers
+      .flatMap {
+        rocks.getFileMetadataByKeyId
       }
       .partition(_._1.filetype == BackedupFileType.FILE)
     val logic = new RestoredPathLogic(folders.map(x => FolderDescriptionFactory.apply(x._1, x._2)), t)

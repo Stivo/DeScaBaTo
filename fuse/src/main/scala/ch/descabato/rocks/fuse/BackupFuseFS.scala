@@ -87,7 +87,7 @@ class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
   }
 
   private def readMetadataForNode(x: FileNode): FileMetadataValue = {
-    reader.backupEnv.rocks.readFileMetadata(x.fileMetadataKey)
+    reader.backupEnv.rocks.getFileMetadataByKey(x.fileMetadataKey).map(_._2)
       .getOrElse(throw new IllegalStateException(s"Could not find entry for key $x"))
   }
 

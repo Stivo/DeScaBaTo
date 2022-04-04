@@ -5,6 +5,7 @@ import ch.descabato.core.FileVisitorCollector
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.ChunkMapKeyId
+import ch.descabato.core.model.FileMetadataKeyId
 import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.util.ValueLogWriter
 import ch.descabato.protobuf.keys.BackedupFileType
@@ -65,7 +66,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   }
 
   var revisionContent: ByteArrayOutputStream = new ByteArrayOutputStream()
-  var filesInRevision: mutable.Buffer[FileMetadataKey] = mutable.Buffer.empty
+  var filesInRevision: mutable.Buffer[FileMetadataKeyId] = mutable.Buffer.empty
 
   val valueLog = new ValueLogWriter(backupEnv, backupEnv.fileManager.volume, write = true, backupEnv.config.volumeSize.bytes)
   val compressionDecider: CompressionDecider = CompressionDeciders.createForConfig(backupEnv.config)
@@ -90,7 +91,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     }
     logger.info("Took " + mt.measuredTime())
     val configJson = new String(backupEnv.config.asJson(), StandardCharsets.UTF_8)
-    val value = RevisionValue(created = System.currentTimeMillis(), configJson = configJson, files = filesInRevision.toSeq)
+    val value = RevisionValue(created = System.currentTimeMillis(), configJson = configJson, fileIdentifiers = filesInRevision.toSeq)
     rocks.writeRevision(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
@@ -114,15 +115,18 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
       digest.digest(bytesWrapper)
     }
     val chunkKey = ChunkKey(hash)
-    if (rocks.existsChunk(chunkKey)) {
+
+    val existing = rocks.getChunk(chunkKey)
+    val newChunkId = if (existing.isDefined) {
       chunkFoundCounter += 1
+      existing.get._1
     } else {
       val compressed = compressionDecider.compressBlock(file, bytesWrapper)
       val index = valueLog.write(compressed)
-      rocks.writeChunk(chunkKey, index)
       chunkNotFoundCounter += 1
+      rocks.writeChunk(chunkKey, index)
     }
-    hashIds += rocks.getChunkKeyId(chunkKey).get
+    hashIds += newChunkId
   }
 
   def backupFile(file: Path): FileMetadataValue = {
@@ -148,13 +152,15 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
       filetype = filetype,
       path = file.toAbsolutePath.toString,
       changed = file.toFile.lastModified())
-    if (!rocks.existsFileMetadata(key)) {
+    val existing = rocks.getFileMetadataByKey(key)
+    if (existing.isEmpty) {
       backupFileOrFolder(file).foreach { fileMetadataValue =>
-        rocks.writeFileMetadata(key, fileMetadataValue)
+        val newId = rocks.writeFileMetadata(key, fileMetadataValue)
+        filesInRevision.append(newId)
       }
+    } else {
+      filesInRevision.append(existing.get._1)
     }
-    // TODO review even if the backup fails we say that this file has been backed up?
-    filesInRevision.append(key)
   }
 
   def backupFolder(file: Path): FileMetadataValue = {
