@@ -70,7 +70,7 @@ class MountCommand extends BackupRelatedCommand {
   }
 
   def printFilesPerVolume(reader: BackupReader): Unit = {
-    val volumes = reader.chunksByVolume
+    //    val volumes = reader.chunksByVolume
     //    volumes.view.mapValues { m =>
     //      (m.values.map(_.lengthCompressed).sum,m.values.map(_.lengthUncompressed).sum)
     //    }.foreach { case (num, total) =>
@@ -78,16 +78,17 @@ class MountCommand extends BackupRelatedCommand {
     //    }
 
     val rev = reader.revisions.maxBy(_.revision.number)
-    println(rev.revision)
-    for (x <- volumes.keys if x >= 584) {
-      println(s"volume ${x}")
-      val map = reader.fileMetadataValuesByVolume(rev.revision, x)
-      val sortedBySize = map.toSeq.sortBy(-_._2._1)
-      sortedBySize.takeWhile(_._2._1 > 100 * 1024).foreach { case (path, length) =>
-        println(path + " " + Size(length._1) + " " + length._2.mkString(" "))
-      }
-      println()
-    }
+    // TODO rewrite
+    //    println(rev.revision)
+    //    for (x <- volumes.keys if x >= 584) {
+    //      println(s"volume ${x}")
+    //      val map = reader.fileMetadataValuesByVolume(rev.revision, x)
+    //      val sortedBySize = map.toSeq.sortBy(-_._2._1)
+    //      sortedBySize.takeWhile(_._2._1 > 100 * 1024).foreach { case (path, length) =>
+    //        println(path + " " + Size(length._1) + " " + length._2.mkString(" "))
+    //      }
+    //      println()
+    //    }
 
   }
 

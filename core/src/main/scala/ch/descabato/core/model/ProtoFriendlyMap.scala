@@ -87,6 +87,8 @@ abstract class ProtoFriendlyMap[Key, KeyId, Value, ProtoMap](private var _keyMap
     _valueMap.get(k)
   }
 
+  def iterator(): Iterator[(Key, Value)] = _keyMap.iterator.map { case (k, v) => (k, _valueMap(_keyMap(k))) }
+
   def getProtoKeyMap(protoMap: ProtoMap): HashMap[KeyId, Key]
 
   def getProtoValueMap(protoMap: ProtoMap): HashMap[KeyId, Value]

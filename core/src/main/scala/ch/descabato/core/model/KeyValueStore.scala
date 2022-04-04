@@ -1,9 +1,11 @@
 package ch.descabato.core.model
 
 import ch.descabato.core.model
+import ch.descabato.core.util.InMemoryDb
 import ch.descabato.core.util.InMemoryDbOld
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
+import ch.descabato.protobuf.keys.ProtoDb
 import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.protobuf.keys.ValueLogStatusValue
@@ -17,14 +19,18 @@ object KeyValueStore {
   }
 }
 
-class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = new InMemoryDbOld()) extends LazyLogging {
+class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMemoryDb.empty) extends LazyLogging {
 
-  def getAllChunks(): Map[ChunkKey, ValueLogIndex] = {
-    inMemoryDb.chunks
+  private var updates = new ProtoDb()
+
+  def getUpdates(): ProtoDb = updates
+
+  def getAllChunks(): Iterator[(ChunkKey, ValueLogIndex)] = {
+    inMemoryDb.chunkIterator
   }
 
   def getAllRevisions(): Map[RevisionKey, RevisionValue] = {
-    inMemoryDb.revision
+    inMemoryDb.revisions
   }
 
   def getAllValueLogStatusKeys(): Map[ValueLogStatusKey, ValueLogStatusValue] = {
@@ -43,56 +49,56 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = n
     } yield ChunkKey(Hash(hashBytes))
   }
 
-  def getAllEntriesAsUpdates(): Unit = {
-    ???
-  }
-
   def writeRevision(key: RevisionKey, value: RevisionValue): Unit = {
     ensureOpenForWriting()
-    inMemoryDb.write(key, value)
-    // TODO rewrite track updates
+    inMemoryDb.addRevision(key, value)
+    updates = updates.addRevisions((key, value))
   }
 
-  def writeFileMetadata(key: FileMetadataKey, value: FileMetadataValue): Unit = {
+  def writeFileMetadata(key: FileMetadataKey, value: FileMetadataValue): FileMetadataKeyId = {
     ensureOpenForWriting()
-    inMemoryDb.write(key, value)
-    // TODO rewrite track updates
+    val keyId = inMemoryDb.addFileMetadata(key, value)
+    updates = updates.copy(fileMetadataMap = updates.fileMetadataMap.addFileMetadataKeys((keyId, key)))
+    updates = updates.copy(fileMetadataMap = updates.fileMetadataMap.addFileMetadataValues((keyId, value)))
+    keyId
   }
 
-  def writeChunk(key: ChunkKey, value: ValueLogIndex): Unit = {
+  def writeChunk(key: ChunkKey, value: ValueLogIndex): ChunkMapKeyId = {
     ensureOpenForWriting()
-    inMemoryDb.write(key, value)
-    // TODO rewrite track updates
+    val keyId = inMemoryDb.addChunk(key, value)
+    updates = updates.copy(chunkMap = updates.chunkMap.addChunkKeys((keyId, key)))
+    updates = updates.copy(chunkMap = updates.chunkMap.addChunkValues((keyId, value)))
+    keyId
   }
 
   def writeStatus(key: ValueLogStatusKey, value: ValueLogStatusValue): Unit = {
     ensureOpenForWriting()
-    inMemoryDb.write(key, value)
-    // TODO rewrite track updates
+    inMemoryDb.addValueLogStatus(key, value)
+    updates = updates.addStatus((key, value))
   }
 
   def existsChunk(key: ChunkKey): Boolean = {
-    inMemoryDb.exists(key)
+    inMemoryDb.existsChunk(key)
   }
 
   def existsFileMetadata(key: FileMetadataKey): Boolean = {
-    inMemoryDb.exists(key)
+    inMemoryDb.existsFileMetadata(key)
   }
 
   def readRevision(revision: RevisionKey): Option[RevisionValue] = {
-    inMemoryDb.readRevision(revision)
+    inMemoryDb.getRevision(revision)
   }
 
   def readChunk(chunkKey: ChunkKey): Option[ValueLogIndex] = {
-    inMemoryDb.readChunk(chunkKey)
+    inMemoryDb.getChunk(chunkKey)
   }
 
   def readFileMetadata(fileMetadataKey: FileMetadataKey): Option[FileMetadataValue] = {
-    inMemoryDb.readFileMetadata(fileMetadataKey)
+    inMemoryDb.getFileMetadata(fileMetadataKey)
   }
 
   def readValueLogStatus(key: ValueLogStatusKey): Option[ValueLogStatusValue] = {
-    inMemoryDb.readValueLogStatus(key)
+    inMemoryDb.getValueLogStatus(key)
   }
 
   // TODO review: this does nothing right now. Might have to rethink all the parts that use this
