@@ -46,7 +46,7 @@ class Migration(env: BackupEnv) extends Utils {
     for ((key, value) <- rocks.getAllFileMetadatas()) {
       val map = value.hashes.asArray().grouped(32).flatMap { x =>
         chunkMap.getByKey(Hash(x))
-      }.map(_._1).filter(_ != null).toSeq
+      }.map(_._1).toSeq
       fileMetadataMap.add(key, value.copy(hashes = null, hashIds = map))
     }
     logger.info("Converted filemetadata, took: " + st.measuredTime())
