@@ -5,7 +5,6 @@ import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataProtoMap
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.ValueLogIndex
-import ch.descabato.utils.Hash
 import scalapb.TypeMapper
 
 import scala.collection.immutable.HashMap
@@ -121,7 +120,8 @@ object ChunkMapKeyId extends IntKey[ChunkMapKeyId] {
   override def newInstance(id: Int): ChunkMapKeyId = ChunkMapKeyId(id)
 }
 
-class ChunkMap private(keyMap: HashMap[Hash, ChunkMapKeyId], valueMap: HashMap[ChunkMapKeyId, ValueLogIndex]) extends ProtoFriendlyMap[Hash, ChunkMapKeyId, ValueLogIndex, ChunkProtoMap](keyMap, valueMap) {
+class ChunkMap private(keyMap: HashMap[ChunkKey, ChunkMapKeyId], valueMap: HashMap[ChunkMapKeyId, ValueLogIndex])
+  extends ProtoFriendlyMap[ChunkKey, ChunkMapKeyId, ValueLogIndex, ChunkProtoMap](keyMap, valueMap) {
 
   override protected lazy val idCompanion: IntKey[ChunkMapKeyId] = ChunkMapKeyId
 
@@ -129,7 +129,7 @@ class ChunkMap private(keyMap: HashMap[Hash, ChunkMapKeyId], valueMap: HashMap[C
     ChunkProtoMap(updatesKeyMap, updatesValueMap)
   }
 
-  override def getProtoKeyMap(protoMap: ChunkProtoMap): HashMap[ChunkMapKeyId, Hash] = protoMap.chunkKeys
+  override def getProtoKeyMap(protoMap: ChunkProtoMap): HashMap[ChunkMapKeyId, ChunkKey] = protoMap.chunkKeys
 
   override def getProtoValueMap(protoMap: ChunkProtoMap): HashMap[ChunkMapKeyId, ValueLogIndex] = protoMap.chunkValues
 

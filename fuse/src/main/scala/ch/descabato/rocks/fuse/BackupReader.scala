@@ -2,8 +2,7 @@ package ch.descabato.rocks.fuse
 
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
-import ch.descabato.core.model.FileMetadataKeyWrapper
-import ch.descabato.core.model.Revision
+import ch.descabato.core.model.RevisionKey
 
 import java.io.InputStream
 import java.time.Instant
@@ -15,6 +14,7 @@ import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.protobuf.keys.ValueLogIndex
+import ch.descabato.utils.Hash
 import ch.descabato.utils.Utils
 
 import scala.collection.immutable.SortedMap
@@ -42,13 +42,13 @@ class BackupReader(val backupEnv: BackupEnv) extends Utils {
     out
   }
 
-  def fileMetadataValuesByVolume(revision: Revision, x: Int): Map[String, (Long, Seq[Int])] = {
+  def fileMetadataValuesByVolume(revision: RevisionKey, x: Int): Map[String, (Long, Seq[Int])] = {
     val chunks = chunksByVolume(x)
     val rev = revisions.filter(_.revision == revision).head
     val revisionFiles = rev.revisionValue.files
     var out = Map.empty[String, (Long, Seq[Int])]
     for (revFile <- revisionFiles) {
-      val value = rocks.readFileMetadata(FileMetadataKeyWrapper(revFile)).get
+      val value = rocks.readFileMetadata(revFile).get
       for ((hash, index) <- rocks.getHashes(value).zipWithIndex) {
         if (chunks.contains(hash)) {
           //          println(revFile.path+" "+index+" "+chunks(hash).lengthCompressed)
@@ -148,8 +148,6 @@ trait FolderNode extends TreeNode {
 class FileNode(val name: String, val fileMetadataKey: FileMetadataKey) extends TreeNode {
   var linkCount = 1
 
-  def asWrapper: FileMetadataKeyWrapper = FileMetadataKeyWrapper(fileMetadataKey)
-
   override def toString: String = s"File: ${fileMetadataKey.path}"
 }
 
@@ -217,7 +215,7 @@ class FileFolder(val name: String, initFunction: FileFolder => Unit, var backupI
 }
 
 
-case class RevisionPair(val revision: Revision, val revisionValue: RevisionValue) {
+case class RevisionPair(val revision: RevisionKey, val revisionValue: RevisionValue) {
 
   def asName(): String = {
     val timestamp = PathUtils.formatDate(this)

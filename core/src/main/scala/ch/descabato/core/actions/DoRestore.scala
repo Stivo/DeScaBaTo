@@ -4,9 +4,8 @@ import better.files._
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.FileAttributes
-import ch.descabato.core.model.FileMetadataKeyWrapper
 import ch.descabato.core.model.FolderDescription
-import ch.descabato.core.model.Revision
+import ch.descabato.core.model.RevisionKey
 import ch.descabato.frontend.RestoreConf
 import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
@@ -23,7 +22,7 @@ class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
   import backupEnv._
 
   def restoreByRevision(t: RestoreConf, number: Int): Unit = {
-    val revision = Revision(number)
+    val revision = RevisionKey(number)
     val revisionValue = rocks.readRevision(revision)
     restoreRevision(t, (revision, revisionValue.getOrElse(throw new IllegalArgumentException(s"Could not find revision $number"))))
   }
@@ -33,10 +32,10 @@ class DoRestore(conf: BackupFolderConfiguration) extends AutoCloseable {
     restoreRevision(t, revision)
   }
 
-  def restoreRevision(t: RestoreConf, revision: (Revision, RevisionValue)): Unit = {
+  def restoreRevision(t: RestoreConf, revision: (RevisionKey, RevisionValue)): Unit = {
     val (files, folders) = revision._2.files
       .flatMap { key =>
-        rocks.readFileMetadata(FileMetadataKeyWrapper(key)).map(x => (key, x))
+        rocks.readFileMetadata(key).map(x => (key, x))
       }
       .partition(_._1.filetype == BackedupFileType.FILE)
     val logic = new RestoredPathLogic(folders.map(x => FolderDescriptionFactory.apply(x._1, x._2)), t)

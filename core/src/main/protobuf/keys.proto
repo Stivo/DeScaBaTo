@@ -80,7 +80,7 @@ message ChunkProtoMap {
     option (scalapb.message).no_box = true;
     map<uint32, bytes> chunk_keys = 1 [
         (scalapb.field).key_type = "ch.descabato.core.model.ChunkMapKeyId",
-        (scalapb.field).value_type = "ch.descabato.utils.Hash",
+        (scalapb.field).value_type = "ch.descabato.core.model.ChunkKey",
         (scalapb.field).map_type="collection.immutable.HashMap"
     ];
     map<uint32, ValueLogIndex> chunk_values = 2 [
@@ -105,13 +105,13 @@ message FileMetadataProtoMap {
 message ProtoDb {
     option (scalapb.message).no_box = true;
     map<int32, RevisionValue> revisions = 1 [(scalapb.field).key_type = "ch.descabato.core.model.RevisionKey"];
-    map<string, ValueLogStatusValue> status = 2 [(scalapb.field).key_type = "ch.descabato.core.model.ValueLogName"];
+    map<string, ValueLogStatusValue> status = 2 [(scalapb.field).key_type = "ch.descabato.core.model.ValueLogStatusKey"];
     ChunkProtoMap chunk_map = 3;
     FileMetadataProtoMap file_metadata_map = 4;
 
     // TODO these definitions are slightly outdated already again
     // repeated int32 deleted_revisions = 11  [(scalapb.field).type = "ch.descabato.core.model.RevisionKey"];
-    // repeated string deleted_value_log_status = 12 [(scalapb.field).type = "ch.descabato.core.model.ValueLogName"];
+    // repeated string deleted_value_log_status = 12 [(scalapb.field).type = "ch.descabato.core.model.ValueLogStatusKey"];
     // repeated FileMetadataKey deleted_files = 13;
     // repeated bytes deleted_chunks = 14;
 }

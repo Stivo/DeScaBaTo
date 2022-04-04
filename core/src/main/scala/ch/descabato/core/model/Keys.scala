@@ -1,11 +1,10 @@
 package ch.descabato.core.model
 
 import ch.descabato.CustomByteArrayOutputStream
-import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Implicits._
-import scalapb.GeneratedMessage
+import com.google.protobuf.ByteString
 import scalapb.TypeMapper
 
 import java.io.ByteArrayInputStream
@@ -16,11 +15,10 @@ import java.io.InputStream
 import java.util
 import java.util.Objects
 
-trait Key
 
-case class ChunkKey(hash: Hash) extends Key {
+case class ChunkKey(hash: Hash) {
 
-  override def hashCode(): Int = {
+  override lazy val hashCode: Int = {
     hash.hashContent()
   }
 
@@ -37,7 +35,10 @@ case class ChunkKey(hash: Hash) extends Key {
   override def toString: String = s"Chunk(${hash.toString})"
 }
 
-case class Revision(number: Int) extends Key
+object ChunkKey {
+  implicit val typeMapper: TypeMapper[ByteString, ChunkKey] =
+    TypeMapper[ByteString, ChunkKey](x => ChunkKey(Hash(x.toByteArray)))(x => ByteString.copyFrom(x.hash.bytes))
+}
 
 case class RevisionKey(number: Int) extends AnyVal
 
@@ -45,25 +46,16 @@ object RevisionKey {
   implicit val typeMapper: TypeMapper[Int, RevisionKey] = TypeMapper(RevisionKey.apply)(_.number)
 }
 
-case class RevisionContentKey(number: Long) extends Key
 
-case class ValueLogStatusKey(name: String) extends Key {
+case class ValueLogStatusKey(name: String) extends AnyVal {
   def parseNumber: Int = {
     name.replaceAll("[^0-9]+", "").toInt
   }
 }
 
-case class ValueLogName(name: String) extends AnyVal {
-  def parseNumber: Int = {
-    name.replaceAll("[^0-9]+", "").toInt
-  }
+object ValueLogStatusKey {
+  implicit val typeMapper: TypeMapper[String, ValueLogStatusKey] = TypeMapper(ValueLogStatusKey.apply)(_.name)
 }
-
-object ValueLogName {
-  implicit val typeMapper: TypeMapper[String, ValueLogName] = TypeMapper(ValueLogName.apply)(_.name)
-}
-
-case class FileMetadataKeyWrapper(fileMetadataKey: FileMetadataKey) extends Key
 
 case class RevisionContentValue private(ordinal: Byte, key: Array[Byte], value: BytesWrapper, deletion: Boolean) {
   def asArray(): BytesWrapper = {
@@ -139,18 +131,4 @@ object RevisionContentValue {
         None
     }
   }
-}
-
-case class ExportedEntry[K <: Key, V <: GeneratedMessage](k: K, v: V, isDeletion: Boolean) {
-  def asValue(): BytesWrapper = {
-    val family: ColumnFamily[K, V] = ColumnFamilies.lookupColumnFamily(k)
-    val key = family.encodeKey(k)
-    val out = if (isDeletion) {
-      RevisionContentValue.createDelete(family.ordinal, key)
-    } else {
-      RevisionContentValue.createUpdate(family.ordinal, key, family.encodeValue(v))
-    }
-    ColumnFamilies.revisionContentColumnFamily.encodeValue(out)
-  }
-
 }

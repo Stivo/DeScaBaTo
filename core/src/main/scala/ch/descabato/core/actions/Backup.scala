@@ -5,9 +5,7 @@ import ch.descabato.CustomByteArrayOutputStream
 import ch.descabato.core.FileVisitorCollector
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
-import ch.descabato.core.model.FileMetadataKeyWrapper
-import ch.descabato.core.model.Revision
-import ch.descabato.core.util.DbExporterOld
+import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.util.ValueLogWriter
 import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
@@ -18,7 +16,6 @@ import ch.descabato.utils.Implicits._
 import ch.descabato.utils.StandardMeasureTime
 import ch.descabato.utils.StopWatch
 import ch.descabato.utils.Streams.VariableBlockOutputStream
-import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
 import java.io.ByteArrayOutputStream
@@ -83,7 +80,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   }
 
   def backup(str: File*): Unit = {
-    val revision = Revision(findNextRevision())
+    val revision = RevisionKey(findNextRevision())
     val mt = new StandardMeasureTime()
     for (folderToBackup <- str) {
       val (folders, files) = Backup.listFiles(folderToBackup, backupEnv.config.ignoreFile)
@@ -97,7 +94,8 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     rocks.writeRevision(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
-    new DbExporterOld(backupEnv).exportUpdates(rocks.readAllUpdates())
+    // TODO rewrite new export
+    //    new DbExporterOld(backupEnv).exportUpdates(rocks.readAllUpdates())
   }
 
   private val buffer = Array.ofDim[Byte](1024 * 1024)
@@ -146,17 +144,17 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
 
   private def backupFileOrFolderIfNecessary(file: Path): Unit = {
     val filetype = if (file.toFile.isFile) BackedupFileType.FILE else BackedupFileType.FOLDER
-    val key = FileMetadataKeyWrapper(FileMetadataKey(
+    val key = FileMetadataKey(
       filetype = filetype,
       path = file.toAbsolutePath.toString,
-      changed = file.toFile.lastModified()))
+      changed = file.toFile.lastModified())
     if (!rocks.existsFileMetadata(key)) {
       backupFileOrFolder(file).foreach { fileMetadataValue =>
         rocks.writeFileMetadata(key, fileMetadataValue)
       }
     }
     // TODO review even if the backup fails we say that this file has been backed up?
-    filesInRevision.append(key.fileMetadataKey)
+    filesInRevision.append(key)
   }
 
   def backupFolder(file: Path): FileMetadataValue = {

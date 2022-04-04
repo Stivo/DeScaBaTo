@@ -19,16 +19,11 @@ object KeyValueStore {
 
 class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = new InMemoryDbOld()) extends LazyLogging {
 
-  private var updates: Seq[ExportedEntry[_, _]] = Seq.empty
-  //  def getAllFileMetadatas(): Map[FileMetadataKey, FileMetadataValue] = {
-  //    inMemoryDb.fileMetadata
-  //  }
-
   def getAllChunks(): Map[ChunkKey, ValueLogIndex] = {
     inMemoryDb.chunks
   }
 
-  def getAllRevisions(): Map[Revision, RevisionValue] = {
+  def getAllRevisions(): Map[RevisionKey, RevisionValue] = {
     inMemoryDb.revision
   }
 
@@ -48,60 +43,43 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = n
     } yield ChunkKey(Hash(hashBytes))
   }
 
-  def readAllUpdates(): Seq[ExportedEntry[_, _]] = {
-    updates
+  def getAllEntriesAsUpdates(): Unit = {
+    ???
   }
 
-  def getAllEntriesAsUpdates(): Seq[ExportedEntry[_, _]] = {
-    var out = Seq.empty[ExportedEntry[_, _]]
-    inMemoryDb.valueLogStatus.foreach { case (k, v) =>
-      out :+= ExportedEntry(k, v, false)
-    }
-    out ++= inMemoryDb.chunks.map { case (k, v) =>
-      model.ExportedEntry(k, v, false)
-    }
-    inMemoryDb.revision.foreach { case (k, v) =>
-      out :+= ExportedEntry(k, v, false)
-    }
-    out ++= inMemoryDb.fileMetadata.map { case (k, v) =>
-      ExportedEntry(FileMetadataKeyWrapper(k), v, false)
-    }
-    out
-  }
-
-  def writeRevision(key: Revision, value: RevisionValue): Unit = {
+  def writeRevision(key: RevisionKey, value: RevisionValue): Unit = {
     ensureOpenForWriting()
     inMemoryDb.write(key, value)
-    updates :+= ExportedEntry(key, value, false)
+    // TODO rewrite track updates
   }
 
-  def writeFileMetadata(key: FileMetadataKeyWrapper, value: FileMetadataValue): Unit = {
+  def writeFileMetadata(key: FileMetadataKey, value: FileMetadataValue): Unit = {
     ensureOpenForWriting()
     inMemoryDb.write(key, value)
-    updates :+= ExportedEntry(key, value, false)
+    // TODO rewrite track updates
   }
 
   def writeChunk(key: ChunkKey, value: ValueLogIndex): Unit = {
     ensureOpenForWriting()
     inMemoryDb.write(key, value)
-    updates :+= ExportedEntry(key, value, false)
+    // TODO rewrite track updates
   }
 
   def writeStatus(key: ValueLogStatusKey, value: ValueLogStatusValue): Unit = {
     ensureOpenForWriting()
     inMemoryDb.write(key, value)
-    updates :+= ExportedEntry(key, value, false)
+    // TODO rewrite track updates
   }
 
   def existsChunk(key: ChunkKey): Boolean = {
     inMemoryDb.exists(key)
   }
 
-  def existsFileMetadata(key: FileMetadataKeyWrapper): Boolean = {
+  def existsFileMetadata(key: FileMetadataKey): Boolean = {
     inMemoryDb.exists(key)
   }
 
-  def readRevision(revision: Revision): Option[RevisionValue] = {
+  def readRevision(revision: RevisionKey): Option[RevisionValue] = {
     inMemoryDb.readRevision(revision)
   }
 
@@ -109,8 +87,8 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = n
     inMemoryDb.readChunk(chunkKey)
   }
 
-  def readFileMetadata(fileMetadataKeyWrapper: FileMetadataKeyWrapper): Option[FileMetadataValue] = {
-    inMemoryDb.readFileMetadata(fileMetadataKeyWrapper)
+  def readFileMetadata(fileMetadataKey: FileMetadataKey): Option[FileMetadataValue] = {
+    inMemoryDb.readFileMetadata(fileMetadataKey)
   }
 
   def readValueLogStatus(key: ValueLogStatusKey): Option[ValueLogStatusValue] = {
@@ -126,12 +104,6 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = n
     if (readOnly) {
       throw new IllegalArgumentException("Rocks is opened in readonly mode")
     }
-  }
-
-  // TODO review: should this not delete that key from inMemoryDb?
-  def delete[K <: Key](key: K): Unit = {
-    ensureOpenForWriting()
-    updates :+= ExportedEntry(key, null, true)
   }
 
 }

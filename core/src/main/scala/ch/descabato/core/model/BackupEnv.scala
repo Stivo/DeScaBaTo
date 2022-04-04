@@ -1,8 +1,8 @@
 package ch.descabato.core.model
 
 import ch.descabato.core.config.BackupFolderConfiguration
-import ch.descabato.core.util.DbMemoryImporterOld
 import ch.descabato.core.util.FileManager
+import ch.descabato.core.util.InMemoryDbOld
 import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.core.util.ValueLogReader
 import ch.descabato.protobuf.keys.Status.FINISHED
@@ -112,10 +112,8 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
     if (!backupEnvInit.readOnly) {
       deleteTempFiles()
     }
-    val inMemoryDb = new DbMemoryImporterOld(backupEnvInit).importMetadata()
-    if (!backupEnvInit.readOnly) {
-      deleteUnmentionedVolumes(inMemoryDb.valueLogStatus.toSeq)
-    }
+    // TODO rewrite read proto database
+    val inMemoryDb = new InMemoryDbOld()
     new KeyValueStore(backupEnvInit.readOnly, inMemoryDb)
   }
 
