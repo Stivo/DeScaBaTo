@@ -62,7 +62,7 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
     val status = currentFile.valueLogStatusValue
     val bs = currentFile.fileWriter.md5Hash().wrap()
     val newStatus = status.copy(status = Status.FINISHED, size = currentFile.fileWriter.currentPosition(), md5Hash = bs)
-    kvStore.write(currentFile.key, newStatus)
+    kvStore.writeStatus(currentFile.key, newStatus)
     logger.info(s"Renaming ${currentFile.file} to final name")
     fileType.renameTempFileToFinal(currentFile.file)
   }
@@ -75,7 +75,7 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
     val key = ValueLogStatusKey(relative)
     val value = ValueLogStatusValue(status = Status.WRITING)
     logger.info(s"From now on data will be written to ${key.name}")
-    kvStore.write(key, value)
+    kvStore.writeStatus(key, value)
     val currentFile = CurrentFile(file, key, value, config.newWriter(file))
     this.currentFile = Some(currentFile)
     currentFile

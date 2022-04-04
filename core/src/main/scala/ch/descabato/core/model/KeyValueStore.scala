@@ -20,10 +20,9 @@ object KeyValueStore {
 class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = new InMemoryDbOld()) extends LazyLogging {
 
   private var updates: Seq[ExportedEntry[_, _]] = Seq.empty
-
-  def getAllFileMetadatas(): Map[FileMetadataKey, FileMetadataValue] = {
-    inMemoryDb.fileMetadata
-  }
+  //  def getAllFileMetadatas(): Map[FileMetadataKey, FileMetadataValue] = {
+  //    inMemoryDb.fileMetadata
+  //  }
 
   def getAllChunks(): Map[ChunkKey, ValueLogIndex] = {
     inMemoryDb.chunks
@@ -70,13 +69,35 @@ class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = n
     out
   }
 
-  def write[K <: Key, V <: GeneratedMessage](key: K, value: V): Unit = {
+  def writeRevision(key: Revision, value: RevisionValue): Unit = {
     ensureOpenForWriting()
     inMemoryDb.write(key, value)
     updates :+= ExportedEntry(key, value, false)
   }
 
-  def exists[K <: Key](key: K): Boolean = {
+  def writeFileMetadata(key: FileMetadataKeyWrapper, value: FileMetadataValue): Unit = {
+    ensureOpenForWriting()
+    inMemoryDb.write(key, value)
+    updates :+= ExportedEntry(key, value, false)
+  }
+
+  def writeChunk(key: ChunkKey, value: ValueLogIndex): Unit = {
+    ensureOpenForWriting()
+    inMemoryDb.write(key, value)
+    updates :+= ExportedEntry(key, value, false)
+  }
+
+  def writeStatus(key: ValueLogStatusKey, value: ValueLogStatusValue): Unit = {
+    ensureOpenForWriting()
+    inMemoryDb.write(key, value)
+    updates :+= ExportedEntry(key, value, false)
+  }
+
+  def existsChunk(key: ChunkKey): Boolean = {
+    inMemoryDb.exists(key)
+  }
+
+  def existsFileMetadata(key: FileMetadataKeyWrapper): Boolean = {
     inMemoryDb.exists(key)
   }
 

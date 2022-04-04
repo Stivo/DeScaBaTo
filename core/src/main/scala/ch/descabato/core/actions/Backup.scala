@@ -94,7 +94,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     logger.info("Took " + mt.measuredTime())
     val configJson = new String(backupEnv.config.asJson(), StandardCharsets.UTF_8)
     val value = RevisionValue(created = System.currentTimeMillis(), configJson = configJson, files = filesInRevision.toSeq)
-    rocks.write(revision, value)
+    rocks.writeRevision(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
     new DbExporterOld(backupEnv).exportUpdates(rocks.readAllUpdates())
@@ -116,12 +116,12 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
       digest.digest(bytesWrapper)
     }
     val chunkKey = ChunkKey(hash)
-    if (rocks.exists(chunkKey)) {
+    if (rocks.existsChunk(chunkKey)) {
       chunkFoundCounter += 1
     } else {
       val compressed = compressionDecider.compressBlock(file, bytesWrapper)
       val index = valueLog.write(compressed)
-      rocks.write(chunkKey, index)
+      rocks.writeChunk(chunkKey, index)
       chunkNotFoundCounter += 1
     }
     hashList.write(hash)
@@ -150,9 +150,9 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
       filetype = filetype,
       path = file.toAbsolutePath.toString,
       changed = file.toFile.lastModified()))
-    if (!rocks.exists(key)) {
+    if (!rocks.existsFileMetadata(key)) {
       backupFileOrFolder(file).foreach { fileMetadataValue =>
-        rocks.write(key, fileMetadataValue)
+        rocks.writeFileMetadata(key, fileMetadataValue)
       }
     }
     // TODO review even if the backup fails we say that this file has been backed up?
