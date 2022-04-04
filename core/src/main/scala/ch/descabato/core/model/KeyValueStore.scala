@@ -1,7 +1,7 @@
 package ch.descabato.core.model
 
 import ch.descabato.core.model
-import ch.descabato.core.util.InMemoryDb
+import ch.descabato.core.util.InMemoryDbOld
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.RevisionValue
@@ -17,7 +17,7 @@ object KeyValueStore {
   }
 }
 
-class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDb = new InMemoryDb()) extends LazyLogging {
+class KeyValueStore(readOnly: Boolean, private val inMemoryDb: InMemoryDbOld = new InMemoryDbOld()) extends LazyLogging {
 
   private var updates: Seq[ExportedEntry[_, _]] = Seq.empty
 

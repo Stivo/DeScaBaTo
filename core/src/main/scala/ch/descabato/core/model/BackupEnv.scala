@@ -1,12 +1,18 @@
 package ch.descabato.core.model
 
 import ch.descabato.core.config.BackupFolderConfiguration
+import ch.descabato.core.util.DbMemoryImporterOld
 import ch.descabato.core.util.FileManager
-import ch.descabato.core.util.RepairLogic
+import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.core.util.ValueLogReader
+import ch.descabato.protobuf.keys.Status.FINISHED
+import ch.descabato.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.Utils
 import com.typesafe.scalalogging.LazyLogging
 
+import java.awt.Desktop
+import java.awt.Desktop.Action
+import java.io
 import java.io.File
 
 /**
@@ -55,4 +61,73 @@ object BackupEnv extends LazyLogging {
     val kvs = new RepairLogic(backupEnvInit).initialize()
     new BackupEnv(backupEnvInit, kvs)
   }
+}
+
+
+class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
+
+  private val fileManager = backupEnvInit.fileManager
+  private val dbExportType = fileManager.dbexport
+  private val volumeType = fileManager.volume
+
+  private def getFiles(fileType: StandardNumberedFileType): (Seq[io.File], Seq[io.File]) = {
+    fileType.getFiles().partition(x => !fileType.isTempFile(x))
+  }
+
+  private val (dbExportFiles, dbExportTempFiles) = getFiles(dbExportType)
+  private val (volumeFiles, volumeTempFiles) = getFiles(volumeType)
+
+  def deleteFile(x: io.File): Unit = {
+    if (Desktop.isDesktopSupported && Desktop.getDesktop.isSupported(Action.MOVE_TO_TRASH)) {
+      Desktop.getDesktop.moveToTrash(x)
+    } else {
+      x.delete()
+    }
+  }
+
+  def deleteUnmentionedVolumes(toSeq: Seq[(ValueLogStatusKey, ValueLogStatusValue)]): Unit = {
+    var volumes: Set[io.File] = volumeFiles.toSet
+    var toDelete = Set.empty[io.File]
+    for ((key, path) <- toSeq) {
+      val file = backupEnvInit.config.resolveRelativePath(key.name)
+      if (path.status == FINISHED) {
+        logger.info(s"$key is marked as finished, will keep it")
+        volumes -= file
+      } else {
+        toDelete += file
+        logger.warn(s"Deleting $key, it is not marked as finished in dbexport")
+      }
+    }
+    for (volume <- volumes) {
+      logger.warn(s"Will delete $volume, because it is not mentioned in dbexport")
+      deleteFile(volume)
+    }
+    for (volume <- toDelete) {
+      logger.warn(s"Will delete $volume, because status is not finished")
+      deleteFile(volume)
+    }
+  }
+
+  def initialize(): KeyValueStore = {
+    if (!backupEnvInit.readOnly) {
+      deleteTempFiles()
+    }
+    val inMemoryDb = new DbMemoryImporterOld(backupEnvInit).importMetadata()
+    if (!backupEnvInit.readOnly) {
+      deleteUnmentionedVolumes(inMemoryDb.valueLogStatus.toSeq)
+    }
+    new KeyValueStore(backupEnvInit.readOnly, inMemoryDb)
+  }
+
+  def deleteTempFiles(): Unit = {
+    for (file <- dbExportTempFiles) {
+      logger.info(s"Deleting temp file $file")
+      file.delete()
+    }
+    for (file <- volumeTempFiles) {
+      logger.info(s"Deleting temp file $file")
+      file.delete()
+    }
+  }
+
 }

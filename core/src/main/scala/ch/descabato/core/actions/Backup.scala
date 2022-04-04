@@ -7,7 +7,7 @@ import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.FileMetadataKeyWrapper
 import ch.descabato.core.model.Revision
-import ch.descabato.core.util.DbExporter
+import ch.descabato.core.util.DbExporterOld
 import ch.descabato.core.util.ValueLogWriter
 import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
@@ -97,7 +97,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     rocks.write(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
-    new DbExporter(backupEnv).exportUpdates(rocks.readAllUpdates())
+    new DbExporterOld(backupEnv).exportUpdates(rocks.readAllUpdates())
   }
 
   private val buffer = Array.ofDim[Byte](1024 * 1024)
