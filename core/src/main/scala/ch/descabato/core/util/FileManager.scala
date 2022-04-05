@@ -7,6 +7,7 @@ import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.stream.Collectors
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object Constants {
