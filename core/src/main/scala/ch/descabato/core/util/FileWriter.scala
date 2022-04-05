@@ -24,7 +24,7 @@ trait FileWriter extends AutoCloseable {
     new OutputStream {
       override def write(b: Int): Unit = ???
 
-      override def write(b: Array[Byte], off: Int, len: Int): Unit = write(BytesWrapper(b, off, len))
+      override def write(b: Array[Byte], off: Int, len: Int): Unit = FileWriter.this.write(BytesWrapper(b, off, len))
 
       override def close(): Unit = FileWriter.this.close()
     }

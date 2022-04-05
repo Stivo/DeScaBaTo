@@ -1,14 +1,19 @@
 package ch.descabato.core.util
 
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 object Implicits {
+
   import scala.language.higherKinds
 
   //  implicit def hashToWrapper(a: Hash): BytesWrapper = new BytesWrapper(a.bytes)
-//  implicit def hashToArray(a: Hash): Array[Byte] = a.bytes
-//  implicit class AwareMessageDigest(md: MessageDigest) {
-//    def update(bytesWrapper: BytesWrapper): Unit = {
-//      md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
-//    }
+  //  implicit def hashToArray(a: Hash): Array[Byte] = a.bytes
+  //  implicit class AwareMessageDigest(md: MessageDigest) {
+  //    def update(bytesWrapper: BytesWrapper): Unit = {
+  //      md.update(bytesWrapper.array, bytesWrapper.offset, bytesWrapper.length)
+  //    }
 //    def finish(bytesWrapper: BytesWrapper): Hash = {
 //      update(bytesWrapper)
 //      finish()
@@ -26,11 +31,20 @@ object Implicits {
   implicit class InvariantContains[T, CC[X] <: Seq[X]](xs: CC[T]) {
     def safeContains(x: T): Boolean = xs contains x
   }
+
   implicit class InvariantContains2[T, CC[X] <: scala.collection.Set[X]](xs: CC[T]) {
     def safeContains(x: T): Boolean = xs contains x
   }
+
   implicit class InvariantContains3[T](xs: scala.collection.Map[T, _]) {
     def safeContains(x: T): Boolean = xs.keySet contains x
   }
 
- }
+  implicit class PimpedTry[T](t: Try[T]) {
+    def getOrThrow(): T = t match {
+      case Success(x) => x
+      case Failure(exception) => throw exception
+    }
+  }
+
+}

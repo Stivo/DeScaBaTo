@@ -24,12 +24,11 @@ trait IntKey[T] {
  * A class that can be easily serialized for proto with very little overhead when reading / writing.
  * Not threadsafe.
  *
- * @tparam Key      The key type of the actual entity
- * @tparam KeyId    The internal type used as a primary key for serialized entities
- * @tparam Value    The value type of the actual entity
- * @tparam ProtoMap The type of the proto map
+ * @tparam Key   The key type of the actual entity
+ * @tparam KeyId The internal type used as a primary key for serialized entities
+ * @tparam Value The value type of the actual entity
  */
-abstract class ProtoFriendlyMap[Key, KeyId, Value, ProtoMap](private var _keyMap: HashMap[Key, KeyId], private var _keyIdMap: HashMap[KeyId, (Key, Value)]) {
+abstract class ProtoFriendlyMap[Key, KeyId, Value, MapType](private var _keyMap: HashMap[Key, KeyId], private var _keyIdMap: HashMap[KeyId, (Key, Value)]) {
 
   protected def idCompanion: IntKey[KeyId]
 
@@ -74,10 +73,12 @@ abstract class ProtoFriendlyMap[Key, KeyId, Value, ProtoMap](private var _keyMap
 
   def iterator(): Iterator[(Key, Value)] = _keyIdMap.valuesIterator
 
-  def mergeWithOther(other: ProtoFriendlyMap[Key, KeyId, Value, ProtoMap]): Unit = {
-    _keyMap ++= other._keyMap
-    _keyIdMap ++= other._keyIdMap
-    _highestKeyId = computeHighestKeyId()
+  protected def constructNew(newKeyMap: HashMap[Key, KeyId], newKeyIdMap: HashMap[KeyId, (Key, Value)]): MapType
+
+  def merge(other: ProtoFriendlyMap[Key, KeyId, Value, MapType]): MapType = {
+    val newKeyMap = _keyMap ++ other._keyMap
+    val newKeyIdMap = _keyIdMap ++ other._keyIdMap
+    constructNew(newKeyMap, newKeyIdMap)
   }
 
 }
@@ -98,20 +99,18 @@ case class ChunkMapKeyId(id: Int) extends AnyVal {
 object ChunkMapKeyId extends IntKey[ChunkMapKeyId] {
   implicit val typeMapper: TypeMapper[Int, ChunkMapKeyId] = TypeMapper(ChunkMapKeyId.apply)(_.id)
 
-  def addOne(key: ChunkMapKeyId): ChunkMapKeyId = ChunkMapKeyId(key.id + 1)
-
-  //  def max(key1: ChunkMapKeyId, key2: ChunkMapKeyId): ChunkMapKeyId = ChunkMapKeyId(Math.max(key1.id, key2.id))
-
   override def id(t: ChunkMapKeyId): Int = t.id
 
   override def newInstance(id: Int): ChunkMapKeyId = ChunkMapKeyId(id)
 }
 
 class ChunkMap private(keyMap: HashMap[ChunkKey, ChunkMapKeyId], valueMap: HashMap[ChunkMapKeyId, (ChunkKey, ValueLogIndex)])
-  extends ProtoFriendlyMap[ChunkKey, ChunkMapKeyId, ValueLogIndex, ChunkProtoMap](keyMap, valueMap) {
+  extends ProtoFriendlyMap[ChunkKey, ChunkMapKeyId, ValueLogIndex, ChunkMap](keyMap, valueMap) {
 
   override protected lazy val idCompanion: IntKey[ChunkMapKeyId] = ChunkMapKeyId
 
+  override def constructNew(newKeyMap: HashMap[ChunkKey, ChunkMapKeyId], newKeyIdMap: HashMap[ChunkMapKeyId, (ChunkKey, ValueLogIndex)]): ChunkMap =
+    new ChunkMap(newKeyMap, newKeyIdMap)
 }
 
 object ChunkMap {
@@ -145,7 +144,10 @@ object FileMetadataKeyId extends IntKey[FileMetadataKeyId] {
 }
 
 class FileMetadataMap private(keyMap: HashMap[FileMetadataKey, FileMetadataKeyId], valueMap: HashMap[FileMetadataKeyId, (FileMetadataKey, FileMetadataValue)])
-  extends ProtoFriendlyMap[FileMetadataKey, FileMetadataKeyId, FileMetadataValue, FileMetadataProtoMap](keyMap, valueMap) {
+  extends ProtoFriendlyMap[FileMetadataKey, FileMetadataKeyId, FileMetadataValue, FileMetadataMap](keyMap, valueMap) {
+
+  override def constructNew(newKeyMap: HashMap[FileMetadataKey, FileMetadataKeyId], newKeyIdMap: HashMap[FileMetadataKeyId, (FileMetadataKey, FileMetadataValue)]): FileMetadataMap =
+    new FileMetadataMap(newKeyMap, newKeyIdMap)
 
   override protected lazy val idCompanion: IntKey[FileMetadataKeyId] = FileMetadataKeyId
 

@@ -85,6 +85,8 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
 
   def getChunk(chunkKey: ChunkKey): Option[(ChunkMapKeyId, ValueLogIndex)] = inMemoryDb.chunkMap.getByKey(chunkKey)
 
+  def getChunkById(chunkKey: ChunkMapKeyId): Option[(ChunkKey, ValueLogIndex)] = inMemoryDb.chunkMap.getByKeyId(chunkKey)
+
   def readValueLogStatus(key: ValueLogStatusKey): Option[ValueLogStatusValue] = {
     inMemoryDb.getValueLogStatus(key)
   }

@@ -5,7 +5,6 @@ import ch.descabato.core.util.FileManager
 import ch.descabato.core.util.InMemoryDb
 import ch.descabato.core.util.StandardNumberedFileType
 import ch.descabato.core.util.ValueLogReader
-import ch.descabato.protobuf.keys.ProtoDb
 import ch.descabato.protobuf.keys.Status.FINISHED
 import ch.descabato.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.Utils
@@ -113,9 +112,8 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
     if (!backupEnvInit.readOnly) {
       deleteTempFiles()
     }
-    // TODO rewrite read proto database
-    val inMemoryDb = InMemoryDb.fromProto(new ProtoDb())
-    new KeyValueStore(backupEnvInit.readOnly, inMemoryDb)
+    val inMemoryDb = InMemoryDb.readFiles(backupEnvInit)
+    new KeyValueStore(backupEnvInit.readOnly, inMemoryDb.getOrElse(InMemoryDb.empty))
   }
 
   def deleteTempFiles(): Unit = {

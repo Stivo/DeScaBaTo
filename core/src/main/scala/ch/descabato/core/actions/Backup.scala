@@ -7,6 +7,7 @@ import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.ChunkMapKeyId
 import ch.descabato.core.model.FileMetadataKeyId
 import ch.descabato.core.model.RevisionKey
+import ch.descabato.core.util.InMemoryDb
 import ch.descabato.core.util.ValueLogWriter
 import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
@@ -23,7 +24,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
-import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -95,8 +95,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     rocks.writeRevision(revision, value)
     logger.info("Closing valuelog")
     valueLog.close()
-    // TODO rewrite new export
-    //    new DbExporterOld(backupEnv).exportUpdates(rocks.readAllUpdates())
+    InMemoryDb.writeFile(backupEnv, rocks.getUpdates())
   }
 
   private val buffer = Array.ofDim[Byte](1024 * 1024)
