@@ -7,7 +7,7 @@ import ch.descabato.core.model.FileMetadataMap
 import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.model.ValueLogName
 import ch.descabato.protobuf.keys.ProtoDb
-import ch.descabato.utils.Hash
+import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.StandardMeasureTime
 import ch.descabato.utils.Utils
 
@@ -38,15 +38,18 @@ class Migration(env: BackupEnv) extends Utils {
     val st = new StandardMeasureTime()
     val chunkMap = ChunkMap.empty
     for (chunk <- rocks.getAllChunks()) {
-      chunkMap.add(chunk._1.hash, chunk._2)
+      chunkMap.add(chunk._1.hash.wrap(), chunk._2)
     }
     logger.info("converted chunks, took " + st.measuredTime())
 
     val fileMetadataMap = FileMetadataMap.empty
     for ((key, value) <- rocks.getAllFileMetadatas()) {
       val map = value.hashes.asArray().grouped(32).flatMap { x =>
-        chunkMap.getByKey(Hash(x))
+        chunkMap.getByKey(BytesWrapper(x))
       }.map(_._1).toSeq
+      if (value.hashes.asArray().length / 32 != map.length) {
+        throw new IllegalStateException("Wrong number of hashes, should have " + value.hashes.asArray().length / 32 + " but has " + map.length)
+      }
       fileMetadataMap.add(key, value.copy(hashes = null, hashIds = map))
     }
     logger.info("Converted filemetadata, took: " + st.measuredTime())

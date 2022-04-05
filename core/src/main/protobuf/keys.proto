@@ -80,7 +80,7 @@ message ChunkProtoMap {
     option (scalapb.message).no_box = true;
     map<uint32, bytes> chunk_keys = 1 [
         (scalapb.field).key_type = "ch.descabato.core.model.ChunkMapKeyId",
-        (scalapb.field).value_type = "ch.descabato.utils.Hash",
+        (scalapb.field).value_type = "ch.descabato.utils.BytesWrapper",
         (scalapb.field).map_type="collection.immutable.HashMap"
     ];
     map<uint32, ValueLogIndex> chunk_values = 2 [
