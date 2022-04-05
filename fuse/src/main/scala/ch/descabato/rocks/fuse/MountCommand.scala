@@ -1,9 +1,7 @@
 package ch.descabato.rocks.fuse
 
-import java.nio.file.Paths
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
-import ch.descabato.core.model.Size
 import ch.descabato.frontend.BackupFolderOption
 import ch.descabato.frontend.BackupRelatedCommand
 import ch.descabato.utils.Utils
@@ -13,6 +11,7 @@ import org.rogach.scallop.ScallopOption
 import java.awt.Desktop
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 
 class MountCommand extends BackupRelatedCommand {
   type T = FuseMountConf
@@ -70,15 +69,15 @@ class MountCommand extends BackupRelatedCommand {
   }
 
   def printFilesPerVolume(reader: BackupReader): Unit = {
-    //    val volumes = reader.chunksByVolume
-    //    volumes.view.mapValues { m =>
-    //      (m.values.map(_.lengthCompressed).sum,m.values.map(_.lengthUncompressed).sum)
-    //    }.foreach { case (num, total) =>
-    //      println(num + ": " + Utils.readableFileSize(total._1) +" "+Utils.readableFileSize(total._2))
-    //    }
+    val volumes = reader.chunksByVolume
+    volumes.view.mapValues { m =>
+      (m.values.map(_.lengthCompressed).sum, m.values.map(_.lengthUncompressed).sum)
+    }.foreach { case (num, total) =>
+      println(num + ": " + Utils.readableFileSize(total._1) + " " + Utils.readableFileSize(total._2))
+    }
 
-    val rev = reader.revisions.maxBy(_.revision.number)
-    // TODO rewrite
+    // TODO this seems like very specific analysis code which should not be part of the main program
+    //    val rev = reader.revisions.maxBy(_.revision.number)
     //    println(rev.revision)
     //    for (x <- volumes.keys if x >= 584) {
     //      println(s"volume ${x}")
@@ -95,6 +94,8 @@ class MountCommand extends BackupRelatedCommand {
 }
 
 class FuseMountConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
+
   import org.rogach.scallop.stringConverter
+
   val mountFolder: ScallopOption[String] = opt[String](descr = "The folder to mount the contents on (on windows: drive letter)", required = true)
 }

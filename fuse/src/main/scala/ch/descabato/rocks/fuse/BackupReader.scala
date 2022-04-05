@@ -1,11 +1,13 @@
 package ch.descabato.rocks.fuse
 
 import ch.descabato.core.model.BackupEnv
+import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.RevisionKey
 import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.RevisionValue
+import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Utils
 
 import java.io.InputStream
@@ -13,6 +15,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import scala.collection.immutable.SortedMap
 import scala.collection.immutable.TreeMap
 
 class BackupReader(val backupEnv: BackupEnv) extends Utils {
@@ -26,38 +29,38 @@ class BackupReader(val backupEnv: BackupEnv) extends Utils {
       }.toSeq
   }
 
-  //
-  //    TODO rewrite
-  //  lazy val chunksByVolume: Map[Int, Map[ChunkKey, ValueLogIndex]] = {
-  //    var out = SortedMap.empty[Int, Map[ChunkKey, ValueLogIndex]]
-  //    backupEnv.rocks.getAllChunks().foreach { case (key, v) =>
-  //      val number = backupEnv.fileManager.volume.numberOfFile(backupEnv.config.resolveRelativePath(v.filename))
-  //      var map = out.getOrElse(number, Map.empty)
-  //      map += (key -> v)
-  //      out += number -> map
-  //    }
-  //    out
-  //  }
-  //
-  //  def fileMetadataValuesByVolume(revision: RevisionKey, x: Int): Map[String, (Long, Seq[Int])] = {
-  //    val chunks = chunksByVolume(x)
-  //    val rev = revisions.filter(_.revision == revision).head
-  //    val revisionFiles = rev.revisionValue.files
-  //    var out = Map.empty[String, (Long, Seq[Int])]
-  //    for (revFile <- revisionFiles) {
-  //      val value = rocks.readFileMetadata(revFile).get
-  //      for ((hash, index) <- rocks.getHashes(value).zipWithIndex) {
-  //        if (chunks.contains(hash)) {
-  //          //          println(revFile.path+" "+index+" "+chunks(hash).lengthCompressed)
-  //          var length = out.getOrElse(revFile.path, (0L, Seq.empty))
-  //          length = (chunks(hash).lengthCompressed + length._1, length._2 :+ index)
-  //          out += revFile.path -> length
-  //        }
-  //      }
-  //    }
-  //    out
-  //  }
-  //
+  lazy val chunksByVolume: Map[Int, Map[ChunkKey, ValueLogIndex]] = {
+    var out = SortedMap.empty[Int, Map[ChunkKey, ValueLogIndex]]
+    backupEnv.rocks.getAllChunks().foreach { case (key, v) =>
+      val number = backupEnv.fileManager.volume.numberOfFile(backupEnv.config.resolveRelativePath(v.filename))
+      var map = out.getOrElse(number, Map.empty)
+      map += (key -> v)
+      out += number -> map
+    }
+    out
+  }
+
+  def fileMetadataValuesByVolume(revision: RevisionKey, x: Int): Map[String, (Long, Seq[Int])] = {
+    val chunks = chunksByVolume(x)
+    val rev = revisions.filter(_.revision == revision).head
+    val revisionFiles = rev.revisionValue.fileIdentifiers.flatMap { x =>
+      rocks.getFileMetadataByKeyId(x)
+    }
+    var out = Map.empty[String, (Long, Seq[Int])]
+    for ((revFile, value) <- revisionFiles) {
+
+      for ((hash, index) <- value.hashIds.flatMap(x => rocks.getChunkById(x).map(_._1)).zipWithIndex) {
+        if (chunks.contains(hash)) {
+          //          println(revFile.path+" "+index+" "+chunks(hash).lengthCompressed)
+          var length = out.getOrElse(revFile.path, (0L, Seq.empty))
+          length = (chunks(hash).lengthCompressed + length._1, length._2 :+ index)
+          out += revFile.path -> length
+        }
+      }
+    }
+    out
+  }
+
   def createInputStream(metadataValue: FileMetadataValue): InputStream = {
     reader.createInputStream(metadataValue)
   }

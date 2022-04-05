@@ -39,8 +39,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
   private def checkExport(counter: ProblemCounter): Unit = {
     logger.info(s"Found ${backupEnv.rocks.getAllRevisions().size} revisions")
     logger.info(s"Found ${backupEnv.rocks.getAllValueLogStatusKeys().size} value log status keys")
-    // TODO rewrite
-    //    logger.info(s"Found ${backupEnv.rocks.getAllFileMetadatas().size} file metadatas")
+    logger.info(s"Found ${backupEnv.rocks.getAllFileMetadata().size} value log index keys")
     logger.info(s"Found ${backupEnv.rocks.getAllChunks().size} chunks")
   }
 

@@ -33,6 +33,10 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
     inMemoryDb.valueLogStatus
   }
 
+  def getAllFileMetadata(): Iterator[(FileMetadataKey, FileMetadataValue)] = {
+    inMemoryDb.fileMetadataMap.iterator()
+  }
+
   def getIndexes(fileMetadataValue: FileMetadataValue): Iterator[ValueLogIndex] = {
     fileMetadataValue.hashIds.iterator.flatMap { x =>
       inMemoryDb.chunkMap.getByKeyId(x)
