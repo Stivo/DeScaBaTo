@@ -8,7 +8,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.stream.Collectors
 import scala.util.Try
-import scala.jdk.CollectionConverters._
 
 object Constants {
   val tempPrefix = "temp."
@@ -71,8 +70,10 @@ trait DatedFileType extends FileType[Date] {
 class FileManager(config: BackupFolderConfiguration) {
 
   val volume = new StandardNumberedFileType("volume", "json.gz", config)
-  val dbexport = new StandardNumberedFileType("dbexport", "json.gz", config)
+  val dbexport = new StandardNumberedFileType("dbexport", "proto", config)
 
+  @deprecated
+  val dbexport_old = new StandardNumberedFileType("dbexport", "json.gz", config)
   @deprecated
   val volumeIndex = new StandardNumberedFileType("volumeIndex", "json.gz", config)
   @deprecated
@@ -80,7 +81,7 @@ class FileManager(config: BackupFolderConfiguration) {
   @deprecated
   val backup = new StandardDatedFileType("backup", "json.gz", config)
 
-  private val filetypes = Seq(volume, volumeIndex, metadata, backup, dbexport)
+  private val filetypes = Seq(volume, volumeIndex, metadata, backup, dbexport, dbexport_old)
 
   def allFiles(): Seq[File] = {
     filetypes.flatMap(_.getFiles())
