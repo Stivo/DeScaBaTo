@@ -5,7 +5,7 @@ object Common {
 
   def scalaDefaultVersion = "2.13.8"
 
-  def scala3Version = "3.1.0"
+  def scala3Version = "3.1.1"
 
   def scalaCrossVersions = Seq(scalaDefaultVersion, scala3Version)
 
