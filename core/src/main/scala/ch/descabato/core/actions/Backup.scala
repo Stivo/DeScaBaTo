@@ -3,9 +3,9 @@ package ch.descabato.core.actions
 import better.files._
 import ch.descabato.core.FileVisitorCollector
 import ch.descabato.core.model.BackupEnv
+import ch.descabato.core.model.ChunkId
 import ch.descabato.core.model.ChunkKey
-import ch.descabato.core.model.ChunkMapKeyId
-import ch.descabato.core.model.FileMetadataKeyId
+import ch.descabato.core.model.FileMetadataId
 import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.util.InMemoryDb
 import ch.descabato.core.util.ValueLogWriter
@@ -66,7 +66,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   }
 
   var revisionContent: ByteArrayOutputStream = new ByteArrayOutputStream()
-  var filesInRevision: mutable.Buffer[FileMetadataKeyId] = mutable.Buffer.empty
+  var filesInRevision: mutable.Buffer[FileMetadataId] = mutable.Buffer.empty
 
   val valueLog = new ValueLogWriter(backupEnv, backupEnv.fileManager.volume, write = true, backupEnv.config.volumeSize.bytes)
   val compressionDecider: CompressionDecider = CompressionDeciders.createForConfig(backupEnv.config)
@@ -107,7 +107,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   val hashTiming = new StopWatch("sha256")
   val buzhashTiming = new StopWatch("buzhash")
 
-  def backupChunk(file: File, bytesWrapper: BytesWrapper, hashIds: mutable.Buffer[ChunkMapKeyId]): Unit = {
+  def backupChunk(file: File, bytesWrapper: BytesWrapper, hashIds: mutable.Buffer[ChunkId]): Unit = {
     //    println(s"Backing up chunk with length ${toByteArray.length}")
     val hash = hashTiming.measure {
       digest.reset()
@@ -129,7 +129,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   }
 
   def backupFile(file: Path): FileMetadataValue = {
-    val hashIds = mutable.Buffer.empty[ChunkMapKeyId]
+    val hashIds = mutable.Buffer.empty[ChunkId]
     logger.info(file.toFile.toString)
     var chunk = 0
     for {
@@ -166,7 +166,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     fillInTypeInfo(file, None)
   }
 
-  def fillInTypeInfo(file: Path, hashIds: Option[Seq[ChunkMapKeyId]]): FileMetadataValue = {
+  def fillInTypeInfo(file: Path, hashIds: Option[Seq[ChunkId]]): FileMetadataValue = {
     val attr = Files.readAttributes(file, classOf[BasicFileAttributes])
     val dosAttributes = Try(Files.readAttributes(file, classOf[DosFileAttributes])).toOption
     FileMetadataValue(

@@ -90,26 +90,26 @@ object ProtoFriendlyMap {
 
 }
 
-case class ChunkMapKeyId(id: Int) extends AnyVal {
-  def increment(): ChunkMapKeyId = {
-    ChunkMapKeyId(id + 1)
+case class ChunkId(id: Int) extends AnyVal {
+  def increment(): ChunkId = {
+    ChunkId(id + 1)
   }
 }
 
-object ChunkMapKeyId extends IntKey[ChunkMapKeyId] {
-  implicit val typeMapper: TypeMapper[Int, ChunkMapKeyId] = TypeMapper(ChunkMapKeyId.apply)(_.id)
+object ChunkId extends IntKey[ChunkId] {
+  implicit val typeMapper: TypeMapper[Int, ChunkId] = TypeMapper(ChunkId.apply)(_.id)
 
-  override def id(t: ChunkMapKeyId): Int = t.id
+  override def id(t: ChunkId): Int = t.id
 
-  override def newInstance(id: Int): ChunkMapKeyId = ChunkMapKeyId(id)
+  override def newInstance(id: Int): ChunkId = ChunkId(id)
 }
 
-class ChunkMap private(keyMap: HashMap[ChunkKey, ChunkMapKeyId], valueMap: HashMap[ChunkMapKeyId, (ChunkKey, ValueLogIndex)])
-  extends ProtoFriendlyMap[ChunkKey, ChunkMapKeyId, ValueLogIndex, ChunkMap](keyMap, valueMap) {
+class ChunkMap private(keyMap: HashMap[ChunkKey, ChunkId], valueMap: HashMap[ChunkId, (ChunkKey, ValueLogIndex)])
+  extends ProtoFriendlyMap[ChunkKey, ChunkId, ValueLogIndex, ChunkMap](keyMap, valueMap) {
 
-  override protected lazy val idCompanion: IntKey[ChunkMapKeyId] = ChunkMapKeyId
+  override protected lazy val idCompanion: IntKey[ChunkId] = ChunkId
 
-  override def constructNew(newKeyMap: HashMap[ChunkKey, ChunkMapKeyId], newKeyIdMap: HashMap[ChunkMapKeyId, (ChunkKey, ValueLogIndex)]): ChunkMap =
+  override def constructNew(newKeyMap: HashMap[ChunkKey, ChunkId], newKeyIdMap: HashMap[ChunkId, (ChunkKey, ValueLogIndex)]): ChunkMap =
     new ChunkMap(newKeyMap, newKeyIdMap)
 }
 
@@ -127,29 +127,29 @@ object ChunkMap {
   }
 }
 
-case class FileMetadataKeyId(id: Int) extends AnyVal {
-  def increment(): FileMetadataKeyId = {
-    FileMetadataKeyId(id + 1)
+case class FileMetadataId(id: Int) extends AnyVal {
+  def increment(): FileMetadataId = {
+    FileMetadataId(id + 1)
   }
 }
 
-object FileMetadataKeyId extends IntKey[FileMetadataKeyId] {
-  implicit val typeMapper: TypeMapper[Int, FileMetadataKeyId] = TypeMapper(FileMetadataKeyId.apply)(_.id)
+object FileMetadataId extends IntKey[FileMetadataId] {
+  implicit val typeMapper: TypeMapper[Int, FileMetadataId] = TypeMapper(FileMetadataId.apply)(_.id)
 
-  def addOne(key: FileMetadataKeyId): FileMetadataKeyId = FileMetadataKeyId(key.id + 1)
+  def addOne(key: FileMetadataId): FileMetadataId = FileMetadataId(key.id + 1)
 
-  override def id(t: FileMetadataKeyId): Int = t.id
+  override def id(t: FileMetadataId): Int = t.id
 
-  override def newInstance(id: Int): FileMetadataKeyId = FileMetadataKeyId(id)
+  override def newInstance(id: Int): FileMetadataId = FileMetadataId(id)
 }
 
-class FileMetadataMap private(keyMap: HashMap[FileMetadataKey, FileMetadataKeyId], valueMap: HashMap[FileMetadataKeyId, (FileMetadataKey, FileMetadataValue)])
-  extends ProtoFriendlyMap[FileMetadataKey, FileMetadataKeyId, FileMetadataValue, FileMetadataMap](keyMap, valueMap) {
+class FileMetadataMap private(keyMap: HashMap[FileMetadataKey, FileMetadataId], valueMap: HashMap[FileMetadataId, (FileMetadataKey, FileMetadataValue)])
+  extends ProtoFriendlyMap[FileMetadataKey, FileMetadataId, FileMetadataValue, FileMetadataMap](keyMap, valueMap) {
 
-  override def constructNew(newKeyMap: HashMap[FileMetadataKey, FileMetadataKeyId], newKeyIdMap: HashMap[FileMetadataKeyId, (FileMetadataKey, FileMetadataValue)]): FileMetadataMap =
+  override def constructNew(newKeyMap: HashMap[FileMetadataKey, FileMetadataId], newKeyIdMap: HashMap[FileMetadataId, (FileMetadataKey, FileMetadataValue)]): FileMetadataMap =
     new FileMetadataMap(newKeyMap, newKeyIdMap)
 
-  override protected lazy val idCompanion: IntKey[FileMetadataKeyId] = FileMetadataKeyId
+  override protected lazy val idCompanion: IntKey[FileMetadataId] = FileMetadataId
 
 }
 

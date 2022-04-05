@@ -36,7 +36,7 @@ message FileMetadataKey {
 message RevisionValue {
     uint64 created = 1;
     string config_json = 2;
-    repeated uint32 file_identifiers = 4 [(scalapb.field).type = "ch.descabato.core.model.FileMetadataKeyId"];
+    repeated uint32 file_identifiers = 4 [(scalapb.field).type = "ch.descabato.core.model.FileMetadataId"];
 }
 
 message FileMetadataValue {
@@ -48,7 +48,7 @@ message FileMetadataValue {
     bool fromwindows = 4;
     // file ones
     uint64 length = 8;
-    repeated uint32 hash_ids = 10 [(scalapb.field).type = "ch.descabato.core.model.ChunkMapKeyId"];
+    repeated uint32 hash_ids = 10 [(scalapb.field).type = "ch.descabato.core.model.ChunkId"];
     // unix
     uint32 unixmode = 16;
     string unixowner = 17;
@@ -77,12 +77,12 @@ message ChunkProtoMap {
 
     option (scalapb.message).no_box = true;
     map<uint32, bytes> chunk_keys = 1 [
-        (scalapb.field).key_type = "ch.descabato.core.model.ChunkMapKeyId",
+        (scalapb.field).key_type = "ch.descabato.core.model.ChunkId",
         (scalapb.field).value_type = "ch.descabato.core.model.ChunkKey",
         (scalapb.field).map_type="collection.immutable.HashMap"
     ];
     map<uint32, ValueLogIndex> chunk_values = 2 [
-        (scalapb.field).key_type = "ch.descabato.core.model.ChunkMapKeyId",
+        (scalapb.field).key_type = "ch.descabato.core.model.ChunkId",
         (scalapb.field).map_type="collection.immutable.HashMap"
     ];
 }
@@ -91,11 +91,11 @@ message FileMetadataProtoMap {
 
     option (scalapb.message).no_box = true;
     map<uint32, FileMetadataKey> file_metadata_keys = 1 [
-        (scalapb.field).key_type = "ch.descabato.core.model.FileMetadataKeyId",
+        (scalapb.field).key_type = "ch.descabato.core.model.FileMetadataId",
         (scalapb.field).map_type = "collection.immutable.HashMap"
     ];
     map<uint32, FileMetadataValue> file_metadata_values = 2 [
-        (scalapb.field).key_type = "ch.descabato.core.model.FileMetadataKeyId",
+        (scalapb.field).key_type = "ch.descabato.core.model.FileMetadataId",
         (scalapb.field).map_type = "collection.immutable.HashMap"
     ];
 }
