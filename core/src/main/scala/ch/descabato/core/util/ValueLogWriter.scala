@@ -10,7 +10,6 @@ import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
 import ch.descabato.utils.StopWatch
-import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
 import java.io.File
