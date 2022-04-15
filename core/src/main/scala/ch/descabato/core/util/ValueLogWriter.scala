@@ -93,7 +93,7 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
 }
 
 
-class ValueLogReader(backupEnv: BackupEnv) extends AutoCloseable {
+class ValueLogReader(backupEnv: BackupEnv) extends AutoCloseable with LazyLogging {
 
   private val readTiming = new StopWatch("readValue")
   private val decompressionTiming = new StopWatch("decompression")
@@ -123,12 +123,18 @@ class ValueLogReader(backupEnv: BackupEnv) extends AutoCloseable {
   }
 
   def readValue(valueLogIndex: ValueLogIndex): BytesWrapper = {
-    val raf: FileReader = lookupRaf(valueLogIndex)
-    val compressed: BytesWrapper = readTiming.measure {
-      raf.readChunk(valueLogIndex.from, valueLogIndex.lengthCompressed)
-    }
-    decompressionTiming.measure {
-      CompressedStream.decompressToBytes(compressed)
+    try {
+      val raf: FileReader = lookupRaf(valueLogIndex)
+      val compressed: BytesWrapper = readTiming.measure {
+        raf.readChunk(valueLogIndex.from, valueLogIndex.lengthCompressed)
+      }
+      decompressionTiming.measure {
+        CompressedStream.decompressToBytes(compressed)
+      }
+    } catch {
+      case e: Exception =>
+        logger.error(s"Failed to read value from $valueLogIndex", e)
+        throw e
     }
   }
 
