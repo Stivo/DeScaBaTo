@@ -16,7 +16,7 @@ import scala.jdk.CollectionConverters._
 
 object ProgressReporters {
 
-  var guiEnabled = true
+  var guiEnabled = false
 
   var gui: Option[ProgressGui] = None
 

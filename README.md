@@ -1,17 +1,18 @@
 
-DeScaBaTo [![Build Status](https://travis-ci.org/Stivo/DeScaBaTo.png?branch=master)](https://travis-ci.org/Stivo/DeScaBaTo)
+DeScaBaTo [![CircleCI](https://circleci.com/gh/Stivo/DeScaBaTo/tree/feature%2Fbetter_serialization.svg?style=svg)](https://circleci.com/gh/Stivo/DeScaBaTo/tree/feature%2Fbetter_serialization)
 =========
 
 The Deduplicating Scala Backup Tool. Mainly it is inspired by [duplicati](http://www.duplicati.com/), but the content
 defined chunking is inspired by [duplicacy](http://www.duplicacy.com/). Currently it only supports local backups and is
-in beta stage. For version 0.8.0 I reimplemented the main backup functionality, now it is single-threaded and uses
-RocksDB as a local DB to avoid data loss. The new implementation is simpler, faster and I have a lot more confidence in
-it.
+in beta stage. For version 0.8.0 I reimplemented the main backup functionality, now it is single-threaded again and uses
+protobuf for serialization. The new implementation is simpler, faster and I have a lot more confidence in it.
 
 As of now, it has these features:
 
-- Backup and restore files and folders [fast](https://github.com/Stivo/DeScaBaTo/wiki/Performance), including metadata (lastModifiedTime, posix owner and access rights)
-- A deduplicating storage mechanism. Parts of a file that are the same are only saved once.
+- Backup and restore files and folders [fast](https://github.com/Stivo/DeScaBaTo/wiki/Performance), including metadata (
+  lastModifiedTime, posix owner and access rights)
+- A deduplicating storage mechanism. Parts of a file that are the same are only saved once. Both over time and over
+  different files.
 - Supports several compression algorithms and
   chooses [automatically](https://github.com/Stivo/DeScaBaTo/wiki/Smart-Compression-Decider) the best one for each file
   type
@@ -22,10 +23,11 @@ As of now, it has these features:
 
 Compared to duplicati (this analysis may be outdated):
 
-- Duplicati is a mature program with a long history and a userbase, DeScaBaTo is very new
-- DeScaBaTo is inspired by Duplicati and shares the same deduplication strategy and has a similar storage format
-- By using a custom archive format there is less space required
-- Can be used as a portable program (no installation required, leaves no traces)
+- Duplicati is a mature program with a long history and a userbase. DeScaBaTo is now 8 years old but has only been used
+  by me.
+- DeScaBaTo is inspired by Duplicati and has a similar deduplication strategy
+- By using a custom archive format there is less space required (Duplicati uses zip files)
+- DeScaBaTo can be used as a portable program (no installation required, leaves no traces)
 - It can automatically choose for each file extension which compression method to use. Duplicati either disables or
   enables compression based on a static list of extensions.
 
@@ -36,65 +38,40 @@ Compared to duplicacy:
 - Duplicacy supports one remote for multiple different backups, where as here you will have separate backup destinations
   for different backups, they are truly independent
 - Duplicacy creates several thousand files, while DeScaBaTo puts all the data in large files, these are easier on the
-  filesystem
-
-I plan to support these features:
-
-- Patterns for backups and restores
+  filesystem and for uploading to cloud storage
 
 ### Installation
 
-1. Install Java 11. I
-   use [Amazon Corretto](https://docs.aws.amazon.com/corretto/latest/corretto-11-ug/downloads-list.html).
+1. Install Java 17. I
+   use [Amazon Corretto](https://docs.aws.amazon.com/corretto/latest/corretto-17-ug/downloads-list.html).
 2. Unpack the release.
 3. If you want to use the mount command under windows, you must also install [winfsp](http://www.secfs.net/winfsp/rel/)
 
 ### Usage
 
-To backup a directory:
+#### To backup a directory:
 
-    backup [options] backupFolder folderToBackup
+    backup [options] backupFolder foldersToBackup
 
 Once a backup is executed, a batch file will be created to restart this backup. You don't need to set any options, but
 you can. The options are:
 
-    -c, --compression  <arg>      The compressor to use. Smart chooses best
-                                  compressor by file extension (default = smart)
+    -c, --compression  <arg>      The compressor to use. Smart chooses best compressor by file extension (default = smart)
     -d, --dont-save-symlinks      Disable backing up symlinks
-    -h, --hash-algorithm  <arg>   The hash algorithm to use for deduplication.
-                                  (default = sha3_256)
+    -h, --hash-algorithm  <arg>   The hash algorithm to use for deduplication. (default = sha3_256)
     -i, --ignore-file  <arg>      File with ignore patterns
     -k, --keylength  <arg>        Length of the AES encryption key (default = 128)
     -l, --logfile  <arg>          Destination of the logfile of this backup
-        --no-gui                   Disables the progress report window
-        --no-script-creation      Disables creating a script to repeat the backup.
-    -p, --passphrase  <arg>       The password to use for the backup. If none is
-                                  supplied, encryption is turned off
-    -t, --threads  <arg>          How many threads should be used for the backup
-                                  (default = 4)
-    -v, --volume-size  <arg>      Maximum size of the main data files
-                                  (default = 500.0 MB)
-        --help                    Show help message
-  
-These options apply to backup only. The options with a star in the end can only be defined on the first run, they can not be changed afterwards. To put several backups into the same folder, set the prefix for each backup. All these options will be stored in the backup, except for the passphrase. 
+    -n, --no-script-creation      Disables creating a script to repeat the backup.
+    -p, --passphrase  <arg>       The password to use for the backup. If none is supplied, encryption is turned off
+    -v, --volume-size  <arg>      Maximum size of the main data files (default = 500 MB)
+    --help                        Show help message
 
-    restore [options] backupFolder 
+trailing arguments: \
+backup-destination (required)   Root folder of the backup \
+folders-to-backup (required)    Folders to be backed up
 
-    -c, --choose-date                Choose the date you want to restore from a
-                                     list.
-    -l, --logfile  <arg>             Destination of the logfile of this backup
-        --no-gui                     Disables the progress report window
-    -p, --passphrase  <arg>          The password to use for the backup. If none
-                                     is supplied, encryption is turned off
-        --restore-backup  <arg>      Filename of the backup to restore.
-        --restore-info  <arg>        Destination of a short summary of the restore
-                                     process.
-        --restore-to-folder  <arg>   Restore to a given folder
-    -r, --restore-to-original-path   Restore files to original path.
-    -h, --help                       Show help message
-
-Either restore-to-original-path or restore-to-folder has to be set. --choose-date will ask you for the version from
-which you want to restore from.
+#### To restore data, mounting is the preferred option
 
 Mount will mount the backup as a read-only file system, so it can be browsed with a normal file explorer. Also restoring
 from backup can be simply done by copying from there.
@@ -106,9 +83,24 @@ from backup can be simply done by copying from there.
                             supplied, encryption is turned off
     -h, --help                Show help message
 
-To use encryption with longer keylength than 128, install the jce policy files (google it). MD5 is old and unsafe, but will do fine here and saves space. SHA1, SHA256 are also supported.
+#### Restore without mounting
 
-Absolutely no warranty given. 
+    restore [options] backupFolder 
+
+    -l, --logfile  <arg>             Destination of the logfile of this backup  
+    -p, --passphrase  <arg>          The password to use for the backup. If none is supplied, encryption is turned off      
+    --restore-backup  <arg>          Filename of the backup to restore.
+    --restore-info  <arg>            Destination of a short summary file of the restore process.
+    --restore-to-folder  <arg>       Restore to a given folder
+    -r, --restore-to-original-path   Restore files to original path.
+    -h, --help                       Show help message
+
+Either restore-to-original-path or restore-to-folder has to be set.
+
+To use encryption with longer keylength than 128, install the jce policy files (google it). SHA3_256 is the default hash
+algorithm, but you can also choose Blake2 (160 - 512 bits) or sha3 (256 - 512 bits).
+
+Absolutely no warranty given.
 
 ### Compilation
 You will need sbt to compile or to set up eclipse or intellij idea. sbt pack will create a folder which can be zipped and distributed.
@@ -120,5 +112,9 @@ The project is split up into three parts:
   while backing up.
 
 ### Implementation idea
-The current implementation finds all the files in a directory and hashes them block wise. A block contains a fixed number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used. 
-The blocks are then not needed until the data should be restored and can go on a external medium. Blocks are bundled into archives, so that they can easily be uploaded to remote storage (cloud, ftp etc). 
+
+The current implementation finds all the files in a directory and hashes them block wise. A block contains a variable
+number of bytes of a certain file. To describe a file, the metadata and the hash of the needed blocks are used.  
+The blocks are bundled into volumes with a configurable maximum size. To add to the backup or browse the contained date,
+they are not needed. Only when restoring data the volumes are needed, so they can be safely uploaded to the cloud if
+space is needed locally.

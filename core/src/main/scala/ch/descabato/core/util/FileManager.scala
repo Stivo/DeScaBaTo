@@ -68,7 +68,7 @@ trait DatedFileType extends FileType[Date] {
 
 class FileManager(config: BackupFolderConfiguration) {
 
-  val volume = new StandardNumberedFileType("volume", "json.gz", config)
+  val volume = new StandardNumberedFileType("volume", "kvs", config)
   val dbexport = new StandardNumberedFileType("dbexport", "proto", config)
 
   @deprecated
