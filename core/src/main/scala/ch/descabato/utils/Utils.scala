@@ -154,7 +154,7 @@ class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: 
 
 object Utils extends LazyLogging {
 
-  private val units = Array[String]("B", "KB", "MB", "GB", "TB")
+  private val units = Array[String]("B", "KiB", "MiB", "GiB", "TiB")
 
   def isWindows: Boolean = System.getProperty("os.name").contains("indows")
 

@@ -8,16 +8,16 @@ protobuf for serialization. The new implementation is simpler, faster and I have
 
 I have been using various versions of the program for years already. My biggest backup for my home folder has:
 
-- been running two years
+- been running for two years
 - 104 revisions
-- 400k different chunks of data
+- 400k different chunks of data, totaling 142 GiB uncompressed, saved as volumes with a total size of 49 GiB
 - 650k different files backed up with all metadata
-- Total of 190mb metadata, compressed to 54 mb
+- Total of 190MiB metadata, compressed to 54 MiB
 
 With this it can restore:
 
-- 20 mio files in total (around 20k per revision)
-- In total 2.2TB of data (around 20 GB per revision)
+- 20 mio files in total (around 200k per revision)
+- In total 2.2TiB of data (around 20 GiB per revision)
 
 Due to the deduplication and the fact that most files don't change, the backup is very size efficient compared to a
 naive approach.

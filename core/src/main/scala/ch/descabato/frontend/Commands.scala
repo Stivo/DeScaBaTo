@@ -179,7 +179,7 @@ trait RedundancyOptions extends BackupFolderOption {
 
 trait ChangeableBackupOptions extends BackupFolderOption with RedundancyOptions with NoGuiOption {
   val keylength: ScallopOption[Int] = opt[Int](descr = "Length of the AES encryption key", default = Some(128))
-  val volumeSize: ScallopOption[Size] = opt[Size](descr = "Maximum size of the main data files", default = Some(Size("500Mb")))
+  val volumeSize: ScallopOption[Size] = opt[Size](descr = "Maximum size of the main data files", default = Some(Size("500MiB")))
   val noScriptCreation: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disables creating a script to repeat the backup.")
   //  val renameDetection = opt[Boolean](hidden = true, default = Some(false))
   val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disable backing up symlinks")

@@ -2,7 +2,6 @@ package ch.descabato.remote
 
 import ch.descabato.utils.Hash
 import ch.descabato.utils.Utils
-import com.amazonaws.RequestClientOptions
 import com.amazonaws.client.builder.ExecutorFactory
 import com.amazonaws.event.ProgressEvent
 import com.amazonaws.event.ProgressEventType
@@ -66,7 +65,6 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
   }
 
   override def put(file: File, path: BackupPath, context: Option[RemoteOperationContext], md5Hash: Option[Array[Byte]] = None): Try[Unit] = {
-    val bufferSize = RequestClientOptions.DEFAULT_STREAM_BUFFER_SIZE
     val remotePath: String = computeRemotePath(path)
     md5Hash.foreach(hash => logger.info(s"File $file uploading with hash ${Hash(hash).base64}"))
     // slow

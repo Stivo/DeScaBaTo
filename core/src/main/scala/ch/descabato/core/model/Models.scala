@@ -223,12 +223,12 @@ case class Size(bytes: Long) {
 
 object Size {
   val knownTypes: Set[Class[_]] = Set(classOf[Size])
-  val patt: Pattern = Pattern.compile("([\\d.]+)[\\s]*([GMK]?B)", Pattern.CASE_INSENSITIVE)
+  val patt: Pattern = Pattern.compile("([\\d.]+)[\\s]*([GMK]?I?B)", Pattern.CASE_INSENSITIVE)
 
   def apply(size: String): Size = {
     var out: Long = -1
     val matcher = patt.matcher(size)
-    val map = List(("GB", 3), ("MB", 2), ("KB", 1), ("B", 0)).toMap
+    val map = List(("GIB", 3), ("MIB", 2), ("KIB", 1), ("GB", 3), ("MB", 2), ("KB", 1), ("B", 0)).toMap
     if (matcher.find()) {
       val number = matcher.group(1)
       val pow = map(matcher.group(2).toUpperCase())
