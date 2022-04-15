@@ -5,11 +5,13 @@ import ch.descabato.core.model.BackupEnvInit
 import ch.descabato.core.model.ChunkMap
 import ch.descabato.core.model.FileMetadataMap
 import ch.descabato.core.model.RevisionKey
+import ch.descabato.core.model.Size
 import ch.descabato.core.model.ValueLogStatusKey
 import ch.descabato.core.util.Implicits.PimpedTry
 import ch.descabato.protobuf.keys.ProtoDb
 import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.protobuf.keys.ValueLogStatusValue
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Using
 
@@ -55,7 +57,7 @@ class InMemoryDb private(private var _revisionMap: Map[RevisionKey, RevisionValu
 
 }
 
-object InMemoryDb {
+object InMemoryDb extends LazyLogging {
 
   def readFiles(backupEnv: BackupEnvInit): Option[InMemoryDb] = {
     val files = backupEnv.fileManager.dbexport.getFiles()
@@ -63,6 +65,7 @@ object InMemoryDb {
     for (file <- files) {
       Using(backupEnv.config.newCompressedInputStream(file)) { fis =>
         val db = ProtoDb.parseFrom(fis)
+        logger.info(s"Metadata read from $file has a size of ${Size(db.serializedSize)} uncompressed")
         val inMemoryDb = fromProto(db)
         out = out.map(_.merge(inMemoryDb)) orElse Some(inMemoryDb)
       }.getOrThrow()

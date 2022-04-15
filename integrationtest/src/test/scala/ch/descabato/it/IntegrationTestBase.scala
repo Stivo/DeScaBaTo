@@ -14,8 +14,8 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.Paths
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable.Set
+import scala.jdk.CollectionConverters._
 
 abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike with TestUtils {
 
@@ -65,9 +65,6 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(friendlyTestName + ".log")
-    if (args(0) != "upgrade") {
-      cmdLine.addArgument("--no-gui")
-    }
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
@@ -81,9 +78,6 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(friendlyTestName + ".log")
-    if (args(0) != "upgrade") {
-      cmdLine.addArgument("--no-gui")
-    }
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
