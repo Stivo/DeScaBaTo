@@ -71,6 +71,10 @@ trailing arguments: \
 backup-destination (required)   Root folder of the backup \
 folders-to-backup (required)    Folders to be backed up
 
+Before you start backing up, you can use the count command to get an estimate of how many files and data will be backed
+up with the given input folder and the given ignore file. A tool like Treesize Free can help you figure out which files
+are important to you.
+
 #### To restore data, mounting is the preferred option
 
 Mount will mount the backup as a read-only file system, so it can be browsed with a normal file explorer. Also restoring
