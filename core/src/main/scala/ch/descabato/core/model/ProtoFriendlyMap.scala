@@ -110,15 +110,9 @@ class ChunkMap private(keyMap: HashMap[ChunkKey, ChunkId], valueMap: HashMap[Chu
 
 object ChunkMap {
   def importFromProto(protoMap: ChunkProtoMap): ChunkMap = {
-    val oldEnding = ".json.gz"
     val reversedKeys = ProtoFriendlyMap.reverseMap(protoMap.chunkKeys)
     val values = protoMap.chunkValues.map { case (keyId, value) =>
-      val newName = if (value.filename.endsWith(oldEnding)) {
-        value.filename.dropRight(oldEnding.length) + ".kvs"
-      } else {
-        value.filename
-      }
-      keyId -> (protoMap.chunkKeys(keyId), value.copy(filename = newName))
+      keyId -> (protoMap.chunkKeys(keyId), value)
     }
     new ChunkMap(reversedKeys, values)
   }
@@ -157,7 +151,6 @@ object FileMetadataMap {
       keyId -> (protoMap.fileMetadataKeys(keyId), value)
     }
     new FileMetadataMap(keyMap, values)
-
   }
 
   def empty: FileMetadataMap = {

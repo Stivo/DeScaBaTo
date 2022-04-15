@@ -77,22 +77,28 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
   private val (dbExportFiles, dbExportTempFiles) = getFiles(dbExportType)
   private val (volumeFiles, volumeTempFiles) = getFiles(volumeType)
 
-  def deleteFile(x: io.File): Unit = {
-    if (Desktop.isDesktopSupported && Desktop.getDesktop.isSupported(Action.MOVE_TO_TRASH)) {
-      Desktop.getDesktop.moveToTrash(x)
+  def deleteFile(x: io.File, readOnly: Boolean): Unit = {
+    if (readOnly) {
+      logger.info(s"Skipping deletion of file ${x}, because backup is opened as read only")
     } else {
-      x.delete()
+      if (Desktop.isDesktopSupported && Desktop.getDesktop.isSupported(Action.MOVE_TO_TRASH)) {
+        Desktop.getDesktop.moveToTrash(x)
+      } else {
+        x.delete()
+      }
     }
   }
 
-  def deleteUnmentionedVolumes(toSeq: Seq[(ValueLogStatusKey, ValueLogStatusValue)]): Unit = {
+  def deleteUnmentionedVolumes(toSeq: Map[ValueLogStatusKey, ValueLogStatusValue], readOnly: Boolean): Unit = {
     var volumes: Set[io.File] = volumeFiles.toSet
     var toDelete = Set.empty[io.File]
-    for ((key, path) <- toSeq) {
+    for ((key, path) <- toSeq.toSeq.sortBy(_._1.parseNumber)) {
       val file = backupEnvInit.config.resolveRelativePath(key.name)
       if (path.status == FINISHED) {
-        logger.info(s"$key is marked as finished, will keep it")
-        volumes -= file
+        if (volumes.contains(file)) {
+          logger.info(s"$key is marked as finished, will keep it")
+          volumes -= file
+        }
       } else {
         toDelete += file
         logger.warn(s"Deleting $key, it is not marked as finished in dbexport")
@@ -100,11 +106,11 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
     }
     for (volume <- volumes) {
       logger.warn(s"Will delete $volume, because it is not mentioned in dbexport")
-      deleteFile(volume)
+      deleteFile(volume, readOnly)
     }
     for (volume <- toDelete) {
       logger.warn(s"Will delete $volume, because status is not finished")
-      deleteFile(volume)
+      deleteFile(volume, readOnly)
     }
   }
 
@@ -113,6 +119,7 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
       deleteTempFiles()
     }
     val inMemoryDb = InMemoryDb.readFiles(backupEnvInit)
+    inMemoryDb.foreach(x => deleteUnmentionedVolumes(x.valueLogStatus, backupEnvInit.readOnly))
     new KeyValueStore(backupEnvInit.readOnly, inMemoryDb.getOrElse(InMemoryDb.empty))
   }
 
