@@ -1,13 +1,11 @@
 package ch.descabato.core.util
 
-import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Utils
 import org.bouncycastle.crypto.generators.SCrypt
 
 import java.math.BigInteger
 import java.security.SecureRandom
 import java.util.Base64
-import java.util.zip.CRC32
 import javax.crypto.Mac
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -55,19 +53,6 @@ object CryptoUtils extends Utils {
     SCrypt.generate(passphrase.getBytes("UTF-8"), salt, 2**iterationsPower, memoryFactor, 4, keyLength)
   }
   
-}
-
-object CrcUtil {
-  def crc(bytes: BytesWrapper): Int = {
-    val crc = new CRC32()
-    crc.update(bytes.array, bytes.offset, bytes.length)
-    crc.getValue().toInt
-  }
-  def checkCrc(bytes: BytesWrapper, expected: Int, m: String = ""): Unit = {
-    if (crc(bytes) != expected) {
-      throw new IllegalArgumentException("Crc check failed: "+m)
-    }
-  }
 }
 
 class EncryptionInfo (

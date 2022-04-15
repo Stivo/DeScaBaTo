@@ -12,8 +12,6 @@ import scala.util.Try
 
 object Constants {
   val tempPrefix = "temp."
-  val filesEntry = "files.txt"
-  val indexSuffix = ".index"
 
   def objectEntry(num: Option[Int] = None): String = {
     val add = num.map(x => "_" + x).getOrElse("")

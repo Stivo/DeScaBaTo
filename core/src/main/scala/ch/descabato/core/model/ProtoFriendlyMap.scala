@@ -87,14 +87,9 @@ object ProtoFriendlyMap {
   def reverseMap[K, V](map: HashMap[K, V]): HashMap[V, K] = {
     map.map { case (k, v) => v -> k }
   }
-
 }
 
-case class ChunkId(id: Int) extends AnyVal {
-  def increment(): ChunkId = {
-    ChunkId(id + 1)
-  }
-}
+case class ChunkId(id: Int) extends AnyVal
 
 object ChunkId extends IntKey[ChunkId] {
   implicit val typeMapper: TypeMapper[Int, ChunkId] = TypeMapper(ChunkId.apply)(_.id)
@@ -127,11 +122,7 @@ object ChunkMap {
   }
 }
 
-case class FileMetadataId(id: Int) extends AnyVal {
-  def increment(): FileMetadataId = {
-    FileMetadataId(id + 1)
-  }
-}
+case class FileMetadataId(id: Int) extends AnyVal
 
 object FileMetadataId extends IntKey[FileMetadataId] {
   implicit val typeMapper: TypeMapper[Int, FileMetadataId] = TypeMapper(FileMetadataId.apply)(_.id)

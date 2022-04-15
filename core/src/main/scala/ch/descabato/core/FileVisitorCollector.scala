@@ -84,7 +84,6 @@ class IgnoreFileMatcher(val ignoreFileIn: Option[File]) {
       // file is not ignored
       true
     } else {
-      val relativized = root.relativize(path)
       !ignoredPatterns.exists(_.matches(path))
     }
   }

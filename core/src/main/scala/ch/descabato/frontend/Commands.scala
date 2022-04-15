@@ -233,14 +233,12 @@ class MultipleBackupConf(args: Seq[String]) extends ScallopConf(args) with Creat
 
 class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {
   val restoreToOriginalPath: ScallopOption[Boolean] = opt[Boolean](descr = "Restore files to original path.")
-  val chooseDate: ScallopOption[Boolean] = opt[Boolean](descr = "Choose the date you want to restore from a list.")
   val restoreToFolder: ScallopOption[String] = opt[String](descr = "Restore to a given folder")
   val restoreBackup: ScallopOption[String] = opt[String](descr = "Filename of the backup to restore.")
   val restoreInfo: ScallopOption[String] = opt[String](descr = "Destination of a short summary of the restore process.")
   //  val overwriteExisting = toggle(default = Some(false))
   //  val pattern = opt[String]()
   requireOne(restoreToOriginalPath, restoreToFolder)
-  mutuallyExclusive(restoreBackup, chooseDate)
 }
 
 class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {

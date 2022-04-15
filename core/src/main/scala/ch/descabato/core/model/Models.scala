@@ -127,7 +127,7 @@ object FileAttributes extends Utils {
   private def setAttribute(file: File, path: Path, lookupService: UserPrincipalLookupService, posix: => PosixFileAttributeView, name: String, o: Any): Unit = {
     try {
       val toSet: Option[Any] = (name, o) match {
-        case (key, time) if key.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
+        case (key, _) if key.endsWith("Time") => Some(FileTime.fromMillis(o.toString.toLong))
         case (s, group) if s == posixGroup =>
           val g = lookupService.lookupPrincipalByGroupName(group.toString)
           posix.setGroup(g)

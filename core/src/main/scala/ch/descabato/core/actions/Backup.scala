@@ -48,9 +48,6 @@ class RunBackup(backupEnv: BackupEnv) extends LazyLogging {
     val backupper = new Backupper(backupEnv)
     backupper.backup(file: _*)
     backupper.printStatistics()
-    //    val totalSize = listFiles(dbFolder).map(_.toFile.length()).sum
-    //    val files = listFiles(dbFolder).size
-    //    println(s"Created $files files with ${Utils.readableFileSize(totalSize)}")
   }
 
 }
@@ -108,7 +105,6 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   val buzhashTiming = new StopWatch("buzhash")
 
   def backupChunk(file: File, bytesWrapper: BytesWrapper, hashIds: mutable.Buffer[ChunkId]): Unit = {
-    //    println(s"Backing up chunk with length ${toByteArray.length}")
     val hash = hashTiming.measure {
       digest.reset()
       digest.digest(bytesWrapper)

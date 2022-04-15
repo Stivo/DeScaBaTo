@@ -14,8 +14,8 @@ import ch.descabato.protobuf.keys.ValueLogStatusValue
 import scala.util.Using
 
 /**
- * Responsible for knowing the current state of the metadata. It will always include everything that was exported in earlier runs,
- * plus anything that was written in this run.
+ * Allows easy serialization and deserialization with protobuf. Contains all the metadata.
+ * Can be merged with other InMemoryDb instances.
  */
 class InMemoryDb private(private var _revisionMap: Map[RevisionKey, RevisionValue] = Map.empty,
                          private var _statusMap: Map[ValueLogStatusKey, ValueLogStatusValue] = Map.empty,
@@ -40,8 +40,6 @@ class InMemoryDb private(private var _revisionMap: Map[RevisionKey, RevisionValu
   def addValueLogStatus(key: ValueLogStatusKey, value: ValueLogStatusValue): Unit = {
     _statusMap += (key -> value)
   }
-
-  // chunks and fileMetadata: These would be pure copies of their interface one by one, with no gain in encapsulation?
 
   def chunkMap: ChunkMap = _chunkMap
 
