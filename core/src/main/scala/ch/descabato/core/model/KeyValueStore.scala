@@ -39,7 +39,7 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
 
   def getIndexes(fileMetadataValue: FileMetadataValue): Iterator[ValueLogIndex] = {
     fileMetadataValue.hashIds.iterator.flatMap { x =>
-      inMemoryDb.chunkMap.getByKeyId(x)
+      inMemoryDb.chunkMap.getById(x)
     }.map(_._2)
   }
 
@@ -51,18 +51,18 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
 
   def writeFileMetadata(key: FileMetadataKey, value: FileMetadataValue): FileMetadataId = {
     ensureOpenForWriting()
-    val keyId = inMemoryDb.fileMetadataMap.add(key, value)
-    updates = updates.copy(fileMetadataMap = updates.fileMetadataMap.addFileMetadataKeys((keyId, key)))
-    updates = updates.copy(fileMetadataMap = updates.fileMetadataMap.addFileMetadataValues((keyId, value)))
-    keyId
+    val id = inMemoryDb.fileMetadataMap.add(key, value)
+    updates = updates.copy(fileMetadataMap = updates.fileMetadataMap.addFileMetadataKeys((id, key)))
+    updates = updates.copy(fileMetadataMap = updates.fileMetadataMap.addFileMetadataValues((id, value)))
+    id
   }
 
   def writeChunk(key: ChunkKey, value: ValueLogIndex): ChunkId = {
     ensureOpenForWriting()
-    val keyId = inMemoryDb.chunkMap.add(key, value)
-    updates = updates.copy(chunkMap = updates.chunkMap.addChunkKeys((keyId, key)))
-    updates = updates.copy(chunkMap = updates.chunkMap.addChunkValues((keyId, value)))
-    keyId
+    val id = inMemoryDb.chunkMap.add(key, value)
+    updates = updates.copy(chunkMap = updates.chunkMap.addChunkKeys((id, key)))
+    updates = updates.copy(chunkMap = updates.chunkMap.addChunkValues((id, value)))
+    id
   }
 
   def writeStatus(key: ValueLogStatusKey, value: ValueLogStatusValue): Unit = {
@@ -79,8 +79,8 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
     inMemoryDb.fileMetadataMap.getByKey(key)
   }
 
-  def getFileMetadataByKeyId(keyId: FileMetadataId): Option[(FileMetadataKey, FileMetadataValue)] = {
-    inMemoryDb.fileMetadataMap.getByKeyId(keyId)
+  def getFileMetadataById(id: FileMetadataId): Option[(FileMetadataKey, FileMetadataValue)] = {
+    inMemoryDb.fileMetadataMap.getById(id)
   }
 
   def readRevision(revision: RevisionKey): Option[RevisionValue] = {
@@ -89,7 +89,7 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
 
   def getChunk(chunkKey: ChunkKey): Option[(ChunkId, ValueLogIndex)] = inMemoryDb.chunkMap.getByKey(chunkKey)
 
-  def getChunkById(chunkKey: ChunkId): Option[(ChunkKey, ValueLogIndex)] = inMemoryDb.chunkMap.getByKeyId(chunkKey)
+  def getChunkById(chunkId: ChunkId): Option[(ChunkKey, ValueLogIndex)] = inMemoryDb.chunkMap.getById(chunkId)
 
   def readValueLogStatus(key: ValueLogStatusKey): Option[ValueLogStatusValue] = {
     inMemoryDb.getValueLogStatus(key)

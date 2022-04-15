@@ -4,6 +4,7 @@ import ch.descabato.core.BackupException
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
+import ch.descabato.core.model.Size
 import ch.descabato.frontend.VerifyConf
 import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Implicits.AwareDigest
@@ -41,15 +42,28 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     logger.info(s"Found ${backupEnv.rocks.getAllValueLogStatusKeys().size} value log status keys")
     logger.info(s"Found ${backupEnv.rocks.getAllFileMetadata().size} value log index keys")
     logger.info(s"Found ${backupEnv.rocks.getAllChunks().size} chunks")
+    val uncompressedSize = Size(backupEnv.rocks.getAllChunks().map(_._2.lengthUncompressed.toLong).sum)
+    val compressedSize = Size(backupEnv.rocks.getAllChunks().map(_._2.lengthCompressed.toLong).sum)
+    logger.info(s"Found $uncompressedSize bytes uncompressed file contents (compressed to $compressedSize)")
+    var (files, sizes) = (0L, 0L)
+    for {
+      revisionValue <- backupEnv.rocks.getAllRevisions().values
+      identifier <- revisionValue.fileIdentifiers
+      (_, value) <- backupEnv.rocks.getFileMetadataById(identifier)
+    } {
+      files += 1
+      sizes += value.length
+    }
+    logger.info(s"Can restore $files files in total with total size ${Size(sizes)}")
   }
 
   private def checkConnectivity(t: VerifyConf, problemCounter: ProblemCounter): Unit = {
     for ((rev, value) <- backupEnv.rocks.getAllRevisions().toSeq.sortBy(_._1.number)) {
       logger.info(s"Checking ${value.fileIdentifiers.size} files in revision ${rev.number}")
-      val files = value.fileIdentifiers.map(x => (x, rocks.getFileMetadataByKeyId(x)))
-      for ((keyId, fileOption) <- files) {
+      val files = value.fileIdentifiers.map(x => (x, rocks.getFileMetadataById(x)))
+      for ((id, fileOption) <- files) {
         if (fileOption.isEmpty) {
-          problemCounter.addProblem("Missing file metadata for id " + keyId)
+          problemCounter.addProblem("Missing file metadata for id " + id)
         } else {
           val (fileMetadataKey, fileMetadataValue) = fileOption.get
           for (chunkKey <- fileMetadataValue.hashIds) {

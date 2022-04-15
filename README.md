@@ -1,11 +1,29 @@
-
 DeScaBaTo [![CircleCI](https://circleci.com/gh/Stivo/DeScaBaTo/tree/feature%2Fbetter_serialization.svg?style=svg)](https://circleci.com/gh/Stivo/DeScaBaTo/tree/feature%2Fbetter_serialization)
 =========
 
 The Deduplicating Scala Backup Tool. Mainly it is inspired by [duplicati](http://www.duplicati.com/), but the content
 defined chunking is inspired by [duplicacy](http://www.duplicacy.com/). Currently it only supports local backups and is
 in beta stage. For version 0.8.0 I reimplemented the main backup functionality, now it is single-threaded again and uses
-protobuf for serialization. The new implementation is simpler, faster and I have a lot more confidence in it.
+protobuf for serialization. The new implementation is simpler, faster and I have a lot more confidence in it. \
+
+I have been using various versions of the program for years already. My biggest backup for my home folder has:
+
+- been running two years
+- 104 revisions
+- 400k different chunks of data
+- 650k different files backed up with all metadata
+- Total of 190mb metadata, compressed to 54 mb
+
+With this it can restore:
+
+- 20 mio files in total (around 20k per revision)
+- In total 2.2TB of data (around 20 GB per revision)
+
+Due to the deduplication and the fact that most files don't change, the backup is very size efficient compared to a
+naive approach.
+
+There are some theoretical limits with this application, since it keeps all metadata in memory during a run it will run
+out of memory if you plan to backup around 10 times more files than I am doing in that version.
 
 As of now, it has these features:
 
@@ -73,7 +91,7 @@ folders-to-backup (required)    Folders to be backed up
 
 Before you start backing up, you can use the count command to get an estimate of how many files and data will be backed
 up with the given input folder and the given ignore file. A tool like Treesize Free can help you figure out which files
-are important to you.
+are important to you and which folders contain too many fast chaning files (caches of browsers etc).
 
 #### To restore data, mounting is the preferred option
 
@@ -106,9 +124,21 @@ algorithm, but you can also choose Blake2 (160 - 512 bits) or sha3 (256 - 512 bi
 
 Absolutely no warranty given.
 
+### How to set up automatic weekly backups in windows of files on the system partition
+
+This is a bit more complex, due to windows limitations. To access files on the system partition, a shadow copy is
+recommended. I don't think I am allowed to bundle vshadow executable with my program. You should be able to download it
+with the
+[Windows SDK](https://www.microsoft.com/en-us/download/details.aspx?id=8279) \
+See doc/backup-demo.bat for the script I use to do my backups. \
+See [Set up scheduled task](https://windowsloop.com/schedule-batch-file-in-task-scheduler/) for a way to run your backup
+batch script every week. Be sure to check "run with highest privileges" if you want to create a shadow copy from your
+backup script.
+
 ### Compilation
-You will need sbt to compile or to set up eclipse or intellij idea. sbt pack will create a folder which can be zipped and distributed.
-The project is split up into three parts:
+
+You will need sbt to compile or to set up eclipse or intellij idea. sbt pack will create a folder which can be zipped
+and distributed. The project is split up into three parts:
 
 - core: The backup logic and command line interface
 - fuse: A fuse filesystem implementation so the backup can be browsed as a normal folder

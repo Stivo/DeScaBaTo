@@ -25,60 +25,60 @@ trait IntKey[T] {
  * Not threadsafe.
  *
  * @tparam Key   The key type of the actual entity
- * @tparam KeyId The internal type used as a primary key for serialized entities
+ * @tparam Id    The internal type used as a primary key for serialized entities
  * @tparam Value The value type of the actual entity
  */
-abstract class ProtoFriendlyMap[Key, KeyId, Value, MapType](private var _keyMap: HashMap[Key, KeyId], private var _keyIdMap: HashMap[KeyId, (Key, Value)]) {
+abstract class ProtoFriendlyMap[Key, Id, Value, MapType](private var _keyMap: HashMap[Key, Id], private var _idMap: HashMap[Id, (Key, Value)]) {
 
-  protected def idCompanion: IntKey[KeyId]
+  protected def idCompanion: IntKey[Id]
 
-  private var _highestKeyId: KeyId = computeHighestKeyId()
+  private var _highestKeyId: Id = computeHighestKeyId()
 
-  private def computeHighestKeyId(): KeyId = {
-    _keyIdMap.keys.foldLeft(idCompanion.newInstance(0))(idCompanion.max)
+  private def computeHighestKeyId(): Id = {
+    _idMap.keys.foldLeft(idCompanion.newInstance(0))(idCompanion.max)
   }
 
-  def keyMap: HashMap[Key, KeyId] = _keyMap
+  def keyMap: HashMap[Key, Id] = _keyMap
 
-  def valueMap: HashMap[KeyId, (Key, Value)] = _keyIdMap
+  def valueMap: HashMap[Id, (Key, Value)] = _idMap
 
-  def add(k: Key, v: Value): KeyId = {
+  def add(k: Key, v: Value): Id = {
     val newId = if (_keyMap.contains(k)) {
       val keyId = _keyMap(k)
-      _keyIdMap += keyId -> (k, v)
+      _idMap += keyId -> (k, v)
       keyId
     } else {
       val newId = idCompanion.increment(_highestKeyId)
       _keyMap += k -> newId
-      _keyIdMap += newId -> (k, v)
+      _idMap += newId -> (k, v)
       _highestKeyId = newId
       newId
     }
     newId
   }
 
-  def getByKey(k: Key): Option[(KeyId, Value)] = {
+  def getByKey(k: Key): Option[(Id, Value)] = {
     for {
       keyId <- _keyMap.get(k)
-      value <- _keyIdMap.get(keyId).map(_._2)
+      value <- _idMap.get(keyId).map(_._2)
     } {
       return Some((keyId, value))
     }
     None
   }
 
-  def getByKeyId(k: KeyId): Option[(Key, Value)] = {
-    _keyIdMap.get(k)
+  def getById(k: Id): Option[(Key, Value)] = {
+    _idMap.get(k)
   }
 
-  def iterator(): Iterator[(Key, Value)] = _keyIdMap.valuesIterator
+  def iterator(): Iterator[(Key, Value)] = _idMap.valuesIterator
 
-  protected def constructNew(newKeyMap: HashMap[Key, KeyId], newKeyIdMap: HashMap[KeyId, (Key, Value)]): MapType
+  protected def constructNew(newKeyMap: HashMap[Key, Id], newKeyIdMap: HashMap[Id, (Key, Value)]): MapType
 
-  def merge(other: ProtoFriendlyMap[Key, KeyId, Value, MapType]): MapType = {
+  def merge(other: ProtoFriendlyMap[Key, Id, Value, MapType]): MapType = {
     val newKeyMap = _keyMap ++ other._keyMap
-    val newKeyIdMap = _keyIdMap ++ other._keyIdMap
-    constructNew(newKeyMap, newKeyIdMap)
+    val newIdMap = _idMap ++ other._idMap
+    constructNew(newKeyMap, newIdMap)
   }
 
 }
@@ -104,15 +104,15 @@ class ChunkMap private(keyMap: HashMap[ChunkKey, ChunkId], valueMap: HashMap[Chu
 
   override protected lazy val idCompanion: IntKey[ChunkId] = ChunkId
 
-  override def constructNew(newKeyMap: HashMap[ChunkKey, ChunkId], newKeyIdMap: HashMap[ChunkId, (ChunkKey, ValueLogIndex)]): ChunkMap =
-    new ChunkMap(newKeyMap, newKeyIdMap)
+  override def constructNew(newKeyMap: HashMap[ChunkKey, ChunkId], newIdMap: HashMap[ChunkId, (ChunkKey, ValueLogIndex)]): ChunkMap =
+    new ChunkMap(newKeyMap, newIdMap)
 }
 
 object ChunkMap {
   def importFromProto(protoMap: ChunkProtoMap): ChunkMap = {
     val reversedKeys = ProtoFriendlyMap.reverseMap(protoMap.chunkKeys)
-    val values = protoMap.chunkValues.map { case (keyId, value) =>
-      keyId -> (protoMap.chunkKeys(keyId), value)
+    val values = protoMap.chunkValues.map { case (id, value) =>
+      id -> (protoMap.chunkKeys(id), value)
     }
     new ChunkMap(reversedKeys, values)
   }
@@ -137,8 +137,8 @@ object FileMetadataId extends IntKey[FileMetadataId] {
 class FileMetadataMap private(keyMap: HashMap[FileMetadataKey, FileMetadataId], valueMap: HashMap[FileMetadataId, (FileMetadataKey, FileMetadataValue)])
   extends ProtoFriendlyMap[FileMetadataKey, FileMetadataId, FileMetadataValue, FileMetadataMap](keyMap, valueMap) {
 
-  override def constructNew(newKeyMap: HashMap[FileMetadataKey, FileMetadataId], newKeyIdMap: HashMap[FileMetadataId, (FileMetadataKey, FileMetadataValue)]): FileMetadataMap =
-    new FileMetadataMap(newKeyMap, newKeyIdMap)
+  override def constructNew(newKeyMap: HashMap[FileMetadataKey, FileMetadataId], newIdMap: HashMap[FileMetadataId, (FileMetadataKey, FileMetadataValue)]): FileMetadataMap =
+    new FileMetadataMap(newKeyMap, newIdMap)
 
   override protected lazy val idCompanion: IntKey[FileMetadataId] = FileMetadataId
 
@@ -147,8 +147,8 @@ class FileMetadataMap private(keyMap: HashMap[FileMetadataKey, FileMetadataId], 
 object FileMetadataMap {
   def importFromProto(protoMap: FileMetadataProtoMap): FileMetadataMap = {
     val keyMap = ProtoFriendlyMap.reverseMap(protoMap.fileMetadataKeys)
-    val values = protoMap.fileMetadataValues.map { case (keyId, value) =>
-      keyId -> (protoMap.fileMetadataKeys(keyId), value)
+    val values = protoMap.fileMetadataValues.map { case (id, value) =>
+      id -> (protoMap.fileMetadataKeys(id), value)
     }
     new FileMetadataMap(keyMap, values)
   }

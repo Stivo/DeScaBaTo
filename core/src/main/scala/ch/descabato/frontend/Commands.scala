@@ -217,7 +217,7 @@ class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupO
 class CountConf(args: Seq[String]) extends ScallopConf(args) with ProgramOption {
   val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disable backing up symlinks")
   val ignoreFile: ScallopOption[File] = opt[File](descr = "File with ignore patterns", default = None)
-  val folderToCountIn: ScallopOption[File] = trailArg[File](descr = "Folder to count files in").map(_.getCanonicalFile())
+  val foldersToCountIn: ScallopOption[List[File]] = trailArg[List[File]](descr = "Folder to count files in").map(_.map(_.getCanonicalFile()))
 }
 
 class MultipleBackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {

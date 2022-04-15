@@ -96,7 +96,6 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
       val file = backupEnvInit.config.resolveRelativePath(key.name)
       if (path.status == FINISHED) {
         if (volumes.contains(file)) {
-          logger.info(s"$key is marked as finished, will keep it")
           volumes -= file
         }
       } else {

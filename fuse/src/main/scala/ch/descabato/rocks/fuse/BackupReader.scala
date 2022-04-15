@@ -44,7 +44,7 @@ class BackupReader(val backupEnv: BackupEnv) extends Utils {
     val chunks = chunksByVolume(x)
     val rev = revisions.filter(_.revision == revision).head
     val revisionFiles = rev.revisionValue.fileIdentifiers.flatMap { x =>
-      rocks.getFileMetadataByKeyId(x)
+      rocks.getFileMetadataById(x)
     }
     var out = Map.empty[String, (Long, Seq[Int])]
     for ((revFile, value) <- revisionFiles) {
@@ -70,7 +70,7 @@ class BackupReader(val backupEnv: BackupEnv) extends Utils {
     l.info(s"""Listing files for "${PathUtils.formatDate(revisionPair)} - Revision ${revisionPair.revision.number}" to add to ${revisionParent.name}""")
 
     filesInRevision
-      .flatMap(rocks.getFileMetadataByKeyId(_).map(_._1))
+      .flatMap(rocks.getFileMetadataById(_).map(_._1))
       .foreach {
         key =>
           val pathAsSeq = PathUtils.splitPath(key.path)
