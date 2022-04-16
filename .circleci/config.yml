@@ -44,7 +44,17 @@ jobs:
           key: v1-dependencies--{{ checksum "build.sbt" }}
 
       # run tests!
-      - run: cat /dev/null | sbt test:test
+      - run: cat /dev/null | sbt test:test packArchiveZip
 
       # run scala 3 tests!
       - run: cat /dev/null | sbt ++3.1.1 test:test
+
+      # copy artifact to tmp directory
+      - run:
+          command: |
+            mkdir -p /tmp/build
+            cp fuse/target/descabato*zip /tmp/build
+
+      # archive the zip file
+      - store_artifacts:
+          path: /tmp/build
