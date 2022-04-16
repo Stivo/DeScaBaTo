@@ -1,5 +1,5 @@
 
-ThisBuild / scalaVersion := Common.scalaDefaultVersion
+ThisBuild / scalaVersion := Common.scalaVersion
 
 val commonSettings =
   List(
@@ -8,8 +8,7 @@ val commonSettings =
     },
     organization := Common.organization,
     version := Common.version,
-    scalaVersion := Common.scalaDefaultVersion,
-    crossScalaVersions := Common.scalaCrossVersions
+    scalaVersion := Common.scalaVersion,
   )
 
 val core = (project in file("core"))

@@ -46,9 +46,6 @@ jobs:
       # run tests!
       - run: cat /dev/null | sbt test:test packArchiveZip
 
-      # run scala 3 tests!
-      - run: cat /dev/null | sbt ++3.1.1 test:test
-
       # copy artifact to tmp directory
       - run:
           command: |
