@@ -1,7 +1,7 @@
 package ch.descabato.core
 
 import ch.descabato.frontend.MaxValueCounter
-import ch.descabato.frontend.StandardMaxValueCounter
+import ch.descabato.frontend.SizeStandardCounter
 import ch.descabato.utils.Utils
 
 import java.io.File
@@ -14,8 +14,8 @@ import scala.io.Source
 import scala.jdk.CollectionConverters._
 
 class FileVisitorCollector(ignoreFile: Option[File],
-                           val fileCounter: MaxValueCounter = new StandardMaxValueCounter("Files", 0),
-                           val bytesCounter: MaxValueCounter = new StandardMaxValueCounter("bytes", 0)) extends Utils {
+                           fileCounter: MaxValueCounter,
+                           bytesCounter: MaxValueCounter) extends Utils {
   // TODO log exceptions
   private val _files: JArrayList[Path] = new JArrayList[Path]()
   private val _dirs: JArrayList[Path] = new JArrayList[Path]()
@@ -86,6 +86,18 @@ class IgnoreFileMatcher(val ignoreFileIn: Option[File]) {
     } else {
       !ignoredPatterns.exists(_.matches(path))
     }
+  }
+
+}
+
+object FileVisitorCollector {
+
+  def listFiles(ignoreFile: Option[File], str: Seq[File], filesCounter: MaxValueCounter, bytesCounter: SizeStandardCounter): FileVisitorCollector = {
+    val visitor = new FileVisitorCollector(ignoreFile, filesCounter, bytesCounter)
+    for (folderToBackup <- str) {
+      visitor.walk(folderToBackup.toPath)
+    }
+    visitor
   }
 
 }

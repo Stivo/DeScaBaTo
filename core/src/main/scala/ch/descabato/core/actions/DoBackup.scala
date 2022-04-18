@@ -15,6 +15,7 @@ import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.frontend.ProgressReporters
 import ch.descabato.frontend.SizeStandardCounter
 import ch.descabato.frontend.StandardCounter
+import ch.descabato.frontend.StandardMaxValueCounter
 import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
@@ -37,16 +38,6 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.DosFileAttributes
 import scala.collection.mutable
 import scala.util.Try
-
-object Backup {
-
-  def listFiles(folder: File, ignoreFile: Option[File]): FileVisitorCollector = {
-    val visitor = new FileVisitorCollector(ignoreFile)
-    visitor.walk(folder.toPath)
-    visitor
-  }
-
-}
 
 class DoBackup(backupEnv: BackupEnv) extends LazyLogging {
 
@@ -75,8 +66,10 @@ class ReuseCounter(override val name: String, val foundCounter: StandardCounter,
 
 class Backupper(backupEnv: BackupEnv) extends LazyLogging {
 
-  private val fileCounter = new FileCounter()
-  private val byteCounter = new SizeStandardCounter(s"Size")
+  private val fileProgressCounter = new FileCounter()
+
+  private val filesCounter = new StandardMaxValueCounter("Files", 0)
+  private val bytesCounter = new SizeStandardCounter(s"Size")
 
   private val chunkNotFoundCounter = new StandardCounter("New chunks")
   private val chunkFoundCounter = new StandardCounter("Found chunks")
@@ -111,20 +104,19 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   def backup(str: File*): Unit = {
     val revision = RevisionKey(findNextRevision())
     val mt = new StandardMeasureTime()
-    ProgressReporters.addCounter(fileCounter, reusedChunksCounter, reusedFilesCounter)
-    for (folderToBackup <- str) {
-      val visitor = Backup.listFiles(folderToBackup, backupEnv.config.ignoreFile)
-      logger.info(s"$str: Found ${visitor.fileCounter.maxValue} files to backup (${Size(visitor.bytesCounter.maxValue)}).")
-      byteCounter.maxValue = visitor.bytesCounter.maxValue
-      ProgressReporters.addCounter(visitor.fileCounter, byteCounter)
-      for (file <- visitor.dirs) {
-        backupFileOrFolderIfNecessary(file)
-      }
-      for (file <- visitor.files) {
-        backupFileOrFolderIfNecessary(file)
-        visitor.fileCounter += 1
-      }
+
+    ProgressReporters.addCounter(filesCounter, bytesCounter)
+    val visitor: FileVisitorCollector = FileVisitorCollector.listFiles(backupEnv.config.ignoreFile, str, filesCounter, bytesCounter)
+    ProgressReporters.addCounter(fileProgressCounter, reusedChunksCounter, reusedFilesCounter)
+
+    for (file <- visitor.dirs) {
+      backupFileOrFolderIfNecessary(file)
     }
+    for (file <- visitor.files) {
+      backupFileOrFolderIfNecessary(file)
+      filesCounter += 1
+    }
+
     logger.info("Took " + mt.measuredTime())
     val configJson = new String(backupEnv.config.asJson(), StandardCharsets.UTF_8)
     val value = RevisionValue(created = System.currentTimeMillis(), configJson = configJson, fileIdentifiers = filesInRevision.toSeq)
@@ -166,17 +158,17 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
 
   def backupFile(file: Path): FileMetadataValue = {
     val hashIds = mutable.Buffer.empty[ChunkId]
-    fileCounter.fileName = file.toFile.toString
-    fileCounter.maxValue = file.toFile.length()
-    fileCounter.current = 0
+    fileProgressCounter.fileName = file.toFile.toString
+    fileProgressCounter.maxValue = file.toFile.length()
+    fileProgressCounter.current = 0
     logger.debug(s"Backing up ${file.toFile.toString} (${Size(file.toFile.length())})")
     var chunk = 0
     for {
       fis <- new FileInputStream(file.toFile).autoClosed
       chunker <- new VariableBlockOutputStream({ wrapper =>
         backupChunk(file.toFile, wrapper, hashIds)
-        fileCounter += wrapper.length
-        byteCounter += wrapper.length
+        fileProgressCounter += wrapper.length
+        bytesCounter += wrapper.length
         logger.trace(s"Chunk $chunk with length ${wrapper.length}")
         chunk += 1
       }).autoClosed

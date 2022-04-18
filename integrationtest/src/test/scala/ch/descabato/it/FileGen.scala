@@ -1,14 +1,15 @@
 package ch.descabato.it
 
-import java.io._
-import java.nio.file.Files
-
 import ch.descabato.TestUtils
 import ch.descabato.core.FileVisitorCollector
 import ch.descabato.core.model.Size
+import ch.descabato.frontend.SizeStandardCounter
+import ch.descabato.frontend.StandardMaxValueCounter
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
 
+import java.io._
+import java.nio.file.Files
 import scala.collection.mutable
 import scala.collection.mutable.Buffer
 import scala.util.Random
@@ -61,7 +62,7 @@ class FileGen(val folder: File, maxSize: String = "20Mb", minFiles: Int = 10) ex
   }
 
   def rescan(): Unit = {
-    val collector = new FileVisitorCollector(None)
+    val collector = new FileVisitorCollector(None, new StandardMaxValueCounter("Noone cares", 0), new SizeStandardCounter("Test"))
     collector.walk(folder.toPath)
     folderList.clear
     folderList ++= collector.dirs.map(_.toFile)

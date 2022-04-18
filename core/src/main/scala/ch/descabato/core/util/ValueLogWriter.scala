@@ -40,8 +40,6 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
     override def formatted: String = s"${super.formatted}, wrote: ${bytesWrittenCounter.formatted} in ${filesWrittenCounter.current} files"
   }
 
-  ProgressReporters.addCounter(compressionRatioCounter)
-
   private val usedIdentifiers: Set[Int] = {
     backupEnv.rocks.getAllValueLogStatusKeys()
       .map(key => backupEnv.config.resolveRelativePath(key._1.name))
@@ -94,6 +92,7 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
   }
 
   private def createNewFile(): CurrentFile = {
+    ProgressReporters.addCounter(compressionRatioCounter)
     filesWrittenCounter += 1
     val file = fileType.nextFile(temp = true, usedIdentifiers)
     val number = fileType.numberOfFile(file)
