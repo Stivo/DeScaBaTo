@@ -79,8 +79,6 @@ class Sampling(file: File) extends Utils {
 
   var decision: Option[CompressionMode] = None
 
-  val algos = Seq(CompressionMode.zstd1, CompressionMode.zstd5, CompressionMode.zstd9, CompressionMode.lzma1, CompressionMode.lzma3)
-
   def setDecisionAndReturn(algorithm: CompressionMode): (CompressionMode, Option[CompressedBytes]) = {
     decision = Some(algorithm)
     logger.info(s"Decision for $file is $algorithm")

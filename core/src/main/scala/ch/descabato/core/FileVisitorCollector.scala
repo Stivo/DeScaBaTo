@@ -14,8 +14,8 @@ import scala.io.Source
 import scala.jdk.CollectionConverters._
 
 class FileVisitorCollector(ignoreFile: Option[File],
-                           fileCounter: MaxValueCounter = new StandardMaxValueCounter("files", 0),
-                           bytesCounter: MaxValueCounter = new StandardMaxValueCounter("bytes", 0)) extends Utils {
+                           val fileCounter: MaxValueCounter = new StandardMaxValueCounter("files", 0),
+                           val bytesCounter: MaxValueCounter = new StandardMaxValueCounter("bytes", 0)) extends Utils {
   // TODO log exceptions
   private val _files: JArrayList[Path] = new JArrayList[Path]()
   private val _dirs: JArrayList[Path] = new JArrayList[Path]()

@@ -15,17 +15,17 @@ import javax.swing.UIManager
 import scala.collection.mutable
 
 object CreateProgressGui {
-  def apply(threads: Int, nameOfOp: String, sliderDisabled: Boolean, remoteOptions: RemoteOptions): ProgressGui = {
+  def apply(nameOfOp: String, remoteOptions: RemoteOptions): ProgressGui = {
     if (Utils.isWindows) {
-      new WindowsProgressGui(threads, nameOfOp, sliderDisabled, remoteOptions)
+      new WindowsProgressGui(nameOfOp, remoteOptions)
     } else {
-      new ProgressGui(threads, nameOfOp, sliderDisabled, remoteOptions)
+      new ProgressGui(nameOfOp, remoteOptions)
     }
   }
 }
 
-class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions) extends ActionListener {
-  val mon = new ProgressMonitor(this, threads, sliderDisabled, remoteOptions)
+class ProgressGui(nameOfOperation: String, remoteOptions: RemoteOptions) extends ActionListener {
+  val mon = new ProgressMonitor(this, remoteOptions)
   val timer = new Timer(40, this)
   show()
 
@@ -110,8 +110,8 @@ class ProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean
   def setValue(value: Int, max: Int): Unit = {}
 }
 
-class WindowsProgressGui(threads: Int, nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions)
-    extends ProgressGui(threads, nameOfOperation, sliderDisabled, remoteOptions) {
+class WindowsProgressGui(nameOfOperation: String, remoteOptions: RemoteOptions)
+  extends ProgressGui(nameOfOperation, remoteOptions) {
   var list: ITaskbarList3 = _
   var hwnd: Pointer[Integer] = _
   try {

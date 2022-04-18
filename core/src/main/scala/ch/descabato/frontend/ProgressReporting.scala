@@ -1,6 +1,5 @@
 package ch.descabato.frontend
 
-import ch.descabato.core.ActorStats
 import ch.descabato.core.model.Size
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Implicits._
@@ -20,7 +19,7 @@ object ProgressReporters {
 
   var gui: Option[ProgressGui] = None
 
-  def openGui(nameOfOperation: String, sliderDisabled: Boolean = false, remoteOptions: RemoteOptions = null): Unit = {
+  def openGui(nameOfOperation: String, remoteOptions: RemoteOptions = null): Unit = {
     if (!guiEnabled) {
       return
     }
@@ -28,7 +27,7 @@ object ProgressReporters {
       counters.synchronized {
         SwingUtilities.invokeAndWait(() => {
           if (gui.isEmpty) {
-            gui = Some(CreateProgressGui(ActorStats.tpe.getCorePoolSize, nameOfOperation, sliderDisabled, remoteOptions))
+            gui = Some(CreateProgressGui(nameOfOperation, remoteOptions))
             counters.filterNot(_._1.contains("iles found")).values.foreach {
               gui.get.add
             }

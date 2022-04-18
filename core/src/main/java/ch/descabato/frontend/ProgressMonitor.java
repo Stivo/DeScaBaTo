@@ -1,6 +1,5 @@
 package ch.descabato.frontend;
 
-import ch.descabato.core.ActorStats;
 import ch.descabato.remote.RemoteOptions;
 
 import javax.swing.*;
@@ -14,7 +13,7 @@ public class ProgressMonitor extends JFrame {
     /**
      * Create the frame.
      */
-    public ProgressMonitor(final ProgressGui gui, int numthreads, boolean sliderDisabled, RemoteOptions remoteOptions) {
+    public ProgressMonitor(final ProgressGui gui, RemoteOptions remoteOptions) {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setBounds(100, 100, 450, 331);
         JPanel contentPane = new JPanel();
@@ -50,27 +49,14 @@ public class ProgressMonitor extends JFrame {
         });
         panel.add(btnPause);
 
-        final JLabel threads = new JLabel("Full speed");
-        panel.add(threads);
+        final JLabel uploadSpeedLabel = new JLabel("Full speed");
+        panel.add(uploadSpeedLabel);
 
-        final JSlider slider = new JSlider();
-        slider.addChangeListener(e -> {
-            ActorStats.tpe().setCorePoolSize(slider.getValue());
-            ActorStats.tpe().setMaximumPoolSize(slider.getValue() * 2);
-            threads.setText("Threads: " + slider.getValue());
-        });
-        if (sliderDisabled)
-            slider.setEnabled(false);
-        slider.setValue(numthreads);
-        slider.setPaintLabels(true);
-        slider.setMinimum(1);
-        slider.setMaximum(40);
-        panel.add(slider);
         if (remoteOptions != null && remoteOptions.enabled()) {
             final JSlider uploadSpeed = new LogarithmicJSlider(10, 100000, 1000);
             uploadSpeed.addChangeListener(e -> {
                 remoteOptions.setUploadSpeedLimitKiloBytesPerSecond(uploadSpeed.getValue());
-                threads.setText("New Upload Speed: " + uploadSpeed.getValue() + " KB/s");
+                uploadSpeedLabel.setText("New Upload Speed: " + uploadSpeed.getValue() + " KB/s");
             });
             uploadSpeed.setValue(remoteOptions.getUploadSpeedLimitKiloBytesPerSecond());
             panel.add(uploadSpeed);

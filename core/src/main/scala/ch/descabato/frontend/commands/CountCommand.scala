@@ -13,14 +13,10 @@ class CountCommand extends Command with Utils {
     var totalFiles = 0L
     var totalSize = 0L
     for (folder <- t.foldersToCountIn()) {
-      val (folders, files) = Backup.listFiles(folder, t.ignoreFile.toOption)
-      val count = files
-        .foldLeft(Count(0, 0)) { (sum, file) =>
-          sum.copy(files = sum.files + 1, size = sum.size + file.toFile.length())
-        }
-      totalFiles += count.files
-      totalSize += count.size
-      logger.info(s"Would backup ${count.files} files and ${folders.length} folders, in total ${count.readableSize} for folder $folder")
+      val visitor = Backup.listFiles(folder, t.ignoreFile.toOption)
+      totalSize += visitor.bytesCounter.maxValue
+      totalFiles += visitor.fileCounter.maxValue
+      logger.info(s"$folder: Would backup ${visitor.fileCounter.maxValue} files and ${visitor.dirs.size} folders, in total ${Size(visitor.bytesCounter.maxValue)}.")
     }
     logger.info(s"Would backup ${totalFiles} files and ${Size(totalSize)} bytes in total")
   }
@@ -30,8 +26,4 @@ class CountCommand extends Command with Utils {
     conf.verify()
     start(conf)
   }
-}
-
-case class Count(files: Long, size: Long) {
-  def readableSize: String = Utils.readableFileSize(size)
 }

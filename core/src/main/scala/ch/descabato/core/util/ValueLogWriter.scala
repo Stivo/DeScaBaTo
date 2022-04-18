@@ -37,12 +37,14 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
 
   private var currentFile: Option[CurrentFile] = None
 
-  def write(compressedBytes: CompressedBytes): ValueLogIndex = {
+  def write(compressedBytes: CompressedBytes): (Boolean, ValueLogIndex) = {
+    var isNewFile = false
     val fileToWriteTo = if (currentFile.isEmpty) {
       createNewFile()
     } else {
       val file = currentFile.get
       if (file.fileWriter.currentPosition() + compressedBytes.bytesWrapper.length > maxSize && file.fileWriter.currentPosition() >= minSize) {
+        isNewFile = true
         closeCurrentFile(file)
         createNewFile()
       } else {
@@ -52,8 +54,8 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
     val valueLogPositionBefore = valueLogWriteTiming.measure {
       fileToWriteTo.fileWriter.write(compressedBytes.bytesWrapper)
     }
-    ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
-      lengthUncompressed = compressedBytes.uncompressedLength, lengthCompressed = compressedBytes.bytesWrapper.length)
+    (isNewFile, ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
+      lengthUncompressed = compressedBytes.uncompressedLength, lengthCompressed = compressedBytes.bytesWrapper.length))
   }
 
   private def closeCurrentFile(currentFile: CurrentFile): Unit = {

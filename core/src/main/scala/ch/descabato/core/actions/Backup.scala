@@ -7,6 +7,7 @@ import ch.descabato.core.model.ChunkId
 import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.FileMetadataId
 import ch.descabato.core.model.RevisionKey
+import ch.descabato.core.model.Size
 import ch.descabato.core.util.InMemoryDb
 import ch.descabato.core.util.ValueLogWriter
 import ch.descabato.protobuf.keys.BackedupFileType
@@ -34,10 +35,10 @@ import scala.util.Try
 
 object Backup {
 
-  def listFiles(folder: File, ignoreFile: Option[File]): (Seq[Path], Seq[Path]) = {
+  def listFiles(folder: File, ignoreFile: Option[File]): FileVisitorCollector = {
     val visitor = new FileVisitorCollector(ignoreFile)
     visitor.walk(folder.toPath)
-    (visitor.dirs, visitor.files)
+    visitor
   }
 
 }
@@ -81,8 +82,9 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     val revision = RevisionKey(findNextRevision())
     val mt = new StandardMeasureTime()
     for (folderToBackup <- str) {
-      val (folders, files) = Backup.listFiles(folderToBackup, backupEnv.config.ignoreFile)
-      for (file <- folders ++ files) {
+      val visitor = Backup.listFiles(folderToBackup, backupEnv.config.ignoreFile)
+      logger.info(s"$str: Found ${visitor.fileCounter.maxValue} files to backup (${Size(visitor.bytesCounter.maxValue)}).")
+      for (file <- visitor.files ++ visitor.dirs) {
         backupFileOrFolderIfNecessary(file)
       }
     }
@@ -117,7 +119,11 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
       existing.get._1
     } else {
       val compressed = compressionDecider.compressBlock(file, bytesWrapper)
-      val index = valueLog.write(compressed)
+      val (_, index) = valueLog.write(compressed)
+      // TODO progress reporting: Say something after a new volume has been written?
+      //      if (newFile) {
+      //        logger.info(s"Currently backing up ${file.getAbsolutePath}")
+      //      }
       chunkNotFoundCounter += 1
       rocks.writeChunk(chunkKey, index)
     }
@@ -126,7 +132,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
 
   def backupFile(file: Path): FileMetadataValue = {
     val hashIds = mutable.Buffer.empty[ChunkId]
-    logger.info(file.toFile.toString)
+    logger.debug(s"Backing up ${file.toFile.toString} (${Size(file.toFile.length())})")
     var chunk = 0
     for {
       fis <- new FileInputStream(file.toFile).autoClosed
