@@ -118,6 +118,13 @@ trait BackupRelatedCommand extends Command with Utils {
         System.setProperty("logname", t.logfile())
         println(s"Log name set to ${t.logfile()}")
       }
+      t match {
+        case ng: NoGuiOption =>
+          if (ng.noGui.isSupplied && ng.noGui()) {
+            ProgressReporters.guiEnabled = false
+          }
+        case _ => // pass
+      }
       start(t)
     } catch {
       case e@MisconfigurationException(message) =>
@@ -199,7 +206,7 @@ trait ProgramOption extends ScallopConf {
 }
 
 trait NoGuiOption extends ScallopConf {
-//  val noGui: ScallopOption[Boolean] = opt[Boolean](noshort = true, descr = "Disables the progress report window")
+  val noGui: ScallopOption[Boolean] = opt[Boolean](noshort = true, descr = "Disables the progress report window")
 }
 
 trait BackupFolderOption extends ProgramOption {

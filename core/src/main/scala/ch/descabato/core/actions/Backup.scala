@@ -10,6 +10,11 @@ import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.InMemoryDb
 import ch.descabato.core.util.ValueLogWriter
+import ch.descabato.frontend.FileCounter
+import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.frontend.ProgressReporters
+import ch.descabato.frontend.SizeStandardCounter
+import ch.descabato.frontend.StandardCounter
 import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
@@ -53,13 +58,38 @@ class RunBackup(backupEnv: BackupEnv) extends LazyLogging {
 
 }
 
+class ReuseCounter(override val name: String, val foundCounter: StandardCounter, val notFoundCounter: StandardCounter) extends MaxValueCounter {
+
+  private var lastUpdateFound = 0L
+  private var lastUpdateNotFound = 0L
+
+  override def update(): Unit = {
+    lastUpdateFound = foundCounter.current
+    lastUpdateNotFound = notFoundCounter.current
+    current = lastUpdateFound
+    maxValue = lastUpdateNotFound + lastUpdateFound
+    super.update()
+  }
+
+}
+
 class Backupper(backupEnv: BackupEnv) extends LazyLogging {
+
+  private val fileCounter = new FileCounter()
+  private val byteCounter = new SizeStandardCounter(s"Size")
+
+  private val chunkNotFoundCounter = new StandardCounter("New chunks")
+  private val chunkFoundCounter = new StandardCounter("Found chunks")
+  private val fileNotFoundCounter = new StandardCounter("New files")
+  private val fileFoundCounter = new StandardCounter("Found files")
+  private val reusedChunksCounter = new ReuseCounter("Reused chunks", chunkFoundCounter, chunkNotFoundCounter)
+  private val reusedFilesCounter = new ReuseCounter("Reused files", fileFoundCounter, fileNotFoundCounter)
 
   import backupEnv._
 
   def printStatistics(): Unit = {
-    logger.info(s"Chunks found: ${chunkFoundCounter}")
-    logger.info(s"Chunks not found: ${chunkNotFoundCounter}")
+    logger.info(reusedChunksCounter.toString)
+    logger.info(reusedFilesCounter.toString)
     logger.info(StopWatch.report)
   }
 
@@ -81,11 +111,18 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   def backup(str: File*): Unit = {
     val revision = RevisionKey(findNextRevision())
     val mt = new StandardMeasureTime()
+    ProgressReporters.addCounter(fileCounter, reusedChunksCounter, reusedFilesCounter)
     for (folderToBackup <- str) {
       val visitor = Backup.listFiles(folderToBackup, backupEnv.config.ignoreFile)
       logger.info(s"$str: Found ${visitor.fileCounter.maxValue} files to backup (${Size(visitor.bytesCounter.maxValue)}).")
-      for (file <- visitor.files ++ visitor.dirs) {
+      byteCounter.maxValue = visitor.bytesCounter.maxValue
+      ProgressReporters.addCounter(visitor.fileCounter, byteCounter)
+      for (file <- visitor.dirs) {
         backupFileOrFolderIfNecessary(file)
+      }
+      for (file <- visitor.files) {
+        backupFileOrFolderIfNecessary(file)
+        visitor.fileCounter += 1
       }
     }
     logger.info("Took " + mt.measuredTime())
@@ -99,9 +136,6 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
 
   private val buffer = Array.ofDim[Byte](1024 * 1024)
   private val digest = backupEnv.config.createMessageDigest()
-
-  var chunkNotFoundCounter = 0
-  var chunkFoundCounter = 0
 
   val hashTiming = new StopWatch("sha256")
   val buzhashTiming = new StopWatch("buzhash")
@@ -132,12 +166,17 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
 
   def backupFile(file: Path): FileMetadataValue = {
     val hashIds = mutable.Buffer.empty[ChunkId]
+    fileCounter.fileName = file.toFile.toString
+    fileCounter.maxValue = file.toFile.length()
+    fileCounter.current = 0
     logger.debug(s"Backing up ${file.toFile.toString} (${Size(file.toFile.length())})")
     var chunk = 0
     for {
       fis <- new FileInputStream(file.toFile).autoClosed
       chunker <- new VariableBlockOutputStream({ wrapper =>
         backupChunk(file.toFile, wrapper, hashIds)
+        fileCounter += wrapper.length
+        byteCounter += wrapper.length
         logger.trace(s"Chunk $chunk with length ${wrapper.length}")
         chunk += 1
       }).autoClosed
@@ -155,11 +194,17 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
       changed = file.toFile.lastModified())
     val existing = rocks.getFileMetadataByKey(key)
     if (existing.isEmpty) {
+      if (filetype.isFile) {
+        fileNotFoundCounter += 1
+      }
       backupFileOrFolder(file).foreach { fileMetadataValue =>
         val newId = rocks.writeFileMetadata(key, fileMetadataValue)
         filesInRevision.append(newId)
       }
     } else {
+      if (filetype.isFile) {
+        fileFoundCounter += 1
+      }
       filesInRevision.append(existing.get._1)
     }
   }

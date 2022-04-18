@@ -4,6 +4,7 @@ import ch.descabato.core.model.Size
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Implicits._
 import ch.descabato.utils.Utils
+import com.typesafe.scalalogging.LazyLogging
 import org.ocpsoft.prettytime.PrettyTime
 import org.ocpsoft.prettytime.format.SimpleTimeFormat
 import org.ocpsoft.prettytime.units.JustNow
@@ -13,9 +14,9 @@ import java.util.concurrent.atomic.AtomicLong
 import javax.swing.SwingUtilities
 import scala.jdk.CollectionConverters._
 
-object ProgressReporters {
+object ProgressReporters extends LazyLogging {
 
-  var guiEnabled = false
+  var guiEnabled = true
 
   var gui: Option[ProgressGui] = None
 
@@ -40,9 +41,9 @@ object ProgressReporters {
   def addCounter(newCounters: Counter*): Unit = {
     counters.synchronized {
       for (c <- newCounters if !(counters safeContains c.name)) {
+        logger.trace(s"Adding counter ${c.name} to $counters")
         counters += c.name -> c
-        for (g <- gui)
-          g.add(c)
+        gui.foreach(_.add(c))
       }
     }
   }
@@ -109,7 +110,12 @@ trait Counter {
     s"$current"
   }
 
-  def nameAndValue = s"$name $formatted"
+  def nameAndValue = s"$name: $formatted"
+
+  override def toString: String = {
+    update()
+    nameAndValue
+  }
 }
 
 class StandardCounter(val name: String) extends Counter
@@ -164,7 +170,7 @@ class SizeStandardCounter(val name: String) extends MaxValueCounter with ETACoun
   }
 }
 
-class FileCounter extends SizeStandardCounter("filename") {
+class FileCounter extends SizeStandardCounter("Current file") {
   var fileName: String = "filename"
 
   override def formatted = s"$fileName ${super[SizeStandardCounter].formatted} $calcEta"

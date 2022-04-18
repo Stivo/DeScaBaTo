@@ -6,6 +6,8 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.frontend.BackupRelatedCommand
 import ch.descabato.frontend.MultipleBackupConf
+import ch.descabato.frontend.ProgressReporters
+import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Utils
 
 import java.io.File
@@ -51,6 +53,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     if (!t.noScriptCreation()) {
       writeBat(t, conf, lastArgs)
     }
+    ProgressReporters.openGui("Backup", new RemoteOptions())
     for (backupEnv <- BackupEnv(conf, readOnly = false).autoClosed) {
       val backup = new RunBackup(backupEnv)
       backup.run(t.foldersToBackup())

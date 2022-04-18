@@ -105,14 +105,14 @@ class Sampling(file: File) extends Utils {
     }")
     val measure = new StandardMeasureTime()
     val compressed = CompressedStream.compressBytes(block, mode)
-    samples :+= new SamplingData(mode, block.length, compressed.bytesWrapper.length, measure.timeInMs())
+    samples :+= new SamplingData(mode, block.length, compressed.compressed.length, measure.timeInMs())
     (mode, Some(compressed))
   }
 
   def sample(mode: CompressionMode, block: BytesWrapper): (SamplingData, CompressedBytes) = {
     val measure = new StandardMeasureTime()
     val compressed = CompressedStream.compressBytes(block, mode)
-    val sample = new SamplingData(mode, block.length, compressed.bytesWrapper.length, measure.timeInMs())
+    val sample = new SamplingData(mode, block.length, compressed.compressed.length, measure.timeInMs())
     samples :+= sample
     logger.info(s"Sampling $mode for $file for block with length ${
       block.length

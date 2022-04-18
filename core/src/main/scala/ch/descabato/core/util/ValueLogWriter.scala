@@ -2,6 +2,10 @@ package ch.descabato.core.util
 
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ValueLogStatusKey
+import ch.descabato.frontend.ProgressReporters
+import ch.descabato.frontend.StandardByteCounter
+import ch.descabato.frontend.StandardCounter
+import ch.descabato.frontend.StandardMaxValueCounter
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.Status
 import ch.descabato.protobuf.keys.ValueLogIndex
@@ -18,6 +22,25 @@ import java.io.InputStream
 import java.io.SequenceInputStream
 
 class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, write: Boolean = true, maxSize: Long = 512 * 1024 * 1024) extends AutoCloseable with LazyLogging {
+
+  val bytesWrittenCounter = new StandardByteCounter("Bytes written")
+  val bytesCoveredCounter = new StandardByteCounter("Bytes covered")
+  val filesWrittenCounter = new StandardCounter("New volumes written")
+  val compressionCounter = new StandardCounter("New volumes written")
+
+  private val compressionRatioCounter = new StandardMaxValueCounter("Compression Ratio", 100) {
+    override def update(): Unit = {
+      if (bytesCoveredCounter.current == 0) {
+        current = 0
+      } else {
+        current = bytesWrittenCounter.current * 100 / bytesCoveredCounter.current
+      }
+    }
+
+    override def formatted: String = s"${super.formatted}, wrote: ${bytesWrittenCounter.formatted} in ${filesWrittenCounter.current} files"
+  }
+
+  ProgressReporters.addCounter(compressionRatioCounter)
 
   private val usedIdentifiers: Set[Int] = {
     backupEnv.rocks.getAllValueLogStatusKeys()
@@ -43,7 +66,7 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
       createNewFile()
     } else {
       val file = currentFile.get
-      if (file.fileWriter.currentPosition() + compressedBytes.bytesWrapper.length > maxSize && file.fileWriter.currentPosition() >= minSize) {
+      if (file.fileWriter.currentPosition() + compressedBytes.compressedLength > maxSize && file.fileWriter.currentPosition() >= minSize) {
         isNewFile = true
         closeCurrentFile(file)
         createNewFile()
@@ -52,10 +75,12 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
       }
     }
     val valueLogPositionBefore = valueLogWriteTiming.measure {
-      fileToWriteTo.fileWriter.write(compressedBytes.bytesWrapper)
+      fileToWriteTo.fileWriter.write(compressedBytes.compressed)
     }
+    bytesWrittenCounter += compressedBytes.compressedLength
+    bytesCoveredCounter += compressedBytes.uncompressedLength
     (isNewFile, ValueLogIndex(filename = fileToWriteTo.key.name, from = valueLogPositionBefore,
-      lengthUncompressed = compressedBytes.uncompressedLength, lengthCompressed = compressedBytes.bytesWrapper.length))
+      lengthUncompressed = compressedBytes.uncompressedLength, lengthCompressed = compressedBytes.compressedLength))
   }
 
   private def closeCurrentFile(currentFile: CurrentFile): Unit = {
@@ -69,6 +94,7 @@ class ValueLogWriter(backupEnv: BackupEnv, fileType: StandardNumberedFileType, w
   }
 
   private def createNewFile(): CurrentFile = {
+    filesWrittenCounter += 1
     val file = fileType.nextFile(temp = true, usedIdentifiers)
     val number = fileType.numberOfFile(file)
     val finalFile = fileType.fileForNumber(number, temp = false)

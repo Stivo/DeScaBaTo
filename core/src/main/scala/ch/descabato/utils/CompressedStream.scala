@@ -106,4 +106,6 @@ object CompressedStream extends Utils {
 
 }
 
-class CompressedBytes(val bytesWrapper: BytesWrapper, val uncompressedLength: Int)
+class CompressedBytes(val compressed: BytesWrapper, val uncompressedLength: Int) {
+  def compressedLength: Int = compressed.length
+}

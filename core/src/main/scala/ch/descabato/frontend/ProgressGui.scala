@@ -3,6 +3,7 @@ package ch.descabato.frontend
 import ch.descabato.Main
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Utils
+import com.typesafe.scalalogging.LazyLogging
 import org.bridj.Pointer
 import org.bridj.cpp.com.COMRuntime
 import org.bridj.cpp.com.shell.ITaskbarList3
@@ -24,7 +25,7 @@ object CreateProgressGui {
   }
 }
 
-class ProgressGui(nameOfOperation: String, remoteOptions: RemoteOptions) extends ActionListener {
+class ProgressGui(nameOfOperation: String, remoteOptions: RemoteOptions) extends ActionListener with LazyLogging {
   val mon = new ProgressMonitor(this, remoteOptions)
   val timer = new Timer(40, this)
   show()
@@ -78,6 +79,7 @@ class ProgressGui(nameOfOperation: String, remoteOptions: RemoteOptions) extends
     slices.find(counter.name == _.getName()) match {
       case Some(x) => x
       case None =>
+        logger.trace(s"Creating slice for ${counter.name}")
         val s = new ProgressSlice(counter.isInstanceOf[MaxValueCounter])
         mon.getSlices().add(s)
         mon.pack()
@@ -89,6 +91,7 @@ class ProgressGui(nameOfOperation: String, remoteOptions: RemoteOptions) extends
 
   def add(x: Counter): Unit = {
     counters.synchronized {
+      logger.trace(s"Adding counter ${x.name} to list of counters")
       counters += x
     }
   }
