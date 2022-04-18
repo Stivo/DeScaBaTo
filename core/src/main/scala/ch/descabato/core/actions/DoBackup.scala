@@ -48,7 +48,7 @@ object Backup {
 
 }
 
-class RunBackup(backupEnv: BackupEnv) extends LazyLogging {
+class DoBackup(backupEnv: BackupEnv) extends LazyLogging {
 
   def run(file: Seq[File]): Unit = {
     val backupper = new Backupper(backupEnv)

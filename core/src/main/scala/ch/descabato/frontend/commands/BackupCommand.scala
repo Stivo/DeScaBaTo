@@ -1,7 +1,7 @@
 package ch.descabato.frontend.commands
 
 import better.files._
-import ch.descabato.core.actions.RunBackup
+import ch.descabato.core.actions.DoBackup
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.frontend.BackupRelatedCommand
@@ -55,7 +55,7 @@ class BackupCommand extends BackupRelatedCommand with Utils {
     }
     ProgressReporters.openGui("Backup", new RemoteOptions())
     for (backupEnv <- BackupEnv(conf, readOnly = false).autoClosed) {
-      val backup = new RunBackup(backupEnv)
+      val backup = new DoBackup(backupEnv)
       backup.run(t.foldersToBackup())
     }
   }

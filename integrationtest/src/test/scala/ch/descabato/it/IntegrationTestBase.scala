@@ -65,6 +65,7 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(friendlyTestName + ".log")
+    cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
@@ -78,6 +79,7 @@ abstract class IntegrationTestBase extends AnyFlatSpec with RichFlatSpecLike wit
     cmdLine.addArgument(args.head)
     cmdLine.addArgument("--logfile")
     cmdLine.addArgument(friendlyTestName + ".log")
+    cmdLine.addArgument("--no-gui")
     args.tail.foreach { arg =>
       cmdLine.addArgument(arg)
     }
