@@ -1,13 +1,16 @@
 package ch.descabato.core.model
 
+import ch.descabato.core.FastMap
 import ch.descabato.protobuf.keys.ChunkProtoMap
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataProtoMap
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.ValueLogIndex
+import ch.descabato.utils.Hash
 import scalapb.TypeMapper
 
 import scala.collection.immutable.HashMap
+import scala.collection.mutable
 
 
 trait IntKey[T] {
@@ -28,7 +31,7 @@ trait IntKey[T] {
  * @tparam Id    The internal type used as a primary key for serialized entities
  * @tparam Value The value type of the actual entity
  */
-abstract class ProtoFriendlyMap[Key, Id, Value, MapType](private var _keyMap: HashMap[Key, Id], private var _idMap: HashMap[Id, (Key, Value)]) {
+abstract class ProtoFriendlyMap[Key, Id, Value, MapType](private var _keyMap: mutable.Map[Key, Id], private var _idMap: mutable.Map[Id, (Key, Value)]) {
 
   protected def idCompanion: IntKey[Id]
 
@@ -38,9 +41,9 @@ abstract class ProtoFriendlyMap[Key, Id, Value, MapType](private var _keyMap: Ha
     _idMap.keys.foldLeft(idCompanion.newInstance(0))(idCompanion.max)
   }
 
-  def keyMap: HashMap[Key, Id] = _keyMap
+  def keyMap: mutable.Map[Key, Id] = _keyMap
 
-  def valueMap: HashMap[Id, (Key, Value)] = _idMap
+  def valueMap: mutable.Map[Id, (Key, Value)] = _idMap
 
   def add(k: Key, v: Value): Id = {
     val newId = if (_keyMap.contains(k)) {
@@ -73,7 +76,7 @@ abstract class ProtoFriendlyMap[Key, Id, Value, MapType](private var _keyMap: Ha
 
   def iterator(): Iterator[(Key, Value)] = _idMap.valuesIterator
 
-  protected def constructNew(newKeyMap: HashMap[Key, Id], newKeyIdMap: HashMap[Id, (Key, Value)]): MapType
+  protected def constructNew(newKeyMap: mutable.Map[Key, Id], newKeyIdMap: mutable.Map[Id, (Key, Value)]): MapType
 
   def merge(other: ProtoFriendlyMap[Key, Id, Value, MapType]): MapType = {
     val newKeyMap = _keyMap ++ other._keyMap
@@ -84,8 +87,10 @@ abstract class ProtoFriendlyMap[Key, Id, Value, MapType](private var _keyMap: Ha
 }
 
 object ProtoFriendlyMap {
-  def reverseMap[K, V](map: HashMap[K, V]): HashMap[V, K] = {
-    map.map { case (k, v) => v -> k }
+  def reverseMap[K, V](map: HashMap[K, V]): mutable.Map[V, K] = {
+    val out = new mutable.HashMap[V, K]()
+    map.foreach { case (k, v) => (v, k) }
+    out
   }
 }
 
@@ -99,26 +104,27 @@ object ChunkId extends IntKey[ChunkId] {
   override def newInstance(id: Int): ChunkId = ChunkId(id)
 }
 
-class ChunkMap private(keyMap: HashMap[ChunkKey, ChunkId], valueMap: HashMap[ChunkId, (ChunkKey, ValueLogIndex)])
+class ChunkMap private(keyMap: mutable.Map[ChunkKey, ChunkId], valueMap: mutable.Map[ChunkId, (ChunkKey, ValueLogIndex)])
   extends ProtoFriendlyMap[ChunkKey, ChunkId, ValueLogIndex, ChunkMap](keyMap, valueMap) {
 
   override protected lazy val idCompanion: IntKey[ChunkId] = ChunkId
 
-  override def constructNew(newKeyMap: HashMap[ChunkKey, ChunkId], newIdMap: HashMap[ChunkId, (ChunkKey, ValueLogIndex)]): ChunkMap =
+  override def constructNew(newKeyMap: mutable.Map[ChunkKey, ChunkId], newIdMap: mutable.Map[ChunkId, (ChunkKey, ValueLogIndex)]): ChunkMap =
     new ChunkMap(newKeyMap, newIdMap)
 }
 
 object ChunkMap {
   def importFromProto(protoMap: ChunkProtoMap): ChunkMap = {
     val reversedKeys = ProtoFriendlyMap.reverseMap(protoMap.chunkKeys)
-    val values = protoMap.chunkValues.map { case (id, value) =>
-      id -> (protoMap.chunkKeys(id), value)
+    val valuesMap = new mutable.HashMap[ChunkId, (ChunkKey, ValueLogIndex)]()
+    protoMap.chunkValues.foreach { case (id, value) =>
+      valuesMap += id -> (protoMap.chunkKeys(id), value)
     }
-    new ChunkMap(reversedKeys, values)
+    new ChunkMap(reversedKeys, valuesMap)
   }
 
   def empty: ChunkMap = {
-    new ChunkMap(HashMap.empty, HashMap.empty)
+    new ChunkMap(mutable.Map.empty, mutable.Map.empty)
   }
 }
 
@@ -134,10 +140,10 @@ object FileMetadataId extends IntKey[FileMetadataId] {
   override def newInstance(id: Int): FileMetadataId = FileMetadataId(id)
 }
 
-class FileMetadataMap private(keyMap: HashMap[FileMetadataKey, FileMetadataId], valueMap: HashMap[FileMetadataId, (FileMetadataKey, FileMetadataValue)])
+class FileMetadataMap private(keyMap: mutable.Map[FileMetadataKey, FileMetadataId], valueMap: mutable.Map[FileMetadataId, (FileMetadataKey, FileMetadataValue)])
   extends ProtoFriendlyMap[FileMetadataKey, FileMetadataId, FileMetadataValue, FileMetadataMap](keyMap, valueMap) {
 
-  override def constructNew(newKeyMap: HashMap[FileMetadataKey, FileMetadataId], newIdMap: HashMap[FileMetadataId, (FileMetadataKey, FileMetadataValue)]): FileMetadataMap =
+  override def constructNew(newKeyMap: mutable.Map[FileMetadataKey, FileMetadataId], newIdMap: mutable.Map[FileMetadataId, (FileMetadataKey, FileMetadataValue)]): FileMetadataMap =
     new FileMetadataMap(newKeyMap, newIdMap)
 
   override protected lazy val idCompanion: IntKey[FileMetadataId] = FileMetadataId
@@ -147,13 +153,14 @@ class FileMetadataMap private(keyMap: HashMap[FileMetadataKey, FileMetadataId], 
 object FileMetadataMap {
   def importFromProto(protoMap: FileMetadataProtoMap): FileMetadataMap = {
     val keyMap = ProtoFriendlyMap.reverseMap(protoMap.fileMetadataKeys)
-    val values = protoMap.fileMetadataValues.map { case (id, value) =>
-      id -> (protoMap.fileMetadataKeys(id), value)
+    val valueMap = mutable.HashMap.empty[FileMetadataId, (FileMetadataKey, FileMetadataValue)]
+    protoMap.fileMetadataValues.foreach { case (id, value) =>
+      valueMap += id -> (protoMap.fileMetadataKeys(id), value)
     }
-    new FileMetadataMap(keyMap, values)
+    new FileMetadataMap(keyMap, valueMap)
   }
 
   def empty: FileMetadataMap = {
-    new FileMetadataMap(HashMap.empty, HashMap.empty)
+    new FileMetadataMap(mutable.HashMap.empty, mutable.Map.empty)
   }
 }
