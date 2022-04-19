@@ -9,7 +9,7 @@ import org.bouncycastle.crypto.Digest
 import org.bouncycastle.util.encoders.Hex
 import scalapb.TypeMapper
 
-import java.io._
+import java.io.*
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.text.DecimalFormat
@@ -69,7 +69,7 @@ object BytesWrapper {
 
   def apply(bytes: Array[Byte], offset: Int = 0, length: Int = -1): BytesWrapper = {
     require(bytes != null)
-    require(length <= bytes.length || length < 0)
+    require(length + offset <= bytes.length || length < 0, s"${bytes.length} vs $offset and $length")
     val correctLength = if (length < 0) bytes.length - offset else length
     new BytesWrapper(bytes, offset, correctLength)
   }

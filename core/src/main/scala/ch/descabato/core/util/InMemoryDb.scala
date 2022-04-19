@@ -11,6 +11,7 @@ import ch.descabato.core.util.Implicits.PimpedTry
 import ch.descabato.protobuf.keys.ProtoDb
 import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.protobuf.keys.ValueLogStatusValue
+import ch.descabato.utils.StandardMeasureTime
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Using
@@ -63,11 +64,12 @@ object InMemoryDb extends LazyLogging {
     val files = backupEnv.fileManager.dbexport.getFiles()
     var out: Option[InMemoryDb] = None
     for (file <- files) {
+      val st = new StandardMeasureTime
       Using(backupEnv.config.newCompressedInputStream(file)) { fis =>
         val db = ProtoDb.parseFrom(fis)
-        logger.info(s"Metadata read from $file has a size of ${Size(db.serializedSize)} uncompressed")
         val inMemoryDb = fromProto(db)
         out = out.map(_.merge(inMemoryDb)) orElse Some(inMemoryDb)
+        logger.info(s"Metadata read from $file has a size of ${Size(db.serializedSize)} uncompressed, took ${st.measuredTime()}")
       }.getOrThrow()
     }
     out
