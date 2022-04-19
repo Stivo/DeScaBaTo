@@ -1,9 +1,10 @@
 package ch.descabato.it.tests
 
+import better.files.*
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.utils.Utils
-import better.files._
+
 import java.io
 
 object DumpDbExport extends Utils {
@@ -18,7 +19,7 @@ object DumpDbExport extends Utils {
   def printChunks(backupEnv: BackupEnv): Unit = {
     val value = backupEnv.rocks.getAllChunks()
     value.map { case (key, value) =>
-      s"${key.hash.base64}: ${value}"
+      s"${key.base64}: ${value}"
     }.foreach(logger.info(_))
   }
 

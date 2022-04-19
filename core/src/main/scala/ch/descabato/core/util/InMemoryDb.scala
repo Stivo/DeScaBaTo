@@ -72,6 +72,9 @@ object InMemoryDb extends LazyLogging {
         logger.info(s"Metadata read from $file has a size of ${Size(db.serializedSize)} uncompressed, took ${st.measuredTime()}")
       }.getOrThrow()
     }
+    val r = Runtime.getRuntime
+    r.gc()
+    logger.info(s"Current memory: ${Size(r.totalMemory() - r.freeMemory())}")
     out
   }
 

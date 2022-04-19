@@ -20,7 +20,7 @@ import scala.collection.immutable.TreeMap
 
 class BackupReader(val backupEnv: BackupEnv) extends Utils {
 
-  import backupEnv._
+  import backupEnv.*
 
   lazy val revisions: Seq[RevisionPair] = {
     rocks.getAllRevisions()
@@ -34,7 +34,7 @@ class BackupReader(val backupEnv: BackupEnv) extends Utils {
     backupEnv.rocks.getAllChunks().foreach { case (key, v) =>
       val number = backupEnv.fileManager.volume.numberOfFile(backupEnv.config.resolveRelativePath(v.filename))
       var map = out.getOrElse(number, Map.empty)
-      map += (key -> v)
+      map += (ChunkKey(key) -> v)
       out += number -> map
     }
     out

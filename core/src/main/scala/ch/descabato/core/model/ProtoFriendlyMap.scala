@@ -104,27 +104,38 @@ object ChunkId extends IntKey[ChunkId] {
   override def newInstance(id: Int): ChunkId = ChunkId(id)
 }
 
-class ChunkMap private(keyMap: mutable.Map[ChunkKey, ChunkId], valueMap: mutable.Map[ChunkId, (ChunkKey, ValueLogIndex)])
-  extends ProtoFriendlyMap[ChunkKey, ChunkId, ValueLogIndex, ChunkMap](keyMap, valueMap) {
+class ChunkMap private(keyMap: FastMap[ChunkId], valueMap: mutable.Map[ChunkId, (Hash, ValueLogIndex)])
+  extends ProtoFriendlyMap[Hash, ChunkId, ValueLogIndex, ChunkMap](keyMap, valueMap) {
 
   override protected lazy val idCompanion: IntKey[ChunkId] = ChunkId
 
-  override def constructNew(newKeyMap: mutable.Map[ChunkKey, ChunkId], newIdMap: mutable.Map[ChunkId, (ChunkKey, ValueLogIndex)]): ChunkMap =
-    new ChunkMap(newKeyMap, newIdMap)
+  override def constructNew(newKeyMap: mutable.Map[Hash, ChunkId], newIdMap: mutable.Map[ChunkId, (Hash, ValueLogIndex)]): ChunkMap =
+    new ChunkMap(newKeyMap.asInstanceOf[FastMap[ChunkId]], newIdMap)
+
+  override def merge(other: ProtoFriendlyMap[Hash, ChunkId, ValueLogIndex, ChunkMap]): ChunkMap = {
+    val newKeyMap = FastMap[ChunkId]
+    newKeyMap ++= keyMap
+    newKeyMap ++= other.keyMap
+    val newIdMap = valueMap ++ other.valueMap
+    constructNew(newKeyMap, newIdMap)
+  }
+
 }
 
 object ChunkMap {
   def importFromProto(protoMap: ChunkProtoMap): ChunkMap = {
-    val reversedKeys = ProtoFriendlyMap.reverseMap(protoMap.chunkKeys)
-    val valuesMap = new mutable.HashMap[ChunkId, (ChunkKey, ValueLogIndex)]()
+    val reversedKeys = new FastMap[ChunkId]()
+    protoMap.chunkKeys.foreach { case (k, v) => (v.hash, k) }
+
+    val valuesMap = new mutable.HashMap[ChunkId, (Hash, ValueLogIndex)]()
     protoMap.chunkValues.foreach { case (id, value) =>
-      valuesMap += id -> (protoMap.chunkKeys(id), value)
+      valuesMap += id -> (protoMap.chunkKeys(id).hash, value)
     }
     new ChunkMap(reversedKeys, valuesMap)
   }
 
   def empty: ChunkMap = {
-    new ChunkMap(mutable.Map.empty, mutable.Map.empty)
+    new ChunkMap(FastMap.empty, mutable.Map.empty)
   }
 }
 

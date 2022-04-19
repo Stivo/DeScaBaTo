@@ -7,6 +7,7 @@ import ch.descabato.protobuf.keys.ProtoDb
 import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.protobuf.keys.ValueLogStatusValue
+import ch.descabato.utils.Hash
 import com.typesafe.scalalogging.LazyLogging
 
 object KeyValueStore {
@@ -21,7 +22,7 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
 
   def getUpdates(): ProtoDb = updates
 
-  def getAllChunks(): Iterator[(ChunkKey, ValueLogIndex)] = {
+  def getAllChunks(): Iterator[(Hash, ValueLogIndex)] = {
     inMemoryDb.chunkMap.iterator()
   }
 
@@ -59,7 +60,7 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
 
   def writeChunk(key: ChunkKey, value: ValueLogIndex): ChunkId = {
     ensureOpenForWriting()
-    val id = inMemoryDb.chunkMap.add(key, value)
+    val id = inMemoryDb.chunkMap.add(key.hash, value)
     updates = updates.copy(chunkMap = updates.chunkMap.addChunkKeys((id, key)))
     updates = updates.copy(chunkMap = updates.chunkMap.addChunkValues((id, value)))
     id
@@ -87,9 +88,11 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
     inMemoryDb.getRevision(revision)
   }
 
-  def getChunk(chunkKey: ChunkKey): Option[(ChunkId, ValueLogIndex)] = inMemoryDb.chunkMap.getByKey(chunkKey)
+  def getChunk(chunkKey: ChunkKey): Option[(ChunkId, ValueLogIndex)] = inMemoryDb.chunkMap.getByKey(chunkKey.hash)
 
-  def getChunkById(chunkId: ChunkId): Option[(ChunkKey, ValueLogIndex)] = inMemoryDb.chunkMap.getById(chunkId)
+  def getChunkById(chunkId: ChunkId): Option[(ChunkKey, ValueLogIndex)] = inMemoryDb.chunkMap.getById(chunkId).map { case (h, v) =>
+    (ChunkKey(h), v)
+  }
 
   def readValueLogStatus(key: ValueLogStatusKey): Option[ValueLogStatusValue] = {
     inMemoryDb.getValueLogStatus(key)
