@@ -7,7 +7,7 @@ import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.stream.Collectors
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.util.Try
 
 object Constants {
@@ -103,7 +103,7 @@ class StandardNumberedFileType(name: String, suffix: String, config: BackupFolde
   val regex = s"${name}_[0-9]+"
   val regexWithSuffix = s"(${Constants.tempPrefix})?${regex}\\.${suffix}"
 
-  val filesPerFolder = 1000
+  val filesPerFolder = 1000000
 
   override def numberOfFile(file: File): Int = {
     require(matches(file))
