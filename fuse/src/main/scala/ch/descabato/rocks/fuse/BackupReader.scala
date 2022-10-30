@@ -20,7 +20,7 @@ import scala.collection.immutable.TreeMap
 
 class BackupReader(val backupEnv: BackupEnv) extends Utils {
 
-  import backupEnv._
+  import backupEnv.*
 
   lazy val revisions: Seq[RevisionPair] = {
     rocks.getAllRevisions()
@@ -212,7 +212,11 @@ class FileFolder(val name: String, initFunction: FileFolder => Unit, var backupI
   }
 
   override def toString: String = {
-    s"${name} with ${children.size} children"
+    if (isInitialized) {
+      s"${name} with ${children.size} children"
+    } else {
+      s"${name} (children not yet accessed)"
+    }
   }
 }
 

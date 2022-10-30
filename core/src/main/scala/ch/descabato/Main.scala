@@ -44,6 +44,9 @@ object Main extends Utils {
   }
 
   def parseCommandLine(args: Seq[String]): Unit = {
+    val version = System.getProperty("prog.version")
+    val revision = System.getProperty("prog.revision")
+    logger.info(s"Descabato version ${version} (revision ${revision})")
     val (command, tail) = if (args.isEmpty) {
       ("help", Nil)
     } else {

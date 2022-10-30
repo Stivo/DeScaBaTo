@@ -3,6 +3,7 @@ package ch.descabato.rocks.fuse
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.protobuf.keys.FileMetadataValue
+import ch.descabato.utils.Utils
 import jnr.ffi.Platform
 import jnr.ffi.Platform.OS
 import jnr.ffi.Pointer
@@ -41,7 +42,7 @@ object BackupFuseFS {
 
 }
 
-class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
+class BackupFuseFS(reader: BackupReader) extends FuseStubFS with Utils {
   val readOnly = 0x124 // 0x444
   val readWriteAndList = 0x1ed // 0x755
   val readAndList = 0x16d // 0x555
@@ -52,7 +53,7 @@ class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
     } else {
       val path = PathUtils.splitPath(pathIn).tail
       val out = reader.rootDirectory.find(path)
-      //      println(s"In: $pathIn, path: ${path}, out: ${out}")
+      // logger.info(s"In: $pathIn, path: ${path}, out: ${out}")
       out
     }
   }
@@ -79,7 +80,7 @@ class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
         stat.st_ctim.tv_sec.set(createdTime)
       // This slows performance down a lot, and is not even visible from the filesystem
       // val totalSize = reader.backupEnv.rocks.getIndexes(metadata).map(_.lengthCompressed.toLong).sum
-      // println(s"Total size for $path is ${Utils.readableFileSize(metadata.length)}, but with compression: ${Utils.readableFileSize(totalSize)}. ")
+      // logger.info(s"Total size for $path is ${Utils.readableFileSize(metadata.length)}, but with compression: ${Utils.readableFileSize(totalSize)}. ")
       case None =>
         res = -ErrorCodes.ENOENT()
     }
@@ -92,12 +93,12 @@ class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
   }
 
   override def getxattr(path: String, name: String, value: Pointer, size: Long): Int = {
-    println(s"Getting extended attribute $name for $path with size $size")
+    logger.info(s"Getting extended attribute $name for $path with size $size")
     super.getxattr(path, name, value, size)
   }
 
   override def listxattr(path: String, list: Pointer, size: Long): Int = {
-    println(s"Listing extended attributes for $path")
+    logger.info(s"Listing extended attributes for $path")
     super.listxattr(path, list, size)
   }
 
@@ -137,7 +138,7 @@ class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
           val input = cache.get(entry) match {
             case Some(x) =>
               cache -= entry
-              println(s"Cache hit on $entry")
+              logger.info(s"Cache hit on $entry")
               x
             case None =>
               val input = reader.createInputStream(metadata)
@@ -147,10 +148,10 @@ class BackupFuseFS(reader: BackupReader) extends FuseStubFS {
           val bytes = Array.ofDim[Byte](sizeIn.toInt)
           val read = IOUtils.readFully(input, bytes)
           buf.put(0, bytes, 0, read)
-          println(s"Read from $path at $offset with length $sizeIn, returned $read bytes")
+          logger.info(s"Read from $path at $offset with length $sizeIn, returned $read bytes")
           if (offset + read < metadata.length) {
             val entry1 = entry.copy(offset = offset + read)
-            println(s"Added cache entry for $entry1")
+            logger.info(s"Added cache entry for $entry1")
             cache += entry1 -> input
           }
           read

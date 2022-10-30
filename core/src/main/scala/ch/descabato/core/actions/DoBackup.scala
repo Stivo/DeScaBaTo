@@ -1,6 +1,6 @@
 package ch.descabato.core.actions
 
-import better.files._
+import better.files.*
 import ch.descabato.core.FileVisitorCollector
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkId
@@ -21,7 +21,7 @@ import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.utils.BytesWrapper
-import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Implicits.*
 import ch.descabato.utils.StandardMeasureTime
 import ch.descabato.utils.StopWatch
 import ch.descabato.utils.Streams.VariableBlockOutputStream
@@ -78,7 +78,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
   private val reusedChunksCounter = new ReuseCounter("Reused chunks", chunkFoundCounter, chunkNotFoundCounter)
   private val reusedFilesCounter = new ReuseCounter("Reused files", fileFoundCounter, fileNotFoundCounter)
 
-  import backupEnv._
+  import backupEnv.*
 
   def printStatistics(): Unit = {
     logger.info(reusedChunksCounter.toString)
@@ -196,6 +196,7 @@ class Backupper(backupEnv: BackupEnv) extends LazyLogging {
     } else {
       if (filetype.isFile) {
         fileFoundCounter += 1
+        bytesCounter += existing.get._2.length
       }
       filesInRevision.append(existing.get._1)
     }

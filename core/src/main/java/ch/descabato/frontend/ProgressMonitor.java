@@ -37,26 +37,26 @@ public class ProgressMonitor extends JFrame {
         panel_1.add(panel);
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
-        final JButton btnPause = new JButton("Pause");
-        btnPause.addActionListener(e -> {
-            if (btnPause.getText().equals("Pause")) {
-                btnPause.setText("Resume");
-                gui.pause(true);
-            } else {
-                btnPause.setText("Pause");
-                gui.pause(false);
-            }
-        });
-        panel.add(btnPause);
-
-        final JLabel uploadSpeedLabel = new JLabel("Full speed");
-        panel.add(uploadSpeedLabel);
+//        final JButton btnPause = new JButton("Pause");
+//        btnPause.addActionListener(e -> {
+//            if (btnPause.getText().equals("Pause")) {
+//                btnPause.setText("Resume");
+//                gui.pause(true);
+//            } else {
+//                btnPause.setText("Pause");
+//                gui.pause(false);
+//            }
+//        });
+//        panel.add(btnPause);
+//
+//        final JLabel uploadSpeedLabel = new JLabel("Full speed");
+//        panel.add(uploadSpeedLabel);
 
         if (remoteOptions != null && remoteOptions.enabled()) {
             final JSlider uploadSpeed = new LogarithmicJSlider(10, 100000, 1000);
             uploadSpeed.addChangeListener(e -> {
                 remoteOptions.setUploadSpeedLimitKiloBytesPerSecond(uploadSpeed.getValue());
-                uploadSpeedLabel.setText("New Upload Speed: " + uploadSpeed.getValue() + " KB/s");
+//                uploadSpeedLabel.setText("New Upload Speed: " + uploadSpeed.getValue() + " KB/s");
             });
             uploadSpeed.setValue(remoteOptions.getUploadSpeedLimitKiloBytesPerSecond());
             panel.add(uploadSpeed);

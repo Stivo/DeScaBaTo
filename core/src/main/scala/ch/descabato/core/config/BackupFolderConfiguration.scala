@@ -3,8 +3,8 @@ package ch.descabato.core.config
 import ch.descabato.CompressionMode
 import ch.descabato.HashAlgorithm
 import ch.descabato.core.model.Size
+import ch.descabato.core.util.*
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
-import ch.descabato.core.util._
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.JsonSerialization
 import com.github.luben.zstd.ZstdInputStream
@@ -64,11 +64,11 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   }
 
   def newCompressedOutputStream(file: File): OutputStream = {
-    new ZstdOutputStream(new BufferedOutputStream(newWriter(file).asOutputStream(), 10 * 1024 * 1024), 7)
+    new ZstdOutputStream(new BufferedOutputStream(newWriter(file).asOutputStream(), 1 * 1024 * 1024), 7)
   }
 
   def newCompressedInputStream(file: File): InputStream = {
-    new ZstdInputStream(new BufferedInputStream(newReader(file).asInputStream(), 10 * 1024 * 1024))
+    new ZstdInputStream(new BufferedInputStream(newReader(file).asInputStream(), 1 * 1024 * 1024))
   }
 
   def relativePath(file: File): String = {
