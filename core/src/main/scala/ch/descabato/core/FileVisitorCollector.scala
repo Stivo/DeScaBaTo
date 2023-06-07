@@ -6,12 +6,12 @@ import ch.descabato.utils.Utils
 
 import java.io.File
 import java.io.IOException
-import java.nio.file._
+import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
-import java.util.{ArrayList => JArrayList}
+import java.util.ArrayList as JArrayList
 import scala.io.Codec
 import scala.io.Source
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 class FileVisitorCollector(ignoreFile: Option[File],
                            fileCounter: MaxValueCounter,
@@ -72,7 +72,7 @@ class IgnoreFileMatcher(val ignoreFileIn: Option[File]) {
   val ignoredPatterns: List[PathMatcher] = {
     ignoreFileIn.map { ignoreFile =>
       val source = Source.fromFile(ignoreFile)(Codec.UTF8)
-      val cleanedLines = source.getLines().map(_.trim).filterNot(_.isEmpty).filterNot(_.startsWith("#")).toList
+      val cleanedLines = source.getLines().map(_.trim).filterNot(_.isEmpty).filterNot(_.startsWith("#")).map(_.replace("\\", "/")).toList
       val out = cleanedLines.map(pattern => FileSystems.getDefault.getPathMatcher("glob:" + pattern))
       source.close()
       out
