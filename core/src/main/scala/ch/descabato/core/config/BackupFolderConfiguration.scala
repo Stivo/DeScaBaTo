@@ -5,6 +5,7 @@ import ch.descabato.HashAlgorithm
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.*
 import ch.descabato.core.util.JacksonAnnotations.JsonIgnore
+import ch.descabato.core.util.JacksonAnnotations.JsonIgnoreProperties
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.JsonSerialization
 import com.github.luben.zstd.ZstdInputStream
@@ -17,7 +18,8 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
-case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None, newBackup: Boolean = false) {
+@JsonIgnoreProperties(Array("passphrase"))
+case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: Option[String] = None) {
 
   def this() = this(null)
 
@@ -33,7 +35,6 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   @JsonIgnore def createMessageDigest(): Digest = hashAlgorithm.newInstance()
 
   var volumeSize: Size = Size("100Mb")
-  var threads: Int = 1
   //  val useDeltas = false
   var hasPassword: Boolean = passphrase.isDefined
   //  var renameDetection = true
@@ -44,8 +45,6 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   var ignoreFile: Option[File] = None
 
   var remoteOptions: RemoteOptions = new RemoteOptions()
-
-  var key: Array[Byte] = _
 
   def newWriter(file: File): FileWriter = {
     if (passphrase.isEmpty) {

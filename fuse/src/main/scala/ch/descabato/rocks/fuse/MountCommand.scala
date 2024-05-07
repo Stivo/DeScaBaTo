@@ -29,7 +29,7 @@ class MountCommand extends BackupRelatedCommand {
     try {
 
       val path1: Path = parseAndCheckPath(t)
-      logger.info(s"Mounting to $path1, this may take a while")
+      println(s"Mounting to $path1, this may take a while")
       new Thread() {
         override def run(): Unit = {
           while (!Files.exists(path1)) {
@@ -53,7 +53,7 @@ class MountCommand extends BackupRelatedCommand {
         if (!path.matches("[A-Za-z]:\\\\")) {
           throw new IllegalArgumentException("Please specify a drive letter")
         }
-        logger.info(s"""Corrected mount path for windows from "${config.mountFolder()}" to "$path". To avoid this message, just enter the drive letter by itself. """)
+        println(s"""Corrected mount path for windows from "${config.mountFolder()}" to "$path". To avoid this message, just enter the drive letter by itself. """)
       } else {
         path = path.toUpperCase() + ":\\"
         if (!path.matches("[A-Za-z]:\\\\")) {
