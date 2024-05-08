@@ -1,19 +1,15 @@
 package ch.descabato.frontend.commands
 
-import better.files._
+import better.files.*
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
-import ch.descabato.frontend.BackupRelatedCommand
-import ch.descabato.frontend.SimpleBackupFolderOption
+import ch.descabato.frontend.UploadConf
 import ch.descabato.remote.RemoteUploader
 import ch.descabato.utils.Utils
 
-class UploadCommand extends BackupRelatedCommand with Utils {
-  override type T = SimpleBackupFolderOption
+class UploadCommand(uploadConf: UploadConf, conf: BackupFolderConfiguration) extends Utils {
 
-  override def newT(args: Seq[String]): T = new SimpleBackupFolderOption(args)
-
-  override def start(t: T, conf: BackupFolderConfiguration): Unit = {
+  def run(): Unit = {
     var finished, failed = 0
     for {
       backupEnv <- BackupEnv(conf, true).autoClosed

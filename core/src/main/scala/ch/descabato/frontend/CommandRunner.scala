@@ -1,6 +1,7 @@
 package ch.descabato.frontend
 
 import better.files.DisposeableExtensions
+import ch.descabato.core.BackupException
 import ch.descabato.core.PasswordWrongException
 import ch.descabato.core.actions.DoBackup
 import ch.descabato.core.actions.DoRestore
@@ -13,19 +14,12 @@ import ch.descabato.core.config.BackupVerification.PasswordNeeded
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.util.FileManager
 import ch.descabato.frontend.BackupFolderOption
-import ch.descabato.frontend.Command
 import ch.descabato.frontend.CreateBackupOptions
 import ch.descabato.frontend.HelpCommand
 import ch.descabato.frontend.MultipleBackupConf
 import ch.descabato.frontend.ProgramOption
 import ch.descabato.frontend.ProgressReporters
-import ch.descabato.frontend.ReflectionCommand
 import ch.descabato.frontend.RestoreConf
-import ch.descabato.frontend.commands.BackupCommand
-import ch.descabato.frontend.commands.CountCommand
-import ch.descabato.frontend.commands.RestoreCommand
-import ch.descabato.frontend.commands.UploadCommand
-import ch.descabato.frontend.commands.VerifyCommand
 import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Utils
 import ch.descabato.utils.Utils.logException
@@ -37,6 +31,7 @@ import org.slf4j.LoggerFactory
 
 import java.io.File
 import java.io.PrintStream
+import java.lang.reflect.InvocationTargetException
 import java.nio.file.FileSystems
 import java.security.Security
 import java.time.LocalDateTime
@@ -56,26 +51,43 @@ trait BackupConfCommandCreator extends BackupFolderOption {
 trait SimpleCommandCreator extends ScallopConf {
   def runCommand(): Unit
 }
+// TODO
+//
+//class ReflectionConf(override val name: String, clas: String) extends BackupConfCommandCreator {
+//
+//  def execute(args: Seq[String]): Unit = {
+//    try {
+//      val clazz = Class.forName(clas)
+//      val instance = clazz.getConstructor().newInstance()
+//      clazz.getMethod("execute", classOf[Seq[String]]).invoke(instance, args)
+//    } catch {
+//      case e: ReflectiveOperationException if e.getCause().isInstanceOf[BackupException] => throw e.getCause
+//      case e: InvocationTargetException if e.getCause() != null => throw e.getCause
+//    }
+//  }
+//
+//}
 
 class CommandRunner(args: Seq[String]) {
-  val (commandName, tailArgs) = if (args.isEmpty) {
+  private val (commandName, tailArgs) = if (args.isEmpty) {
     ("help", Nil)
   } else {
     (args.head, args.tail)
   }
 
-  val commandsWithFolder: Map[String, Seq[String] => BackupConfCommandCreator] = Map(
+  private val commandsWithFolder: Map[String, Seq[String] => BackupConfCommandCreator] = Map(
     "backup" -> { (args: Seq[String]) => new MultipleBackupConf(args) },
     "restore" -> { (args: Seq[String]) => new RestoreConf(args) },
     "verify" -> { (args: Seq[String]) => new VerifyConf(args) },
+    "upload" -> { (args: Seq[String]) => new UploadConf(args) },
     // TODO
     //    "mount" -> { (args: Seq[String]) => new MountConf(args) },
   )
 
-  val commandsWithoutFolder: Map[String, Seq[String] => SimpleCommandCreator] = Map(
+  private val commandsWithoutFolder: Map[String, Seq[String] => SimpleCommandCreator] = Map(
     "count" -> { (args: Seq[String]) => new CountConf(args) },
-    "help" -> { (args: Seq[String]) => new GenericConf(args, new HelpCommand2(this)) },
-    "--version" -> { (args: Seq[String]) => new GenericConf(args, new VersionCommand2()) },
+    "help" -> { (args: Seq[String]) => new GenericConf(args, new HelpCommand(this)) },
+    "--version" -> { (args: Seq[String]) => new GenericConf(args, new VersionCommand()) },
   )
 
   def allCommands(): List[String] = (commandsWithFolder.keys ++ commandsWithoutFolder.keys)
@@ -83,17 +95,17 @@ class CommandRunner(args: Seq[String]) {
     .toList
     .sorted
 
-  def runCommand3(): Unit = {
+  def runCommand(): Unit = {
     if (commandsWithFolder.contains(commandName)) {
       startCommandWithFolder()
     } else if (commandsWithoutFolder.contains(commandName)) {
       startCommandWithoutFolder()
     } else {
-      new HelpCommand().execute(tailArgs)
+      new HelpCommand(this).execute(tailArgs)
     }
   }
 
-  def askUser(question: String = "Do you want to continue?", mask: Boolean = false): String = {
+  private def askUser(question: String = "Do you want to continue?", mask: Boolean = false): String = {
     println(question)
     if (mask)
       System.console().readPassword().mkString
@@ -101,7 +113,7 @@ class CommandRunner(args: Seq[String]) {
       System.console().readLine()
   }
 
-  def askUserYesNo(question: String = "Do you want to continue?"): Boolean = {
+  private def askUserYesNo(question: String = "Do you want to continue?"): Boolean = {
     val answer = askUser(question)
     val yes = Set("yes", "y")
     if (yes.contains(answer.toLowerCase().trim)) {
@@ -112,7 +124,7 @@ class CommandRunner(args: Seq[String]) {
     }
   }
 
-  def startCommandWithFolder(): Unit = {
+  private def startCommandWithFolder(): Unit = {
 
     val parsedArgs = commandsWithFolder.getOrElse(commandName,
         throw new IllegalArgumentException(s"Commmand $commandName doesn't exist"))
@@ -156,7 +168,7 @@ class CommandRunner(args: Seq[String]) {
     parsedArgs.runCommand(conf)
   }
 
-  def startCommandWithoutFolder(): Unit = {
+  private def startCommandWithoutFolder(): Unit = {
     val conf = commandsWithoutFolder.getOrElse(commandName,
       throw new IllegalArgumentException(s"Command $commandName doesn't exist"))(tailArgs)
     conf.verify()

@@ -2,8 +2,8 @@ package ch.descabato.rocks.fuse
 
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
+import ch.descabato.frontend.BackupConfCommandCreator
 import ch.descabato.frontend.BackupFolderOption
-import ch.descabato.frontend.BackupRelatedCommand
 import ch.descabato.utils.Utils
 import org.rogach.scallop.ScallopConf
 import org.rogach.scallop.ScallopOption
@@ -13,22 +13,18 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-class MountCommand extends BackupRelatedCommand {
-  type T = FuseMountConf
+class MountCommand(mountConf: FuseMountConf, conf: BackupFolderConfiguration) extends Utils {
 
-  def newT(args: Seq[String]) = new FuseMountConf(args)
+  def start(): Unit = {
 
-  def start(t: T, conf: BackupFolderConfiguration): Unit = {
-    printConfiguration(t)
-
-    val config = BackupFolderConfiguration(conf.folder, t.passphrase.toOption)
+    val config = BackupFolderConfiguration(conf.folder, mountConf.passphrase.toOption)
     val env = BackupEnv(config, readOnly = true)
     val reader = new BackupReader(env)
 
     val stub = new BackupFuseFS(reader)
     try {
 
-      val path1: Path = parseAndCheckPath(t)
+      val path1: Path = parseAndCheckPath(mountConf)
       println(s"Mounting to $path1, this may take a while")
       new Thread() {
         override def run(): Unit = {
@@ -93,9 +89,15 @@ class MountCommand extends BackupRelatedCommand {
 
 }
 
-class FuseMountConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption {
+class FuseMountConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
+  with BackupConfCommandCreator {
 
   import org.rogach.scallop.stringConverter
 
   val mountFolder: ScallopOption[String] = opt[String](descr = "The folder to mount the contents on (on windows: drive letter)", required = true)
+
+  override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
+    new MountCommand(this, backupFolderConf)
+
+  override def needsExistingBackup: Boolean = true
 }

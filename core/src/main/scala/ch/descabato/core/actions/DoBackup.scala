@@ -34,7 +34,9 @@ import com.typesafe.scalalogging.LazyLogging
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.IOException
+import java.io.PrintStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -47,7 +49,37 @@ import scala.util.Try
 class BackupCommand3(multipleBackupConf: MultipleBackupConf, backupFolderConf: BackupFolderConfiguration)
   extends Command3 {
 
+
+  // TODO
+  //  def writeBat(t: T, conf: BackupFolderConfiguration, args: Seq[String]): Unit = {
+  //    var path = new File(s"descabato$suffix").getCanonicalFile
+  //    // TODO the directory should be determined by looking at the classpath
+  //    if (!path.exists) {
+  //      path = new File(path.getParent() + "/bin", path.getName)
+  //    }
+  //    val line = s"$path backup " + args.map {
+  //      case x if x.contains(" ") => s""""$x""""
+  //      case x => x
+  //    }.mkString(" ")
+  //
+  //    def writeTo(bat: File): Unit = {
+  //      if (!bat.exists) {
+  //        val ps = new PrintStream(new FileOutputStream(bat))
+  //        ps.print(line)
+  //        ps.close()
+  //        l.info("A file " + bat + " has been written to execute this backup again")
+  //      }
+  //    }
+  //
+  //    writeTo(new File(".", conf.folder.getName() + suffix))
+  //    writeTo(new File(conf.folder, "_" + conf.folder.getName() + suffix))
+  //  }
+
+
   def run(): Unit = {
+    //    if (!multipleBackupConf.noScriptCreation()) {
+    //      writeBat(t, conf, lastArgs)
+    //    }
     ProgressReporters.openGui("Backup", new RemoteOptions())
     for (backupEnv <- BackupEnv(backupFolderConf, readOnly = false).autoClosed) {
       val backup = new DoBackup(backupEnv)
