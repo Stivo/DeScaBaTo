@@ -2,6 +2,7 @@ package ch.descabato.core.actions
 
 import better.files.*
 import ch.descabato.core.FileVisitorCollector
+import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkId
 import ch.descabato.core.model.ChunkKey
@@ -10,8 +11,10 @@ import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.InMemoryDb
 import ch.descabato.core.util.ValueLogWriter
+import ch.descabato.frontend.Command3
 import ch.descabato.frontend.FileCounter
 import ch.descabato.frontend.MaxValueCounter
+import ch.descabato.frontend.MultipleBackupConf
 import ch.descabato.frontend.ProgressReporters
 import ch.descabato.frontend.SizeStandardCounter
 import ch.descabato.frontend.StandardCounter
@@ -20,6 +23,7 @@ import ch.descabato.protobuf.keys.BackedupFileType
 import ch.descabato.protobuf.keys.FileMetadataKey
 import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.RevisionValue
+import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.Implicits.*
 import ch.descabato.utils.StandardMeasureTime
@@ -38,6 +42,20 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.DosFileAttributes
 import scala.collection.mutable
 import scala.util.Try
+
+
+class BackupCommand3(multipleBackupConf: MultipleBackupConf, backupFolderConf: BackupFolderConfiguration)
+  extends Command3 {
+
+  def run(): Unit = {
+    ProgressReporters.openGui("Backup", new RemoteOptions())
+    for (backupEnv <- BackupEnv(backupFolderConf, readOnly = false).autoClosed) {
+      val backup = new DoBackup(backupEnv)
+      backup.run(multipleBackupConf.foldersToBackup())
+    }
+  }
+
+}
 
 class DoBackup(backupEnv: BackupEnv) extends LazyLogging {
 

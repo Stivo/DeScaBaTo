@@ -1,24 +1,40 @@
 package ch.descabato.core.actions
 
+import ch.descabato.Main
 import ch.descabato.core.BackupException
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.Size
+import ch.descabato.frontend.Command3
 import ch.descabato.frontend.VerifyConf
 import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Implicits.AwareDigest
 import ch.descabato.utils.Utils
 import org.bouncycastle.crypto.Digest
+import org.rogach.scallop.ScallopConf
 
 import java.io.IOException
 import scala.util.Random
+
+
+class VerifyCommand3(verifyConf: VerifyConf, backupFolderConf: BackupFolderConfiguration)
+  extends Command3 {
+
+  def run(): Unit = {
+    val counter = new DoVerify(backupFolderConf).verifyAll(verifyConf)
+    Main.lastErrors = counter.count
+    if (counter.count != 0)
+      Main.exit(counter.count.toInt)
+  }
+
+}
 
 class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils {
 
   private val backupEnv = BackupEnv(conf, readOnly = true)
 
-  import backupEnv._
+  import backupEnv.*
 
   val random = new Random()
   val digest: Digest = conf.createMessageDigest()

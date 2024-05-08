@@ -4,18 +4,22 @@ import ch.descabato.CompressionMode
 import ch.descabato.HashAlgorithm
 import ch.descabato.Main
 import ch.descabato.RemoteMode
+import ch.descabato.RestoreCommand3
 import ch.descabato.core.BackupException
 import ch.descabato.core.ExceptionFactory
 import ch.descabato.core.MisconfigurationException
+import ch.descabato.core.actions.BackupCommand3
+import ch.descabato.core.actions.VerifyCommand3
 import ch.descabato.core.config.BackupConfigurationHandler
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.FileManager
-import ch.descabato.frontend.ScallopConverters._
+import ch.descabato.frontend.ScallopConverters.*
+import ch.descabato.frontend.commands.CountCommand
 import ch.descabato.utils.BuildInfo
-import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Implicits.*
 import ch.descabato.utils.Utils
-import org.rogach.scallop._
+import org.rogach.scallop.*
 import org.rogach.scallop.exceptions.ScallopException
 
 import java.io.File
@@ -97,7 +101,7 @@ class ReflectionCommand(override val name: String, clas: String) extends Command
 
 }
 
-trait BackupRelatedCommand extends Command with Utils {
+trait BackupRelatedCommand extends Command {
   type T <: BackupFolderOption
 
   def newT(args: Seq[String]): T
@@ -128,11 +132,11 @@ trait BackupRelatedCommand extends Command with Utils {
       start(t)
     } catch {
       case e@MisconfigurationException(message) =>
-        l.info(message)
-        logException(e)
+        println(message)
+        e.printStackTrace()
       case e: ScallopException =>
-        l.info(e.message)
-        l.info("Help for command:")
+        println(e.message)
+        println("Help for command:")
         t.printHelp()
     }
   }
@@ -142,7 +146,7 @@ trait BackupRelatedCommand extends Command with Utils {
   def overrideVersion: Option[String] = None
 
   def start(t: T): Unit = {
-    import ch.descabato.core.config.BackupVerification._
+    import ch.descabato.core.config.BackupVerification.*
     val confHandler = new BackupConfigurationHandler(t, needsExistingBackup)
     confHandler.verify() match {
       case b@BackupDoesntExist => throw BackupDoesntExist
@@ -169,7 +173,7 @@ trait BackupRelatedCommand extends Command with Utils {
         FileSystems.getDefault().getPath(s)
       } catch {
         case e: Exception =>
-          l.error(s"$s for ${option.name} is not a valid filename: ${e.getMessage}")
+          System.err.println(s"$s for ${option.name} is not a valid filename: ${e.getMessage}")
           System.exit(1)
       }
     }
@@ -202,7 +206,21 @@ trait CreateBackupOptions extends ChangeableBackupOptions {
 }
 
 trait ProgramOption extends ScallopConf {
-  val logfile: ScallopOption[String] = opt[String](descr = "Destination of the logfile of this backup")
+  val logfile: ScallopOption[String] = opt[String](descr = "Destination of the logfile of this backup, as an absolute or relative path")
+
+  def printConfiguration(): Unit = {
+    println(this.summary)
+  }
+
+  override def verify(): Unit = {
+    super.verify()
+    logfile.foreach { x =>
+      if (x.contains("/") || x.contains("\\")) {
+        throw new IllegalArgumentException("Can only specify a filename, not an absolute path")
+      }
+    }
+  }
+
 }
 
 trait NoGuiOption extends ScallopConf {
@@ -213,6 +231,14 @@ trait BackupFolderOption extends ProgramOption {
   val passphrase: ScallopOption[String] = opt[String](descr = "The password to use for the backup. If none is supplied, encryption is turned off", default = None)
   val backupDestination: ScallopOption[File] = trailArg[String](descr = "Root folder of the backup", required = true).map(new File(_).getCanonicalFile())
 
+  override def printConfiguration(): Unit = {
+    if (this.passphrase.isDefined) {
+      println(this.filteredSummary(Set(this.passphrase.name)))
+    } else {
+      println(this.summary)
+    }
+  }
+
 }
 
 class SimpleBackupFolderOption(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption
@@ -221,17 +247,32 @@ class BackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupO
   val folderToBackup: ScallopOption[File] = trailArg[File](descr = "Folder to be backed up").map(_.getCanonicalFile())
 }
 
-class CountConf(args: Seq[String]) extends ScallopConf(args) with ProgramOption {
+class CountConf(args: Seq[String]) extends ScallopConf(args) with ProgramOption with SimpleCommandCreator {
   val dontSaveSymlinks: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Disable backing up symlinks")
   val ignoreFile: ScallopOption[File] = opt[File](descr = "File with ignore patterns", default = None)
   val foldersToCountIn: ScallopOption[List[File]] = trailArg[List[File]](descr = "Folder to count files in").map(_.map(_.getCanonicalFile()))
+
+  def runCommand(): Unit = new CountCommand().start(this)
 }
 
-class MultipleBackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions {
+class GenericConf(args: Seq[String], command: GenericCommand) extends ScallopConf(args) with SimpleCommandCreator {
+
+  override def verify(): Unit = {}
+
+  def runCommand(): Unit = command.execute(args)
+}
+
+class MultipleBackupConf(args: Seq[String]) extends ScallopConf(args) with CreateBackupOptions with BackupConfCommandCreator {
   val foldersToBackup: ScallopOption[List[File]] = trailArg[List[File]](descr = "Folders to be backed up").map(_.map(_.getCanonicalFile()))
+
+  override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
+    new BackupCommand3(this, backupFolderConf).run()
+
+  def needsExistingBackup: Boolean = false
 }
 
-class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {
+class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption
+  with BackupConfCommandCreator {
   val restoreToOriginalPath: ScallopOption[Boolean] = opt[Boolean](descr = "Restore files to original path.")
   val restoreToFolder: ScallopOption[String] = opt[String](descr = "Restore to a given folder")
   val restoreBackup: ScallopOption[String] = opt[String](descr = "Filename of the backup to restore.")
@@ -239,15 +280,28 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   //  val overwriteExisting = toggle(default = Some(false))
   //  val pattern = opt[String]()
   requireOne(restoreToOriginalPath, restoreToFolder)
+
+  override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
+    new RestoreCommand3(this, backupFolderConf).run()
+
+  def needsExistingBackup: Boolean = true
+
 }
 
-class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption {
+class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption
+  with BackupConfCommandCreator {
   val percentOfFilesToCheck: ScallopOption[Int] = opt[Int](default = Some(5), descr = "How many percent of files to check")
   val checkFirstOfEachVolume: ScallopOption[Boolean] = opt[Boolean](default = Some(false), descr = "Check whether the first entry of each volume is correct or not")
   validate(percentOfFilesToCheck) {
     case x if x >= 0 && x <= 100 => Right(())
     case _ => Left("Needs to be percent")
   }
+
+  override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
+    new VerifyCommand3(this, backupFolderConf).run()
+
+  def needsExistingBackup: Boolean = true
+
 }
 
 class HelpCommand extends Command {
@@ -270,6 +324,42 @@ class HelpCommand extends Command {
 class VersionCommand extends Command {
 
   override def name: String = "--version"
+
+  override def execute(args: Seq[String]): Unit = {
+    println(
+      s"""|DeScaBaTo version ${BuildInfo.version}
+          |Scala ${BuildInfo.scalaVersion}
+          |Java ${System.getProperty("java.version")}.
+          |System "${System.getProperty("os.name")}", version ${System.getProperty("os.version")}
+       """.stripMargin)
+  }
+}
+
+trait GenericCommand {
+  def execute(args: Seq[String]): Unit
+}
+
+class HelpCommand2(commandRunner: CommandRunner) extends GenericCommand {
+  private val allCommands = commandRunner.allCommands()
+
+  override def execute(args: Seq[String]): Unit = {
+    args.toList match {
+      // TODO this won't work
+      case command :: _ if allCommands.safeContains(command) =>
+        new CommandRunner(command :: "--help" :: Nil).runCommand3()
+      case _ =>
+        val commands = allCommands.mkString(", ")
+        println(
+          s"""|Welcome to DeScaBaTo ${BuildInfo.version}.
+              |The available commands are: $commands
+              |For further help about a specific command type 'help backup' or 'backup --help'.
+              |For general usage guide go to https://github.com/Stivo/DeScaBaTo""".stripMargin
+        )
+    }
+  }
+}
+
+class VersionCommand2 extends GenericCommand {
 
   override def execute(args: Seq[String]): Unit = {
     println(
