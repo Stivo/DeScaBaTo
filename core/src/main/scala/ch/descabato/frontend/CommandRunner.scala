@@ -149,6 +149,14 @@ class CommandRunner(args: Seq[String]) {
       s"backup-$date.log"
     }
 
+    parsedArgs match {
+      case ng: NoGuiOption =>
+        if (ng.noGui.isSupplied && ng.noGui()) {
+          ProgressReporters.guiEnabled = false
+        }
+      case _ => // pass
+    }
+    
     System.setProperty("logname", new File(destination, "logs/" + logfile).getAbsolutePath)
     // now the loggers are ready
     val version = System.getProperty("prog.version")
