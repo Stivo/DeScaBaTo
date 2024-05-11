@@ -97,7 +97,7 @@ class FuseMountConf(args: Seq[String]) extends ScallopConf(args) with BackupFold
   val mountFolder: ScallopOption[String] = opt[String](descr = "The folder to mount the contents on (on windows: drive letter)", required = true)
 
   override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
-    new MountCommand(this, backupFolderConf)
+    new MountCommand(this, backupFolderConf).start()
 
   override def needsExistingBackup: Boolean = true
 }

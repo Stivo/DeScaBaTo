@@ -6,7 +6,7 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.Size
-import ch.descabato.frontend.Command3
+import ch.descabato.frontend.Command
 import ch.descabato.frontend.VerifyConf
 import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.utils.Implicits.AwareDigest
@@ -18,8 +18,8 @@ import java.io.IOException
 import scala.util.Random
 
 
-class VerifyCommand3(verifyConf: VerifyConf, backupFolderConf: BackupFolderConfiguration)
-  extends Command3 {
+class VerifyCommand(verifyConf: VerifyConf, backupFolderConf: BackupFolderConfiguration)
+  extends Command {
 
   def run(): Unit = {
     val counter = new DoVerify(backupFolderConf).verifyAll(verifyConf)

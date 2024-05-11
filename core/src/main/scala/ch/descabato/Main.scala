@@ -13,7 +13,7 @@ import ch.descabato.core.config.BackupVerification.PasswordNeeded
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.util.FileManager
 import ch.descabato.frontend.BackupFolderOption
-import ch.descabato.frontend.Command3
+import ch.descabato.frontend.Command
 import ch.descabato.frontend.CommandRunner
 import ch.descabato.frontend.CreateBackupOptions
 import ch.descabato.frontend.HelpCommand
@@ -40,7 +40,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoField
 
-class RestoreCommand3(parsedConf: RestoreConf, backupFolderConf: BackupFolderConfiguration) extends Command3 {
+class RestoreCommand(parsedConf: RestoreConf, backupFolderConf: BackupFolderConfiguration) extends Command {
 
   def run(): Unit = {
     for (backupEnv <- BackupEnv(backupFolderConf, readOnly = false).autoClosed) {

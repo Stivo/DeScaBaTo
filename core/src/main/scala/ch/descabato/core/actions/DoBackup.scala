@@ -11,7 +11,7 @@ import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.model.Size
 import ch.descabato.core.util.InMemoryDb
 import ch.descabato.core.util.ValueLogWriter
-import ch.descabato.frontend.Command3
+import ch.descabato.frontend.Command
 import ch.descabato.frontend.FileCounter
 import ch.descabato.frontend.MaxValueCounter
 import ch.descabato.frontend.MultipleBackupConf
@@ -46,8 +46,8 @@ import scala.collection.mutable
 import scala.util.Try
 
 
-class BackupCommand3(multipleBackupConf: MultipleBackupConf, backupFolderConf: BackupFolderConfiguration)
-  extends Command3 {
+class BackupCommand(multipleBackupConf: MultipleBackupConf, backupFolderConf: BackupFolderConfiguration)
+  extends Command {
 
 
   // TODO

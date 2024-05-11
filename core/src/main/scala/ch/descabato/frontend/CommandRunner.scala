@@ -38,7 +38,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoField
 
-abstract class Command3 extends Utils {
+abstract class Command extends Utils {
   def run(): Unit
 }
 
@@ -80,9 +80,16 @@ class CommandRunner(args: Seq[String]) {
     "restore" -> { (args: Seq[String]) => new RestoreConf(args) },
     "verify" -> { (args: Seq[String]) => new VerifyConf(args) },
     "upload" -> { (args: Seq[String]) => new UploadConf(args) },
-    // TODO
-    //    "mount" -> { (args: Seq[String]) => new MountConf(args) },
-  )
+  ) ++ {
+    scala.util.Try {
+      Class.forName("ch.descabato.rocks.fuse.FuseMountConf")
+    }.map { clas =>
+      Map("mount" -> { (args: Seq[String]) =>
+        val constructor = clas.getConstructor(classOf[Seq[String]])
+        constructor.newInstance(args).asInstanceOf[BackupConfCommandCreator]
+      })
+    }.getOrElse(Map())
+  }
 
   private val commandsWithoutFolder: Map[String, Seq[String] => SimpleCommandCreator] = Map(
     "count" -> { (args: Seq[String]) => new CountConf(args) },

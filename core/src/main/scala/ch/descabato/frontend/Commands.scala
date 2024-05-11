@@ -4,12 +4,12 @@ import ch.descabato.CompressionMode
 import ch.descabato.HashAlgorithm
 import ch.descabato.Main
 import ch.descabato.RemoteMode
-import ch.descabato.RestoreCommand3
+import ch.descabato.RestoreCommand
 import ch.descabato.core.BackupException
 import ch.descabato.core.ExceptionFactory
 import ch.descabato.core.MisconfigurationException
-import ch.descabato.core.actions.BackupCommand3
-import ch.descabato.core.actions.VerifyCommand3
+import ch.descabato.core.actions.BackupCommand
+import ch.descabato.core.actions.VerifyCommand
 import ch.descabato.core.config.BackupConfigurationHandler
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.Size
@@ -161,7 +161,7 @@ class MultipleBackupConf(args: Seq[String]) extends ScallopConf(args) with Creat
   val foldersToBackup: ScallopOption[List[File]] = trailArg[List[File]](descr = "Folders to be backed up").map(_.map(_.getCanonicalFile()))
 
   override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
-    new BackupCommand3(this, backupFolderConf).run()
+    new BackupCommand(this, backupFolderConf).run()
 
   def needsExistingBackup: Boolean = false
 }
@@ -177,7 +177,7 @@ class RestoreConf(args: Seq[String]) extends ScallopConf(args) with BackupFolder
   requireOne(restoreToOriginalPath, restoreToFolder)
 
   override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
-    new RestoreCommand3(this, backupFolderConf).run()
+    new RestoreCommand(this, backupFolderConf).run()
 
   def needsExistingBackup: Boolean = true
 
@@ -193,7 +193,7 @@ class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderO
   }
 
   override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
-    new VerifyCommand3(this, backupFolderConf).run()
+    new VerifyCommand(this, backupFolderConf).run()
 
   def needsExistingBackup: Boolean = true
 
