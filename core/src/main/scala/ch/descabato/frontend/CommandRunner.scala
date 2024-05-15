@@ -137,7 +137,7 @@ class CommandRunner(args: Seq[String]) {
         throw new IllegalArgumentException(s"Commmand $commandName doesn't exist"))
       .apply(tailArgs)
     parsedArgs.verify()
-    // TODO safeguard this cast
+    // this cast is fine because in this Map we only have BackupFolderOption configs
     val backupFolderOption = parsedArgs.asInstanceOf[BackupFolderOption]
     val destination = backupFolderOption.backupDestination.getOrElse(
       throw new IllegalArgumentException("Must set backup destination")
@@ -146,7 +146,7 @@ class CommandRunner(args: Seq[String]) {
       val now = LocalDateTime.now()
       val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HHmmss")
       val date = now.format(formatter)
-      s"backup-$date.log"
+      s"$commandName-$date.log"
     }
 
     parsedArgs match {
@@ -156,7 +156,7 @@ class CommandRunner(args: Seq[String]) {
         }
       case _ => // pass
     }
-    
+
     System.setProperty("logname", new File(destination, "logs/" + logfile).getAbsolutePath)
     // now the loggers are ready
     val version = System.getProperty("prog.version")

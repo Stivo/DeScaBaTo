@@ -1,6 +1,6 @@
 package ch.descabato.core.config
 
-import better.files._
+import better.files.*
 import ch.descabato.core.BackupException
 import ch.descabato.core.config.BackupVerification.OK
 import ch.descabato.frontend.BackupFolderOption
@@ -85,7 +85,8 @@ object InitBackupFolderConfiguration extends Utils {
       case _ =>
     }
     old.verify()
-    l.debug("Configuration after merge " + old)
+    // This actually puts the password into the log file
+    // l.debug("Configuration after merge " + old)
     (old, changed)
   }
 
@@ -130,7 +131,7 @@ class BackupConfigurationHandler(private var supplied: BackupFolderOption, exist
   }
 
   def verify(): BackupVerification.VerificationResult = {
-    import BackupVerification._
+    import BackupVerification.*
     if (existing && !hasOld) {
       return BackupDoesntExist
     }
