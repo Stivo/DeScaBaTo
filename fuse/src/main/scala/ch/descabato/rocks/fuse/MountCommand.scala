@@ -58,7 +58,7 @@ class MountCommand(mountConf: FuseMountConf, conf: BackupFolderConfiguration) ex
       }
     }
     val path1 = Paths.get(path)
-    if (Files.exists(path1)) {
+    if (Utils.isWindows && Files.exists(path1)) {
       throw new IllegalArgumentException(s"Folder or drive may not exist, $path1 exists already")
     }
     path1

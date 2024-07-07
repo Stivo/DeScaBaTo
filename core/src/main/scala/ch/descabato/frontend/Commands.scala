@@ -51,26 +51,11 @@ object ScallopConverters {
   implicit val sizeConverter: ValueConverter[Size] = singleArgConverter[Size](x => Size(x))
 
 }
-// TODO reflection command
-//
-//class ReflectionCommand(override val name: String, clas: String) extends Command {
-//
-//  def execute(args: Seq[String]): Unit = {
-//    try {
-//      val clazz = Class.forName(clas)
-//      val instance = clazz.getConstructor().newInstance()
-//      clazz.getMethod("execute", classOf[Seq[String]]).invoke(instance, args)
-//    } catch {
-//      case e: ReflectiveOperationException if e.getCause().isInstanceOf[BackupException] => throw e.getCause
-//      case e: InvocationTargetException if e.getCause() != null => throw e.getCause
-//    }
-//  }
-//
-//}
 
 // Parsing classes
 
 trait RedundancyOptions extends BackupFolderOption {
+  // these have been disabled for a long time
   //  val metadataRedundancy = opt[Int](default = Some(20))
   //  val volumeRedundancy = opt[Int](default = Some(5))
   //  val noRedundancy = opt[Boolean](default = Some(false))

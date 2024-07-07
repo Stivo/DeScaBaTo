@@ -51,22 +51,6 @@ trait BackupConfCommandCreator extends BackupFolderOption {
 trait SimpleCommandCreator extends ScallopConf {
   def runCommand(): Unit
 }
-// TODO
-//
-//class ReflectionConf(override val name: String, clas: String) extends BackupConfCommandCreator {
-//
-//  def execute(args: Seq[String]): Unit = {
-//    try {
-//      val clazz = Class.forName(clas)
-//      val instance = clazz.getConstructor().newInstance()
-//      clazz.getMethod("execute", classOf[Seq[String]]).invoke(instance, args)
-//    } catch {
-//      case e: ReflectiveOperationException if e.getCause().isInstanceOf[BackupException] => throw e.getCause
-//      case e: InvocationTargetException if e.getCause() != null => throw e.getCause
-//    }
-//  }
-//
-//}
 
 class CommandRunner(args: Seq[String]) {
   private val (commandName, tailArgs) = if (args.isEmpty) {
