@@ -8,29 +8,29 @@ Compile / unmanagedSourceDirectories += new File("src/main/resources")
 // Core dependencies
 libraryDependencies ++= Seq(
   "org.rogach" %% "scallop" % "4.1.0",
-  "org.ocpsoft.prettytime" % "prettytime" % "5.0.2.Final",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.70",
-  ("com.github.pathikrit" %% "better-files" % "3.9.1").cross(CrossVersion.for3Use2_13),
+  "org.ocpsoft.prettytime" % "prettytime" % "5.0.9.Final",
+  "org.bouncycastle" % "bcprov-jdk15to18" % "1.78.1",
+  ("com.github.pathikrit" %% "better-files" % "3.9.2").cross(CrossVersion.for3Use2_13),
 )
 
 // compressors
 libraryDependencies ++= Seq(
-  "org.iq80.snappy" % "snappy" % "0.4",
+  "org.iq80.snappy" % "snappy" % "0.5",
   "org.lz4" % "lz4-java" % "1.8.0",
   "org.tukaani" % "xz" % "1.9",
-  "org.apache.commons" % "commons-compress" % "1.21",
-  "com.github.luben" % "zstd-jni" % "1.5.2-2"
+  "org.apache.commons" % "commons-compress" % "1.26.2",
+  "com.github.luben" % "zstd-jni" % "1.5.6-3"
 )
 
 // Logging
 libraryDependencies ++= Seq(
-  "ch.qos.logback" % "logback-classic" % "1.2.11",
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4"
+  "ch.qos.logback" % "logback-classic" % "1.2.13",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
 )
 
 // Jackson / persistence
 libraryDependencies ++= Seq(
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.2"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.5"
 )
 
 // UI Dependencies
@@ -42,10 +42,10 @@ libraryDependencies ++= Seq(
 
 // remote dependencies
 libraryDependencies ++= Seq(
-  "com.amazonaws" % "aws-java-sdk-s3" % "1.12.191"
+  "com.amazonaws" % "aws-java-sdk-s3" % "1.12.757"
 )
 
-val scalaTestVersion = "3.2.11"
+val scalaTestVersion = "3.2.19"
 
 // Test dependencies
 libraryDependencies ++= Seq(
@@ -58,7 +58,7 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.easymock"),
     ExclusionRule(organization = "org.mockito")
   ),
-  "org.scalatestplus" %% "scalacheck-1-15" % (scalaTestVersion + ".0") % Test,
+  "org.scalatestplus" %% "scalacheck-1-18" % (scalaTestVersion + ".0") % Test,
   "org.scalatest" %% "scalatest-matchers-core" % scalaTestVersion % Test,
   "org.scalactic" %% "scalactic" % scalaTestVersion % "test"
     excludeAll(
