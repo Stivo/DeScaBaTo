@@ -5,7 +5,7 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.utils.BytesWrapper
 import ch.descabato.utils.CompressedBytes
 import ch.descabato.utils.CompressedStream
-import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Implicits.*
 import ch.descabato.utils.StandardMeasureTime
 import ch.descabato.utils.Utils
 
@@ -51,17 +51,11 @@ class SamplingCompressionDecider extends CompressionDecider {
   override def determineCompressor(file: File, block: BytesWrapper): (CompressionMode, Option[CompressedBytes]) = {
     if (block.length < 128) {
       (CompressionMode.none, None)
-    } else if (block.length < 2048) {
-      (CompressionMode.zstd1, None)
-    } else if (block.length < 10240) {
-      (CompressionMode.lzma3, None)
+    } else if (file.length() > 1 * 1024 * 1024) {
+      // only sample above 1Mb, so it is worth it
+      sampleFile(file, block)
     } else {
-      if (file.length() > 1 * 1024 * 1024) {
-        // only sample above 1Mb, so it is worth it
-        sampleFile(file, block)
-      } else {
-        (CompressionMode.zstd1, None)
-      }
+      (CompressionMode.zstd1, None)
     }
   }
 
@@ -81,7 +75,7 @@ class Sampling(file: File) extends Utils {
 
   def setDecisionAndReturn(algorithm: CompressionMode): (CompressionMode, Option[CompressedBytes]) = {
     decision = Some(algorithm)
-    logger.info(s"Decision for $file is $algorithm")
+    logger.debug(s"Decision for $file is $algorithm")
     (decision.get, None)
   }
 
@@ -99,42 +93,17 @@ class Sampling(file: File) extends Utils {
     }
   }
 
-  def sampleAndReturn(mode: CompressionMode, block: BytesWrapper): (CompressionMode, Option[CompressedBytes]) = {
-    logger.info(s"Sampling $mode for $file for block with length ${
-      block.length
-    }")
-    val measure = new StandardMeasureTime()
-    val compressed = CompressedStream.compressBytes(block, mode)
-    samples :+= new SamplingData(mode, block.length, compressed.compressed.length, measure.timeInMs())
-    (mode, Some(compressed))
-  }
-
   def sample(mode: CompressionMode, block: BytesWrapper): (SamplingData, CompressedBytes) = {
     val measure = new StandardMeasureTime()
     val compressed = CompressedStream.compressBytes(block, mode)
     val sample = new SamplingData(mode, block.length, compressed.compressed.length, measure.timeInMs())
     samples :+= sample
-    logger.info(s"Sampling $mode for $file for block with length ${
+    logger.debug(s"Sampling $mode for $file for block with length ${
       block.length
     }, had ratio ${
       sample.ratio
     }")
     (sample, compressed)
-  }
-
-  def makeDecision(): CompressionMode = {
-    val sorted = samples // already sorted by time
-    var best = sorted.head
-    logger.info(sorted.map(_.toString).mkString("\n"))
-    for (other <- sorted.tail) {
-      val firstIsZstd = best.algorithm.name().startsWith("zstd")
-      val secondIsZstd = other.algorithm.name().startsWith("zstd")
-      val diffNeeded = if (firstIsZstd && secondIsZstd) 0.02 else if (firstIsZstd && !secondIsZstd) 0.2 else 0.05
-      if (other.ratio < best.ratio - diffNeeded) {
-        best = other
-      }
-    }
-    best.algorithm
   }
 
 }

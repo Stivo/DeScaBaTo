@@ -28,7 +28,7 @@ case class BackupFolderConfiguration(folder: File, @JsonIgnore var passphrase: O
   var version: String = ch.descabato.utils.BuildInfo.version
 
   var keyLength = 128
-  var compressor = CompressionMode.smart
+  var compressor = CompressionMode.zstd5
 
   var hashAlgorithm: HashAlgorithm = HashAlgorithm.sha3_256
 
