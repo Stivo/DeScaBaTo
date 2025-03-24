@@ -147,7 +147,7 @@ class BytesWrapper private(val array: Array[Byte], val offset: Int, val length: 
     }
   }
 
-  override def toString(): String = s"${array.length}: ${new String(array)}"
+  override def toString(): String = s"${array.length}: ${Hex.toHexString(array)}"
 
   override def ===(t: BytesWrapper): Boolean = equals(t)
 }

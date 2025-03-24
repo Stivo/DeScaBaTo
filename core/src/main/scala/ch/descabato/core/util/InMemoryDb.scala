@@ -65,12 +65,17 @@ object InMemoryDb extends LazyLogging {
     var out: Option[InMemoryDb] = None
     for (file <- files) {
       val st = new StandardMeasureTime
+      //      try {
       Using(backupEnv.config.newCompressedInputStream(file)) { fis =>
         val db = ProtoDb.parseFrom(fis)
         val inMemoryDb = fromProto(db)
         out = out.map(_.merge(inMemoryDb)) orElse Some(inMemoryDb)
         logger.info(s"Metadata read from $file has a size of ${Size(db.serializedSize)} uncompressed, took ${st.measuredTime()}")
       }.getOrThrow()
+      // TODO if this is not caught, the backup becomes completely useless with one file broken
+      //      } catch {
+      //        case x: Exception => logger.warn(s"File $file seems corrupted, skipping")
+      //      }
     }
     out
   }

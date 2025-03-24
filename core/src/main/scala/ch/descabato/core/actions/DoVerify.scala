@@ -6,16 +6,23 @@ import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ChunkKey
 import ch.descabato.core.model.Size
+import ch.descabato.core.model.ValueLogStatusKey
 import ch.descabato.frontend.Command
 import ch.descabato.frontend.VerifyConf
+import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.ValueLogIndex
+import ch.descabato.protobuf.keys.ValueLogStatusValue
 import ch.descabato.utils.Implicits.AwareDigest
 import ch.descabato.utils.Utils
 import org.bouncycastle.crypto.Digest
-import org.rogach.scallop.ScallopConf
 
+import java.io.File
 import java.io.IOException
+import java.io.PrintWriter
+import java.nio.file.Files
 import scala.util.Random
+import scala.util.Try
+import scala.util.Using
 
 
 class VerifyCommand(verifyConf: VerifyConf, backupFolderConf: BackupFolderConfiguration)
@@ -53,6 +60,27 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     counter
   }
 
+  // TODO allow usage of this function
+  private def checkHashesSimple(counter: ProblemCounter): Unit = {
+    val keys = backupEnv.rocks.getAllValueLogStatusKeys().toSeq.sortBy(_._1.name)
+    for ((key, value) <- keys) {
+      logger.info(s"Hashing $key")
+      val path = backupEnv.config.resolveRelativePath(key.name)
+      val hash = Using(Files.newInputStream(path.toPath)) { is =>
+        org.apache.commons.codec.digest.DigestUtils.md5Hex(is)
+      }
+      val expectedHash = s"${value.md5Hash.toString().substring(4)}"
+      if (hash.isSuccess) {
+        if (expectedHash != hash.get) {
+          counter.addProblem(s"Type 1: Hash for ${key.name} does not match between expected $expectedHash and actual ${hash.get}")
+        }
+      } else {
+        counter.addProblem(s"Failed hashing ${key.name}")
+      }
+    }
+
+  }
+
   private def checkExport(counter: ProblemCounter): Unit = {
     logger.info(s"Found ${backupEnv.rocks.getAllRevisions().size} revisions")
     logger.info(s"Found ${backupEnv.rocks.getAllValueLogStatusKeys().size} value log status keys")
@@ -62,6 +90,7 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     val compressedSize = Size(backupEnv.rocks.getAllChunks().map(_._2.lengthCompressed.toLong).sum)
     logger.info(s"Found $uncompressedSize bytes uncompressed file contents (compressed to $compressedSize)")
     var (files, sizes) = (0L, 0L)
+    var uniqueFiles = Set.empty[FileMetadataValue]
     for {
       revisionValue <- backupEnv.rocks.getAllRevisions().values
       identifier <- revisionValue.fileIdentifiers
@@ -69,8 +98,10 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
     } {
       files += 1
       sizes += value.length
+      uniqueFiles += value
     }
     logger.info(s"Can restore $files files in total with total size ${Size(sizes)}")
+    logger.info(s"${uniqueFiles.size} different files with total size ${Size(uniqueFiles.map(_.length).sum)}")
   }
 
   private def checkConnectivity(t: VerifyConf, problemCounter: ProblemCounter): Unit = {
@@ -85,29 +116,38 @@ class DoVerify(conf: BackupFolderConfiguration) extends AutoCloseable with Utils
           for (chunkKey <- fileMetadataValue.hashIds) {
             rocks.getChunkById(chunkKey) match {
               case Some((ChunkKey(hash), c: ValueLogIndex)) =>
-                if (!checkedAlready.contains(c)) {
-                  checkedAlready += c
-                  if ((t.checkFirstOfEachVolume() && c.from < 100) || (t.percentOfFilesToCheck() > 0 && t.percentOfFilesToCheck() >= random.nextInt(100))) {
-                    try {
-                      logger.info(s"Checking ${c}")
-                      val value = backupEnv.reader.readValue(c)
-                      val computedHash = digest.digest(value)
-                      if (computedHash !== hash) {
-                        problemCounter.addProblem(s"Chunk $c for hash ${hash.base64} does not match the computed hash ${computedHash.base64}.\n" +
-                          s"This would be needed to reconstruct ${fileMetadataKey.path} for example")
+                if (c.filename.contains("0762") || c.filename.contains("0788")) {
+                  if (!checkedAlready.contains(c)) {
+                    checkedAlready += c
+                    if ((t.checkFirstOfEachVolume() && c.from < 100) || (t.percentOfFilesToCheck() > 0 && t.percentOfFilesToCheck() >= random.nextInt(100))) {
+                      try {
+                        if (checkedAlready.size % 100 == 0) {
+                          logger.info(s"Checking ${c}")
+                        }
+                        val value = backupEnv.reader.readValue(c)
+                        val computedHash = digest.digest(value)
+                        println(s"$computedHash vs $hash")
+                        if (computedHash !== hash) {
+                          problemCounter.addProblem(s"Chunk $c for hash ${hash.base64} does not match the computed hash ${computedHash.base64}.\n" +
+                            s"This would be needed to reconstruct ${fileMetadataKey.path} for example")
+                        }
+                      } catch {
+                        case e: IOException =>
+                          problemCounter.addProblem(s"Chunk $c for hash ${hash.base64} could not be read correctly (got exception ${e.getMessage})")
                       }
-                    } catch {
-                      case e: IOException =>
-                        problemCounter.addProblem(s"Chunk $c for hash ${hash.base64} could not be read correctly (got exception ${e.getMessage})")
-                    }
-                  } else {
-                    try {
-                      backupEnv.reader.assertChunkIsCovered(c)
-                    } catch {
-                      case e: IOException =>
-                        problemCounter.addProblem(s"Chunk $c for hash ${hash.base64} of file ${fileMetadataKey.path} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
-                      case e: BackupException =>
-                        problemCounter.addProblem(s"Chunk $c for hash ${hash.base64} of file ${fileMetadataKey.path} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
+                    } else {
+                      try {
+                        backupEnv.reader.assertChunkIsCovered(c)
+                      } catch {
+                        case e: IOException =>
+                          problemCounter.addProblem(s"Chunk $c for hash ${hash.base64} of file ${fileMetadataKey.path} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
+                        case e: BackupException =>
+                          problemCounter.addProblem(s"Chunk $c for hash ${hash.base64} of file ${fileMetadataKey.path} is not covered by the file ${c.filename} (got exception ${e.getMessage})")
+                        case e: IllegalStateException =>
+                          problemCounter.addProblem("Other issue, might be a whole corrupted volume " + e.getMessage)
+                        case e: Exception =>
+                          problemCounter.addProblem("Some other issue " + e.getMessage)
+                      }
                     }
                   }
                 }

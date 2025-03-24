@@ -8,6 +8,7 @@ import com.amazonaws.event.ProgressEventType
 import com.amazonaws.event.ProgressListener
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.model.ObjectListing
 import com.amazonaws.services.s3.model.ObjectMetadata
 import com.amazonaws.services.s3.model.PutObjectRequest
 import com.amazonaws.services.s3.model.StorageClass
@@ -23,7 +24,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.util.Try
 
 object S3RemoteClient {
@@ -40,7 +41,7 @@ object S3RemoteClient {
 class S3RemoteClient private(val url: String, val bucketName: String, val prefix: String) extends RemoteClient with Utils with AutoCloseable {
   lazy val client: AmazonS3 = AmazonS3ClientBuilder.defaultClient()
   lazy val manager: TransferManager = TransferManagerBuilder.standard()
-    .withMinimumUploadPartSize(64 * 1024 * 1024L)
+    .withMinimumUploadPartSize(16 * 1024 * 1024L)
     .withExecutorFactory(new MyExecutorServiceFactory(10))
     .build()
 
@@ -48,12 +49,23 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
 
   override def list(): Try[Seq[RemoteFile]] = {
     Try {
-      val listing = client.listObjects(bucketName, prefix)
-      listing.getObjectSummaries.asScala.toSeq.map { summary =>
-        val path = summary.getKey.replace(prefix, "")
-        val size = summary.getSize
-        new S3RemoteFile(BackupPath(path), size, summary.getETag)
+      var listing = client.listObjects(bucketName, prefix)
+      var out = Seq.empty[S3RemoteFile]
+
+      def addToSequence(listing: ObjectListing): Unit = {
+        out ++= listing.getObjectSummaries.asScala.toSeq.map { summary =>
+          val path = summary.getKey.replace(prefix, "")
+          val size = summary.getSize
+          new S3RemoteFile(BackupPath(path), size, summary.getETag)
+        }
       }
+
+      addToSequence(listing)
+      while (listing.isTruncated) {
+        listing = client.listNextBatchOfObjects(listing)
+        addToSequence(listing)
+      }
+      out
     }
   }
 
@@ -106,6 +118,7 @@ class S3RemoteClient private(val url: String, val bucketName: String, val prefix
       } else {
         StorageClass.Standard
       }
+      logger.info(s"Uploading $file to $bucketName/$remotePath with storage class $storageClass")
       request.setStorageClass(storageClass)
       val upload = manager.upload(request)
       context.foreach { c =>

@@ -5,10 +5,12 @@ import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.ValueLogStatusKey
 import ch.descabato.protobuf.keys.Status
 import ch.descabato.utils.Hash
-import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Implicits.*
 import ch.descabato.utils.Utils
+import org.apache.commons.codec.digest.DigestUtils
 
 import java.io.File
+import java.io.FileInputStream
 import java.util.concurrent.Executors
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -44,6 +46,21 @@ class RemoteUploader(backupEnv: BackupEnv) extends Utils with AutoCloseable {
     remoteFiles = remoteClient.list().get.map { rem =>
       (rem.path, rem)
     }.toMap
+
+    def uploadIfNecessary(path: BackupPath): Unit = {
+      if (!remoteFiles.safeContains(path) && path.forConfig(config).exists()) {
+        logger.info(s"Uploading file $path")
+        val hash: Hash = hashFile(path)
+        queueUpload(path.forConfig(config), hash)
+      }
+    }
+
+    val path = BackupPath("backup.json")
+    uploadIfNecessary(path)
+    for (ident <- backupEnv.fileManager.dbexport.getFiles()) {
+      val path = BackupPath(ident, config)
+      uploadIfNecessary(path)
+    }
     for (ident <- backupEnv.fileManager.allFiles()) {
       val key = ValueLogStatusKey(backupEnv.config.relativePath(ident))
       val value = backupEnv.rocks.readValueLogStatus(key)
@@ -56,6 +73,13 @@ class RemoteUploader(backupEnv: BackupEnv) extends Utils with AutoCloseable {
       }
     }
     uploadSomeFiles(maxUploads)
+  }
+
+  private def hashFile(path: BackupPath) = {
+    val fis = new FileInputStream(path.forConfig(config))
+    val hash = Hash(DigestUtils.md5(fis))
+    fis.close()
+    hash
   }
 
   private def uploadSomeFiles(maxUploads: Int): (Int, Int) = {
