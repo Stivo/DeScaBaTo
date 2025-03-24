@@ -81,6 +81,8 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
     if (readOnly) {
       logger.info(s"Skipping deletion of file ${x}, because backup is opened as read only")
     } else {
+      logger.error("There are issues with this backup, repair this backup before proceeding.")
+      System.exit(0)
       if (Desktop.isDesktopSupported && Desktop.getDesktop.isSupported(Action.MOVE_TO_TRASH)) {
         Desktop.getDesktop.moveToTrash(x)
       } else {
@@ -106,6 +108,7 @@ class RepairLogic(backupEnvInit: BackupEnvInit) extends Utils {
     for (volume <- volumes) {
       logger.warn(s"Will delete $volume, because it is not mentioned in dbexport")
       deleteFile(volume, readOnly)
+
     }
     for (volume <- toDelete) {
       logger.warn(s"Will delete $volume, because status is not finished")
