@@ -22,6 +22,25 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
 
   def getUpdates(): ProtoDb = updates
 
+  def getAsProtoDb(): ProtoDb = {
+    var proto = new ProtoDb()
+    proto = proto.addAllRevisions(getAllRevisions())
+    proto = proto.addAllStatus(getAllValueLogStatusKeys())
+    var fileMap = proto.fileMetadataMap
+    inMemoryDb.fileMetadataMap.valueMap.foreach { case (id, (key, value)) =>
+      fileMap = fileMap.addFileMetadataKeys((id, key))
+      fileMap = fileMap.addFileMetadataValues((id, value))
+    }
+    proto = proto.withFileMetadataMap(fileMap)
+    var chunkMap = proto.chunkMap
+    inMemoryDb.chunkMap.valueMap.foreach { case (id, (key, value)) =>
+      chunkMap = chunkMap.addChunkKeys((id, key))
+      chunkMap = chunkMap.addChunkValues((id, value))
+    }
+    proto = proto.withChunkMap(chunkMap)
+    proto
+  }
+
   def getAllChunks(): Iterator[(ChunkKey, ValueLogIndex)] = {
     inMemoryDb.chunkMap.iterator()
   }
