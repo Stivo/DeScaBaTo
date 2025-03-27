@@ -2,7 +2,7 @@ package ch.descabato.frontend
 
 import ch.descabato.core.model.Size
 import ch.descabato.remote.RemoteOptions
-import ch.descabato.utils.Implicits._
+import ch.descabato.utils.Implicits.*
 import ch.descabato.utils.Utils
 import com.typesafe.scalalogging.LazyLogging
 import org.ocpsoft.prettytime.PrettyTime
@@ -12,7 +12,7 @@ import org.ocpsoft.prettytime.units.JustNow
 import java.util.Date
 import java.util.concurrent.atomic.AtomicLong
 import javax.swing.SwingUtilities
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 object ProgressReporters extends LazyLogging {
 
@@ -167,6 +167,12 @@ trait ETACounter extends MaxValueCounter with Utils {
 class SizeStandardCounter(val name: String) extends MaxValueCounter with ETACounter {
   override def formatted: String = {
     s"${Utils.readableFileSize(current)} / ${Utils.readableFileSize(maxValue)}"
+  }
+}
+
+class SizeStandardCounterWithEta(val name: String) extends MaxValueCounter with ETACounter {
+  override def formatted: String = {
+    s"${Utils.readableFileSize(current)} / ${Utils.readableFileSize(maxValue)} $calcEta"
   }
 }
 

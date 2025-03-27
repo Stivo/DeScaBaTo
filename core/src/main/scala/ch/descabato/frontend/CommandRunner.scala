@@ -64,6 +64,7 @@ class CommandRunner(args: Seq[String]) {
     "restore" -> { (args: Seq[String]) => new RestoreConf(args) },
     "verify" -> { (args: Seq[String]) => new VerifyConf(args) },
     "upload" -> { (args: Seq[String]) => new UploadConf(args) },
+    "checkfiles" -> { (args: Seq[String]) => new CheckFilesConf(args) },
   ) ++ {
     scala.util.Try {
       Class.forName("ch.descabato.rocks.fuse.FuseMountConf")

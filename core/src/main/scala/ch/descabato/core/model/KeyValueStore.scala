@@ -7,6 +7,7 @@ import ch.descabato.protobuf.keys.ProtoDb
 import ch.descabato.protobuf.keys.RevisionValue
 import ch.descabato.protobuf.keys.ValueLogIndex
 import ch.descabato.protobuf.keys.ValueLogStatusValue
+import ch.descabato.utils.Hash
 import com.typesafe.scalalogging.LazyLogging
 
 object KeyValueStore {
@@ -41,6 +42,12 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
     fileMetadataValue.hashIds.iterator.flatMap { x =>
       inMemoryDb.chunkMap.getById(x)
     }.map(_._2)
+  }
+
+  def getHashes(fileMetadataValue: FileMetadataValue): Iterator[Hash] = {
+    fileMetadataValue.hashIds.iterator.map { x =>
+      inMemoryDb.chunkMap.getById(x).get._1.hash
+    }
   }
 
   def writeRevision(key: RevisionKey, value: RevisionValue): Unit = {

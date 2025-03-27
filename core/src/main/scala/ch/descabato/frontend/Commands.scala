@@ -9,6 +9,7 @@ import ch.descabato.core.BackupException
 import ch.descabato.core.ExceptionFactory
 import ch.descabato.core.MisconfigurationException
 import ch.descabato.core.actions.BackupCommand
+import ch.descabato.core.actions.CheckFilesCommand
 import ch.descabato.core.actions.VerifyCommand
 import ch.descabato.core.config.BackupConfigurationHandler
 import ch.descabato.core.config.BackupFolderConfiguration
@@ -179,6 +180,16 @@ class VerifyConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderO
 
   override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
     new VerifyCommand(this, backupFolderConf).run()
+
+  def needsExistingBackup: Boolean = true
+
+}
+
+class CheckFilesConf(args: Seq[String]) extends ScallopConf(args) with BackupFolderOption with NoGuiOption
+  with BackupConfCommandCreator {
+
+  override def runCommand(backupFolderConf: BackupFolderConfiguration): Unit =
+    new CheckFilesCommand(this, backupFolderConf).run()
 
   def needsExistingBackup: Boolean = true
 
