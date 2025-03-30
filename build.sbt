@@ -18,6 +18,10 @@ val fuse = (project in file("fuse"))
   .dependsOn(core)
   .settings(commonSettings)
 
+val web = (project in file("web"))
+  .dependsOn(core)
+  .settings(commonSettings)
+
 val it = (project in file("integrationtest"))
   .dependsOn(core % "test->test")
   .settings(commonSettings, name := "it",

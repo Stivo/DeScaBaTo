@@ -106,10 +106,9 @@ message ProtoDb {
     map<string, ValueLogStatusValue> status = 2 [(scalapb.field).key_type = "ch.descabato.core.model.ValueLogStatusKey"];
     ChunkProtoMap chunk_map = 3;
     FileMetadataProtoMap file_metadata_map = 4;
-
-    // TODO these definitions are slightly outdated already again
-    // repeated int32 deleted_revisions = 11  [(scalapb.field).type = "ch.descabato.core.model.RevisionKey"];
-    // repeated string deleted_value_log_status = 12 [(scalapb.field).type = "ch.descabato.core.model.ValueLogStatusKey"];
-    // repeated FileMetadataKey deleted_files = 13;
-    // repeated bytes deleted_chunks = 14;
+    // deletions tracking
+    repeated int32 deleted_revisions = 11  [(scalapb.field).type = "ch.descabato.core.model.RevisionKey"];
+    repeated string deleted_value_log_status = 12 [(scalapb.field).type = "ch.descabato.core.model.ValueLogStatusKey"];
+    repeated int32 deleted_files = 13 [(scalapb.field).type = "ch.descabato.core.model.FileMetadataId"];
+    repeated int32 deleted_chunks = 14 [(scalapb.field).type = "ch.descabato.core.model.ChunkId"];
 }

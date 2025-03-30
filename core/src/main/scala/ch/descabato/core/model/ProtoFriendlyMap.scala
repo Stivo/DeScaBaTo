@@ -7,6 +7,7 @@ import ch.descabato.protobuf.keys.FileMetadataValue
 import ch.descabato.protobuf.keys.ValueLogIndex
 import scalapb.TypeMapper
 
+import scala.annotation.targetName
 import scala.collection.immutable.HashMap
 
 
@@ -75,7 +76,22 @@ abstract class ProtoFriendlyMap[Key, Id, Value, MapType](private var _keyMap: Ha
 
   protected def constructNew(newKeyMap: HashMap[Key, Id], newKeyIdMap: HashMap[Id, (Key, Value)]): MapType
 
-  def merge(other: ProtoFriendlyMap[Key, Id, Value, MapType]): MapType = {
+  @targetName("--")
+  def --(ids: Seq[Id]): MapType = {
+    var newIds = _idMap
+    var newKeys = _keyMap
+    for (id <- ids) {
+      _idMap.get(id) match {
+        case Some(key, _) =>
+          newIds = newIds.removed(id)
+          newKeys = newKeys.removed(key)
+      }
+    }
+    constructNew(newKeys, newIds)
+  }
+
+  @targetName("++")
+  def ++(other: ProtoFriendlyMap[Key, Id, Value, MapType]): MapType = {
     val newKeyMap = _keyMap ++ other._keyMap
     val newIdMap = _idMap ++ other._idMap
     constructNew(newKeyMap, newIdMap)

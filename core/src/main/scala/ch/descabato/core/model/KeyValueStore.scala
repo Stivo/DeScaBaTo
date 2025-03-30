@@ -75,6 +75,11 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
     updates = updates.addRevisions((key, value))
   }
 
+  def deleteRevision(key: RevisionKey): Unit = {
+    ensureOpenForWriting()
+    updates = updates.addDeletedRevisions(key)
+  }
+
   def writeFileMetadata(key: FileMetadataKey, value: FileMetadataValue): FileMetadataId = {
     ensureOpenForWriting()
     val id = inMemoryDb.fileMetadataMap.add(key, value)
@@ -83,12 +88,25 @@ class KeyValueStore(readOnly: Boolean, private var inMemoryDb: InMemoryDb = InMe
     id
   }
 
+  def deleteOtherFileMetadataIds(keepFileIdentifiers: Set[FileMetadataId]): Unit = {
+    ensureOpenForWriting()
+    val unusedFileMetadata = getAllFileMetadata().map(x => getFileMetadataByKey(x._1).get._1).toSet -- keepFileIdentifiers
+    println(s"Deleting ${unusedFileMetadata.size} metadata entries")
+    updates = updates.addAllDeletedFiles(unusedFileMetadata)
+  }
+
   def writeChunk(key: ChunkKey, value: ValueLogIndex): ChunkId = {
     ensureOpenForWriting()
     val id = inMemoryDb.chunkMap.add(key, value)
     updates = updates.copy(chunkMap = updates.chunkMap.addChunkKeys((id, key)))
     updates = updates.copy(chunkMap = updates.chunkMap.addChunkValues((id, value)))
     id
+  }
+
+  def deleteChunk(key: ChunkKey): Unit = {
+    ensureOpenForWriting()
+    val ch = getChunk(key).get
+    updates = updates.addDeletedChunks(ch._1)
   }
 
   def writeStatus(key: ValueLogStatusKey, value: ValueLogStatusValue): Unit = {

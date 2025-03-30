@@ -149,14 +149,18 @@ class ValueLogReader(backupEnv: BackupEnv) extends AutoCloseable with LazyLoggin
     }
   }
 
-  def readValue(valueLogIndex: ValueLogIndex): BytesWrapper = {
+  def readValue(valueLogIndex: ValueLogIndex, alsoDecompress: Boolean = true): BytesWrapper = {
     try {
       val raf: FileReader = lookupRaf(valueLogIndex)
       val compressed: BytesWrapper = readTiming.measure {
         raf.readChunk(valueLogIndex.from, valueLogIndex.lengthCompressed)
       }
-      decompressionTiming.measure {
-        CompressedStream.decompressToBytes(compressed)
+      if (alsoDecompress) {
+        decompressionTiming.measure {
+          CompressedStream.decompressToBytes(compressed)
+        }
+      } else {
+        compressed
       }
     } catch {
       case e: Exception =>

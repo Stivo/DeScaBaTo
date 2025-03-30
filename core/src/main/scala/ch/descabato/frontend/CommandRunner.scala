@@ -1,42 +1,20 @@
 package ch.descabato.frontend
 
-import better.files.DisposeableExtensions
-import ch.descabato.core.BackupException
-import ch.descabato.core.PasswordWrongException
-import ch.descabato.core.actions.DoBackup
-import ch.descabato.core.actions.DoRestore
 import ch.descabato.core.config.BackupConfigurationHandler
 import ch.descabato.core.config.BackupFolderConfiguration
 import ch.descabato.core.config.BackupVerification
 import ch.descabato.core.config.BackupVerification.BackupDoesntExist
 import ch.descabato.core.config.BackupVerification.OK
 import ch.descabato.core.config.BackupVerification.PasswordNeeded
-import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.util.FileManager
-import ch.descabato.frontend.BackupFolderOption
-import ch.descabato.frontend.CreateBackupOptions
-import ch.descabato.frontend.HelpCommand
-import ch.descabato.frontend.MultipleBackupConf
-import ch.descabato.frontend.ProgramOption
-import ch.descabato.frontend.ProgressReporters
-import ch.descabato.frontend.RestoreConf
-import ch.descabato.remote.RemoteOptions
 import ch.descabato.utils.Utils
-import ch.descabato.utils.Utils.logException
 import com.typesafe.scalalogging.Logger
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.rogach.scallop.ScallopConf
-import org.rogach.scallop.ScallopOption
 import org.slf4j.LoggerFactory
 
 import java.io.File
-import java.io.PrintStream
-import java.lang.reflect.InvocationTargetException
-import java.nio.file.FileSystems
-import java.security.Security
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoField
 
 abstract class Command extends Utils {
   def run(): Unit
@@ -73,7 +51,16 @@ class CommandRunner(args: Seq[String]) {
         val constructor = clas.getConstructor(classOf[Seq[String]])
         constructor.newInstance(args).asInstanceOf[BackupConfCommandCreator]
       })
-    }.getOrElse(Map())
+    }.getOrElse(Map()) ++ {
+      scala.util.Try {
+        Class.forName("ch.descabato.web.WebServeConf")
+      }.map { clas =>
+        Map("serve" -> { (args: Seq[String]) =>
+          val constructor = clas.getConstructor(classOf[Seq[String]])
+          constructor.newInstance(args).asInstanceOf[BackupConfCommandCreator]
+        })
+      }.getOrElse(Map())
+    }
   }
 
   private val commandsWithoutFolder: Map[String, Seq[String] => SimpleCommandCreator] = Map(

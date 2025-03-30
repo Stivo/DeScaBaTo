@@ -2,7 +2,9 @@ package ch.descabato.core.util
 
 import ch.descabato.core.model.BackupEnv
 import ch.descabato.core.model.BackupEnvInit
+import ch.descabato.core.model.ChunkId
 import ch.descabato.core.model.ChunkMap
+import ch.descabato.core.model.FileMetadataId
 import ch.descabato.core.model.FileMetadataMap
 import ch.descabato.core.model.RevisionKey
 import ch.descabato.core.model.Size
@@ -23,7 +25,11 @@ import scala.util.Using
 class InMemoryDb private(private var _revisionMap: Map[RevisionKey, RevisionValue] = Map.empty,
                          private var _statusMap: Map[ValueLogStatusKey, ValueLogStatusValue] = Map.empty,
                          private val _chunkMap: ChunkMap = ChunkMap.empty,
-                         private val _fileMetadataMap: FileMetadataMap = FileMetadataMap.empty
+                         private val _fileMetadataMap: FileMetadataMap = FileMetadataMap.empty,
+                         val deletedRevisions: Seq[RevisionKey] = Seq.empty,
+                         val deletedValueLogStatus: Seq[ValueLogStatusKey] = Seq.empty,
+                         val deletedChunks: Seq[ChunkId] = Seq.empty,
+                         val deletedFiles: Seq[FileMetadataId] = Seq.empty,
                         ) {
 
   // revisions
@@ -49,11 +55,11 @@ class InMemoryDb private(private var _revisionMap: Map[RevisionKey, RevisionValu
   def fileMetadataMap: FileMetadataMap = _fileMetadataMap
 
   def merge(other: InMemoryDb): InMemoryDb = {
-    val newRevisions = _revisionMap ++ other.revisions
-    val newStatus = _statusMap ++ other.valueLogStatus
-    val newChunkMap = _chunkMap.merge(other.chunkMap)
-    val newFileMetadataMap = _fileMetadataMap.merge(other.fileMetadataMap)
-    new InMemoryDb(newRevisions, newStatus, newChunkMap, newFileMetadataMap)
+    val newRevisions = (_revisionMap -- other.deletedRevisions) ++ other.revisions
+    val newStatus = (_statusMap -- other.deletedValueLogStatus) ++ other.valueLogStatus
+    val newChunkMap = (_chunkMap -- other.deletedChunks) ++ (other.chunkMap)
+    val newFileMetadataMap = (_fileMetadataMap -- other.deletedFiles).++(other.fileMetadataMap)
+    new InMemoryDb(newRevisions, newStatus, newChunkMap, newFileMetadataMap, Seq.empty, Seq.empty, Seq.empty, Seq.empty)
   }
 
 }
@@ -92,7 +98,7 @@ object InMemoryDb extends LazyLogging {
   private def fromProto(protoDb: ProtoDb): InMemoryDb = {
     val chunkMap = ChunkMap.importFromProto(protoDb.chunkMap)
     val fileMetadataMap = FileMetadataMap.importFromProto(protoDb.fileMetadataMap)
-    new InMemoryDb(protoDb.revisions, protoDb.status, chunkMap, fileMetadataMap)
+    new InMemoryDb(protoDb.revisions, protoDb.status, chunkMap, fileMetadataMap, protoDb.deletedRevisions, protoDb.deletedValueLogStatus, protoDb.deletedChunks, protoDb.deletedFiles)
   }
 
   def empty: InMemoryDb = new InMemoryDb()
